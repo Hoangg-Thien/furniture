@@ -13,14 +13,22 @@ target/
 .springBeans
 .sts4-cache
 
-# Node / Frontend
+# Node / Frontend / Mobile
 node_modules/
-frontend/node_modules/
 dist/
 dist-ssr/
 *.local
 .env
 .env.*
+
+# Expo
+.expo/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
 
 ### IntelliJ IDEA ###
 .idea
