@@ -686,4 +686,8 @@ INSERT INTO users (id, username, password_hash, role) VALUES (35, 'luugiahuy', '
 INSERT INTO customers (id, user_id, full_name, email, phone, address) VALUES (22, 35, 'Luu Gia Huy', 'luugiahuy@example.com', '0909090909', '789 Nguyen Hue, Quan 1');
 INSERT INTO users (id, username, password_hash, role) VALUES (34, 'huyluu123', '4be1060d0223a3326c0984b286725e7e1c900ce1bf28539eb6442eb7df6b803d', 'CUSTOMER');
 INSERT INTO customers (id, user_id, full_name, email, phone, address) VALUES (21, 34, 'Luu Gia Huy', 'huyluu123@gmail.com', '0912345678', '12, lac long quan, quan 11');
+INSERT INTO orders (id, customer_id, order_date, status, total_amount, discount_amount) VALUES (21, 21, '2026-10-12 16:46:58', 'PENDING', 8900000, 0);
+INSERT INTO order_items (order_id, product_id, quantity, unit_price, amount) VALUES (21, 8, 1, 8900000, 8900000);
+INSERT INTO orders (id, customer_id, order_date, status, total_amount, discount_amount) VALUES (22, 21, '2026-10-12 16:47:52', 'PENDING', 28800000, 0);
+INSERT INTO order_items (order_id, product_id, quantity, unit_price, amount) VALUES (22, 9, 4, 7200000, 28800000);
 COMMIT;

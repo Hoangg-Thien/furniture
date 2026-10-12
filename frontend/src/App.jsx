@@ -15,6 +15,7 @@ import { loadProducts } from './lib/products'
 import { getCurrentUser, logoutUser } from './lib/auth'
 import AuthModal from './components/AuthModal'
 import ProfileModal from './components/ProfileModal'
+import OrderReviewPage from './components/OrderReviewPage'
 import './App.css'
 
 const formatPrice = (price) => `${new Intl.NumberFormat('vi-VN').format(price)}₫`
@@ -30,12 +31,14 @@ function App() {
   const [favorites, setFavorites] = useState([])
   const [showFavorites, setShowFavorites] = useState(false)
   const [cartOpen, setCartOpen] = useState(false)
+  const [orderOpen, setOrderOpen] = useState(false)
   const [productFormOpen, setProductFormOpen] = useState(false)
   const [productImagePreview, setProductImagePreview] = useState('')
   const [notice, setNotice] = useState('')
   const [currentUser, setCurrentUser] = useState(() => getCurrentUser())
   const [authOpen, setAuthOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
+  const [completedOrder, setCompletedOrder] = useState(null)
 
   function handleLogout() {
     logoutUser()
@@ -66,6 +69,35 @@ function App() {
     }
   }, [productImagePreview])
 
+  useEffect(() => {
+    if (window.location.pathname.includes('/order-success')) {
+      try {
+        const saved = localStorage.getItem('nep_last_order')
+        if (saved) {
+          setCompletedOrder(JSON.parse(saved))
+          setOrderOpen(true)
+        }
+      } catch (err) {
+        console.error('Cannot restore order:', err)
+      }
+    }
+
+    function handlePopState() {
+      if (window.location.pathname.includes('/order-success')) {
+        const saved = localStorage.getItem('nep_last_order')
+        if (saved) {
+          setCompletedOrder(JSON.parse(saved))
+          setOrderOpen(true)
+        }
+      } else {
+        setOrderOpen(false)
+        setCompletedOrder(null)
+      }
+    }
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [])
+
   const filteredProducts = products.filter((product) => {
     const matchesCategory = activeCategory === 'Tất cả' || product.category === activeCategory
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.trim().toLowerCase())
@@ -95,12 +127,21 @@ function App() {
 
   function placeOrder() {
     if (currentUser) {
-      setNotice(`Cảm ơn ${currentUser.fullName || currentUser.username}! Đơn hàng của bạn đã được ghi nhận.`)
+      setCartOpen(false)
+      setOrderOpen(true)
     } else {
       setNotice('Vui lòng đăng nhập tài khoản để hoàn tất đặt hàng.')
       setAuthOpen(true)
+      window.setTimeout(() => setNotice(''), 4000)
     }
-    window.setTimeout(() => setNotice(''), 4000)
+  }
+
+  function handleOrderSuccess(orderData) {
+    if (orderData) {
+      setCompletedOrder(orderData)
+    }
+    // Clear cart after successful order
+    setCart({})
   }
 
   function previewProductImage(event) {
@@ -484,6 +525,23 @@ function App() {
         onClose={() => setProfileOpen(false)}
         onLogout={handleLogout}
       />
+      {orderOpen && (
+        <OrderReviewPage
+          cartItems={cartItems}
+          cart={cart}
+          subtotal={subtotal}
+          currentUser={currentUser}
+          initialOrder={completedOrder}
+          onClose={() => {
+            setOrderOpen(false)
+            setCompletedOrder(null)
+            if (window.location.pathname.includes('/order-success')) {
+              window.history.pushState({}, '', window.location.origin + '/')
+            }
+          }}
+          onOrderSuccess={handleOrderSuccess}
+        />
+      )}
       {notice && <div className="toast" role="status">{notice}</div>}
     </div>
   )
