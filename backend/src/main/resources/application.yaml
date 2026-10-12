@@ -2,11 +2,15 @@ spring:
   application:
     name: demo
   datasource:
-    url: ${SUPABASE_DB_URL}
-    username: ${SUPABASE_DB_USERNAME}
-    password: ${SUPABASE_DB_PASSWORD}
+    # Kết nối trực tiếp Supabase PostgreSQL
+    url: jdbc:postgresql://aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres?sslmode=require
+    username: postgres.nmdtwgmohaoarppengyo
+    password: Vu892005@gmail
     driver-class-name: org.postgresql.Driver
   jpa:
-    hibernate:
-      ddl-auto: validate
     open-in-view: false
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect

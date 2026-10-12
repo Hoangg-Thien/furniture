@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Furniture Store</string>
+    <string name="title_activity_main">Furniture Store</string>
+    <string name="package_name">com.furniture.store</string>
+    <string name="custom_url_scheme">com.furniture.store</string>
+</resources>

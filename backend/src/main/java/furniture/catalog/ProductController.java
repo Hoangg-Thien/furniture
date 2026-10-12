@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/products")
-@CrossOrigin(origins = "${app.frontend-url:http://localhost:5173}")
+@CrossOrigin(origins = "*")
 public class ProductController {
 
     private final JdbcTemplate jdbcTemplate;

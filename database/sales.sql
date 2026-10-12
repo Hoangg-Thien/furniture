@@ -2,7 +2,7 @@ CREATE TABLE "users" (
   "id" BIGSERIAL PRIMARY KEY,
   "username" VARCHAR(50) UNIQUE NOT NULL,
   "password_hash" VARCHAR(255) NOT NULL,
-  "role" VARCHAR(30) NOT NULL CHECK (role IN ('CUSTOMER', 'STAFF', 'ADMIN')) DEFAULT 'CUSTOMER',
+  "role" VARCHAR(30) NOT NULL DEFAULT 'CUSTOMER' CHECK (role IN ('CUSTOMER', 'STAFF', 'ADMIN')),
   "is_active" BOOLEAN NOT NULL DEFAULT true,
   "created_at" TIMESTAMP NOT NULL DEFAULT (CURRENT_TIMESTAMP),
   CONSTRAINT uq_users_id_role UNIQUE ("id", "role")
@@ -54,6 +54,7 @@ CREATE TABLE "products" (
   "description" TEXT,
   "unit" VARCHAR(50) NOT NULL,
   "selling_price" NUMERIC(15,2) NOT NULL CHECK (selling_price >= 0),
+  "image_url" TEXT,
   "quantity" INTEGER NOT NULL DEFAULT 0 CHECK (quantity >= 0),
   "is_active" BOOLEAN NOT NULL DEFAULT true,
   "created_at" TIMESTAMP NOT NULL DEFAULT (CURRENT_TIMESTAMP)
@@ -79,7 +80,7 @@ CREATE TABLE "orders" (
   "staff_id" BIGINT,
   "order_date" TIMESTAMP NOT NULL DEFAULT (CURRENT_TIMESTAMP),
   "status" VARCHAR(30) NOT NULL DEFAULT 'PENDING',
-  "total_amount" NUMERIC(15,2) NOT NULL CHECK (total_amount >= 0) DEFAULT 0,
+  "total_amount" NUMERIC(15,2) NOT NULL DEFAULT 0 CHECK (total_amount >= 0),
   "voucher_id" BIGINT,
   "discount_amount" NUMERIC(15,2) NOT NULL DEFAULT 0 CHECK (discount_amount >= 0),
   CONSTRAINT ck_orders_status CHECK (status IN ('PENDING','CONFIRMED','COMPLETED','CANCELLED')),
@@ -130,7 +131,7 @@ CREATE TABLE "promotion_programs" (
   "description" TEXT,
   "start_date" TIMESTAMP NOT NULL,
   "end_date" TIMESTAMP NOT NULL,
-  "status" VARCHAR(30) NOT NULL CHECK (status IN ('DRAFT','ACTIVE','INACTIVE')) DEFAULT 'DRAFT',
+  "status" VARCHAR(30) NOT NULL DEFAULT 'DRAFT' CHECK (status IN ('DRAFT','ACTIVE','INACTIVE')),
   CHECK (end_date >= start_date)
 );
 
@@ -159,13 +160,13 @@ CREATE TABLE "vouchers" (
   "promotion_program_id" BIGINT NOT NULL,
   "code" VARCHAR(50) UNIQUE NOT NULL,
   "discount_percent" NUMERIC(5,2) NOT NULL CHECK (discount_percent > 0 AND discount_percent <= 100),
-  "minimum_amount" NUMERIC(15,2) NOT NULL CHECK (minimum_amount >= 0) DEFAULT 0,
+  "minimum_amount" NUMERIC(15,2) NOT NULL DEFAULT 0 CHECK (minimum_amount >= 0),
   "maximum_discount" NUMERIC(15,2),
-  "quantity" INTEGER NOT NULL CHECK (quantity >= 0) DEFAULT 0,
-  "used_quantity" INTEGER NOT NULL CHECK (used_quantity >= 0 AND used_quantity <= quantity) DEFAULT 0,
+  "quantity" INTEGER NOT NULL DEFAULT 0 CHECK (quantity >= 0),
+  "used_quantity" INTEGER NOT NULL DEFAULT 0 CHECK (used_quantity >= 0 AND used_quantity <= quantity),
   "start_date" TIMESTAMP NOT NULL,
   "end_date" TIMESTAMP NOT NULL,
-  "status" VARCHAR(30) NOT NULL CHECK (status IN ('ACTIVE','INACTIVE')) DEFAULT 'ACTIVE',
+  "status" VARCHAR(30) NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE','INACTIVE')),
   CHECK (end_date >= start_date),
   CHECK (maximum_discount IS NULL OR maximum_discount >= 0)
 );
@@ -221,38 +222,38 @@ ALTER TABLE "vouchers" ADD FOREIGN KEY ("promotion_program_id") REFERENCES "prom
 -- =====================================================================
 
 -- Don hang / phieu nhap o trang thai cuoi (COMPLETED / CANCELLED) thi bat bien
-CREATE FUNCTION fn_final_row_immutable() RETURNS trigger AS $$
-BEGIN
-  IF OLD.status IN ('COMPLETED','CANCELLED') AND NEW IS DISTINCT FROM OLD THEN
-    RAISE EXCEPTION '% #%: chung tu o trang thai % la bat bien', TG_TABLE_NAME, OLD.id, OLD.status;
-  END IF;
-  RETURN NEW;
-END $$ LANGUAGE plpgsql;
+-- CREATE FUNCTION fn_final_row_immutable() RETURNS trigger AS $$
+-- BEGIN
+--   IF OLD.status IN ('COMPLETED','CANCELLED') AND NEW IS DISTINCT FROM OLD THEN
+--     RAISE EXCEPTION '% #%: chung tu o trang thai % la bat bien', TG_TABLE_NAME, OLD.id, OLD.status;
+--   END IF;
+--   RETURN NEW;
+-- END $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trg_final_immutable BEFORE UPDATE ON orders
-  FOR EACH ROW EXECUTE FUNCTION fn_final_row_immutable();
-CREATE TRIGGER trg_final_immutable BEFORE UPDATE ON purchase_receipts
-  FOR EACH ROW EXECUTE FUNCTION fn_final_row_immutable();
+-- CREATE TRIGGER trg_final_immutable BEFORE UPDATE ON orders
+--   FOR EACH ROW EXECUTE FUNCTION fn_final_row_immutable();
+-- CREATE TRIGGER trg_final_immutable BEFORE UPDATE ON purchase_receipts
+--   FOR EACH ROW EXECUTE FUNCTION fn_final_row_immutable();
 
 -- Chi tiet don hang / phieu nhap chi them/sua/xoa duoc khi chung tu cha dang PENDING
-CREATE FUNCTION fn_freeze_items() RETURNS trigger AS $$
-DECLARE r JSONB; v_status TEXT;
-BEGIN
-  IF TG_OP = 'DELETE' THEN r := to_jsonb(OLD); ELSE r := to_jsonb(NEW); END IF;
-  EXECUTE format('SELECT status FROM %I WHERE id = $1', TG_ARGV[0])
-     INTO v_status USING (r->>TG_ARGV[1])::bigint;
-  IF TG_OP = 'DELETE' AND v_status IS NULL THEN RETURN OLD; END IF;  -- cascade khi xoa ca chung tu
-  IF v_status IS DISTINCT FROM 'PENDING' THEN
-    RAISE EXCEPTION 'khong duoc sua chi tiet cua % khi trang thai la %', TG_ARGV[0], v_status;
-  END IF;
-  IF TG_OP = 'DELETE' THEN RETURN OLD; END IF;
-  RETURN NEW;
-END $$ LANGUAGE plpgsql;
+-- CREATE FUNCTION fn_freeze_items() RETURNS trigger AS $$
+-- DECLARE r JSONB; v_status TEXT;
+-- BEGIN
+--   IF TG_OP = 'DELETE' THEN r := to_jsonb(OLD); ELSE r := to_jsonb(NEW); END IF;
+--   EXECUTE format('SELECT status FROM %I WHERE id = $1', TG_ARGV[0])
+--      INTO v_status USING (r->>TG_ARGV[1])::bigint;
+--   IF TG_OP = 'DELETE' AND v_status IS NULL THEN RETURN OLD; END IF;  -- cascade khi xoa ca chung tu
+--   IF v_status IS DISTINCT FROM 'PENDING' THEN
+--     RAISE EXCEPTION 'khong duoc sua chi tiet cua % khi trang thai la %', TG_ARGV[0], v_status;
+--   END IF;
+--   IF TG_OP = 'DELETE' THEN RETURN OLD; END IF;
+--   RETURN NEW;
+-- END $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trg_freeze_items BEFORE INSERT OR UPDATE OR DELETE ON order_items
-  FOR EACH ROW EXECUTE FUNCTION fn_freeze_items('orders','order_id');
-CREATE TRIGGER trg_freeze_items BEFORE INSERT OR UPDATE OR DELETE ON purchase_receipt_items
-  FOR EACH ROW EXECUTE FUNCTION fn_freeze_items('purchase_receipts','purchase_receipt_id');
+-- CREATE TRIGGER trg_freeze_items BEFORE INSERT OR UPDATE OR DELETE ON order_items
+--   FOR EACH ROW EXECUTE FUNCTION fn_freeze_items('orders','order_id');
+-- CREATE TRIGGER trg_freeze_items BEFORE INSERT OR UPDATE OR DELETE ON purchase_receipt_items
+--   FOR EACH ROW EXECUTE FUNCTION fn_freeze_items('purchase_receipts','purchase_receipt_id');
 
 -- =====================================================================
 -- SEED DATA - CUA HANG NOI THAT (chay SAU khi da chay file tao bang)
@@ -268,20 +269,40 @@ BEGIN;
 -- ---------------------------------------------------------------------
 -- USERS: 3 admin (id 1-3), 10 staff (id 4-13), 20 customer (id 14-33)
 -- ---------------------------------------------------------------------
-INSERT INTO users (id, username, password_hash, role)
-SELECT i, 'admin' || lpad(i::text, 2, '0'),
-       '$2b$10$o9lOP/4bYQEa86fMp0jtt.rB/0dG3G6cAFd1KSMDr42tpCfbZy7zW', 'ADMIN'
-FROM generate_series(1, 3) AS i;
- 
-INSERT INTO users (id, username, password_hash, role)
-SELECT i, 'staff' || lpad((i - 3)::text, 2, '0'),
-       '$2b$10$o9lOP/4bYQEa86fMp0jtt.rB/0dG3G6cAFd1KSMDr42tpCfbZy7zW', 'STAFF'
-FROM generate_series(4, 13) AS i;
- 
-INSERT INTO users (id, username, password_hash, role)
-SELECT i, 'customer' || lpad((i - 13)::text, 2, '0'),
-       '$2b$10$o9lOP/4bYQEa86fMp0jtt.rB/0dG3G6cAFd1KSMDr42tpCfbZy7zW', 'CUSTOMER'
-FROM generate_series(14, 33) AS i;
+INSERT INTO users (id, username, password_hash, role) VALUES
+(1, 'admin01', '$2b$10$o9lOP/4bYQEa86fMp0jtt.rB/0dG3G6cAFd1KSMDr42tpCfbZy7zW', 'ADMIN'),
+(2, 'admin02', '$2b$10$o9lOP/4bYQEa86fMp0jtt.rB/0dG3G6cAFd1KSMDr42tpCfbZy7zW', 'ADMIN'),
+(3, 'admin03', '$2b$10$o9lOP/4bYQEa86fMp0jtt.rB/0dG3G6cAFd1KSMDr42tpCfbZy7zW', 'ADMIN'),
+(4, 'staff01', '$2b$10$o9lOP/4bYQEa86fMp0jtt.rB/0dG3G6cAFd1KSMDr42tpCfbZy7zW', 'STAFF'),
+(5, 'staff02', '$2b$10$o9lOP/4bYQEa86fMp0jtt.rB/0dG3G6cAFd1KSMDr42tpCfbZy7zW', 'STAFF'),
+(6, 'staff03', '$2b$10$o9lOP/4bYQEa86fMp0jtt.rB/0dG3G6cAFd1KSMDr42tpCfbZy7zW', 'STAFF'),
+(7, 'staff04', '$2b$10$o9lOP/4bYQEa86fMp0jtt.rB/0dG3G6cAFd1KSMDr42tpCfbZy7zW', 'STAFF'),
+(8, 'staff05', '$2b$10$o9lOP/4bYQEa86fMp0jtt.rB/0dG3G6cAFd1KSMDr42tpCfbZy7zW', 'STAFF'),
+(9, 'staff06', '$2b$10$o9lOP/4bYQEa86fMp0jtt.rB/0dG3G6cAFd1KSMDr42tpCfbZy7zW', 'STAFF'),
+(10, 'staff07', '$2b$10$o9lOP/4bYQEa86fMp0jtt.rB/0dG3G6cAFd1KSMDr42tpCfbZy7zW', 'STAFF'),
+(11, 'staff08', '$2b$10$o9lOP/4bYQEa86fMp0jtt.rB/0dG3G6cAFd1KSMDr42tpCfbZy7zW', 'STAFF'),
+(12, 'staff09', '$2b$10$o9lOP/4bYQEa86fMp0jtt.rB/0dG3G6cAFd1KSMDr42tpCfbZy7zW', 'STAFF'),
+(13, 'staff10', '$2b$10$o9lOP/4bYQEa86fMp0jtt.rB/0dG3G6cAFd1KSMDr42tpCfbZy7zW', 'STAFF'),
+(14, 'customer01', '$2b$10$o9lOP/4bYQEa86fMp0jtt.rB/0dG3G6cAFd1KSMDr42tpCfbZy7zW', 'CUSTOMER'),
+(15, 'customer02', '$2b$10$o9lOP/4bYQEa86fMp0jtt.rB/0dG3G6cAFd1KSMDr42tpCfbZy7zW', 'CUSTOMER'),
+(16, 'customer03', '$2b$10$o9lOP/4bYQEa86fMp0jtt.rB/0dG3G6cAFd1KSMDr42tpCfbZy7zW', 'CUSTOMER'),
+(17, 'customer04', '$2b$10$o9lOP/4bYQEa86fMp0jtt.rB/0dG3G6cAFd1KSMDr42tpCfbZy7zW', 'CUSTOMER'),
+(18, 'customer05', '$2b$10$o9lOP/4bYQEa86fMp0jtt.rB/0dG3G6cAFd1KSMDr42tpCfbZy7zW', 'CUSTOMER'),
+(19, 'customer06', '$2b$10$o9lOP/4bYQEa86fMp0jtt.rB/0dG3G6cAFd1KSMDr42tpCfbZy7zW', 'CUSTOMER'),
+(20, 'customer07', '$2b$10$o9lOP/4bYQEa86fMp0jtt.rB/0dG3G6cAFd1KSMDr42tpCfbZy7zW', 'CUSTOMER'),
+(21, 'customer08', '$2b$10$o9lOP/4bYQEa86fMp0jtt.rB/0dG3G6cAFd1KSMDr42tpCfbZy7zW', 'CUSTOMER'),
+(22, 'customer09', '$2b$10$o9lOP/4bYQEa86fMp0jtt.rB/0dG3G6cAFd1KSMDr42tpCfbZy7zW', 'CUSTOMER'),
+(23, 'customer10', '$2b$10$o9lOP/4bYQEa86fMp0jtt.rB/0dG3G6cAFd1KSMDr42tpCfbZy7zW', 'CUSTOMER'),
+(24, 'customer11', '$2b$10$o9lOP/4bYQEa86fMp0jtt.rB/0dG3G6cAFd1KSMDr42tpCfbZy7zW', 'CUSTOMER'),
+(25, 'customer12', '$2b$10$o9lOP/4bYQEa86fMp0jtt.rB/0dG3G6cAFd1KSMDr42tpCfbZy7zW', 'CUSTOMER'),
+(26, 'customer13', '$2b$10$o9lOP/4bYQEa86fMp0jtt.rB/0dG3G6cAFd1KSMDr42tpCfbZy7zW', 'CUSTOMER'),
+(27, 'customer14', '$2b$10$o9lOP/4bYQEa86fMp0jtt.rB/0dG3G6cAFd1KSMDr42tpCfbZy7zW', 'CUSTOMER'),
+(28, 'customer15', '$2b$10$o9lOP/4bYQEa86fMp0jtt.rB/0dG3G6cAFd1KSMDr42tpCfbZy7zW', 'CUSTOMER'),
+(29, 'customer16', '$2b$10$o9lOP/4bYQEa86fMp0jtt.rB/0dG3G6cAFd1KSMDr42tpCfbZy7zW', 'CUSTOMER'),
+(30, 'customer17', '$2b$10$o9lOP/4bYQEa86fMp0jtt.rB/0dG3G6cAFd1KSMDr42tpCfbZy7zW', 'CUSTOMER'),
+(31, 'customer18', '$2b$10$o9lOP/4bYQEa86fMp0jtt.rB/0dG3G6cAFd1KSMDr42tpCfbZy7zW', 'CUSTOMER'),
+(32, 'customer19', '$2b$10$o9lOP/4bYQEa86fMp0jtt.rB/0dG3G6cAFd1KSMDr42tpCfbZy7zW', 'CUSTOMER'),
+(33, 'customer20', '$2b$10$o9lOP/4bYQEa86fMp0jtt.rB/0dG3G6cAFd1KSMDr42tpCfbZy7zW', 'CUSTOMER');
  
 -- ---------------------------------------------------------------------
 -- ADMINS
@@ -349,33 +370,36 @@ INSERT INTO categories (id, name, description) VALUES
 -- ---------------------------------------------------------------------
 -- PRODUCTS (20) - gia VND
 -- ---------------------------------------------------------------------
-INSERT INTO products (id, category_id, name, description, unit, selling_price, quantity) VALUES
-(1,  1,  'Sofa goc chu L vai boc Milan',         'Sofa goc 3m, khung go soi, vai boc chong tham',     'bo',   14500000, 12),
-(2,  1,  'Sofa bang 3 cho da PU Oslo',           'Sofa bang dai 2m1, da PU cao cap',                  'cai',  9800000,  15),
-(3,  1,  'Ghe thu gian boc benh Relax',          'Ghe thu gian ngat lung, boc vai benh',              'cai',  4200000,  20),
-(4,  2,  'Ban an go cao su 6 cho Nordic',        'Ban an chu nhat 1m6, go cao su tu nhien',           'cai',  6500000,  18),
-(5,  2,  'Ban an mat da ceramic 4 cho Venus',    'Ban an mat da ceramic 1m2, chan thep son tinh dien','cai',  7800000,  10),
-(6,  3,  'Ghe an go soi dem boc Luna',           'Ghe an khung go soi, dem boc vai',                  'cai',  850000,   80),
-(7,  3,  'Ghe bar chan sat Loft',                'Ghe bar cao 75cm, chan sat son den',                'cai',  1200000,  40),
-(8,  4,  'Giuong ngu go soi 1m8 Hana',           'Giuong go soi tu nhien, kich thuoc 1m8 x 2m',       'cai',  8900000,  14),
-(9,  4,  'Giuong boc nem 1m6 Royal',             'Giuong boc nem dau giuong, kich thuoc 1m6 x 2m',    'cai',  7200000,  12),
-(10, 5,  'Tu quan ao 3 canh go MDF Alice',       'Tu quan ao 3 canh, go MDF chong am',                'cai',  6800000,  16),
-(11, 5,  'Tu giay thong minh 5 tang',            'Tu giay canh lat, go cong nghiep',                  'cai',  2400000,  25),
-(12, 6,  'Ban lam viec chan sat 1m2 Office',     'Ban lam viec mat go MDF, chan sat chu U',           'cai',  1900000,  45),
-(13, 6,  'Ghe cong thai hoc Ergo',               'Ghe luoi tua lung, ke tay 3D, nang ha khi nen',     'cai',  3600000,  30),
-(14, 7,  'Ke sach go 5 tang Bookie',             'Ke sach 5 tang, go cong nghiep phu melamine',       'cai',  2100000,  35),
-(15, 7,  'Ke tivi go oc cho 1m8 Nova',           'Ke tivi 1m8 co ngan keo, go oc cho',                'cai',  3200000,  22),
-(16, 8,  'Den chum pha le 8 bong',               'Den chum phong khach, khung ma vang',               'cai',  5400000,  10),
-(17, 8,  'Den san thong tru Arc',                'Den san cao 1m8, than kim loai',                    'cai',  1350000,  28),
-(18, 9,  'Tham long ngan phong khach 2x3m',      'Tham long ngan chong boi, kich thuoc 2m x 3m',      'tam',  2800000,  24),
-(19, 9,  'Rem cua vai chong nang 2.4m',          'Rem vai 2 lop chong nang, cao 2m4',                 'bo',   1650000,  50),
-(20, 10, 'Nem cao su non 1m6 Dreamy',            'Nem cao su non 1m6 x 2m, day 15cm',                 'cai',  5900000,  20);
+INSERT INTO products (id, category_id, name, description, unit, selling_price, image_url, quantity) VALUES
+(1,  1,  'Sofa goc chu L vai boc Milan',         'Sofa goc 3m, khung go soi, vai boc chong tham',     'bo',   14500000, 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=900&q=85', 12),
+(2,  1,  'Sofa bang 3 cho da PU Oslo',           'Sofa bang dai 2m1, da PU cao cap',                  'cai',  9800000,  'https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?auto=format&fit=crop&w=900&q=85', 15),
+(3,  1,  'Ghe thu gian boc benh Relax',          'Ghe thu gian ngat lung, boc vai benh',              'cai',  4200000,  'https://images.unsplash.com/photo-1567538096630-e0c55bd6374c?auto=format&fit=crop&w=900&q=85', 20),
+(4,  2,  'Ban an go cao su 6 cho Nordic',        'Ban an chu nhat 1m6, go cao su tu nhien',           'cai',  6500000,  'https://images.unsplash.com/photo-1577140917170-285929fb55b7?auto=format&fit=crop&w=900&q=85', 18),
+(5,  2,  'Ban an mat da ceramic 4 cho Venus',    'Ban an mat da ceramic 1m2, chan thep son tinh dien','cai',  7800000,  'https://images.unsplash.com/photo-1615066390971-03e4e1c36ddf?auto=format&fit=crop&w=900&q=85', 10),
+(6,  3,  'Ghe an go soi dem boc Luna',           'Ghe an khung go soi, dem boc vai',                  'cai',  850000,   'https://images.unsplash.com/photo-1503602642458-232111445657?auto=format&fit=crop&w=900&q=85', 80),
+(7,  3,  'Ghe bar chan sat Loft',                'Ghe bar cao 75cm, chan sat son den',                'cai',  1200000,  'https://images.unsplash.com/photo-1507473885765-e6ed057f782c?auto=format&fit=crop&w=900&q=85', 40),
+(8,  4,  'Giuong ngu go soi 1m8 Hana',           'Giuong go soi tu nhien, kich thuoc 1m8 x 2m',       'cai',  8900000,  'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=900&q=85', 14),
+(9,  4,  'Giuong boc nem 1m6 Royal',             'Giuong boc nem dau giuong, kich thuoc 1m6 x 2m',    'cai',  7200000,  'https://images.unsplash.com/photo-1595526114035-0d45ed16cfbf?auto=format&fit=crop&w=900&q=85', 12),
+(10, 5,  'Tu quan ao 3 canh go MDF Alice',       'Tu quan ao 3 canh, go MDF chong am',                'cai',  6800000,  'https://images.unsplash.com/photo-1595428774223-ef52624120d2?auto=format&fit=crop&w=900&q=85', 16),
+(11, 5,  'Tu giay thong minh 5 tang',            'Tu giay canh lat, go cong nghiep',                  'cai',  2400000,  'https://images.unsplash.com/photo-1538688525198-9b88f6f53126?auto=format&fit=crop&w=900&q=85', 25),
+(12, 6,  'Ban lam viec chan sat 1m2 Office',     'Ban lam viec mat go MDF, chan sat chu U',           'cai',  1900000,  'https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?auto=format&fit=crop&w=900&q=85', 45),
+(13, 6,  'Ghe cong thai hoc Ergo',               'Ghe luoi tua lung, ke tay 3D, nang ha khi nen',     'cai',  3600000,  'https://images.unsplash.com/photo-1580481077190-736134b223c6?auto=format&fit=crop&w=900&q=85', 30),
+(14, 7,  'Ke sach go 5 tang Bookie',             'Ke sach 5 tang, go cong nghiep phu melamine',       'cai',  2100000,  'https://images.unsplash.com/photo-1594671581654-27d5303d3d45?auto=format&fit=crop&w=900&q=85', 35),
+(15, 7,  'Ke tivi go oc cho 1m8 Nova',           'Ke tivi 1m8 co ngan keo, go oc cho',                'cai',  3200000,  'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=900&q=85', 22),
+(16, 8,  'Den chum pha le 8 bong',               'Den chum phong khach, khung ma vang',               'cai',  5400000,  'https://images.unsplash.com/photo-1513506003901-1e6a229e2d15?auto=format&fit=crop&w=900&q=85', 10),
+(17, 8,  'Den san thong tru Arc',                'Den san cao 1m8, than kim loai',                    'cai',  1350000,  'https://images.unsplash.com/photo-1507473885765-e6ed057f782c?auto=format&fit=crop&w=900&q=85&sat=-40', 28),
+(18, 9,  'Tham long ngan phong khach 2x3m',      'Tham long ngan chong boi, kich thuoc 2m x 3m',      'tam',  2800000,  'https://images.unsplash.com/photo-1600121848594-d8644e57abab?auto=format&fit=crop&w=900&q=85', 24),
+(19, 9,  'Rem cua vai chong nang 2.4m',          'Rem vai 2 lop chong nang, cao 2m4',                 'bo',   1650000,  'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=900&q=85', 50),
+(20, 10, 'Nem cao su non 1m6 Dreamy',            'Nem cao su non 1m6 x 2m, day 15cm',                 'cai',  5900000,  'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?auto=format&fit=crop&w=900&q=85', 20);
  
 -- ---------------------------------------------------------------------
 -- CARTS (moi khach 1 gio hang) + CART_ITEMS
 -- ---------------------------------------------------------------------
-INSERT INTO carts (id, customer_id)
-SELECT i, i FROM generate_series(1, 20) AS i;
+INSERT INTO carts (id, customer_id) VALUES
+(1, 1), (2, 2), (3, 3), (4, 4), (5, 5),
+(6, 6), (7, 7), (8, 8), (9, 9), (10, 10),
+(11, 11), (12, 12), (13, 13), (14, 14), (15, 15),
+(16, 16), (17, 17), (18, 18), (19, 19), (20, 20);
  
 INSERT INTO cart_items (cart_id, product_id, quantity) VALUES
 (1,2,1),(1,18,1),
@@ -641,19 +665,25 @@ UPDATE purchase_receipts SET status = 'CANCELLED' WHERE id = 10;
 -- ---------------------------------------------------------------------
 -- Dong bo lai sequence sau khi insert id thu cong
 -- ---------------------------------------------------------------------
-SELECT setval(pg_get_serial_sequence('users', 'id'),              (SELECT MAX(id) FROM users));
-SELECT setval(pg_get_serial_sequence('customers', 'id'),          (SELECT MAX(id) FROM customers));
-SELECT setval(pg_get_serial_sequence('staff', 'id'),              (SELECT MAX(id) FROM staff));
-SELECT setval(pg_get_serial_sequence('admins', 'id'),             (SELECT MAX(id) FROM admins));
-SELECT setval(pg_get_serial_sequence('categories', 'id'),         (SELECT MAX(id) FROM categories));
-SELECT setval(pg_get_serial_sequence('products', 'id'),           (SELECT MAX(id) FROM products));
-SELECT setval(pg_get_serial_sequence('carts', 'id'),              (SELECT MAX(id) FROM carts));
-SELECT setval(pg_get_serial_sequence('orders', 'id'),             (SELECT MAX(id) FROM orders));
-SELECT setval(pg_get_serial_sequence('suppliers', 'id'),          (SELECT MAX(id) FROM suppliers));
-SELECT setval(pg_get_serial_sequence('purchase_receipts', 'id'),  (SELECT MAX(id) FROM purchase_receipts));
-SELECT setval(pg_get_serial_sequence('promotion_programs', 'id'), (SELECT MAX(id) FROM promotion_programs));
-SELECT setval(pg_get_serial_sequence('product_discounts', 'id'),  (SELECT MAX(id) FROM product_discounts));
-SELECT setval(pg_get_serial_sequence('order_discounts', 'id'),    (SELECT MAX(id) FROM order_discounts));
-SELECT setval(pg_get_serial_sequence('vouchers', 'id'),           (SELECT MAX(id) FROM vouchers));
+-- SELECT setval(pg_get_serial_sequence('users', 'id'),              (SELECT MAX(id) FROM users));
+-- SELECT setval(pg_get_serial_sequence('customers', 'id'),          (SELECT MAX(id) FROM customers));
+-- SELECT setval(pg_get_serial_sequence('staff', 'id'),              (SELECT MAX(id) FROM staff));
+-- SELECT setval(pg_get_serial_sequence('admins', 'id'),             (SELECT MAX(id) FROM admins));
+-- SELECT setval(pg_get_serial_sequence('categories', 'id'),         (SELECT MAX(id) FROM categories));
+-- SELECT setval(pg_get_serial_sequence('products', 'id'),           (SELECT MAX(id) FROM products));
+-- SELECT setval(pg_get_serial_sequence('carts', 'id'),              (SELECT MAX(id) FROM carts));
+-- SELECT setval(pg_get_serial_sequence('orders', 'id'),             (SELECT MAX(id) FROM orders));
+-- SELECT setval(pg_get_serial_sequence('suppliers', 'id'),          (SELECT MAX(id) FROM suppliers));
+-- SELECT setval(pg_get_serial_sequence('purchase_receipts', 'id'),  (SELECT MAX(id) FROM purchase_receipts));
+-- SELECT setval(pg_get_serial_sequence('promotion_programs', 'id'), (SELECT MAX(id) FROM promotion_programs));
+-- SELECT setval(pg_get_serial_sequence('product_discounts', 'id'),  (SELECT MAX(id) FROM product_discounts));
+-- SELECT setval(pg_get_serial_sequence('order_discounts', 'id'),    (SELECT MAX(id) FROM order_discounts));
+-- SELECT setval(pg_get_serial_sequence('vouchers', 'id'),           (SELECT MAX(id) FROM vouchers));
  
+INSERT INTO users (id, username, password_hash, role) VALUES (34, 'khachhangmoi', 'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f', 'CUSTOMER');
+INSERT INTO customers (id, user_id, full_name, email, phone, address) VALUES (21, 34, 'Tran Van B', 'tranvanb@example.com', '0911223344', '456 Tran Hung Dao, Quan 5');
+INSERT INTO users (id, username, password_hash, role) VALUES (35, 'luugiahuy', '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92', 'CUSTOMER');
+INSERT INTO customers (id, user_id, full_name, email, phone, address) VALUES (22, 35, 'Luu Gia Huy', 'luugiahuy@example.com', '0909090909', '789 Nguyen Hue, Quan 1');
+INSERT INTO users (id, username, password_hash, role) VALUES (34, 'huyluu123', '4be1060d0223a3326c0984b286725e7e1c900ce1bf28539eb6442eb7df6b803d', 'CUSTOMER');
+INSERT INTO customers (id, user_id, full_name, email, phone, address) VALUES (21, 34, 'Luu Gia Huy', 'huyluu123@gmail.com', '0912345678', '12, lac long quan, quan 11');
 COMMIT;

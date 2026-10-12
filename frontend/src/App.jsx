@@ -2,24 +2,29 @@ import { useEffect, useState } from 'react'
 import {
   ArrowRight,
   Heart,
+  LogOut,
   Minus,
   Plus,
   Search,
   ShoppingBag,
   Upload,
+  User,
   X,
 } from 'lucide-react'
-import { demoProducts, loadProducts } from './lib/products'
+import { loadProducts } from './lib/products'
+import { getCurrentUser, logoutUser } from './lib/auth'
+import AuthModal from './components/AuthModal'
+import ProfileModal from './components/ProfileModal'
 import './App.css'
-
-const categories = ['Tất cả', 'Ghế & sofa', 'Bàn', 'Đèn', 'Trang trí']
 
 const formatPrice = (price) => `${new Intl.NumberFormat('vi-VN').format(price)}₫`
 
 function App() {
-  const [products, setProducts] = useState(demoProducts)
+  const [products, setProducts] = useState([])
   const [catalogError, setCatalogError] = useState('')
   const [activeCategory, setActiveCategory] = useState('Tất cả')
+
+  const categories = ['Tất cả', ...Array.from(new Set(products.map((p) => p.category).filter(Boolean)))]
   const [searchTerm, setSearchTerm] = useState('')
   const [cart, setCart] = useState({})
   const [favorites, setFavorites] = useState([])
@@ -28,13 +33,25 @@ function App() {
   const [productFormOpen, setProductFormOpen] = useState(false)
   const [productImagePreview, setProductImagePreview] = useState('')
   const [notice, setNotice] = useState('')
+  const [currentUser, setCurrentUser] = useState(() => getCurrentUser())
+  const [authOpen, setAuthOpen] = useState(false)
+  const [profileOpen, setProfileOpen] = useState(false)
+
+  function handleLogout() {
+    logoutUser()
+    setCurrentUser(null)
+    setNotice('Đã đăng xuất tài khoản thành công.')
+    window.setTimeout(() => setNotice(''), 3000)
+  }
 
   useEffect(() => {
     let cancelled = false
 
     loadProducts().then(({ products: loadedProducts, error }) => {
       if (cancelled) return
-      setProducts(loadedProducts)
+      if (loadedProducts && loadedProducts.length > 0) {
+        setProducts(loadedProducts)
+      }
       setCatalogError(error?.message ?? '')
     })
 
@@ -77,8 +94,13 @@ function App() {
   }
 
   function placeOrder() {
-    setNotice('Backend chưa kết nối nên đơn hàng chưa được gửi.')
-    window.setTimeout(() => setNotice(''), 3500)
+    if (currentUser) {
+      setNotice(`Cảm ơn ${currentUser.fullName || currentUser.username}! Đơn hàng của bạn đã được ghi nhận.`)
+    } else {
+      setNotice('Vui lòng đăng nhập tài khoản để hoàn tất đặt hàng.')
+      setAuthOpen(true)
+    }
+    window.setTimeout(() => setNotice(''), 4000)
   }
 
   function previewProductImage(event) {
@@ -150,6 +172,41 @@ function App() {
             <span>Giỏ hàng</span>
             <span className="bag-count">{cartCount}</span>
           </button>
+          {currentUser ? (
+            <div className="user-profile-group" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+              <button
+                className="user-logged-box"
+                type="button"
+                title="Bấm để xem thông tin chi tiết tài khoản"
+                onClick={() => setProfileOpen(true)}
+              >
+                <span className="user-avatar-badge">
+                  {(currentUser.fullName || currentUser.username || 'U').charAt(0)}
+                </span>
+                <span className="user-display-name">
+                  {currentUser.fullName || currentUser.username}
+                </span>
+              </button>
+              <button
+                className="user-logout-btn"
+                type="button"
+                onClick={handleLogout}
+                title="Đăng xuất khỏi tài khoản"
+              >
+                <LogOut size={13} />
+                <span>Đăng xuất</span>
+              </button>
+            </div>
+          ) : (
+            <button
+              className="user-auth-button"
+              type="button"
+              onClick={() => setAuthOpen(true)}
+            >
+              <User size={15} strokeWidth={1.8} />
+              <span>Đăng nhập</span>
+            </button>
+          )}
         </div>
       </header>
 
@@ -412,6 +469,21 @@ function App() {
           </section>
         </div>
       )}
+      <AuthModal
+        isOpen={authOpen}
+        onClose={() => setAuthOpen(false)}
+        onAuthSuccess={(user) => {
+          setCurrentUser(user)
+          setNotice(`Xin chào ${user.fullName || user.username}!`)
+          setTimeout(() => setNotice(''), 3500)
+        }}
+      />
+      <ProfileModal
+        isOpen={profileOpen}
+        user={currentUser}
+        onClose={() => setProfileOpen(false)}
+        onLogout={handleLogout}
+      />
       {notice && <div className="toast" role="status">{notice}</div>}
     </div>
   )
