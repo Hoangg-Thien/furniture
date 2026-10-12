@@ -82,11 +82,11 @@ export async function loadProducts() {
         category: row.category ?? 'Khác',
         price: Number(row.price),
         badge: '',
-        image: row.imageUrl || demoProducts[index % demoProducts.length].image,
+        image: row.imageUrl || demoProducts[index % demoProducts.length]?.image || '',
       })),
       error: null,
     }
   } catch (error) {
-    return { products: demoProducts, error }
+    return { products: [], error }
   }
 }
