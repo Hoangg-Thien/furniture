@@ -132,14 +132,6 @@ function App() {
           <a href="#story">Câu chuyện Nếp</a>
         </nav>
         <div className="header-actions">
-        <button
-          className="add-product-button"
-          type="button"
-          onClick={() => setProductFormOpen(true)}
-        >
-          <Upload size={15} strokeWidth={1.8} />
-          <span>Đăng sản phẩm</span>
-        </button>
         <label className="search-box">
             <Search size={17} strokeWidth={1.8} aria-hidden="true" />
             <input
