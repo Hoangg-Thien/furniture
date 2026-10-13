@@ -30,15 +30,21 @@ public class SalesDatabaseInitializer implements CommandLineRunner {
         try (Connection conn = dataSource.getConnection();
              Statement st = conn.createStatement()) {
 
-            // Cấu hình default timezone Việt Nam (GMT+7) cho bảng orders trong Supabase
+            // Cấu hình định dạng và timezone Việt Nam (GMT+7, không lưu mili/micro giây) cho bảng orders trong Supabase
             try {
-                st.execute("ALTER TABLE public.orders ALTER COLUMN order_date SET DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh')");
+                st.execute("ALTER TABLE public.orders ALTER COLUMN order_date TYPE TIMESTAMP(0)");
+            } catch (Exception ex) {
+                log.warn("Không thể đổi kiểu TIMESTAMP(0) order_date: {}", ex.getMessage());
+            }
+            try {
+                st.execute("ALTER TABLE public.orders ALTER COLUMN order_date SET DEFAULT (date_trunc('second', CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh'))");
             } catch (Exception ex) {
                 log.warn("Không thể cập nhật DEFAULT order_date: {}", ex.getMessage());
             }
 
-            // Đồng bộ lại giờ Việt Nam cho các đơn hàng cũ bị lưu theo UTC
+            // Cắt bỏ mili/micro giây và chuẩn hóa giờ cho toàn bộ đơn hàng
             try {
+                st.execute("UPDATE public.orders SET order_date = date_trunc('second', order_date)");
                 st.execute("UPDATE public.orders SET order_date = '2026-10-13 13:45:14' WHERE id = 23 AND order_date < '2026-10-13 10:00:00'");
                 st.execute("UPDATE public.orders SET order_date = '2026-10-12 16:47:52' WHERE id = 22 AND order_date < '2026-10-12 12:00:00'");
                 st.execute("UPDATE public.orders SET order_date = '2026-10-12 16:46:58' WHERE id = 21 AND order_date < '2026-10-12 12:00:00'");

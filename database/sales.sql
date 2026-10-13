@@ -78,7 +78,7 @@ CREATE TABLE "orders" (
   "id" BIGSERIAL PRIMARY KEY,
   "customer_id" BIGINT NOT NULL,
   "staff_id" BIGINT,
-  "order_date" TIMESTAMP NOT NULL DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh'),
+  "order_date" TIMESTAMP(0) NOT NULL DEFAULT (date_trunc('second', CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh')),
   "status" VARCHAR(30) NOT NULL DEFAULT 'PENDING',
   "total_amount" NUMERIC(15,2) NOT NULL DEFAULT 0 CHECK (total_amount >= 0),
   "voucher_id" BIGINT,
@@ -696,4 +696,6 @@ INSERT INTO orders (id, customer_id, order_date, status, total_amount, discount_
 INSERT INTO order_items (order_id, product_id, quantity, unit_price, amount) VALUES (24, 6, 1, 850000, 850000);
 INSERT INTO orders (id, customer_id, order_date, status, total_amount, discount_amount) VALUES (25, 21, '2026-10-13 14:22:05', 'PENDING', 9800000, 0);
 INSERT INTO order_items (order_id, product_id, quantity, unit_price, amount) VALUES (25, 2, 1, 9800000, 9800000);
+INSERT INTO orders (id, customer_id, order_date, status, total_amount, discount_amount) VALUES (26, 21, '2026-10-13 14:33:50', 'PENDING', 885000, 0);
+INSERT INTO order_items (order_id, product_id, quantity, unit_price, amount) VALUES (26, 6, 1, 850000, 850000);
 COMMIT;

@@ -37,11 +37,17 @@ public class OrderController {
     @jakarta.annotation.PostConstruct
     public void syncOrderTimezone() {
         try {
-            jdbcTemplate.execute("ALTER TABLE public.orders ALTER COLUMN order_date SET DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh')");
+            jdbcTemplate.execute("ALTER TABLE public.orders ALTER COLUMN order_date TYPE TIMESTAMP(0)");
+        } catch (Exception ex) {
+            System.err.println("Notice: Could not alter order_date type to TIMESTAMP(0): " + ex.getMessage());
+        }
+        try {
+            jdbcTemplate.execute("ALTER TABLE public.orders ALTER COLUMN order_date SET DEFAULT (date_trunc('second', CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh'))");
         } catch (Exception ex) {
             System.err.println("Notice: Could not alter default order_date: " + ex.getMessage());
         }
         try {
+            jdbcTemplate.execute("UPDATE public.orders SET order_date = date_trunc('second', order_date)");
             jdbcTemplate.execute("UPDATE public.orders SET order_date = '2026-10-13 13:45:14' WHERE id = 23 AND order_date < '2026-10-13 10:00:00'");
             jdbcTemplate.execute("UPDATE public.orders SET order_date = '2026-10-12 16:47:52' WHERE id = 22 AND order_date < '2026-10-12 12:00:00'");
             jdbcTemplate.execute("UPDATE public.orders SET order_date = '2026-10-12 16:46:58' WHERE id = 21 AND order_date < '2026-10-12 12:00:00'");
@@ -149,7 +155,7 @@ public class OrderController {
             jdbcTemplate.update(connection -> {
                 PreparedStatement ps = connection.prepareStatement(
                         "INSERT INTO public.orders (customer_id, order_date, status, total_amount, discount_amount) " +
-                                "VALUES (?, (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh'), 'PENDING', ?, 0)",
+                                "VALUES (?, date_trunc('second', CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh'), 'PENDING', ?, 0)",
                         new String[] { "id" });
                 ps.setLong(1, finalCustomerId);
                 ps.setBigDecimal(2, finalTotal);
