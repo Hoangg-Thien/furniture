@@ -30,6 +30,22 @@ public class SalesDatabaseInitializer implements CommandLineRunner {
         try (Connection conn = dataSource.getConnection();
              Statement st = conn.createStatement()) {
 
+            // Cấu hình default timezone Việt Nam (GMT+7) cho bảng orders trong Supabase
+            try {
+                st.execute("ALTER TABLE public.orders ALTER COLUMN order_date SET DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh')");
+            } catch (Exception ex) {
+                log.warn("Không thể cập nhật DEFAULT order_date: {}", ex.getMessage());
+            }
+
+            // Đồng bộ lại giờ Việt Nam cho các đơn hàng cũ bị lưu theo UTC
+            try {
+                st.execute("UPDATE public.orders SET order_date = '2026-10-13 13:45:14' WHERE id = 23 AND order_date < '2026-10-13 10:00:00'");
+                st.execute("UPDATE public.orders SET order_date = '2026-10-12 16:47:52' WHERE id = 22 AND order_date < '2026-10-12 12:00:00'");
+                st.execute("UPDATE public.orders SET order_date = '2026-10-12 16:46:58' WHERE id = 21 AND order_date < '2026-10-12 12:00:00'");
+            } catch (Exception ex) {
+                log.warn("Không thể cập nhật order_date đơn cũ: {}", ex.getMessage());
+            }
+
             // Kiểm tra xem bảng products đã tồn tại và có dữ liệu chưa
             boolean alreadyPopulated = false;
             try (ResultSet rs = st.executeQuery("SELECT COUNT(*) FROM public.products")) {

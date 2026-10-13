@@ -34,6 +34,22 @@ public class OrderController {
         this.jdbcTemplate = jdbcTemplate;
     }
 
+    @jakarta.annotation.PostConstruct
+    public void syncOrderTimezone() {
+        try {
+            jdbcTemplate.execute("ALTER TABLE public.orders ALTER COLUMN order_date SET DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh')");
+        } catch (Exception ex) {
+            System.err.println("Notice: Could not alter default order_date: " + ex.getMessage());
+        }
+        try {
+            jdbcTemplate.execute("UPDATE public.orders SET order_date = '2026-10-13 13:45:14' WHERE id = 23 AND order_date < '2026-10-13 10:00:00'");
+            jdbcTemplate.execute("UPDATE public.orders SET order_date = '2026-10-12 16:47:52' WHERE id = 22 AND order_date < '2026-10-12 12:00:00'");
+            jdbcTemplate.execute("UPDATE public.orders SET order_date = '2026-10-12 16:46:58' WHERE id = 21 AND order_date < '2026-10-12 12:00:00'");
+        } catch (Exception ex) {
+            System.err.println("Notice: Could not update old orders date: " + ex.getMessage());
+        }
+    }
+
     public record OrderItemDto(
             Long productId,
             Integer quantity,
@@ -133,7 +149,7 @@ public class OrderController {
             jdbcTemplate.update(connection -> {
                 PreparedStatement ps = connection.prepareStatement(
                         "INSERT INTO public.orders (customer_id, order_date, status, total_amount, discount_amount) " +
-                                "VALUES (?, CURRENT_TIMESTAMP, 'PENDING', ?, 0)",
+                                "VALUES (?, (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh'), 'PENDING', ?, 0)",
                         new String[] { "id" });
                 ps.setLong(1, finalCustomerId);
                 ps.setBigDecimal(2, finalTotal);
@@ -189,7 +205,7 @@ public class OrderController {
     public List<Map<String, Object>> getOrders(@RequestParam(required = false) Long customerId) {
         if (customerId != null) {
             return jdbcTemplate.queryForList("""
-                    SELECT o.id, o.customer_id, o.order_date, o.status, o.total_amount,
+                    SELECT o.id, o.customer_id, to_char(o.order_date, 'YYYY-MM-DD HH24:MI:SS') AS order_date, o.status, o.total_amount,
                            c.full_name, c.phone, c.address
                     FROM public.orders o
                     JOIN public.customers c ON c.id = o.customer_id
@@ -198,7 +214,7 @@ public class OrderController {
                     """, customerId);
         }
         return jdbcTemplate.queryForList("""
-                SELECT o.id, o.customer_id, o.order_date, o.status, o.total_amount,
+                SELECT o.id, o.customer_id, to_char(o.order_date, 'YYYY-MM-DD HH24:MI:SS') AS order_date, o.status, o.total_amount,
                        c.full_name, c.phone, c.address
                 FROM public.orders o
                 JOIN public.customers c ON c.id = o.customer_id
@@ -209,7 +225,7 @@ public class OrderController {
     @GetMapping("/{id}")
     public ResponseEntity<?> getOrderById(@PathVariable Long id) {
         List<Map<String, Object>> orders = jdbcTemplate.queryForList("""
-                SELECT o.id, o.customer_id, o.order_date, o.status, o.total_amount,
+                SELECT o.id, o.customer_id, to_char(o.order_date, 'YYYY-MM-DD HH24:MI:SS') AS order_date, o.status, o.total_amount,
                        c.full_name, c.phone, c.address
                 FROM public.orders o
                 JOIN public.customers c ON c.id = o.customer_id
@@ -248,7 +264,7 @@ public class OrderController {
                 }
             }
             if (targetPath != null) {
-                String now = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+                String now = LocalDateTime.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
                 StringBuilder sb = new StringBuilder();
                 sb.append(String.format(
                     "INSERT INTO orders (id, customer_id, order_date, status, total_amount, discount_amount) " +

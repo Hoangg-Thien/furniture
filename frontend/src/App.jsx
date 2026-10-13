@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import {
   ArrowRight,
+  Check,
   Heart,
   LogOut,
   Minus,
@@ -39,6 +40,9 @@ function App() {
   const [authOpen, setAuthOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const [completedOrder, setCompletedOrder] = useState(null)
+  const [justAddedId, setJustAddedId] = useState(null)
+  const [cartBump, setCartBump] = useState(false)
+  const [cartToast, setCartToast] = useState(null)
 
   function handleLogout() {
     logoutUser()
@@ -115,6 +119,37 @@ function App() {
       else nextCart[productId] = nextQuantity
       return nextCart
     })
+  }
+
+  function handleAddToCart(product, event) {
+    if (event) event.stopPropagation()
+    updateQuantity(product.id, 1)
+
+    // 1. Phản hồi trực quan ngay trên nút
+    setJustAddedId(product.id)
+    window.clearTimeout(window.__justAddedTimer)
+    window.__justAddedTimer = window.setTimeout(() => {
+      setJustAddedId(null)
+    }, 2200)
+
+    // 2. Hiệu ứng nhịp nảy giỏ hàng trên thanh navbar
+    setCartBump(true)
+    window.clearTimeout(window.__cartBumpTimer)
+    window.__cartBumpTimer = window.setTimeout(() => {
+      setCartBump(false)
+    }, 600)
+
+    // 3. Thông báo nổi Toast Notification
+    const newQuantity = (cart[product.id] || 0) + 1
+    setCartToast({
+      product,
+      quantity: newQuantity,
+      show: true,
+    })
+    window.clearTimeout(window.__cartToastTimer)
+    window.__cartToastTimer = window.setTimeout(() => {
+      setCartToast(null)
+    }, 3800)
   }
 
   function toggleFavorite(productId) {
@@ -196,7 +231,7 @@ function App() {
             {favorites.length > 0 && <span className="tiny-count">{favorites.length}</span>}
           </button>
           <button
-            className="bag-button"
+            className={`bag-button ${cartBump ? 'cart-bounce' : ''}`}
             type="button"
             onClick={() => setCartOpen(true)}
             aria-label={`Mở giỏ hàng, ${cartCount} sản phẩm`}
@@ -298,6 +333,12 @@ function App() {
                   <div className="product-image-wrap">
                     <img className="product-image" src={product.image} alt={product.name} />
                     {product.badge && <span className="product-badge">{product.badge}</span>}
+                    {cart[product.id] > 0 && (
+                      <span className="product-cart-tag" title={`Đang có ${cart[product.id]} sản phẩm trong giỏ`}>
+                        <ShoppingBag size={11} strokeWidth={2.2} />
+                        <span>Trong giỏ: <strong>{cart[product.id]}</strong></span>
+                      </span>
+                    )}
                     <button
                       className={favorites.includes(product.id) ? 'favorite-button is-favorite' : 'favorite-button'}
                       type="button"
@@ -307,8 +348,28 @@ function App() {
                     >
                       <Heart size={19} strokeWidth={1.7} fill={favorites.includes(product.id) ? 'currentColor' : 'none'} />
                     </button>
-                    <button className="quick-add" type="button" onClick={() => updateQuantity(product.id, 1)}>
-                      <Plus size={15} /> Thêm vào giỏ
+                    <button
+                      className={`quick-add ${justAddedId === product.id ? 'is-added' : ''} ${cart[product.id] > 0 ? 'has-in-cart' : ''}`}
+                      type="button"
+                      aria-label={`Thêm ${product.name} vào giỏ hàng`}
+                      onClick={(e) => handleAddToCart(product, e)}
+                    >
+                      {justAddedId === product.id ? (
+                        <>
+                          <Check size={16} strokeWidth={2.5} className="quick-add-check-icon" />
+                          <span>Đã thêm! ({cart[product.id] || 1})</span>
+                        </>
+                      ) : cart[product.id] > 0 ? (
+                        <>
+                          <Plus size={15} />
+                          <span>Thêm tiếp (đang có {cart[product.id]})</span>
+                        </>
+                      ) : (
+                        <>
+                          <Plus size={15} />
+                          <span>Thêm vào giỏ</span>
+                        </>
+                      )}
                     </button>
                   </div>
                   <div className="product-meta">
@@ -352,6 +413,48 @@ function App() {
         <span>Đồ đẹp cho những ngày bình thường.</span>
         <span>© 2026 Nếp Living</span>
       </footer>
+
+      {/* Thông báo nổi (Toast Notification) xác nhận thêm vào giỏ hàng */}
+      {cartToast?.show && (
+        <aside className="cart-toast" role="status" aria-live="polite">
+          <div className="cart-toast-thumb-wrap">
+            <img src={cartToast.product.image} alt="" />
+            <span className="cart-toast-badge">
+              <Check size={11} strokeWidth={3} />
+            </span>
+          </div>
+          <div className="cart-toast-info">
+            <div className="cart-toast-headline">
+              <span className="cart-toast-status">Đã thêm vào giỏ</span>
+              <span className="cart-toast-dot">•</span>
+              <span className="cart-toast-qty">x{cartToast.quantity}</span>
+            </div>
+            <p className="cart-toast-name">{cartToast.product.name}</p>
+            <p className="cart-toast-price">{formatPrice(cartToast.product.price)}</p>
+          </div>
+          <div className="cart-toast-actions">
+            <button
+              type="button"
+              className="cart-toast-view-btn"
+              onClick={() => {
+                setCartToast(null)
+                setCartOpen(true)
+              }}
+            >
+              <span>Xem giỏ</span>
+              <ArrowRight size={13} />
+            </button>
+            <button
+              type="button"
+              className="cart-toast-close"
+              aria-label="Đóng thông báo"
+              onClick={() => setCartToast(null)}
+            >
+              <X size={15} />
+            </button>
+          </div>
+        </aside>
+      )}
 
       {cartOpen && (
         <div className="cart-layer" role="presentation" onMouseDown={(event) => {
