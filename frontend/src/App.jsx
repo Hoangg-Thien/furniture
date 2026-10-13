@@ -1,21 +1,25 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   ArrowRight,
+  Bell,
   Check,
+  ChevronDown,
   Heart,
   LogOut,
   Minus,
   Plus,
   Search,
   ShoppingBag,
+  Tag,
   Upload,
   User,
   X,
 } from 'lucide-react'
 import { loadProducts } from './lib/products'
-import { getCurrentUser, logoutUser } from './lib/auth'
+import { getCurrentUser, logoutUser, updateProfile } from './lib/auth'
 import AuthModal from './components/AuthModal'
 import ProfileModal from './components/ProfileModal'
+import AccountModal from './components/AccountModal'
 import OrderReviewPage from './components/OrderReviewPage'
 import './App.css'
 
@@ -39,6 +43,9 @@ function App() {
   const [currentUser, setCurrentUser] = useState(() => getCurrentUser())
   const [authOpen, setAuthOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
+  const [accountOpen, setAccountOpen] = useState(false)
+  const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const userMenuRef = useRef(null)
   const [completedOrder, setCompletedOrder] = useState(null)
   const [justAddedId, setJustAddedId] = useState(null)
   const [cartBump, setCartBump] = useState(false)
@@ -47,9 +54,26 @@ function App() {
   function handleLogout() {
     logoutUser()
     setCurrentUser(null)
+    setUserMenuOpen(false)
     setNotice('Đã đăng xuất tài khoản thành công.')
     window.setTimeout(() => setNotice(''), 3000)
   }
+
+  function handleUserUpdate(updatedUser) {
+    setCurrentUser(updatedUser)
+  }
+
+  // Đóng user-menu khi click ra ngoài
+  useEffect(() => {
+    if (!userMenuOpen) return
+    function handleOutside(e) {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target)) {
+        setUserMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleOutside)
+    return () => document.removeEventListener('mousedown', handleOutside)
+  }, [userMenuOpen])
 
   useEffect(() => {
     let cancelled = false
@@ -241,12 +265,13 @@ function App() {
             <span className="bag-count">{cartCount}</span>
           </button>
           {currentUser ? (
-            <div className="user-profile-group" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+            <div className="user-menu-wrapper" ref={userMenuRef}>
               <button
                 className="user-logged-box"
                 type="button"
-                title="Bấm để xem thông tin chi tiết tài khoản"
-                onClick={() => setProfileOpen(true)}
+                aria-haspopup="true"
+                aria-expanded={userMenuOpen}
+                onClick={() => setUserMenuOpen((v) => !v)}
               >
                 <span className="user-avatar-badge">
                   {(currentUser.fullName || currentUser.username || 'U').charAt(0)}
@@ -254,16 +279,59 @@ function App() {
                 <span className="user-display-name">
                   {currentUser.fullName || currentUser.username}
                 </span>
+                <ChevronDown size={13} className={userMenuOpen ? 'chevron-up' : ''} />
               </button>
-              <button
-                className="user-logout-btn"
-                type="button"
-                onClick={handleLogout}
-                title="Đăng xuất khỏi tài khoản"
-              >
-                <LogOut size={13} />
-                <span>Đăng xuất</span>
-              </button>
+
+              {userMenuOpen && (
+                <div className="user-dropdown-menu" role="menu">
+                  <div className="user-dropdown-header">
+                    <span className="user-dropdown-name">{currentUser.fullName || currentUser.username}</span>
+                    <span className="user-dropdown-sub">@{currentUser.username}</span>
+                  </div>
+                  <div className="user-dropdown-divider" />
+                  <button
+                    className="user-dropdown-item"
+                    role="menuitem"
+                    type="button"
+                    onClick={() => { setUserMenuOpen(false); setAccountOpen(true) }}
+                  >
+                    <User size={15} /> Tài khoản
+                  </button>
+                  <button
+                    className="user-dropdown-item"
+                    role="menuitem"
+                    type="button"
+                    onClick={() => { setUserMenuOpen(false); setCartOpen(false); setOrderOpen(true) }}
+                  >
+                    <ShoppingBag size={15} /> Đơn hàng của tôi
+                  </button>
+                  <button
+                    className="user-dropdown-item user-dropdown-item--soon"
+                    role="menuitem"
+                    type="button"
+                    disabled
+                  >
+                    <Bell size={15} /> Thông báo <span className="coming-soon-tag">Sắp ra mắt</span>
+                  </button>
+                  <button
+                    className="user-dropdown-item user-dropdown-item--soon"
+                    role="menuitem"
+                    type="button"
+                    disabled
+                  >
+                    <Tag size={15} /> Voucher của tôi <span className="coming-soon-tag">Sắp ra mắt</span>
+                  </button>
+                  <div className="user-dropdown-divider" />
+                  <button
+                    className="user-dropdown-item user-dropdown-item--logout"
+                    role="menuitem"
+                    type="button"
+                    onClick={handleLogout}
+                  >
+                    <LogOut size={15} /> Đăng xuất
+                  </button>
+                </div>
+              )}
             </div>
           ) : (
             <button
@@ -619,6 +687,12 @@ function App() {
         user={currentUser}
         onClose={() => setProfileOpen(false)}
         onLogout={handleLogout}
+      />
+      <AccountModal
+        isOpen={accountOpen}
+        user={currentUser}
+        onClose={() => setAccountOpen(false)}
+        onUserUpdate={handleUserUpdate}
       />
       {orderOpen && (
         <OrderReviewPage

@@ -82,3 +82,26 @@ export async function registerUser({ username, password, fullName, email, phone,
 export function logoutUser() {
   setCurrentUser(null)
 }
+
+/**
+ * Cập nhật thông tin tài khoản: Gọi Backend API PUT /api/auth/update/{userId}
+ */
+export async function updateProfile(userId, { fullName, email, phone, address, currentPassword, newPassword }) {
+  try {
+    const response = await fetch(`${apiBaseUrl}/api/auth/update/${userId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fullName, email, phone, address, currentPassword, newPassword }),
+    })
+
+    const data = await response.json()
+    if (!response.ok) {
+      return { user: null, error: data.error || 'Cập nhật thất bại' }
+    }
+
+    setCurrentUser(data)
+    return { user: data, error: null }
+  } catch {
+    return { user: null, error: 'Không thể kết nối đến Backend Server (port 8080).' }
+  }
+}

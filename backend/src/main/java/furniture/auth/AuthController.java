@@ -14,7 +14,9 @@ import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -43,6 +45,15 @@ public class AuthController {
     public record LoginRequest(
             String username,
             String password) {
+    }
+
+    public record UpdateProfileRequest(
+            String fullName,
+            String email,
+            String phone,
+            String address,
+            String currentPassword,
+            String newPassword) {
     }
 
     public record AuthResponse(
@@ -242,6 +253,80 @@ public class AuthController {
     @GetMapping("/customers")
     public List<Map<String, Object>> getAllCustomers() {
         return jdbcTemplate.queryForList("SELECT id, user_id, full_name, email, phone, address, role, created_at FROM public.customers ORDER BY id ASC");
+    }
+
+    @PutMapping("/update/{userId}")
+    @Transactional
+    public ResponseEntity<?> updateProfile(@PathVariable Long userId, @RequestBody UpdateProfileRequest req) {
+        // Kiểm tra user tồn tại
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
+                SELECT u.id AS user_id, u.username, u.password_hash, u.role,
+                       c.id AS customer_id, c.full_name, c.email, c.phone, c.address
+                FROM public.users u
+                LEFT JOIN public.customers c ON c.user_id = u.id
+                WHERE u.id = ? AND u.is_active = true
+                LIMIT 1
+                """, userId);
+
+        if (rows.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "Không tìm thấy người dùng"));
+        }
+
+        Map<String, Object> user = rows.get(0);
+
+        // Nếu người dùng muốn đổi mật khẩu, kiểm tra mật khẩu cũ
+        if (req.newPassword() != null && !req.newPassword().trim().isEmpty()) {
+            if (req.newPassword().trim().length() < 6) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Mật khẩu mới phải có ít nhất 6 ký tự"));
+            }
+            if (req.currentPassword() == null || req.currentPassword().trim().isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Vui lòng nhập mật khẩu hiện tại để đổi mật khẩu"));
+            }
+            String storedHash = (String) user.get("password_hash");
+            if (!PasswordUtil.verify(req.currentPassword(), storedHash)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("error", "Mật khẩu hiện tại không chính xác"));
+            }
+            // Cập nhật mật khẩu mới
+            String newHash = PasswordUtil.hash(req.newPassword().trim());
+            jdbcTemplate.update("UPDATE public.users SET password_hash = ? WHERE id = ?", newHash, userId);
+        }
+
+        // Cập nhật thông tin customers
+        String fullName = (req.fullName() != null && !req.fullName().trim().isEmpty()) ? req.fullName().trim() : (String) user.get("full_name");
+        String email = (req.email() != null && !req.email().trim().isEmpty()) ? req.email().trim() : (String) user.get("email");
+        String phone = (req.phone() != null) ? (req.phone().trim().isEmpty() ? null : req.phone().trim()) : (String) user.get("phone");
+        String address = (req.address() != null) ? (req.address().trim().isEmpty() ? null : req.address().trim()) : (String) user.get("address");
+
+        // Kiểm tra email trùng (nếu đổi email)
+        String oldEmail = (String) user.get("email");
+        if (email != null && !email.equalsIgnoreCase(oldEmail != null ? oldEmail : "")) {
+            Integer emailCount = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM public.customers WHERE LOWER(email) = LOWER(?) AND user_id != ?",
+                    Integer.class, email, userId);
+            if (emailCount != null && emailCount > 0) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Email này đã được sử dụng bởi tài khoản khác"));
+            }
+        }
+
+        Number customerIdNum = (Number) user.get("customer_id");
+        if (customerIdNum != null) {
+            jdbcTemplate.update(
+                    "UPDATE public.customers SET full_name = ?, email = ?, phone = ?, address = ? WHERE user_id = ?",
+                    fullName, email, phone, address, userId);
+        }
+
+        Number userIdNum = (Number) user.get("user_id");
+        return ResponseEntity.ok(new AuthResponse(
+                userIdNum != null ? userIdNum.longValue() : null,
+                customerIdNum != null ? customerIdNum.longValue() : null,
+                (String) user.get("username"),
+                fullName,
+                email,
+                phone,
+                address,
+                (String) user.get("role"),
+                "Cập nhật thông tin thành công!"));
     }
 
     private synchronized void appendToSalesSql(Long userId, Long customerId, String username, String passwordHash,
