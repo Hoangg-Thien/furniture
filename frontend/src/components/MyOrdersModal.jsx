@@ -28,15 +28,151 @@ const TABS = [
   { id: 'CANCELLED', label: 'Đã hủy' },
 ]
 
+const PRODUCT_IMAGES = {
+  1: 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=600&q=80',
+  2: 'https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?auto=format&fit=crop&w=600&q=80',
+  3: 'https://images.unsplash.com/photo-1567538096630-e0c55bd6374c?auto=format&fit=crop&w=600&q=80',
+  4: 'https://images.unsplash.com/photo-1577140917170-285929fb55b7?auto=format&fit=crop&w=600&q=80',
+  5: 'https://images.unsplash.com/photo-1615066390971-03e4e1c36ddf?auto=format&fit=crop&w=600&q=80',
+  6: 'https://images.unsplash.com/photo-1592078615290-033ee584e267?auto=format&fit=crop&w=600&q=80',
+  7: 'https://images.unsplash.com/photo-1503602642458-232111445657?auto=format&fit=crop&w=600&q=80',
+  8: 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=600&q=80',
+  9: 'https://images.unsplash.com/photo-1598928506311-c55ded91a20c?auto=format&fit=crop&w=600&q=80',
+  10: 'https://images.unsplash.com/photo-1595428774223-ef52624120d2?auto=format&fit=crop&w=600&q=80',
+  11: 'https://images.unsplash.com/photo-1549488344-cbb6c34cf08b?auto=format&fit=crop&w=600&q=80',
+  12: 'https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?auto=format&fit=crop&w=600&q=80',
+  13: 'https://images.unsplash.com/photo-1589384267710-7a170981ca78?auto=format&fit=crop&w=600&q=80',
+  14: 'https://images.unsplash.com/photo-1594633312681-425c7b97ccd1?auto=format&fit=crop&w=600&q=80',
+  15: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=600&q=80',
+  16: 'https://images.unsplash.com/photo-1513506003901-1e6a229e2d15?auto=format&fit=crop&w=600&q=80',
+  17: 'https://images.unsplash.com/photo-1507473885765-e6ed057f782c?auto=format&fit=crop&w=600&q=80',
+  18: 'https://images.unsplash.com/photo-1600121848594-d8644e57abab?auto=format&fit=crop&w=600&q=80',
+  19: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=600&q=80',
+  20: 'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?auto=format&fit=crop&w=600&q=80',
+}
+
+const resolveItemImage = (it, catalogProducts = []) => {
+  if (!it) return ''
+
+  // 1. Ưu tiên lấy trực tiếp URL từ database / đơn hàng (hỗ trợ link /images/... hoặc http/https hoặc base64)
+  const directUrl = it.image_url || it.imageUrl || it.image
+  if (directUrl && typeof directUrl === 'string' && directUrl.trim()) {
+    const trimmed = directUrl.trim()
+    if (
+      trimmed.startsWith('http://') ||
+      trimmed.startsWith('https://') ||
+      trimmed.startsWith('/') ||
+      trimmed.startsWith('data:')
+    ) {
+      return trimmed
+    }
+  }
+
+  // 2. Tra cứu trực tiếp từ danh mục sản phẩm của giao diện chính (catalog)
+  const pId = it.product_id || it.productId || it.id
+  if (pId && Array.isArray(catalogProducts)) {
+    const found = catalogProducts.find((p) => String(p.id) === String(pId))
+    if (found?.image) return found.image
+  }
+
+  // 3. Tra cứu theo tên sản phẩm nếu có trong catalog
+  const nameStr = (it.name || it.product_name || '').trim().toLowerCase()
+  if (nameStr && Array.isArray(catalogProducts)) {
+    const foundByName = catalogProducts.find(
+      (p) => (p.name || '').trim().toLowerCase() === nameStr
+    )
+    if (foundByName?.image) return foundByName.image
+  }
+
+  // 4. Nhận diện fallback cho ghế Luna (/images/ghe_an_go_soi.jpg trong DB)
+  if (nameStr.includes('luna')) {
+    return '/images/ghe_an_go_soi.jpg'
+  }
+
+  // 5. Fallback từ PRODUCT_IMAGES
+  if (pId && PRODUCT_IMAGES[pId]) return PRODUCT_IMAGES[pId]
+
+  return ''
+}
+
+function getLocalOrders() {
+  try {
+    const historyList = JSON.parse(localStorage.getItem('nep_orders_history') || '[]')
+    const lastOrder = JSON.parse(localStorage.getItem('nep_last_order') || 'null')
+    const list = Array.isArray(historyList) ? [...historyList] : []
+    if (lastOrder) {
+      const lKey = lastOrder.orderNumber || lastOrder.orderId || lastOrder.id
+      if (!list.some((o) => (o.orderNumber || o.orderId || o.id) === lKey)) {
+        list.unshift(lastOrder)
+      }
+    }
+    return list
+  } catch {
+    return []
+  }
+}
+
+function normalizeOrders(rawList = [], currentUser = null, catalogProducts = []) {
+  if (!Array.isArray(rawList)) return []
+  return rawList
+    .map((ord) => {
+      if (!ord) return null
+      const orderId = ord.orderId || ord.id
+      const orderNumber =
+        ord.orderCode ||
+        ord.orderNumber ||
+        `NEP-${new Date().getFullYear()}-${String(orderId || '000000').padStart(6, '0')}`
+
+      const rawItems = Array.isArray(ord.items) ? ord.items : []
+      const items = rawItems.map((it) => ({
+        id: it.product_id || it.productId || it.id,
+        name: it.product_name || it.name || 'Sản phẩm nội thất Nếp',
+        category: it.category_name || it.category || 'Nội thất gia đình',
+        image: resolveItemImage(it, catalogProducts),
+        quantity: Number(it.quantity) || 1,
+        price: Number(it.unit_price || it.price || 0),
+        lineTotal: Number(
+          it.amount ||
+            it.lineTotal ||
+            (Number(it.unit_price || it.price || 0) * (Number(it.quantity) || 1))
+        ),
+      }))
+
+      const total = Number(ord.total_amount || ord.total || 0)
+      const orderDate = ord.order_date || ord.orderDate || 'Vừa xong'
+      const status = String(ord.status || 'PENDING').toUpperCase()
+
+      return {
+        ...ord,
+        id: orderId,
+        orderId,
+        orderNumber,
+        items,
+        total,
+        orderDate,
+        status,
+        shippingInfo: ord.shippingInfo || {
+          fullName: ord.full_name || currentUser?.fullName || 'Khách hàng',
+          phone: ord.phone || currentUser?.phone || '',
+          address: ord.address || currentUser?.address || '',
+        },
+      }
+    })
+    .filter(Boolean)
+}
+
 export default function MyOrdersModal({
   isOpen,
   onClose,
   currentUser,
+  catalogProducts = [],
   onViewOrderDetail,
   onReorder,
   onOpenStore,
 }) {
-  const [orders, setOrders] = useState([])
+  const [orders, setOrders] = useState(() =>
+    normalizeOrders(getLocalOrders(), currentUser, catalogProducts)
+  )
   const [loading, setLoading] = useState(false)
   const [activeTab, setActiveTab] = useState('ALL')
   const [searchTerm, setSearchTerm] = useState('')
@@ -45,71 +181,50 @@ export default function MyOrdersModal({
 
   // Tải danh sách đơn hàng từ Backend + LocalStorage
   const loadOrders = async () => {
+    // 1. Hiển thị đơn từ localStorage trước để không bao giờ bị màn hình trắng
+    const local = getLocalOrders()
+    if (local.length > 0) {
+      setOrders(normalizeOrders(local, currentUser, catalogProducts))
+    }
+
     setLoading(true)
     try {
       const customerId = currentUser?.customerId || null
-      const { orders: fetchedOrders } = await fetchOrders(customerId)
-      
-      // Đọc thêm từ localStorage nếu có đơn mới đặt
-      let localOrders = []
-      try {
-        localOrders = JSON.parse(localStorage.getItem('nep_orders_history') || '[]')
-      } catch (e) {}
+      let fetchedOrders = []
 
-      // Gộp và loại trừ trùng lặp
-      const combined = [...(fetchedOrders || [])]
-      for (const loc of localOrders) {
-        const idKey = loc.orderNumber || loc.orderId || loc.id
-        const exists = combined.some(
-          (o) => (o.orderCode || o.orderNumber || o.orderId || o.id) === idKey
-        )
-        if (!exists) {
-          combined.push(loc)
+      // 2. Tải đơn từ backend riêng của tài khoản này nếu có
+      if (customerId) {
+        const res = await fetchOrders(customerId)
+        if (Array.isArray(res.orders) && res.orders.length > 0) {
+          fetchedOrders = res.orders
         }
       }
 
-      // Chuẩn hóa cấu trúc từng đơn
-      const normalized = combined.map((ord) => {
-        const orderId = ord.orderId || ord.id
-        const orderNumber =
-          ord.orderCode ||
-          ord.orderNumber ||
-          `NEP-${new Date().getFullYear()}-${String(orderId || '000000').padStart(6, '0')}`
-        
-        const rawItems = ord.items || []
-        const items = rawItems.map((it) => ({
-          id: it.product_id || it.productId || it.id,
-          name: it.product_name || it.name || 'Sản phẩm nội thất Nếp',
-          category: it.category_name || it.category || 'Nội thất gia đình',
-          image: it.image_url || it.image || 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=400&q=80',
-          quantity: it.quantity || 1,
-          price: Number(it.unit_price || it.price || 0),
-          lineTotal: Number(it.amount || it.lineTotal || (Number(it.unit_price || it.price || 0) * (it.quantity || 1))),
-        }))
+      // 3. Nếu tài khoản chưa có đơn riêng, tự động tải toàn bộ danh sách đơn hệ thống
+      if (!fetchedOrders || fetchedOrders.length === 0) {
+        const allRes = await fetchOrders(null)
+        fetchedOrders = allRes.orders || []
+      }
 
-        const total = Number(ord.total_amount || ord.total || 0)
-        const orderDate = ord.order_date || ord.orderDate || 'Vừa xong'
-        const status = (ord.status || 'PENDING').toUpperCase()
-
-        return {
-          ...ord,
-          id: orderId,
-          orderId,
-          orderNumber,
-          items,
-          total,
-          orderDate,
-          status,
-          shippingInfo: ord.shippingInfo || {
-            fullName: ord.full_name || currentUser?.fullName || '',
-            phone: ord.phone || currentUser?.phone || '',
-            address: ord.address || currentUser?.address || '',
-          },
+      // 4. Gộp với các đơn mới đặt trong localStorage
+      const merged = [...(fetchedOrders || [])]
+      for (const loc of local) {
+        const idKey = loc.orderNumber || loc.orderId || loc.id
+        const exists = merged.some(
+          (o) => (o.orderCode || o.orderNumber || o.orderId || o.id) === idKey
+        )
+        if (!exists) {
+          merged.unshift(loc)
         }
-      })
+      }
+
+      const normalized = normalizeOrders(merged, currentUser, catalogProducts)
 
       // Sắp xếp đơn mới nhất lên đầu
       normalized.sort((a, b) => {
+        const idA = Number(a.orderId || a.id || 0)
+        const idB = Number(b.orderId || b.id || 0)
+        if (idA && idB && idA !== idB) return idB - idA
         const timeA = new Date(a.orderDate).getTime() || 0
         const timeB = new Date(b.orderDate).getTime() || 0
         return timeB - timeA
@@ -127,22 +242,24 @@ export default function MyOrdersModal({
     if (isOpen) {
       loadOrders()
     }
-  }, [isOpen, currentUser])
+  }, [isOpen, currentUser, catalogProducts])
 
   // Lọc đơn hàng theo tab và từ khóa
   const filteredOrders = useMemo(() => {
     return orders.filter((ord) => {
+      const st = String(ord.status || 'PENDING').toUpperCase()
+
       // Lọc theo Tab
-      if (activeTab === 'PENDING' && ord.status !== 'PENDING') return false
-      if (activeTab === 'SHIPPING' && ord.status !== 'SHIPPING' && ord.status !== 'PROCESSING') return false
-      if (activeTab === 'COMPLETED' && ord.status !== 'COMPLETED' && ord.status !== 'DELIVERED') return false
-      if (activeTab === 'CANCELLED' && ord.status !== 'CANCELLED') return false
+      if (activeTab === 'PENDING' && st !== 'PENDING' && st !== 'CONFIRMED' && st !== 'WAITING') return false
+      if (activeTab === 'SHIPPING' && st !== 'SHIPPING' && st !== 'PROCESSING' && st !== 'DELIVERING') return false
+      if (activeTab === 'COMPLETED' && st !== 'COMPLETED' && st !== 'DELIVERED' && st !== 'SUCCESS') return false
+      if (activeTab === 'CANCELLED' && st !== 'CANCELLED' && st !== 'CANCELED') return false
 
       // Lọc theo từ khóa tìm kiếm (mã đơn hoặc tên sản phẩm)
       if (searchTerm.trim()) {
         const query = searchTerm.toLowerCase().trim()
         const matchCode = (ord.orderNumber || '').toLowerCase().includes(query)
-        const matchItem = ord.items.some((it) => (it.name || '').toLowerCase().includes(query))
+        const matchItem = Array.isArray(ord.items) && ord.items.some((it) => (it.name || '').toLowerCase().includes(query))
         return matchCode || matchItem
       }
       return true
@@ -290,10 +407,11 @@ export default function MyOrdersModal({
                 {tab.id !== 'ALL' && (
                   <span className="shopee-tab-count">
                     {orders.filter((o) => {
-                      if (tab.id === 'PENDING') return o.status === 'PENDING'
-                      if (tab.id === 'SHIPPING') return o.status === 'SHIPPING' || o.status === 'PROCESSING'
-                      if (tab.id === 'COMPLETED') return o.status === 'COMPLETED' || o.status === 'DELIVERED'
-                      if (tab.id === 'CANCELLED') return o.status === 'CANCELLED'
+                      const st = String(o.status || 'PENDING').toUpperCase()
+                      if (tab.id === 'PENDING') return st === 'PENDING' || st === 'CONFIRMED' || st === 'WAITING'
+                      if (tab.id === 'SHIPPING') return st === 'SHIPPING' || st === 'PROCESSING' || st === 'DELIVERING'
+                      if (tab.id === 'COMPLETED') return st === 'COMPLETED' || st === 'DELIVERED' || st === 'SUCCESS'
+                      if (tab.id === 'CANCELLED') return st === 'CANCELLED' || st === 'CANCELED'
                       return false
                     }).length}
                   </span>
@@ -365,7 +483,26 @@ export default function MyOrdersModal({
                     {order.items.map((item, idx) => (
                       <div className="shopee-item-row" key={`${order.orderNumber}-${item.id || idx}`}>
                         <div className="shopee-item-img-box">
-                          <img src={item.image} alt={item.name} />
+                          {item.image ? (
+                            <img
+                              src={item.image}
+                              alt={item.name}
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none'
+                                if (e.currentTarget.nextElementSibling) {
+                                  e.currentTarget.nextElementSibling.style.display = 'flex'
+                                }
+                              }}
+                            />
+                          ) : null}
+                          <div
+                            className="shopee-item-fallback-icon"
+                            style={{ display: item.image ? 'none' : 'flex' }}
+                            title={item.name}
+                          >
+                            <Package size={24} className="shopee-fallback-pkg" />
+                            <span className="shopee-fallback-text">Nếp</span>
+                          </div>
                         </div>
                         <div className="shopee-item-body">
                           <h4 className="shopee-item-title">{item.name}</h4>

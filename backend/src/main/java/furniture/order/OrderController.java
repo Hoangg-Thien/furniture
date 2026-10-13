@@ -226,22 +226,37 @@ public class OrderController {
                     ? jdbcTemplate.queryForList(sql, customerId)
                     : jdbcTemplate.queryForList(sql);
 
+            if (orders.isEmpty()) {
+                return ResponseEntity.ok(orders);
+            }
+
+            List<Long> orderIds = orders.stream()
+                    .map(o -> ((Number) o.get("id")).longValue())
+                    .toList();
+
+            String inSql = orderIds.stream().map(String::valueOf).collect(java.util.stream.Collectors.joining(","));
+
+            String itemsSql = "SELECT oi.order_id, oi.product_id, p.name AS product_name, p.image_url, " +
+                    "p.unit, c.name AS category_name, oi.quantity, oi.unit_price, oi.amount " +
+                    "FROM public.order_items oi " +
+                    "LEFT JOIN public.products p ON p.id = oi.product_id " +
+                    "LEFT JOIN public.categories c ON c.id = p.category_id " +
+                    "WHERE oi.order_id IN (" + inSql + ") " +
+                    "ORDER BY oi.order_id DESC, oi.product_id ASC";
+
+            List<Map<String, Object>> allItems = jdbcTemplate.queryForList(itemsSql);
+            Map<Long, java.util.List<Map<String, Object>>> itemsByOrderId = new java.util.HashMap<>();
+            for (Map<String, Object> it : allItems) {
+                Long oid = ((Number) it.get("order_id")).longValue();
+                itemsByOrderId.computeIfAbsent(oid, k -> new java.util.ArrayList<>()).add(it);
+            }
+
+            int currentYear = Year.now().getValue();
             for (Map<String, Object> order : orders) {
                 Long orderId = ((Number) order.get("id")).longValue();
-                String orderCode = "NEP-" + Year.now().getValue() + "-" + String.format("%06d", orderId);
+                String orderCode = "NEP-" + currentYear + "-" + String.format("%06d", orderId);
                 order.put("orderCode", orderCode);
-
-                List<Map<String, Object>> items = jdbcTemplate.queryForList("""
-                        SELECT oi.product_id, p.name AS product_name, p.image_url,
-                               p.unit, c.name AS category_name,
-                               oi.quantity, oi.unit_price, oi.amount
-                        FROM public.order_items oi
-                        LEFT JOIN public.products p ON p.id = oi.product_id
-                        LEFT JOIN public.categories c ON c.id = p.category_id
-                        WHERE oi.order_id = ?
-                        ORDER BY oi.product_id ASC
-                        """, orderId);
-                order.put("items", items);
+                order.put("items", itemsByOrderId.getOrDefault(orderId, java.util.Collections.emptyList()));
             }
 
             return ResponseEntity.ok(orders);

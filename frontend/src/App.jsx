@@ -7,7 +7,6 @@ import {
   Heart,
   LogOut,
   Minus,
-  Package,
   Plus,
   Search,
   ShoppingBag,
@@ -289,16 +288,6 @@ function App() {
             <span>Giỏ hàng</span>
             <span className="bag-count">{cartCount}</span>
           </button>
-          <button
-            className="my-orders-button"
-            type="button"
-            onClick={() => setMyOrdersOpen(true)}
-            aria-label="Xem đơn mua của tôi"
-            title="Đơn mua của tôi (Lịch sử đặt hàng)"
-          >
-            <Package size={18} strokeWidth={1.8} />
-            <span>Đơn mua</span>
-          </button>
           {currentUser ? (
             <div className="user-menu-wrapper" ref={userMenuRef}>
               <button
@@ -338,7 +327,7 @@ function App() {
                     type="button"
                     onClick={() => { setUserMenuOpen(false); setMyOrdersOpen(true) }}
                   >
-                    <ShoppingBag size={15} /> Đơn hàng của tôi
+                    <ShoppingBag size={15} /> Lịch sử đơn hàng
                   </button>
                   <button
                     className="user-dropdown-item user-dropdown-item--soon"
@@ -728,6 +717,7 @@ function App() {
         isOpen={myOrdersOpen}
         onClose={() => setMyOrdersOpen(false)}
         currentUser={currentUser}
+        catalogProducts={products}
         onViewOrderDetail={handleViewOrderDetail}
         onReorder={handleReorder}
         onOpenStore={() => {
@@ -746,6 +736,7 @@ function App() {
           cart={cart}
           subtotal={subtotal}
           currentUser={currentUser}
+          catalogProducts={products}
           initialOrder={completedOrder}
           onClose={() => {
             setOrderOpen(false)

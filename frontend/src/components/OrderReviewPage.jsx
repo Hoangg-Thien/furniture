@@ -76,7 +76,24 @@ function OrderSummary({ cartItems, cart, subtotal }) {
         {cartItems.map((product) => (
           <div className="order-summary-item" key={product.id}>
             <div className="order-item-img-wrap">
-              <img src={product.image} alt={product.name} />
+              {product.image ? (
+                <img
+                  src={product.image}
+                  alt={product.name}
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none'
+                    if (e.currentTarget.nextElementSibling) {
+                      e.currentTarget.nextElementSibling.style.display = 'flex'
+                    }
+                  }}
+                />
+              ) : null}
+              <div
+                className="order-item-fallback-icon"
+                style={{ display: product.image ? 'none' : 'flex' }}
+              >
+                <Package size={16} />
+              </div>
               <span className="order-item-qty">{cart[product.id]}</span>
             </div>
             <div className="order-item-detail">
@@ -133,6 +150,7 @@ export default function OrderReviewPage({
   cart,
   subtotal,
   currentUser,
+  catalogProducts = [],
   onClose,
   onOrderSuccess,
   initialOrder = null,
@@ -355,8 +373,74 @@ export default function OrderReviewPage({
     onOrderSuccess?.(currentOrderSnapshot)
   }
 
-  // SHOPEE-STYLE ORDER REVIEW & TRACKING SCREEN (BƯỚC 3)
+  // TRANG CẢM ƠN BẠN ĐÃ MUA HÀNG & THÔNG TIN ĐƠN HÀNG (BƯỚC 3)
   if (step === 3) {
+    const PRODUCT_IMAGES = {
+      1: 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=600&q=80',
+      2: 'https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?auto=format&fit=crop&w=600&q=80',
+      3: 'https://images.unsplash.com/photo-1567538096630-e0c55bd6374c?auto=format&fit=crop&w=600&q=80',
+      4: 'https://images.unsplash.com/photo-1577140917170-285929fb55b7?auto=format&fit=crop&w=600&q=80',
+      5: 'https://images.unsplash.com/photo-1615066390971-03e4e1c36ddf?auto=format&fit=crop&w=600&q=80',
+      6: 'https://images.unsplash.com/photo-1592078615290-033ee584e267?auto=format&fit=crop&w=600&q=80',
+      7: 'https://images.unsplash.com/photo-1503602642458-232111445657?auto=format&fit=crop&w=600&q=80',
+      8: 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=600&q=80',
+      9: 'https://images.unsplash.com/photo-1598928506311-c55ded91a20c?auto=format&fit=crop&w=600&q=80',
+      10: 'https://images.unsplash.com/photo-1595428774223-ef52624120d2?auto=format&fit=crop&w=600&q=80',
+      11: 'https://images.unsplash.com/photo-1549488344-cbb6c34cf08b?auto=format&fit=crop&w=600&q=80',
+      12: 'https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?auto=format&fit=crop&w=600&q=80',
+      13: 'https://images.unsplash.com/photo-1589384267710-7a170981ca78?auto=format&fit=crop&w=600&q=80',
+      14: 'https://images.unsplash.com/photo-1594633312681-425c7b97ccd1?auto=format&fit=crop&w=600&q=80',
+      15: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=600&q=80',
+      16: 'https://images.unsplash.com/photo-1513506003901-1e6a229e2d15?auto=format&fit=crop&w=600&q=80',
+      17: 'https://images.unsplash.com/photo-1507473885765-e6ed057f782c?auto=format&fit=crop&w=600&q=80',
+      18: 'https://images.unsplash.com/photo-1600121848594-d8644e57abab?auto=format&fit=crop&w=600&q=80',
+      19: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=600&q=80',
+      20: 'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?auto=format&fit=crop&w=600&q=80',
+    }
+
+    const resolveProductImg = (it) => {
+      if (!it) return ''
+
+      // 1. Ưu tiên lấy trực tiếp URL từ database hoặc cart (hỗ trợ cả link /images/... lẫn link http)
+      const directUrl = it.image_url || it.imageUrl || it.image
+      if (directUrl && typeof directUrl === 'string' && directUrl.trim()) {
+        const trimmed = directUrl.trim()
+        if (
+          trimmed.startsWith('http://') ||
+          trimmed.startsWith('https://') ||
+          trimmed.startsWith('/') ||
+          trimmed.startsWith('data:')
+        ) {
+          return trimmed
+        }
+      }
+
+      // 2. Tra cứu từ danh mục sản phẩm của giao diện chính (catalog)
+      const pId = it.id || it.product_id || it.productId
+      if (pId && Array.isArray(catalogProducts)) {
+        const found = catalogProducts.find((p) => String(p.id) === String(pId))
+        if (found?.image) return found.image
+      }
+
+      // 3. Tra cứu theo tên trong catalog
+      const nameStr = (it.name || it.product_name || '').trim().toLowerCase()
+      if (nameStr && Array.isArray(catalogProducts)) {
+        const foundByName = catalogProducts.find(
+          (p) => (p.name || '').trim().toLowerCase() === nameStr
+        )
+        if (foundByName?.image) return foundByName.image
+      }
+
+      // 4. Nhận diện fallback cho ghế Luna (/images/ghe_an_go_soi.jpg trong DB)
+      if (nameStr.includes('luna')) {
+        return '/images/ghe_an_go_soi.jpg'
+      }
+
+      // 5. Fallback dự phòng
+      if (pId && PRODUCT_IMAGES[pId]) return PRODUCT_IMAGES[pId]
+      return ''
+    }
+
     const currentOrder = orderSnapshot || {
       orderNumber,
       items: cartItems.map((p) => ({
@@ -388,330 +472,218 @@ export default function OrderReviewPage({
       status: rawStatus = 'PENDING',
     } = currentOrder
 
-    // Chuẩn hóa danh sách sản phẩm dù đến từ backend hay snapshot
     const rawItems = currentOrder.items || []
     const items = rawItems.map((it) => ({
       id: it.id || it.product_id || it.productId,
       name: it.name || it.product_name || 'Sản phẩm Nếp Living',
       category: it.category || it.category_name || 'Nội thất gỗ tự nhiên',
-      image: it.image || it.image_url || 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=400&q=80',
+      image: resolveProductImg(it),
       quantity: it.quantity || 1,
       price: Number(it.price || it.unit_price || 0),
       lineTotal: Number(it.lineTotal || it.amount || (Number(it.price || it.unit_price || 0) * (it.quantity || 1))),
     }))
 
-    const orderStatus = (rawStatus || 'PENDING').toUpperCase()
-    const isCancelled = orderStatus === 'CANCELLED'
     const totalQty = items.reduce((sum, item) => sum + (item.quantity || 1), 0)
 
     return (
-      <div className="order-page-layer" role="dialog" aria-modal="true" aria-label="Chi tiết đơn hàng Shopee">
-        <div className="order-page-container shopee-tracking-page-container">
-          {/* Header bar phong cách Shopee */}
-          <div className="shopee-tracking-top-nav">
-            <button className="shopee-tracking-back-btn" type="button" onClick={handleClose}>
-              <ArrowLeft size={18} />
-              <span>Trở về</span>
-            </button>
-            <div className="shopee-tracking-top-title">
-              <span>CHI TIẾT ĐƠN HÀNG</span>
-            </div>
+      <div className="order-page-layer" role="dialog" aria-modal="true" aria-label="Xác nhận đơn hàng thành công">
+        <div className="order-page-container order-success-modern-container">
+          {/* Header thanh thoát */}
+          <header className="order-success-top-header">
+            <a className="wordmark order-wordmark" href="#top" aria-label="Nếp Living - Trang chủ">
+              <span className="wordmark-symbol" aria-hidden="true">n.</span>
+              <span>NẾP <em>LIVING</em></span>
+            </a>
             <button className="order-close-btn" type="button" onClick={handleClose} aria-label="Đóng">
-              <X size={19} />
+              <X size={20} />
             </button>
-          </div>
+          </header>
 
-          <div className="shopee-tracking-scroll-body">
-            {/* Banner trạng thái Shopee */}
-            <div className={`shopee-tracking-status-banner ${isCancelled ? 'banner-cancelled' : 'banner-pending'}`}>
-              <div className="shopee-status-banner-content">
-                <div className="shopee-status-icon-wrap">
-                  {isCancelled ? <XCircle size={36} /> : <CheckCircle2 size={36} />}
-                </div>
-                <div>
-                  <h3>
-                    {isCancelled
-                      ? 'ĐƠN HÀNG ĐÃ HỦY'
-                      : 'ĐƠN HÀNG ĐÃ ĐẶT THÀNH CÔNG'}
-                  </h3>
-                  <p>
-                    {isCancelled
-                      ? 'Đơn hàng này đã được hủy theo yêu cầu của quý khách.'
-                      : 'Cảm ơn bạn đã tin tưởng Nếp Living. Đơn hàng đang được người bán chuẩn bị.'}
-                  </p>
-                </div>
+          <div className="order-success-scroll-content">
+            {/* Hero Cảm Ơn Nếp Living */}
+            <div className="order-thankyou-hero">
+              <div className="order-thankyou-icon-circle">
+                <CheckCircle2 size={46} strokeWidth={2.2} />
               </div>
-              {!isCancelled && (
-                <div className="shopee-status-banner-badge">
-                  <Truck size={16} />
-                  <span>Dự kiến giao: 2 - 4 ngày tới</span>
-                </div>
-              )}
-            </div>
+              <h1 className="order-thankyou-title">Cảm ơn bạn đã mua hàng!</h1>
+              <p className="order-thankyou-subtitle">
+                Đơn hàng của bạn đã được ghi nhận thành công. Nếp Living sẽ sớm liên hệ xác nhận và giao những món đồ ấm cúng đến tổ ấm của bạn.
+              </p>
 
-            {/* Shopee Progress Stepper (Timeline 5 bước) */}
-            {!isCancelled && (
-              <div className="shopee-stepper-card">
-                <div className="shopee-stepper-track">
-                  {/* Step 1: Đã đặt */}
-                  <div className="shopee-step-node completed">
-                    <div className="shopee-step-circle">
-                      <FileText size={16} />
-                    </div>
-                    <div className="shopee-step-info">
-                      <span className="shopee-step-title">Đơn Hàng Đã Đặt</span>
-                      <span className="shopee-step-time">{orderDate || 'Vừa xong'}</span>
-                    </div>
-                  </div>
-                  <div className="shopee-step-line active" />
-
-                  {/* Step 2: Chờ xác nhận */}
-                  <div className={`shopee-step-node ${orderStatus !== 'PENDING' ? 'completed' : 'current'}`}>
-                    <div className="shopee-step-circle">
-                      <Clock size={16} />
-                    </div>
-                    <div className="shopee-step-info">
-                      <span className="shopee-step-title">Chờ Xác Nhận</span>
-                      <span className="shopee-step-time">Đang xử lý</span>
-                    </div>
-                  </div>
-                  <div className={`shopee-step-line ${orderStatus === 'SHIPPING' || orderStatus === 'COMPLETED' ? 'active' : ''}`} />
-
-                  {/* Step 3: Đóng gói */}
-                  <div className={`shopee-step-node ${orderStatus === 'SHIPPING' || orderStatus === 'COMPLETED' ? 'completed' : ''}`}>
-                    <div className="shopee-step-circle">
-                      <Package size={16} />
-                    </div>
-                    <div className="shopee-step-info">
-                      <span className="shopee-step-title">Chuẩn Bị Hàng</span>
-                      <span className="shopee-step-time">Tại kho Nếp</span>
-                    </div>
-                  </div>
-                  <div className={`shopee-step-line ${orderStatus === 'COMPLETED' ? 'active' : ''}`} />
-
-                  {/* Step 4: Đang vận chuyển */}
-                  <div className={`shopee-step-node ${orderStatus === 'COMPLETED' ? 'completed' : ''}`}>
-                    <div className="shopee-step-circle">
-                      <Truck size={16} />
-                    </div>
-                    <div className="shopee-step-info">
-                      <span className="shopee-step-title">Đang Giao Hàng</span>
-                      <span className="shopee-step-time">Nếp Express</span>
-                    </div>
-                  </div>
-                  <div className={`shopee-step-line ${orderStatus === 'COMPLETED' ? 'active' : ''}`} />
-
-                  {/* Step 5: Hoàn thành */}
-                  <div className={`shopee-step-node ${orderStatus === 'COMPLETED' ? 'completed' : ''}`}>
-                    <div className="shopee-step-circle">
-                      <CheckCircle2 size={16} />
-                    </div>
-                    <div className="shopee-step-info">
-                      <span className="shopee-step-title">Đã Nhận Hàng</span>
-                      <span className="shopee-step-time">Đánh giá</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Shopee Địa Chỉ Nhận Hàng (Card có sọc phong bì thư đặc trưng Shopee) */}
-            <div className="shopee-address-box">
-              <div className="shopee-address-envelope-stripe" />
-              <div className="shopee-address-inner">
-                <div className="shopee-address-header">
-                  <MapPin size={18} className="shopee-pin-icon" />
-                  <h4>Địa Chỉ Nhận Hàng</h4>
-                </div>
-                <div className="shopee-address-details">
-                  <div className="shopee-recipient-name">
-                    <strong>{shippingInfo.fullName || form.fullName || 'Khách hàng'}</strong>
-                    <span className="shopee-recipient-phone">
-                      ({shippingInfo.phone || form.phone || 'Chưa có SĐT'})
-                    </span>
-                  </div>
-                  <p className="shopee-recipient-addr">
-                    {shippingInfo.address || form.address}
-                    {shippingInfo.ward ? `, ${shippingInfo.ward}` : ''}
-                    {shippingInfo.district ? `, ${shippingInfo.district}` : (form.district ? `, ${form.district}` : '')}
-                    {shippingInfo.city ? `, ${shippingInfo.city}` : (form.city ? `, ${form.city}` : '')}
-                  </p>
-                  <div className="shopee-delivery-provider">
-                    <Truck size={14} />
-                    <span>Phương thức vận chuyển: <strong>Nếp Express - Tiêu chuẩn</strong> (Đồng kiểm khi nhận hàng)</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Shopee Shop Card: Nếp Living Official Store */}
-            <div className="shopee-detail-shop-card">
-              <div className="shopee-card-header">
-                <div className="shopee-card-shop-info">
-                  <span className="shopee-mall-badge">Mall</span>
-                  <strong className="shopee-shop-name">Nếp Living Official Store</strong>
-                  <button
-                    type="button"
-                    className="shopee-view-shop-tag"
-                    onClick={handleClose}
-                  >
-                    <Store size={13} />
-                    <span>Xem Shop</span>
-                  </button>
-                </div>
-                <div className="shopee-card-status-col">
-                  <span className="shopee-chat-hint">Chăm sóc khách hàng 24/7</span>
-                </div>
-              </div>
-
-              {/* Danh sách sản phẩm chi tiết */}
-              <div className="shopee-card-items-wrap">
-                {items.length === 0 ? (
-                  <p style={{ color: 'var(--muted)', textAlign: 'center', padding: '20px 0' }}>
-                    Không có thông tin sản phẩm
-                  </p>
-                ) : (
-                  items.map((item, idx) => (
-                    <div className="shopee-item-row" key={`${item.id}-${idx}`}>
-                      <div className="shopee-item-img-box">
-                        <img src={item.image} alt={item.name} />
-                      </div>
-                      <div className="shopee-item-body">
-                        <h4 className="shopee-item-title">{item.name}</h4>
-                        <span className="shopee-item-variant">
-                          Phân loại: {item.category || 'Nội thất gỗ sồi'}
-                        </span>
-                        <span className="shopee-item-qty">x{item.quantity || 1}</span>
-                        <div className="shopee-item-guarantee">
-                          <ShieldCheck size={13} />
-                          <span>Đổi trả miễn phí 7 ngày</span>
-                        </div>
-                      </div>
-                      <div className="shopee-item-price-col">
-                        <span className="shopee-item-price">
-                          {formatPrice(item.price)}
-                        </span>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-
-            {/* Shopee Chi Tiết Mã Đơn & Bảng Phân Tích Thanh Toán */}
-            <div className="shopee-breakdown-card">
-              <div className="shopee-breakdown-row">
-                <span className="breakdown-label">Mã đơn hàng:</span>
-                <div className="shopee-code-copy-group">
-                  <strong className="shopee-order-code">{activeOrderNumber}</strong>
-                  <button
-                    type="button"
-                    className="shopee-copy-code-btn"
-                    onClick={() => handleCopyCode(activeOrderNumber)}
-                    title="Sao chép mã đơn hàng"
-                  >
-                    {copied ? <Check size={13} color="#2b8a3e" /> : <Copy size={13} />}
-                    <span>{copied ? 'Đã sao chép' : 'SAO CHÉP'}</span>
-                  </button>
-                </div>
-              </div>
-
-              <div className="shopee-breakdown-row">
-                <span className="breakdown-label">Thời gian đặt hàng:</span>
-                <span className="breakdown-value">{orderDate || 'Vừa xong'}</span>
-              </div>
-
-              <div className="shopee-breakdown-row">
-                <span className="breakdown-label">Phương thức thanh toán:</span>
-                <span className="breakdown-value">{paymentMethod.label || PAYMENT_METHOD.label}</span>
-              </div>
-
-              <div className="shopee-divider" />
-
-              <div className="shopee-breakdown-row">
-                <span className="breakdown-label">Tổng tiền hàng ({totalQty} món):</span>
-                <span className="breakdown-value">{formatPrice(activeSubtotal)}</span>
-              </div>
-
-              <div className="shopee-breakdown-row">
-                <span className="breakdown-label">Phí vận chuyển:</span>
-                <span className="breakdown-value">
-                  {activeShippingFee === 0 ? (
-                    <span className="shopee-freeship-badge">Miễn phí vận chuyển</span>
-                  ) : (
-                    formatPrice(activeShippingFee)
-                  )}
-                </span>
-              </div>
-
-              {activeShippingFee === 0 && (
-                <div className="shopee-breakdown-row">
-                  <span className="breakdown-label">Giảm giá vận chuyển:</span>
-                  <span className="breakdown-value text-green">-35.000₫</span>
-                </div>
-              )}
-
-              <div className="shopee-breakdown-row shopee-breakdown-grand">
-                <span className="breakdown-label-grand">Tổng số tiền:</span>
-                <div className="shopee-grand-price-group">
-                  <strong className="shopee-grand-price">{formatPrice(activeTotal)}</strong>
-                  <small className="shopee-cod-note">Thanh toán khi nhận hàng (COD)</small>
-                </div>
-              </div>
-            </div>
-
-            {/* Thông báo hủy đơn */}
-            {cancelSuccessMsg && (
-              <div className="shopee-cancel-alert">
-                <CheckCircle2 size={16} />
-                <span>{cancelSuccessMsg}</span>
-              </div>
-            )}
-
-            {/* Thanh Nút Thao Tác Shopee */}
-            <div className="shopee-tracking-actions">
-              {!isCancelled && orderStatus === 'PENDING' && (
+              <div className="order-thankyou-code-pill">
+                <span className="code-label">MÃ ĐƠN HÀNG</span>
+                <strong className="code-value">{activeOrderNumber}</strong>
                 <button
                   type="button"
-                  className="shopee-btn shopee-btn-cancel"
-                  disabled={isCancelling}
-                  onClick={() => handleCancelOrderClick(currentOrder)}
+                  className="code-copy-btn"
+                  onClick={() => handleCopyCode(activeOrderNumber)}
+                  title="Sao chép mã đơn hàng"
                 >
-                  <X size={15} />
-                  <span>{isCancelling ? 'Đang hủy đơn...' : 'Hủy Đơn Hàng'}</span>
+                  {copied ? <Check size={13} color="#2b8a3e" /> : <Copy size={13} />}
+                  <span>{copied ? 'Đã sao chép' : 'Sao chép'}</span>
                 </button>
-              )}
+              </div>
+            </div>
 
+            {/* Layout 2 cột sang trọng */}
+            <div className="order-success-grid-layout">
+              {/* CỘT TRÁI: Danh sách sản phẩm & Tổng tiền */}
+              <div className="order-success-card items-card">
+                <div className="card-heading-row">
+                  <Package size={18} className="card-heading-icon" />
+                  <h3>Chi tiết sản phẩm ({totalQty} món)</h3>
+                </div>
+
+                <div className="order-success-items-list">
+                  {items.map((item, idx) => (
+                    <div className="order-success-item-row" key={`${item.id}-${idx}`}>
+                      <div className="order-success-item-thumb">
+                        {item.image ? (
+                          <img
+                            src={item.image}
+                            alt={item.name}
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none'
+                              if (e.currentTarget.nextElementSibling) {
+                                e.currentTarget.nextElementSibling.style.display = 'flex'
+                              }
+                            }}
+                          />
+                        ) : null}
+                        <div
+                          className="order-item-fallback-icon"
+                          style={{ display: item.image ? 'none' : 'flex' }}
+                        >
+                          <Package size={20} />
+                        </div>
+                        <span className="order-success-item-qty-badge">{item.quantity}</span>
+                      </div>
+                      <div className="order-success-item-info">
+                        <h4 className="item-title">{item.name}</h4>
+                        <span className="item-category">{item.category}</span>
+                        <div className="item-unit-calc">
+                          <span>{formatPrice(item.price)} × {item.quantity}</span>
+                        </div>
+                      </div>
+                      <div className="order-success-item-total">
+                        <strong>{formatPrice(item.lineTotal)}</strong>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Bảng phân tích thanh toán */}
+                <div className="order-success-payment-breakdown">
+                  <div className="breakdown-line">
+                    <span>Tạm tính</span>
+                    <span>{formatPrice(activeSubtotal)}</span>
+                  </div>
+                  <div className="breakdown-line">
+                    <span>Phí giao hàng</span>
+                    <span>
+                      {activeShippingFee === 0 ? (
+                        <span className="free-shipping-tag">Miễn phí giao hàng</span>
+                      ) : (
+                        formatPrice(activeShippingFee)
+                      )}
+                    </span>
+                  </div>
+                  <div className="breakdown-divider" />
+                  <div className="breakdown-line grand-total-line">
+                    <span>Tổng thanh toán</span>
+                    <strong>{formatPrice(activeTotal)}</strong>
+                  </div>
+                </div>
+              </div>
+
+              {/* CỘT PHẢI: Thông tin nhận hàng & Thanh toán */}
+              <div className="order-success-card-column">
+                {/* Thông tin người nhận */}
+                <div className="order-success-card info-card">
+                  <div className="card-heading-row">
+                    <MapPin size={18} className="card-heading-icon" />
+                    <h3>Thông tin nhận hàng</h3>
+                  </div>
+
+                  <div className="order-info-details-box">
+                    <div className="info-detail-row">
+                      <span className="info-label">Người nhận:</span>
+                      <strong className="info-val">{shippingInfo.fullName || form.fullName || 'Khách hàng'}</strong>
+                    </div>
+                    <div className="info-detail-row">
+                      <span className="info-label">Số điện thoại:</span>
+                      <span className="info-val">{shippingInfo.phone || form.phone || '(Chưa cập nhật)'}</span>
+                    </div>
+                    <div className="info-detail-row">
+                      <span className="info-label">Địa chỉ:</span>
+                      <span className="info-val address-text">
+                        {shippingInfo.address || form.address}
+                        {shippingInfo.ward ? `, ${shippingInfo.ward}` : ''}
+                        {shippingInfo.district ? `, ${shippingInfo.district}` : (form.district ? `, ${form.district}` : '')}
+                        {shippingInfo.city ? `, ${shippingInfo.city}` : (form.city ? `, ${form.city}` : '')}
+                      </span>
+                    </div>
+                    <div className="info-detail-row">
+                      <span className="info-label">Thời gian giao:</span>
+                      <span className="info-val green-text">Dự kiến 2 - 4 ngày làm việc</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Phương thức thanh toán */}
+                <div className="order-success-card info-card">
+                  <div className="card-heading-row">
+                    <CreditCard size={18} className="card-heading-icon" />
+                    <h3>Phương thức thanh toán</h3>
+                  </div>
+
+                  <div className="payment-method-box">
+                    <div className="payment-method-badge">
+                      <ShieldCheck size={16} />
+                      <strong>Thanh toán khi nhận hàng (COD)</strong>
+                    </div>
+                    <p className="payment-method-desc">
+                      Bạn thanh toán tiền mặt trực tiếp cho nhân viên giao hàng sau khi nhận và kiểm tra kiện hàng.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Cam kết của Nếp */}
+                <div className="order-nep-guarantee-box">
+                  <div className="guarantee-item">
+                    <Truck size={15} />
+                    <span>Đồng kiểm cùng shipper khi nhận hàng</span>
+                  </div>
+                  <div className="guarantee-item">
+                    <ShieldCheck size={15} />
+                    <span>Đổi trả miễn phí trong 7 ngày nếu lỗi</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Các nút hành động chính ở chân trang */}
+            <div className="order-success-bottom-actions">
               {onOpenMyOrders && (
                 <button
                   type="button"
-                  className="shopee-btn shopee-btn-myorders"
+                  className="order-btn-view-history"
                   onClick={() => {
                     handleClose()
                     onOpenMyOrders()
                   }}
                 >
-                  <Package size={15} />
-                  <span>Đơn Mua Của Tôi</span>
+                  <Package size={16} />
+                  <span>Xem lịch sử đơn mua</span>
                 </button>
               )}
-
               <button
                 type="button"
-                className="shopee-btn shopee-btn-reorder"
-                onClick={() => handleReorderClick(items)}
-              >
-                <RotateCcw size={15} />
-                <span>Mua Lại</span>
-              </button>
-
-              <button
-                type="button"
-                className="shopee-btn shopee-btn-home"
+                className="order-btn-continue-shopping"
                 onClick={handleClose}
               >
-                <Home size={15} />
-                <span>Về Trang Chủ</span>
+                <span>Tiếp tục mua sắm</span>
+                <ArrowRight size={17} />
               </button>
             </div>
           </div>
@@ -719,6 +691,7 @@ export default function OrderReviewPage({
       </div>
     )
   }
+
 
   // MAIN ORDER PAGE
   return (
