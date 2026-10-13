@@ -7,6 +7,7 @@ import {
   Heart,
   LogOut,
   Minus,
+  Package,
   Plus,
   Search,
   ShoppingBag,
@@ -21,6 +22,7 @@ import AuthModal from './components/AuthModal'
 import ProfileModal from './components/ProfileModal'
 import AccountModal from './components/AccountModal'
 import OrderReviewPage from './components/OrderReviewPage'
+import MyOrdersModal from './components/MyOrdersModal'
 import './App.css'
 
 const formatPrice = (price) => `${new Intl.NumberFormat('vi-VN').format(price)}₫`
@@ -46,6 +48,7 @@ function App() {
   const [accountOpen, setAccountOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const userMenuRef = useRef(null)
+  const [myOrdersOpen, setMyOrdersOpen] = useState(false)
   const [completedOrder, setCompletedOrder] = useState(null)
   const [justAddedId, setJustAddedId] = useState(null)
   const [cartBump, setCartBump] = useState(false)
@@ -203,6 +206,28 @@ function App() {
     setCart({})
   }
 
+  function handleReorder(items) {
+    if (!items || items.length === 0) return
+    setCart((prevCart) => {
+      const nextCart = { ...prevCart }
+      for (const it of items) {
+        const pId = it.id || it.product_id || it.productId
+        if (pId) {
+          nextCart[pId] = (nextCart[pId] || 0) + (it.quantity || 1)
+        }
+      }
+      return nextCart
+    })
+    setNotice('Đã thêm sản phẩm từ đơn hàng vào giỏ!')
+    window.setTimeout(() => setNotice(''), 3000)
+    setCartOpen(true)
+  }
+
+  function handleViewOrderDetail(order) {
+    setCompletedOrder(order)
+    setOrderOpen(true)
+  }
+
   function previewProductImage(event) {
     const file = event.target.files?.[0]
     if (file) setProductImagePreview(URL.createObjectURL(file))
@@ -264,6 +289,16 @@ function App() {
             <span>Giỏ hàng</span>
             <span className="bag-count">{cartCount}</span>
           </button>
+          <button
+            className="my-orders-button"
+            type="button"
+            onClick={() => setMyOrdersOpen(true)}
+            aria-label="Xem đơn mua của tôi"
+            title="Đơn mua của tôi (Lịch sử đặt hàng)"
+          >
+            <Package size={18} strokeWidth={1.8} />
+            <span>Đơn mua</span>
+          </button>
           {currentUser ? (
             <div className="user-menu-wrapper" ref={userMenuRef}>
               <button
@@ -301,7 +336,7 @@ function App() {
                     className="user-dropdown-item"
                     role="menuitem"
                     type="button"
-                    onClick={() => { setUserMenuOpen(false); setCartOpen(false); setOrderOpen(true) }}
+                    onClick={() => { setUserMenuOpen(false); setMyOrdersOpen(true) }}
                   >
                     <ShoppingBag size={15} /> Đơn hàng của tôi
                   </button>
@@ -687,6 +722,17 @@ function App() {
         user={currentUser}
         onClose={() => setProfileOpen(false)}
         onLogout={handleLogout}
+        onOpenMyOrders={() => setMyOrdersOpen(true)}
+      />
+      <MyOrdersModal
+        isOpen={myOrdersOpen}
+        onClose={() => setMyOrdersOpen(false)}
+        currentUser={currentUser}
+        onViewOrderDetail={handleViewOrderDetail}
+        onReorder={handleReorder}
+        onOpenStore={() => {
+          document.getElementById('products')?.scrollIntoView({ behavior: 'smooth' })
+        }}
       />
       <AccountModal
         isOpen={accountOpen}
@@ -709,6 +755,8 @@ function App() {
             }
           }}
           onOrderSuccess={handleOrderSuccess}
+          onReorder={handleReorder}
+          onOpenMyOrders={() => setMyOrdersOpen(true)}
         />
       )}
       {notice && <div className="toast" role="status">{notice}</div>}

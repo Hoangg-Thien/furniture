@@ -1,6 +1,6 @@
-import { X, LogOut, User, Mail, Phone, MapPin, ShieldCheck } from 'lucide-react'
+import { X, LogOut, User, Mail, Phone, MapPin, ShieldCheck, Package } from 'lucide-react'
 
-export default function ProfileModal({ isOpen, user, onClose, onLogout }) {
+export default function ProfileModal({ isOpen, user, onClose, onLogout, onOpenMyOrders }) {
   if (!isOpen || !user) return null
 
   return (
@@ -62,6 +62,20 @@ export default function ProfileModal({ isOpen, user, onClose, onLogout }) {
             <span>⚠️ Tài khoản này đang lưu tạm offline vì Backend chưa kết nối. Khởi động Spring Boot để lưu vào Database PostgreSQL.</span>
           </div>
         )}
+
+        <div className="profile-orders-shortcut">
+          <button
+            type="button"
+            className="profile-my-orders-btn"
+            onClick={() => {
+              onClose()
+              if (onOpenMyOrders) onOpenMyOrders()
+            }}
+          >
+            <Package size={17} />
+            <span>Xem Đơn Mua Của Tôi (Lịch sử đặt hàng)</span>
+          </button>
+        </div>
 
         <div className="profile-actions">
           <button

@@ -208,50 +208,103 @@ public class OrderController {
     }
 
     @GetMapping
-    public List<Map<String, Object>> getOrders(@RequestParam(required = false) Long customerId) {
-        if (customerId != null) {
-            return jdbcTemplate.queryForList("""
-                    SELECT o.id, o.customer_id, to_char(o.order_date, 'YYYY-MM-DD HH24:MI:SS') AS order_date, o.status, o.total_amount,
-                           c.full_name, c.phone, c.address
+    public ResponseEntity<?> getOrders(@RequestParam(required = false) Long customerId) {
+        try {
+            String sql = """
+                    SELECT o.id, o.customer_id, to_char(o.order_date, 'YYYY-MM-DD HH24:MI:SS') AS order_date,
+                           o.status, o.total_amount, o.discount_amount,
+                           COALESCE(c.full_name, 'Khách hàng') AS full_name,
+                           COALESCE(c.phone, '') AS phone,
+                           COALESCE(c.address, '') AS address
                     FROM public.orders o
-                    JOIN public.customers c ON c.id = o.customer_id
-                    WHERE o.customer_id = ?
+                    LEFT JOIN public.customers c ON c.id = o.customer_id
+                    """ + (customerId != null ? " WHERE o.customer_id = ? " : "") + """
                     ORDER BY o.id DESC
-                    """, customerId);
+                    """;
+
+            List<Map<String, Object>> orders = (customerId != null)
+                    ? jdbcTemplate.queryForList(sql, customerId)
+                    : jdbcTemplate.queryForList(sql);
+
+            for (Map<String, Object> order : orders) {
+                Long orderId = ((Number) order.get("id")).longValue();
+                String orderCode = "NEP-" + Year.now().getValue() + "-" + String.format("%06d", orderId);
+                order.put("orderCode", orderCode);
+
+                List<Map<String, Object>> items = jdbcTemplate.queryForList("""
+                        SELECT oi.product_id, p.name AS product_name, p.image_url,
+                               p.unit, c.name AS category_name,
+                               oi.quantity, oi.unit_price, oi.amount
+                        FROM public.order_items oi
+                        LEFT JOIN public.products p ON p.id = oi.product_id
+                        LEFT JOIN public.categories c ON c.id = p.category_id
+                        WHERE oi.order_id = ?
+                        ORDER BY oi.product_id ASC
+                        """, orderId);
+                order.put("items", items);
+            }
+
+            return ResponseEntity.ok(orders);
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Lỗi lấy danh sách đơn hàng: " + ex.getMessage()));
         }
-        return jdbcTemplate.queryForList("""
-                SELECT o.id, o.customer_id, to_char(o.order_date, 'YYYY-MM-DD HH24:MI:SS') AS order_date, o.status, o.total_amount,
-                       c.full_name, c.phone, c.address
-                FROM public.orders o
-                JOIN public.customers c ON c.id = o.customer_id
-                ORDER BY o.id DESC
-                """);
+    }
+
+    @PostMapping("/{id}/cancel")
+    public ResponseEntity<?> cancelOrder(@PathVariable Long id) {
+        try {
+            int updated = jdbcTemplate.update(
+                    "UPDATE public.orders SET status = 'CANCELLED' WHERE id = ? AND status = 'PENDING'",
+                    id);
+            if (updated > 0) {
+                return ResponseEntity.ok(Map.of("message", "Đã hủy đơn hàng #" + id + " thành công.", "status", "CANCELLED"));
+            } else {
+                return ResponseEntity.badRequest().body(Map.of("error", "Không thể hủy đơn hàng (đơn không tồn tại hoặc đã được xử lý)."));
+            }
+        } catch (Exception ex) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", ex.getMessage()));
+        }
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<?> getOrderById(@PathVariable Long id) {
-        List<Map<String, Object>> orders = jdbcTemplate.queryForList("""
-                SELECT o.id, o.customer_id, to_char(o.order_date, 'YYYY-MM-DD HH24:MI:SS') AS order_date, o.status, o.total_amount,
-                       c.full_name, c.phone, c.address
-                FROM public.orders o
-                JOIN public.customers c ON c.id = o.customer_id
-                WHERE o.id = ?
-                """, id);
+        try {
+            List<Map<String, Object>> orders = jdbcTemplate.queryForList("""
+                    SELECT o.id, o.customer_id, to_char(o.order_date, 'YYYY-MM-DD HH24:MI:SS') AS order_date,
+                           o.status, o.total_amount, o.discount_amount,
+                           COALESCE(c.full_name, 'Khách hàng') AS full_name,
+                           COALESCE(c.phone, '') AS phone,
+                           COALESCE(c.address, '') AS address
+                    FROM public.orders o
+                    LEFT JOIN public.customers c ON c.id = o.customer_id
+                    WHERE o.id = ?
+                    """, id);
 
-        if (orders.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "Không tìm thấy đơn hàng #" + id));
+            if (orders.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "Không tìm thấy đơn hàng #" + id));
+            }
+
+            Map<String, Object> order = orders.get(0);
+            String orderCode = "NEP-" + Year.now().getValue() + "-" + String.format("%06d", id);
+            order.put("orderCode", orderCode);
+
+            List<Map<String, Object>> items = jdbcTemplate.queryForList("""
+                    SELECT oi.product_id, p.name AS product_name, p.image_url,
+                           p.unit, c.name AS category_name,
+                           oi.quantity, oi.unit_price, oi.amount
+                    FROM public.order_items oi
+                    LEFT JOIN public.products p ON p.id = oi.product_id
+                    LEFT JOIN public.categories c ON c.id = p.category_id
+                    WHERE oi.order_id = ?
+                    ORDER BY oi.product_id ASC
+                    """, id);
+
+            return ResponseEntity.ok(Map.of("order", order, "items", items));
+        } catch (Exception ex) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", ex.getMessage()));
         }
-
-        Map<String, Object> order = orders.get(0);
-        List<Map<String, Object>> items = jdbcTemplate.queryForList("""
-                SELECT oi.product_id, p.name AS product_name, p.image_url,
-                       oi.quantity, oi.unit_price, oi.amount
-                FROM public.order_items oi
-                JOIN public.products p ON p.id = oi.product_id
-                WHERE oi.order_id = ?
-                """, id);
-
-        return ResponseEntity.ok(Map.of("order", order, "items", items));
     }
 
     private synchronized void appendToSalesSql(Long orderId, Long customerId, BigDecimal totalAmount, List<OrderItemDto> items) {
