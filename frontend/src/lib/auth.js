@@ -1,4 +1,4 @@
-const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080').replace(/\/+$/, '')
+import { getApiBaseUrl } from './apiConfig'
 
 const SESSION_USER_KEY = 'furniture_logged_in_user'
 
@@ -27,6 +27,7 @@ export function setCurrentUser(user) {
  * Backend kiểm tra trong bảng "users" và "customers" của sales.sql
  */
 export async function loginUser(username, password) {
+  const apiBaseUrl = getApiBaseUrl()
   try {
     const response = await fetch(`${apiBaseUrl}/api/auth/login`, {
       method: 'POST',
@@ -54,6 +55,7 @@ export async function loginUser(username, password) {
  * Backend sẽ lưu thông tin trực tiếp vào bảng "users" và "customers" trong database sales.sql
  */
 export async function registerUser({ username, password, fullName, email, phone, address }) {
+  const apiBaseUrl = getApiBaseUrl()
   try {
     const response = await fetch(`${apiBaseUrl}/api/auth/register`, {
       method: 'POST',
@@ -87,6 +89,7 @@ export function logoutUser() {
  * Cập nhật thông tin tài khoản: Gọi Backend API PUT /api/auth/update/{userId}
  */
 export async function updateProfile(userId, { fullName, email, phone, address, currentPassword, newPassword }) {
+  const apiBaseUrl = getApiBaseUrl()
   try {
     const response = await fetch(`${apiBaseUrl}/api/auth/update/${userId}`, {
       method: 'PUT',

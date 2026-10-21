@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import {
   ArrowLeft,
   ArrowRight,
@@ -23,8 +23,12 @@ import {
   FileText,
   AlertCircle,
   ExternalLink,
+  Tag,
+  Sparkles,
 } from 'lucide-react'
 import { createOrder, saveOrderToLocalHistory, cancelOrderApi } from '../lib/orders'
+import { validateVoucherApi, fetchActiveVouchers } from '../lib/vouchers'
+import { getAllProvinces, getDistricts, getWards } from '../lib/vietnamLocations'
 
 const formatPrice = (price) => `${new Intl.NumberFormat('vi-VN').format(price)}₫`
 
@@ -61,9 +65,35 @@ function StepIndicator({ step }) {
   )
 }
 
-function OrderSummary({ cartItems, cart, subtotal }) {
+function OrderSummary({
+  cartItems,
+  cart,
+  subtotal,
+  appliedVoucher,
+  voucherInput,
+  setVoucherInput,
+  onApplyVoucher,
+  onRemoveVoucher,
+  onQuickApply,
+  voucherError,
+  voucherLoading,
+  availableVouchers = [],
+}) {
+  const discount = appliedVoucher ? appliedVoucher.discountAmount : 0
   const shippingFee = subtotal >= FREE_SHIP_THRESHOLD ? 0 : SHIPPING_FEE
-  const total = subtotal + shippingFee
+  const total = Math.max(0, subtotal - discount + shippingFee)
+
+  // Gợi ý voucher phù hợp (ưu tiên NEP500K nếu đơn >= 5tr hoặc voucher lớn nhất)
+  const suggestedVoucher = useMemo(() => {
+    if (appliedVoucher || !Array.isArray(availableVouchers) || availableVouchers.length === 0) return null
+    if (subtotal >= 5000000) {
+      const v500 = availableVouchers.find((v) => v.code === 'FUNI500K' || v.code === 'NEP500K')
+      if (v500) return v500
+    }
+    const eligible = availableVouchers.filter((v) => Number(v.minimum_amount || 0) <= subtotal)
+    if (eligible.length > 0) return eligible[0]
+    return availableVouchers.find((v) => Number(v.minimum_amount || 0) > subtotal) || null
+  }, [appliedVoucher, availableVouchers, subtotal])
 
   return (
     <aside className="order-summary-panel">
@@ -106,11 +136,95 @@ function OrderSummary({ cartItems, cart, subtotal }) {
           </div>
         ))}
       </div>
+
+      {/* Khung Áp Dụng Voucher Khách Hàng */}
+      <div className="order-summary-voucher-section">
+        <div className="voucher-section-title">
+          <Tag size={14} />
+          <span>Mã giảm giá FuniStore</span>
+        </div>
+
+        <div className="voucher-input-action-row">
+          <input
+            type="text"
+            className="voucher-code-input"
+            placeholder="Nhập mã (VD: FUNI500K)..."
+            value={voucherInput}
+            onChange={(e) => setVoucherInput(e.target.value.toUpperCase())}
+            disabled={!!appliedVoucher || voucherLoading}
+          />
+          {appliedVoucher ? (
+            <button
+              type="button"
+              className="voucher-btn voucher-btn--remove"
+              onClick={onRemoveVoucher}
+            >
+              Hủy
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="voucher-btn voucher-btn--apply"
+              disabled={voucherLoading || !voucherInput.trim()}
+              onClick={onApplyVoucher}
+            >
+              {voucherLoading ? 'Kiểm tra...' : 'Áp dụng'}
+            </button>
+          )}
+        </div>
+
+        {voucherError && (
+          <div className="voucher-msg-alert error">
+            <AlertCircle size={13} />
+            <span>{voucherError}</span>
+          </div>
+        )}
+
+        {appliedVoucher && (
+          <div className="voucher-msg-alert success">
+            <CheckCircle2 size={13} />
+            <span>
+              Đã giảm <strong>{formatPrice(appliedVoucher.discountAmount)}</strong> ({appliedVoucher.code})
+            </span>
+          </div>
+        )}
+
+        {!appliedVoucher && suggestedVoucher && (
+          <div className="voucher-suggest-box">
+            <div className="suggest-info">
+              <Sparkles size={13} className="suggest-sparkle" />
+              <span>
+                {Number(suggestedVoucher.minimum_amount || 0) <= subtotal ? (
+                  <>Đủ điều kiện nhận mã <strong>{suggestedVoucher.code}</strong> (Giảm {suggestedVoucher.maximum_discount ? formatPrice(suggestedVoucher.maximum_discount) : `${suggestedVoucher.discount_percent}%`})</>
+                ) : (
+                  <>Gợi ý mã <strong>{suggestedVoucher.code}</strong>: Mua thêm {formatPrice(Number(suggestedVoucher.minimum_amount || 0) - subtotal)} để giảm {suggestedVoucher.maximum_discount ? formatPrice(suggestedVoucher.maximum_discount) : `${suggestedVoucher.discount_percent}%`}</>
+                )}
+              </span>
+            </div>
+            {Number(suggestedVoucher.minimum_amount || 0) <= subtotal && (
+              <button
+                type="button"
+                className="suggest-apply-btn"
+                onClick={() => onQuickApply(suggestedVoucher)}
+              >
+                Dùng ngay
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
       <div className="order-summary-totals">
         <div className="order-total-row">
           <span>Tạm tính</span>
           <span>{formatPrice(subtotal)}</span>
         </div>
+        {appliedVoucher && (
+          <div className="order-total-row order-discount-row">
+            <span>Giảm giá Voucher ({appliedVoucher.code})</span>
+            <span className="order-discount-text">-{formatPrice(appliedVoucher.discountAmount)}</span>
+          </div>
+        )}
         <div className="order-total-row">
           <span>Phí giao hàng</span>
           <span>
@@ -165,17 +279,69 @@ export default function OrderReviewPage({
   const [orderNumber] = useState(
     () =>
       initialOrder?.orderNumber ||
-      `NEP-${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`
+      `FUNI-${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`
   )
 
-  const [form, setForm] = useState(() => ({
-    fullName: initialOrder?.shippingInfo?.fullName || currentUser?.fullName || currentUser?.username || '',
-    phone: initialOrder?.shippingInfo?.phone || currentUser?.phone || '',
-    address: initialOrder?.shippingInfo?.address || '',
-    ward: initialOrder?.shippingInfo?.ward || '',
-    district: initialOrder?.shippingInfo?.district || '',
-    city: initialOrder?.shippingInfo?.city || '',
-  }))
+  const [useDefaultAccountInfo, setUseDefaultAccountInfo] = useState(() => {
+    return Boolean(currentUser && (currentUser.fullName || currentUser.phone || currentUser.address))
+  })
+
+  const [form, setForm] = useState(() => {
+    const defaultCity = initialOrder?.shippingInfo?.city || (currentUser?.address?.includes('Hà Nội') ? 'Hà Nội' : 'TP. Hồ Chí Minh')
+    return {
+      fullName: initialOrder?.shippingInfo?.fullName || currentUser?.fullName || currentUser?.username || '',
+      phone: initialOrder?.shippingInfo?.phone || currentUser?.phone || '',
+      address: initialOrder?.shippingInfo?.address || currentUser?.address || '',
+      ward: initialOrder?.shippingInfo?.ward || '',
+      district: initialOrder?.shippingInfo?.district || '',
+      city: defaultCity,
+    }
+  })
+
+  const provinces = useMemo(() => getAllProvinces(), [])
+  const districts = useMemo(() => getDistricts(form.city), [form.city])
+  const wards = useMemo(() => getWards(form.city, form.district), [form.city, form.district])
+
+  function handleCitySelect(e) {
+    const selectedCity = e.target.value
+    setForm((prev) => ({
+      ...prev,
+      city: selectedCity,
+      district: '',
+      ward: '',
+    }))
+    if (errors.city) setErrors((prev) => ({ ...prev, city: '' }))
+  }
+
+  function handleDistrictSelect(e) {
+    const selectedDistrict = e.target.value
+    setForm((prev) => ({
+      ...prev,
+      district: selectedDistrict,
+      ward: '',
+    }))
+    if (errors.district) setErrors((prev) => ({ ...prev, district: '' }))
+  }
+
+  function handleWardSelect(e) {
+    const selectedWard = e.target.value
+    setForm((prev) => ({
+      ...prev,
+      ward: selectedWard,
+    }))
+  }
+
+  function handleToggleDefaultInfo(checked) {
+    setUseDefaultAccountInfo(checked)
+    if (checked && currentUser) {
+      setForm((prev) => ({
+        ...prev,
+        fullName: currentUser.fullName || currentUser.username || prev.fullName,
+        phone: currentUser.phone || prev.phone,
+        address: currentUser.address || prev.address,
+      }))
+    }
+  }
   const [errors, setErrors] = useState({})
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState('')
@@ -184,6 +350,77 @@ export default function OrderReviewPage({
   const [copied, setCopied] = useState(false)
   const [isCancelling, setIsCancelling] = useState(false)
   const [cancelSuccessMsg, setCancelSuccessMsg] = useState('')
+
+  // State quản lý Voucher áp dụng cho đơn hàng
+  const [appliedVoucher, setAppliedVoucher] = useState(null)
+  const [voucherInput, setVoucherInput] = useState('')
+  const [voucherError, setVoucherError] = useState('')
+  const [voucherLoading, setVoucherLoading] = useState(false)
+  const [availableVouchers, setAvailableVouchers] = useState([])
+
+  // Tải danh sách voucher đang hoạt động từ backend
+  useEffect(() => {
+    let isMounted = true
+    async function loadVouchers() {
+      try {
+        const res = await fetchActiveVouchers()
+        const list = res?.vouchers || (Array.isArray(res) ? res : [])
+        if (isMounted) {
+          setAvailableVouchers(list)
+        }
+      } catch (err) {
+        console.error('Failed to load active vouchers', err)
+      }
+    }
+    loadVouchers()
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  // Xử lý áp dụng voucher
+  async function handleApplyVoucher(codeToApply) {
+    const code = (typeof codeToApply === 'string' ? codeToApply : voucherInput).trim().toUpperCase()
+    if (!code) {
+      setVoucherError('Vui lòng nhập mã voucher')
+      return
+    }
+    setVoucherLoading(true)
+    setVoucherError('')
+    try {
+      const res = await validateVoucherApi({ code, subtotal })
+      if (!res.valid) {
+        setVoucherError(res.error || 'Mã giảm giá không hợp lệ')
+        setAppliedVoucher(null)
+      } else {
+        setAppliedVoucher({
+          id: res.voucherId,
+          code: res.code || code,
+          discountAmount: res.discountAmount,
+          programName: res.programName,
+        })
+        setVoucherInput(res.code || code)
+        setVoucherError('')
+      }
+    } catch (err) {
+      setVoucherError('Lỗi kiểm tra voucher, vui lòng thử lại.')
+    } finally {
+      setVoucherLoading(false)
+    }
+  }
+
+  // Xử lý gỡ voucher
+  function handleRemoveVoucher() {
+    setAppliedVoucher(null)
+    setVoucherInput('')
+    setVoucherError('')
+  }
+
+  // Áp dụng nhanh từ gợi ý
+  function handleQuickApply(voucher) {
+    if (!voucher) return
+    handleApplyVoucher(voucher.code)
+  }
 
   function handleClose() {
     if (window.location.pathname.includes('/order-success')) {
@@ -261,11 +498,11 @@ export default function OrderReviewPage({
     const newErrors = {}
     if (!form.fullName.trim()) newErrors.fullName = 'Vui lòng nhập họ và tên'
     if (!form.phone.trim()) newErrors.phone = 'Vui lòng nhập số điện thoại'
-    else if (!/^(0|\+84)\d{8,10}$/.test(form.phone.trim()))
+    else if (!/^(0|\+84)\d{8,10}$/.test(form.phone.trim().replace(/\s+/g, '')))
       newErrors.phone = 'Số điện thoại không hợp lệ'
+    if (!form.city.trim()) newErrors.city = 'Vui lòng chọn tỉnh/thành phố'
+    if (!form.district.trim()) newErrors.district = 'Vui lòng chọn quận/huyện'
     if (!form.address.trim()) newErrors.address = 'Vui lòng nhập địa chỉ'
-    if (!form.district.trim()) newErrors.district = 'Vui lòng nhập quận/huyện'
-    if (!form.city.trim()) newErrors.city = 'Vui lòng nhập tỉnh/thành phố'
     return newErrors
   }
 
@@ -284,8 +521,9 @@ export default function OrderReviewPage({
     setSubmitting(true)
     setSubmitError('')
 
+    const discountAmount = appliedVoucher ? Number(appliedVoucher.discountAmount || 0) : 0
     const fee = subtotal >= FREE_SHIP_THRESHOLD ? 0 : SHIPPING_FEE
-    const finalTotal = subtotal + fee
+    const finalTotal = Math.max(0, subtotal - discountAmount + fee)
 
     // Chuẩn bị danh sách sản phẩm gửi lên backend
     const payloadItems = cartItems.map((p) => ({
@@ -305,6 +543,8 @@ export default function OrderReviewPage({
       district: form.district.trim(),
       city: form.city.trim(),
       totalAmount: finalTotal,
+      voucherId: appliedVoucher?.id || null,
+      discountAmount: discountAmount,
       items: payloadItems,
     })
 
@@ -331,6 +571,13 @@ export default function OrderReviewPage({
         lineTotal: p.price * (cart[p.id] || 1),
       })),
       subtotal,
+      discountAmount,
+      appliedVoucher: appliedVoucher ? {
+        id: appliedVoucher.id,
+        code: appliedVoucher.code,
+        discountAmount: appliedVoucher.discountAmount,
+        programName: appliedVoucher.programName,
+      } : null,
       shippingFee: fee,
       total: finalTotal,
       status: 'PENDING',
@@ -358,7 +605,8 @@ export default function OrderReviewPage({
 
     // Lưu vào localStorage để hỗ trợ xem lại và refresh
     try {
-      localStorage.setItem('nep_last_order', JSON.stringify(currentOrderSnapshot))
+      localStorage.setItem('funi_last_order', JSON.stringify(currentOrderSnapshot));
+      localStorage.setItem('nep_last_order', JSON.stringify(currentOrderSnapshot));
     } catch (e) {
       console.warn('Could not save order snapshot to localStorage', e)
     }
@@ -461,27 +709,51 @@ export default function OrderReviewPage({
       status: 'PENDING',
     }
 
-    const {
-      orderNumber: activeOrderNumber = orderNumber,
-      subtotal: activeSubtotal = 0,
-      shippingFee: activeShippingFee = 0,
-      total: activeTotal = 0,
-      shippingInfo = {},
-      paymentMethod = PAYMENT_METHOD,
-      orderDate = '',
-      status: rawStatus = 'PENDING',
-    } = currentOrder
-
     const rawItems = currentOrder.items || []
     const items = rawItems.map((it) => ({
       id: it.id || it.product_id || it.productId,
-      name: it.name || it.product_name || 'Sản phẩm Nếp Living',
+      name: it.name || it.product_name || 'Sản phẩm FuniStore',
       category: it.category || it.category_name || 'Nội thất gỗ tự nhiên',
       image: resolveProductImg(it),
       quantity: it.quantity || 1,
       price: Number(it.price || it.unit_price || 0),
       lineTotal: Number(it.lineTotal || it.amount || (Number(it.price || it.unit_price || 0) * (it.quantity || 1))),
     }))
+
+    const itemsCalculatedSubtotal = items.reduce((sum, item) => sum + (item.lineTotal || 0), 0)
+    const activeSubtotal = currentOrder.subtotal != null && currentOrder.subtotal > 0
+      ? currentOrder.subtotal
+      : (itemsCalculatedSubtotal > 0 ? itemsCalculatedSubtotal : Number(currentOrder.total_amount || currentOrder.total || 0))
+
+    const activeDiscountAmount = Number(
+      currentOrder.discount_amount ??
+      (currentOrder.discountAmount ??
+      (currentOrder.appliedVoucher?.discountAmount ?? (appliedVoucher?.discountAmount || 0)))
+    )
+
+    const activeVoucherCode =
+      currentOrder.voucher_code ||
+      currentOrder.voucherCode ||
+      currentOrder.appliedVoucher?.code ||
+      appliedVoucher?.code ||
+      ''
+
+    const activeShippingFee = currentOrder.shippingFee !== undefined
+      ? currentOrder.shippingFee
+      : (activeSubtotal >= FREE_SHIP_THRESHOLD ? 0 : SHIPPING_FEE)
+
+    const activeTotal = Number(
+      currentOrder.total_amount ??
+      (currentOrder.total ?? Math.max(0, activeSubtotal - activeDiscountAmount + activeShippingFee))
+    )
+
+    const {
+      orderNumber: activeOrderNumber = orderNumber,
+      shippingInfo = {},
+      paymentMethod = PAYMENT_METHOD,
+      orderDate = '',
+      status: rawStatus = 'PENDING',
+    } = currentOrder
 
     const totalQty = items.reduce((sum, item) => sum + (item.quantity || 1), 0)
 
@@ -490,9 +762,9 @@ export default function OrderReviewPage({
         <div className="order-page-container order-success-modern-container">
           {/* Header thanh thoát */}
           <header className="order-success-top-header">
-            <a className="wordmark order-wordmark" href="#top" aria-label="Nếp Living - Trang chủ">
-              <span className="wordmark-symbol" aria-hidden="true">n.</span>
-              <span>NẾP <em>LIVING</em></span>
+            <a className="wordmark order-wordmark" href="#top" aria-label="FuniStore - Trang chủ">
+              <span className="wordmark-symbol" aria-hidden="true">f.</span>
+            <span>FUNI <em>STORE</em></span>
             </a>
             <button className="order-close-btn" type="button" onClick={handleClose} aria-label="Đóng">
               <X size={20} />
@@ -507,7 +779,7 @@ export default function OrderReviewPage({
               </div>
               <h1 className="order-thankyou-title">Cảm ơn bạn đã mua hàng!</h1>
               <p className="order-thankyou-subtitle">
-                Đơn hàng của bạn đã được ghi nhận thành công. Nếp Living sẽ sớm liên hệ xác nhận và giao những món đồ ấm cúng đến tổ ấm của bạn.
+                Đơn hàng của bạn đã được ghi nhận thành công. FuniStore sẽ sớm liên hệ xác nhận và giao những món đồ ấm cúng đến tổ ấm của bạn.
               </p>
 
               <div className="order-thankyou-code-pill">
@@ -578,6 +850,17 @@ export default function OrderReviewPage({
                     <span>Tạm tính</span>
                     <span>{formatPrice(activeSubtotal)}</span>
                   </div>
+                  {activeDiscountAmount > 0 && (
+                    <div className="breakdown-line discount-line">
+                      <span className="order-success-voucher-label">
+                        <Tag size={13} style={{ verticalAlign: 'middle', marginRight: 4 }} />
+                        Giảm giá voucher {activeVoucherCode ? `(${activeVoucherCode})` : ''}
+                      </span>
+                      <strong className="order-success-voucher-discount">
+                        -{formatPrice(activeDiscountAmount)}
+                      </strong>
+                    </div>
+                  )}
                   <div className="breakdown-line">
                     <span>Phí giao hàng</span>
                     <span>
@@ -703,9 +986,9 @@ export default function OrderReviewPage({
     >
       <div className="order-page-container">
         <header className="order-page-header">
-          <a className="wordmark order-wordmark" href="#top" aria-label="Nếp Living - Trang chủ">
-            <span className="wordmark-symbol" aria-hidden="true">n.</span>
-            <span>NẾP <em>LIVING</em></span>
+          <a className="wordmark order-wordmark" href="#top" aria-label="FuniStore - Trang chủ">
+            <span className="wordmark-symbol" aria-hidden="true">f.</span>
+            <span>FUNI <em>STORE</em></span>
           </a>
           <StepIndicator step={step} />
           <button
@@ -729,6 +1012,26 @@ export default function OrderReviewPage({
                     <h2>Thông tin giao hàng</h2>
                   </div>
                 </div>
+
+                {currentUser && (
+                  <div className="order-use-default-box">
+                    <label className="order-use-default-label">
+                      <input
+                        type="checkbox"
+                        checked={useDefaultAccountInfo}
+                        onChange={(e) => handleToggleDefaultInfo(e.target.checked)}
+                      />
+                      <div className="order-use-default-info">
+                        <span className="order-use-default-title">
+                          Lấy thông tin mặc định đã nhập trong tài khoản
+                        </span>
+                        <span className="order-use-default-hint">
+                          Tự động điền họ tên ({currentUser.fullName || currentUser.username}), SĐT ({currentUser.phone || "Chưa cập nhật"}) và địa chỉ
+                        </span>
+                      </div>
+                    </label>
+                  </div>
+                )}
 
                 <div className="order-form-grid">
                   <div className={`order-field order-field-full ${errors.fullName ? 'has-error' : ''}`}>
@@ -762,60 +1065,101 @@ export default function OrderReviewPage({
                     {errors.phone && <span className="order-field-error">{errors.phone}</span>}
                   </div>
 
-                  <div className={`order-field order-field-full ${errors.address ? 'has-error' : ''}`}>
-                    <label htmlFor="ord-address">
-                      <MapPin size={12} /> Địa chỉ (số nhà, tên đường) <i>*</i>
+                  <div className={`order-field ${errors.city ? 'has-error' : ''}`}>
+                    <label htmlFor="ord-city">
+                      <MapPin size={12} /> Tỉnh / Thành phố <i>*</i>
                     </label>
-                    <input
-                      id="ord-address"
-                      name="address"
-                      value={form.address}
-                      onChange={handleFormChange}
-                      placeholder="123 Nguyễn Thị Minh Khai"
-                      autoComplete="street-address"
-                    />
-                    {errors.address && <span className="order-field-error">{errors.address}</span>}
-                  </div>
-
-                  <div className="order-field">
-                    <label htmlFor="ord-ward">Phường / Xã</label>
-                    <input
-                      id="ord-ward"
-                      name="ward"
-                      value={form.ward}
-                      onChange={handleFormChange}
-                      placeholder="Phường Bến Nghé"
-                    />
+                    <div className="order-select-wrapper">
+                      <select
+                        id="ord-city"
+                        name="city"
+                        value={form.city}
+                        onChange={handleCitySelect}
+                        className="order-select"
+                      >
+                        <option value="">-- Chọn Tỉnh / Thành phố --</option>
+                        {form.city && !provinces.includes(form.city) && (
+                          <option value={form.city}>{form.city}</option>
+                        )}
+                        {provinces.map((prov) => (
+                          <option key={prov} value={prov}>
+                            {prov}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    {errors.city && <span className="order-field-error">{errors.city}</span>}
                   </div>
 
                   <div className={`order-field ${errors.district ? 'has-error' : ''}`}>
                     <label htmlFor="ord-district">
                       Quận / Huyện <i>*</i>
                     </label>
-                    <input
-                      id="ord-district"
-                      name="district"
-                      value={form.district}
-                      onChange={handleFormChange}
-                      placeholder="Quận 1"
-                    />
+                    <div className="order-select-wrapper">
+                      <select
+                        id="ord-district"
+                        name="district"
+                        value={form.district}
+                        onChange={handleDistrictSelect}
+                        disabled={!form.city}
+                        className="order-select"
+                      >
+                        <option value="">
+                          {form.city ? "-- Chọn Quận / Huyện --" : "-- Chọn Tỉnh/TP trước --"}
+                        </option>
+                        {form.district && !districts.includes(form.district) && (
+                          <option value={form.district}>{form.district}</option>
+                        )}
+                        {districts.map((dist) => (
+                          <option key={dist} value={dist}>
+                            {dist}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                     {errors.district && <span className="order-field-error">{errors.district}</span>}
                   </div>
 
-                  <div className={`order-field ${errors.city ? 'has-error' : ''}`}>
-                    <label htmlFor="ord-city">
-                      Tỉnh / Thành phố <i>*</i>
-                    </label>
-                    <input
-                      id="ord-city"
-                      name="city"
-                      value={form.city}
-                      onChange={handleFormChange}
-                      placeholder="TP. Hồ Chí Minh"
-                    />
-                    {errors.city && <span className="order-field-error">{errors.city}</span>}
+                  <div className="order-field">
+                    <label htmlFor="ord-ward">Phường / Xã</label>
+                    <div className="order-select-wrapper">
+                      <select
+                        id="ord-ward"
+                        name="ward"
+                        value={form.ward}
+                        onChange={handleWardSelect}
+                        disabled={!form.district}
+                        className="order-select"
+                      >
+                        <option value="">
+                          {form.district ? "-- Chọn Phường / Xã --" : "-- Chọn Quận/Huyện trước --"}
+                        </option>
+                        {form.ward && !wards.includes(form.ward) && (
+                          <option value={form.ward}>{form.ward}</option>
+                        )}
+                        {wards.map((w) => (
+                          <option key={w} value={w}>
+                            {w}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
 
+                  <div className={`order-field order-field-full ${errors.address ? 'has-error' : ''}`}>
+                    <label htmlFor="ord-address">
+                      <MapPin size={12} /> Địa chỉ chi tiết (số nhà, tên đường) <i>*</i>
+                    </label>
+                    <input
+                      id="ord-address"
+                      name="address"
+                      value={form.address}
+                      onChange={handleFormChange}
+                      placeholder="VD: 123 Nguyễn Thị Minh Khai, Tòa nhà Bitexco..."
+                      autoComplete="street-address"
+                    />
+                    {errors.address && <span className="order-field-error">{errors.address}</span>}
+                  </div>
                 </div>
               </section>
             )}
@@ -844,7 +1188,7 @@ export default function OrderReviewPage({
                     </span>
                   </div>
                   <p className="order-cod-notice">
-                    Hiện tại Nếp Living chỉ hỗ trợ thanh toán COD. Các phương thức khác sẽ sớm được bổ sung.
+                    Hiện tại FuniStore chỉ hỗ trợ thanh toán COD. Các phương thức khác sẽ sớm được bổ sung.
                   </p>
                 </div>
 
@@ -926,7 +1270,20 @@ export default function OrderReviewPage({
             </div>
           </div>
 
-          <OrderSummary cartItems={cartItems} cart={cart} subtotal={subtotal} />
+          <OrderSummary
+            cartItems={cartItems}
+            cart={cart}
+            subtotal={subtotal}
+            appliedVoucher={appliedVoucher}
+            voucherInput={voucherInput}
+            setVoucherInput={setVoucherInput}
+            onApplyVoucher={handleApplyVoucher}
+            onRemoveVoucher={handleRemoveVoucher}
+            onQuickApply={handleQuickApply}
+            voucherError={voucherError}
+            voucherLoading={voucherLoading}
+            availableVouchers={availableVouchers}
+          />
         </div>
       </div>
     </div>

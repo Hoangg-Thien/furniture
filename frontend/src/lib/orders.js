@@ -1,4 +1,4 @@
-const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080').replace(/\/+$/, '')
+import { getApiBaseUrl } from './apiConfig'
 
 /**
  * Gửi yêu cầu đặt hàng tới Backend API (/api/orders)
@@ -14,8 +14,11 @@ export async function createOrder({
   district,
   city,
   totalAmount,
+  voucherId = null,
+  discountAmount = 0,
   items,
 }) {
+  const apiBaseUrl = getApiBaseUrl()
   try {
     const response = await fetch(`${apiBaseUrl}/api/orders`, {
       method: 'POST',
@@ -32,6 +35,8 @@ export async function createOrder({
         district,
         city,
         totalAmount,
+        voucherId,
+        discountAmount,
         items,
       }),
     })
@@ -58,6 +63,7 @@ export async function createOrder({
 }
 
 export async function fetchOrders(customerId) {
+  const apiBaseUrl = getApiBaseUrl()
   try {
     const url = customerId
       ? `${apiBaseUrl}/api/orders?customerId=${customerId}`
@@ -75,7 +81,7 @@ export async function fetchOrders(customerId) {
 
   // Fallback từ localStorage nếu backend đang không truy cập được
   try {
-    const local = JSON.parse(localStorage.getItem('nep_orders_history') || '[]')
+    const local = JSON.parse(localStorage.getItem('funi_orders_history') || localStorage.getItem('nep_orders_history') || '[]')
     return { orders: local, error: null }
   } catch (e) {
     return { orders: [], error: null }
@@ -83,6 +89,7 @@ export async function fetchOrders(customerId) {
 }
 
 export async function fetchOrderById(id) {
+  const apiBaseUrl = getApiBaseUrl()
   try {
     const response = await fetch(`${apiBaseUrl}/api/orders/${id}`)
     if (response.ok) {
@@ -96,6 +103,7 @@ export async function fetchOrderById(id) {
 }
 
 export async function cancelOrderApi(id) {
+  const apiBaseUrl = getApiBaseUrl()
   try {
     const response = await fetch(`${apiBaseUrl}/api/orders/${id}/cancel`, {
       method: 'POST',
@@ -115,7 +123,7 @@ export async function cancelOrderApi(id) {
           ? { ...o, status: 'CANCELLED' }
           : o
       )
-      localStorage.setItem('nep_orders_history', JSON.stringify(updated))
+      localStorage.setItem('funi_orders_history', JSON.stringify(updated)); localStorage.setItem('funi_orders_history', JSON.stringify(updated)); localStorage.setItem('nep_orders_history', JSON.stringify(updated))
       return { success: true, message: 'Đã hủy đơn hàng thành công.' }
     } catch (e) {}
     return { success: false, error: 'Không thể kết nối đến máy chủ.' }
@@ -125,7 +133,7 @@ export async function cancelOrderApi(id) {
 export function saveOrderToLocalHistory(order) {
   if (!order) return
   try {
-    const current = JSON.parse(localStorage.getItem('nep_orders_history') || '[]')
+    const current = JSON.parse(localStorage.getItem('funi_orders_history') || localStorage.getItem('nep_orders_history') || '[]')
     const key = order.orderNumber || order.orderId || order.id
     const exists = current.some((o) => (o.orderNumber || o.orderId || o.id) === key)
     if (!exists) {

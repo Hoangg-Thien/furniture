@@ -76,7 +76,7 @@ const server = http.createServer((req, res) => {
             <img src="${qrCodeUrl}" alt="Mã QR tải ứng dụng" />
           </div>
           <div>
-            <a class="btn" href="/furniture-app.apk">Tải trực tiếp APK (4.2 MB)</a>
+            <a class="btn" href="/furniture-app.apk">Tải trực tiếp APK (6.9 MB)</a>
           </div>
           <p class="tip">Lưu ý: Điện thoại và máy tính cần kết nối cùng mạng Wi-Fi.</p>
         </div>

@@ -22,6 +22,7 @@ import ProfileModal from './components/ProfileModal'
 import AccountModal from './components/AccountModal'
 import OrderReviewPage from './components/OrderReviewPage'
 import MyOrdersModal from './components/MyOrdersModal'
+import VouchersModal from './components/VouchersModal'
 import './App.css'
 
 const formatPrice = (price) => `${new Intl.NumberFormat('vi-VN').format(price)}₫`
@@ -48,10 +49,61 @@ function App() {
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const userMenuRef = useRef(null)
   const [myOrdersOpen, setMyOrdersOpen] = useState(false)
+  const [vouchersOpen, setVouchersOpen] = useState(false)
   const [completedOrder, setCompletedOrder] = useState(null)
   const [justAddedId, setJustAddedId] = useState(null)
   const [cartBump, setCartBump] = useState(false)
   const [cartToast, setCartToast] = useState(null)
+  const [activeSection, setActiveSection] = useState('home')
+
+  function scrollToSection(sectionId) {
+    setActiveSection(sectionId)
+    if (sectionId === 'home') {
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    } else {
+      const el = document.getElementById(sectionId)
+      if (el) {
+        const offset = 76
+        const bodyRect = document.body.getBoundingClientRect().top
+        const elementRect = el.getBoundingClientRect().top
+        const elementPosition = elementRect - bodyRect
+        const offsetPosition = elementPosition - offset
+
+        window.scrollTo({
+          top: offsetPosition,
+          behavior: 'smooth',
+        })
+      }
+    }
+  }
+
+  // Tự động phát hiện section đang hiển thị trên màn hình khi cuộn trang
+  useEffect(() => {
+    let ticking = false
+    function handleScroll() {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          const scrollPos = window.scrollY + 140
+          const productsEl = document.getElementById('products')
+          const storyEl = document.getElementById('story')
+
+          if (storyEl && scrollPos >= storyEl.offsetTop - 120) {
+            setActiveSection('story')
+          } else if (productsEl && scrollPos >= productsEl.offsetTop - 120) {
+            setActiveSection('products')
+          } else {
+            setActiveSection('home')
+          }
+          ticking = false
+        })
+        ticking = true
+      }
+    }
+
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    handleScroll()
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
 
   function handleLogout() {
     logoutUser()
@@ -102,7 +154,7 @@ function App() {
   useEffect(() => {
     if (window.location.pathname.includes('/order-success')) {
       try {
-        const saved = localStorage.getItem('nep_last_order')
+        const saved = localStorage.getItem('funi_last_order') || localStorage.getItem('nep_last_order')
         if (saved) {
           setCompletedOrder(JSON.parse(saved))
           setOrderOpen(true)
@@ -114,7 +166,7 @@ function App() {
 
     function handlePopState() {
       if (window.location.pathname.includes('/order-success')) {
-        const saved = localStorage.getItem('nep_last_order')
+        const saved = localStorage.getItem('funi_last_order') || localStorage.getItem('nep_last_order')
         if (saved) {
           setCompletedOrder(JSON.parse(saved))
           setOrderOpen(true)
@@ -246,14 +298,49 @@ function App() {
       </div>
 
       <header className="site-header">
-        <a className="wordmark" href="#top" aria-label="Nếp Living - Trang chủ">
-          <span className="wordmark-symbol" aria-hidden="true">n.</span>
-          <span>NẾP <em>LIVING</em></span>
+        <a
+          className="wordmark"
+          href="#top"
+          aria-label="FuniStore - Trang chủ"
+          onClick={(e) => {
+            e.preventDefault()
+            scrollToSection('home')
+          }}
+        >
+          <span className="wordmark-symbol" aria-hidden="true">f.</span>
+          <span>FUNI <em>STORE</em></span>
         </a>
         <nav className="main-nav" aria-label="Điều hướng chính">
-          <a className="nav-active" href="#top">Trang chủ</a>
-          <a href="#products">Sản phẩm</a>
-          <a href="#story">Câu chuyện Nếp</a>
+          <a
+            className={activeSection === 'home' ? 'nav-active' : ''}
+            href="#top"
+            onClick={(e) => {
+              e.preventDefault()
+              scrollToSection('home')
+            }}
+          >
+            Trang chủ
+          </a>
+          <a
+            className={activeSection === 'products' ? 'nav-active' : ''}
+            href="#products"
+            onClick={(e) => {
+              e.preventDefault()
+              scrollToSection('products')
+            }}
+          >
+            Sản phẩm
+          </a>
+          <a
+            className={activeSection === 'story' ? 'nav-active' : ''}
+            href="#story"
+            onClick={(e) => {
+              e.preventDefault()
+              scrollToSection('story')
+            }}
+          >
+            Câu chuyện FuniStore
+          </a>
         </nav>
         <div className="header-actions">
         <label className="search-box">
@@ -338,12 +425,15 @@ function App() {
                     <Bell size={15} /> Thông báo <span className="coming-soon-tag">Sắp ra mắt</span>
                   </button>
                   <button
-                    className="user-dropdown-item user-dropdown-item--soon"
+                    className="user-dropdown-item"
                     role="menuitem"
                     type="button"
-                    disabled
+                    onClick={() => {
+                      setUserMenuOpen(false)
+                      setVouchersOpen(true)
+                    }}
                   >
-                    <Tag size={15} /> Voucher của tôi <span className="coming-soon-tag">Sắp ra mắt</span>
+                    <Tag size={15} /> Voucher của tôi
                   </button>
                   <div className="user-dropdown-divider" />
                   <button
@@ -370,15 +460,47 @@ function App() {
         </div>
       </header>
 
+      {/* Thanh điều hướng trang cho giao diện Mobile / Tablet */}
+      <nav className="mobile-sub-nav" aria-label="Điều hướng nhanh trang">
+        <button
+          type="button"
+          className={`mobile-nav-chip ${activeSection === 'home' ? 'active' : ''}`}
+          onClick={() => scrollToSection('home')}
+        >
+          Trang chủ
+        </button>
+        <button
+          type="button"
+          className={`mobile-nav-chip ${activeSection === 'products' ? 'active' : ''}`}
+          onClick={() => scrollToSection('products')}
+        >
+          Sản phẩm
+        </button>
+        <button
+          type="button"
+          className={`mobile-nav-chip ${activeSection === 'story' ? 'active' : ''}`}
+          onClick={() => scrollToSection('story')}
+        >
+          Câu chuyện FuniStore
+        </button>
+      </nav>
+
       <main id="top">
-        <section className="hero" aria-label="Bộ sưu tập nội thất Nếp Living">
+        <section className="hero" aria-label="Bộ sưu tập nội thất FuniStore">
           <div className="hero-copy">
             <p className="eyebrow"><span></span> SỐNG CHẬM, SỐNG CÓ GU</p>
             <h1>Nhà là nơi<br />mình trở về.</h1>
             <p className="hero-description">
               Những món đồ được làm ra để ở lại thật lâu trong ngôi nhà của bạn.
             </p>
-            <a className="hero-cta" href="#products">
+            <a
+              className="hero-cta"
+              href="#products"
+              onClick={(e) => {
+                e.preventDefault()
+                scrollToSection('products')
+              }}
+            >
               Khám phá bộ sưu tập <ArrowRight size={17} />
             </a>
           </div>
@@ -395,7 +517,16 @@ function App() {
               <p className="eyebrow section-eyebrow">ĐỒ ĐẸP CHO NHÀ</p>
               <h2>Món bạn đang tìm</h2>
             </div>
-            <a className="text-link" href="#story">Xem câu chuyện Nếp <ArrowRight size={16} /></a>
+            <a
+              className="text-link"
+              href="#story"
+              onClick={(e) => {
+                e.preventDefault()
+                scrollToSection('story')
+              }}
+            >
+              Xem câu chuyện FuniStore <ArrowRight size={16} />
+            </a>
           </div>
           <div className="shop-tools">
             <div className="category-list" role="group" aria-label="Lọc theo danh mục">
@@ -466,7 +597,7 @@ function App() {
                   </div>
                   <div className="product-meta">
                     <span>{product.category}</span>
-                    <span className="product-rating">Nếp chọn</span>
+                    <span className="product-rating">Funi chọn</span>
                   </div>
                   <h3>{product.name}</h3>
                   <div className="product-price-row">
@@ -488,22 +619,41 @@ function App() {
         </section>
 
         <section className="story-band" id="story">
-          <div className="story-mark" aria-hidden="true">N.</div>
+          <div className="story-mark" aria-hidden="true">F.</div>
           <div>
             <p className="eyebrow">ÍT HƠN, NHƯNG ĐÚNG HƠN</p>
             <h2>Chọn đồ có ý thức.<br />Sống nhà có tình.</h2>
           </div>
           <p className="story-copy">
-            Nếp tìm những chất liệu gần gũi và dáng hình bền vững, để mỗi món đồ đều có một lý do ở lại.
+            FuniStore tìm những chất liệu gần gũi và dáng hình bền vững, để mỗi món đồ đều có một lý do ở lại.
           </p>
-          <a href="#products" aria-label="Khám phá sản phẩm"><ArrowRight size={20} /></a>
+          <a
+            href="#products"
+            aria-label="Khám phá sản phẩm"
+            onClick={(e) => {
+              e.preventDefault()
+              scrollToSection('products')
+            }}
+          >
+            <ArrowRight size={20} />
+          </a>
         </section>
       </main>
 
       <footer className="site-footer">
-        <a className="wordmark footer-wordmark" href="#top"><span className="wordmark-symbol">n.</span><span>NẾP <em>LIVING</em></span></a>
+        <a
+          className="wordmark footer-wordmark"
+          href="#top"
+          onClick={(e) => {
+            e.preventDefault()
+            scrollToSection('home')
+          }}
+        >
+          <span className="wordmark-symbol">f.</span>
+        <span>FUNI <em>STORE</em></span>
+        </a>
         <span>Đồ đẹp cho những ngày bình thường.</span>
-        <span>© 2026 Nếp Living</span>
+        <span>© 2026 FuniStore</span>
       </footer>
 
       {/* Thông báo nổi (Toast Notification) xác nhận thêm vào giỏ hàng */}
@@ -586,7 +736,7 @@ function App() {
               <div className="empty-cart">
                 <ShoppingBag size={30} strokeWidth={1.4} />
                 <h3>Giỏ hàng đang trống</h3>
-                <p>Thêm một món đồ bạn thích, Nếp giữ giúp bạn ở đây.</p>
+                <p>Thêm một món đồ bạn thích, FuniStore giữ giúp bạn ở đây.</p>
                 <button type="button" onClick={() => setCartOpen(false)}>Tiếp tục khám phá</button>
               </div>
             )}
@@ -611,7 +761,7 @@ function App() {
               <div>
                 <p className="eyebrow">DÀNH CHO NHÀ BÁN HÀNG</p>
                 <h2 id="product-form-title">Đăng sản phẩm mới</h2>
-                <p>Điền thông tin món đồ bạn muốn giới thiệu tại Nếp.</p>
+                <p>Điền thông tin món đồ bạn muốn giới thiệu tại FuniStore.</p>
               </div>
               <button
                 className="icon-button close-product-form"
@@ -720,6 +870,19 @@ function App() {
         catalogProducts={products}
         onViewOrderDetail={handleViewOrderDetail}
         onReorder={handleReorder}
+        onOpenStore={() => {
+          document.getElementById('products')?.scrollIntoView({ behavior: 'smooth' })
+        }}
+      />
+      <VouchersModal
+        isOpen={vouchersOpen}
+        onClose={() => setVouchersOpen(false)}
+        currentUser={currentUser}
+        onUseVoucher={(code) => {
+          setCartOpen(true)
+          setNotice(`Đã sao chép mã ${code}! Bạn có thể áp dụng mã này khi đặt hàng.`)
+          setTimeout(() => setNotice(''), 4500)
+        }}
         onOpenStore={() => {
           document.getElementById('products')?.scrollIntoView({ behavior: 'smooth' })
         }}

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { X, User, Mail, Phone, MapPin, Lock, Check, AlertCircle, Pencil } from 'lucide-react'
 import { updateProfile } from '../lib/auth'
+import { getAllProvinces, getDistricts, getWards } from '../lib/vietnamLocations'
 
 export default function AccountModal({ isOpen, user, onClose, onUserUpdate }) {
   const [editing, setEditing] = useState(false)
@@ -8,6 +9,14 @@ export default function AccountModal({ isOpen, user, onClose, onUserUpdate }) {
   const [successMsg, setSuccessMsg] = useState('')
   const [errorMsg, setErrorMsg] = useState('')
   const [showPasswordSection, setShowPasswordSection] = useState(false)
+  const [accCity, setAccCity] = useState('TP. Hồ Chí Minh')
+  const [accDistrict, setAccDistrict] = useState('')
+  const [accWard, setAccWard] = useState('')
+  const [streetDetail, setStreetDetail] = useState('')
+
+  const provinces = getAllProvinces()
+  const districts = getDistricts(accCity)
+  const wards = getWards(accCity, accDistrict)
 
   const [form, setForm] = useState({
     fullName: user?.fullName || '',
@@ -35,6 +44,39 @@ export default function AccountModal({ isOpen, user, onClose, onUserUpdate }) {
     setSuccessMsg('')
     setErrorMsg('')
     setShowPasswordSection(false)
+    setStreetDetail(user.address || '')
+  }
+
+
+  function handleAccCityChange(e) {
+    const newCity = e.target.value
+    setAccCity(newCity)
+    setAccDistrict('')
+    setAccWard('')
+    const parts = [streetDetail, newCity].filter(Boolean)
+    setForm((prev) => ({ ...prev, address: parts.join(', ') }))
+  }
+
+  function handleAccDistrictChange(e) {
+    const newDist = e.target.value
+    setAccDistrict(newDist)
+    setAccWard('')
+    const parts = [streetDetail, newDist, accCity].filter(Boolean)
+    setForm((prev) => ({ ...prev, address: parts.join(', ') }))
+  }
+
+  function handleAccWardChange(e) {
+    const newWard = e.target.value
+    setAccWard(newWard)
+    const parts = [streetDetail, newWard, accDistrict, accCity].filter(Boolean)
+    setForm((prev) => ({ ...prev, address: parts.join(', ') }))
+  }
+
+  function handleStreetChange(e) {
+    const newStreet = e.target.value
+    setStreetDetail(newStreet)
+    const parts = [newStreet, accWard, accDistrict, accCity].filter(Boolean)
+    setForm((prev) => ({ ...prev, address: parts.join(', ') }))
   }
 
   function cancelEdit() {
@@ -191,16 +233,79 @@ export default function AccountModal({ isOpen, user, onClose, onUserUpdate }) {
                 placeholder="Nhập số điện thoại"
               />
             </div>
-            <div className="account-form-group">
-              <label htmlFor="acc-address"><MapPin size={13} /> Địa chỉ giao hàng</label>
-              <input
-                id="acc-address"
-                name="address"
-                type="text"
-                value={form.address}
-                onChange={handleChange}
-                placeholder="Nhập địa chỉ"
-              />
+            <div className="account-location-picker">
+              <label className="account-location-title"><MapPin size={13} /> Địa chỉ giao hàng</label>
+              <div className="account-location-grid">
+                <div className="account-form-group">
+                  <label htmlFor="acc-city-select">Tỉnh / Thành phố</label>
+                  <select
+                    id="acc-city-select"
+                    value={accCity}
+                    onChange={handleAccCityChange}
+                    className="account-select"
+                  >
+                    <option value="">-- Chọn Tỉnh / TP --</option>
+                    {provinces.map((p) => (
+                      <option key={p} value={p}>{p}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="account-form-group">
+                  <label htmlFor="acc-dist-select">Quận / Huyện</label>
+                  <select
+                    id="acc-dist-select"
+                    value={accDistrict}
+                    onChange={handleAccDistrictChange}
+                    disabled={!accCity}
+                    className="account-select"
+                  >
+                    <option value="">{accCity ? '-- Chọn Quận / Huyện --' : '-- Chọn Tỉnh trước --'}</option>
+                    {districts.map((d) => (
+                      <option key={d} value={d}>{d}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="account-form-group">
+                  <label htmlFor="acc-ward-select">Phường / Xã</label>
+                  <select
+                    id="acc-ward-select"
+                    value={accWard}
+                    onChange={handleAccWardChange}
+                    disabled={!accDistrict}
+                    className="account-select"
+                  >
+                    <option value="">{accDistrict ? '-- Chọn Phường / Xã --' : '-- Chọn Quận trước --'}</option>
+                    {wards.map((w) => (
+                      <option key={w} value={w}>{w}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="account-form-group" style={{ marginTop: '10px' }}>
+                <label htmlFor="acc-street">Số nhà, tên đường</label>
+                <input
+                  id="acc-street"
+                  type="text"
+                  value={streetDetail}
+                  onChange={handleStreetChange}
+                  placeholder="VD: 123 Nguyễn Thị Minh Khai"
+                />
+              </div>
+
+              <div className="account-form-group" style={{ marginTop: '6px' }}>
+                <label htmlFor="acc-address" style={{ fontSize: '11px', color: '#666' }}>Địa chỉ hoàn chỉnh:</label>
+                <input
+                  id="acc-address"
+                  name="address"
+                  type="text"
+                  value={form.address}
+                  onChange={handleChange}
+                  placeholder="Địa chỉ giao hàng hoàn chỉnh"
+                />
+              </div>
             </div>
 
             {/* Toggle đổi mật khẩu */}

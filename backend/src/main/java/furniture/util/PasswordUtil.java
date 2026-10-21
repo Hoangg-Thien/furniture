@@ -1,4 +1,4 @@
-package furniture.auth;
+package furniture.util;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;

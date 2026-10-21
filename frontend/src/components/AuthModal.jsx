@@ -138,7 +138,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
         <p className="auth-modal-subtitle">
           {mode === 'login'
             ? 'Đăng nhập để theo dõi giỏ hàng và hưởng ưu đãi dành cho thành viên'
-            : 'Đăng ký nhanh chóng để nhận tư vấn và mua sắm dễ dàng tại Nếp Living'}
+            : 'Đăng ký nhanh chóng để nhận tư vấn và mua sắm dễ dàng tại FuniStore'}
         </p>
 
         {error && (

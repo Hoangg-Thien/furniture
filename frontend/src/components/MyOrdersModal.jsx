@@ -15,6 +15,7 @@ import {
   ExternalLink,
   ShieldCheck,
   AlertTriangle,
+  Tag,
 } from 'lucide-react'
 import { fetchOrders, cancelOrderApi } from '../lib/orders'
 
@@ -97,8 +98,8 @@ const resolveItemImage = (it, catalogProducts = []) => {
 
 function getLocalOrders() {
   try {
-    const historyList = JSON.parse(localStorage.getItem('nep_orders_history') || '[]')
-    const lastOrder = JSON.parse(localStorage.getItem('nep_last_order') || 'null')
+    const historyList = JSON.parse((localStorage.getItem('funi_orders_history') || localStorage.getItem('nep_orders_history')) || '[]')
+    const lastOrder = JSON.parse((localStorage.getItem('funi_last_order') || localStorage.getItem('nep_last_order')) || 'null')
     const list = Array.isArray(historyList) ? [...historyList] : []
     if (lastOrder) {
       const lKey = lastOrder.orderNumber || lastOrder.orderId || lastOrder.id
@@ -121,12 +122,12 @@ function normalizeOrders(rawList = [], currentUser = null, catalogProducts = [])
       const orderNumber =
         ord.orderCode ||
         ord.orderNumber ||
-        `NEP-${new Date().getFullYear()}-${String(orderId || '000000').padStart(6, '0')}`
+        `FUNI-${new Date().getFullYear()}-${String(orderId || '000000').padStart(6, '0')}`
 
       const rawItems = Array.isArray(ord.items) ? ord.items : []
       const items = rawItems.map((it) => ({
         id: it.product_id || it.productId || it.id,
-        name: it.product_name || it.name || 'Sản phẩm nội thất Nếp',
+        name: it.product_name || it.name || 'Sản phẩm nội thất FuniStore',
         category: it.category_name || it.category || 'Nội thất gia đình',
         image: resolveItemImage(it, catalogProducts),
         quantity: Number(it.quantity) || 1,
@@ -138,7 +139,11 @@ function normalizeOrders(rawList = [], currentUser = null, catalogProducts = [])
         ),
       }))
 
-      const total = Number(ord.total_amount || ord.total || 0)
+      const itemsCalculatedSubtotal = items.reduce((sum, item) => sum + (item.lineTotal || 0), 0)
+      const subtotal = Number(ord.subtotal != null ? ord.subtotal : itemsCalculatedSubtotal)
+      const discountAmount = Number(ord.discount_amount != null ? ord.discount_amount : (ord.discountAmount || 0))
+      const voucherCode = ord.voucher_code || ord.voucherCode || ord.appliedVoucher?.code || ''
+      const total = Number(ord.total_amount != null ? ord.total_amount : (ord.total || 0))
       const orderDate = ord.order_date || ord.orderDate || 'Vừa xong'
       const status = String(ord.status || 'PENDING').toUpperCase()
 
@@ -148,6 +153,11 @@ function normalizeOrders(rawList = [], currentUser = null, catalogProducts = [])
         orderId,
         orderNumber,
         items,
+        subtotal,
+        discount_amount: discountAmount,
+        discountAmount,
+        voucher_code: voucherCode,
+        voucherCode,
         total,
         orderDate,
         status,
@@ -468,7 +478,7 @@ export default function MyOrdersModal({
                   <div className="shopee-card-header">
                     <div className="shopee-card-shop-info">
                       <span className="shopee-mall-badge">Mall</span>
-                      <strong className="shopee-shop-name">Nếp Living Official Store</strong>
+                      <strong className="shopee-shop-name">FuniStore Official Store</strong>
                       <span className="shopee-order-code-badge">
                         Mã đơn: <strong>{order.orderNumber}</strong>
                       </span>
@@ -501,7 +511,7 @@ export default function MyOrdersModal({
                             title={item.name}
                           >
                             <Package size={24} className="shopee-fallback-pkg" />
-                            <span className="shopee-fallback-text">Nếp</span>
+                            <span className="shopee-fallback-text">Funi</span>
                           </div>
                         </div>
                         <div className="shopee-item-body">
@@ -533,13 +543,23 @@ export default function MyOrdersModal({
                       </span>
                     </div>
 
-                    <div className="shopee-footer-total">
-                      <span className="shopee-total-label">
-                        Thành tiền ({totalItemsCount} sản phẩm):
-                      </span>
-                      <span className="shopee-total-amount">
-                        {formatPrice(order.total)}
-                      </span>
+                    <div className="shopee-footer-total-group">
+                      {Number(order.discount_amount || order.discountAmount || 0) > 0 && (
+                        <div className="shopee-order-voucher-pill">
+                          <Tag size={12} />
+                          <span>
+                            Voucher {order.voucher_code ? `(${order.voucher_code})` : ''}: -{formatPrice(order.discount_amount || order.discountAmount)}
+                          </span>
+                        </div>
+                      )}
+                      <div className="shopee-footer-total">
+                        <span className="shopee-total-label">
+                          Thành tiền ({totalItemsCount} sản phẩm):
+                        </span>
+                        <span className="shopee-total-amount">
+                          {formatPrice(order.total)}
+                        </span>
+                      </div>
                     </div>
                   </div>
 
