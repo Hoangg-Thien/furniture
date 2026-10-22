@@ -1,51 +1,144 @@
 import React from 'react'
 import {
-  BarChart3,
   LayoutDashboard,
-  ShoppingBag,
+  BarChart3,
   Truck,
-  Package,
+  ShoppingBag,
   FileText,
   Tag,
-  Users,
   Star,
+  Layers,
+  Package,
   Building2,
+  Users,
   ShieldCheck,
-  Sparkles,
+  Settings,
   ExternalLink,
   X,
+  Sparkles,
 } from 'lucide-react'
 
 export const ADMIN_NAV_SECTIONS = [
   {
-    title: 'BÁO CÁO & TỔNG QUAN',
+    title: 'TỔNG QUAN',
     items: [
-      { label: 'Báo Cáo & Thống Kê', path: '/admin/reports', icon: BarChart3 },
-      { label: 'Tổng Quan', path: '/admin/dashboard', icon: LayoutDashboard },
+      {
+        label: 'Dashboard Thống Kê',
+        path: '/admin/dashboard',
+        icon: LayoutDashboard,
+        roles: ['ADMIN', 'SALES', 'WAREHOUSE', 'DISPATCHER'],
+      },
+      {
+        label: 'Báo Cáo Chuyên Sâu',
+        path: '/admin/reports',
+        icon: BarChart3,
+        roles: ['ADMIN'],
+      },
     ],
   },
   {
-    title: 'KINH DOANH & KHO',
+    title: 'BÁN HÀNG & DỊCH VỤ',
     items: [
-      { label: 'Sản Phẩm & Biến Thể', path: '/admin/products', icon: ShoppingBag, badge: '6 SP', badgeType: 'neutral' },
-      { label: 'Đơn Hàng & Giao Lắp', path: '/admin/orders', icon: Truck, badge: '4 đơn', badgeType: 'rose' },
-      { label: 'Nhập Kho Nội Thất', path: '/admin/inventory', icon: Package },
-      { label: 'Hóa Đơn (Invoices)', path: '/admin/invoices', icon: FileText },
+      {
+        label: 'Đơn Hàng & Giao Lắp',
+        path: '/admin/orders',
+        icon: Truck,
+        badge: '12 đơn',
+        badgeType: 'rose',
+        roles: ['ADMIN', 'SALES', 'DISPATCHER'],
+      },
+      {
+        label: 'Hóa Đơn & Mẫu In A4',
+        path: '/admin/invoices',
+        icon: FileText,
+        roles: ['ADMIN', 'SALES'],
+      },
+      {
+        label: 'Khuyến Mãi & Voucher',
+        path: '/admin/promotions',
+        icon: Tag,
+        badge: '1 chờ',
+        badgeType: 'amber',
+        roles: ['ADMIN', 'SALES'],
+      },
+      {
+        label: 'Đánh Giá Sản Phẩm',
+        path: '/admin/reviews',
+        icon: Star,
+        roles: ['ADMIN', 'SALES'],
+      },
     ],
   },
   {
-    title: 'MARKETING & KHÁCH HÀNG',
+    title: 'SẢN PHẨM & BIẾN THỂ',
     items: [
-      { label: 'Khuyến Mãi & Voucher', path: '/admin/promotions', icon: Tag, badge: '1 chờ duyệt', badgeType: 'amber' },
-      { label: 'Khách Hàng', path: '/admin/customers', icon: Users },
-      { label: 'Đánh Giá & Phản Hồi', path: '/admin/reviews', icon: Star },
+      {
+        label: 'Sản Phẩm & Biến Thể',
+        path: '/admin/products',
+        icon: ShoppingBag,
+        badge: '6 SP',
+        badgeType: 'neutral',
+        roles: ['ADMIN', 'SALES', 'WAREHOUSE'],
+      },
+      {
+        label: 'Danh Mục Sản Phẩm',
+        path: '/admin/categories',
+        icon: Layers,
+        roles: ['ADMIN', 'SALES'],
+      },
     ],
   },
   {
-    title: 'ĐỐI TÁC & HỆ THỐNG',
+    title: 'QUẢN LÝ KHO',
     items: [
-      { label: 'Nhà Cung Cấp', path: '/admin/suppliers', icon: Building2 },
-      { label: 'Nhân Sự & Phân Quyền', path: '/admin/staff', icon: ShieldCheck },
+      {
+        label: 'Phiếu Nhập & Tồn Kho',
+        path: '/admin/inventory',
+        icon: Package,
+        badge: '5 sắp hết',
+        badgeType: 'amber',
+        roles: ['ADMIN', 'WAREHOUSE'],
+      },
+      {
+        label: 'Nhà Cung Cấp',
+        path: '/admin/suppliers',
+        icon: Building2,
+        roles: ['ADMIN', 'WAREHOUSE'],
+      },
+    ],
+  },
+  {
+    title: 'CON NGƯỜI',
+    items: [
+      {
+        label: 'Khách Hàng',
+        path: '/admin/customers',
+        icon: Users,
+        roles: ['ADMIN', 'SALES', 'DISPATCHER'],
+      },
+      {
+        label: 'Nhân Viên & Đội Thợ',
+        path: '/admin/staff',
+        icon: ShieldCheck,
+        roles: ['ADMIN'],
+      },
+    ],
+  },
+  {
+    title: 'HỆ THỐNG',
+    items: [
+      {
+        label: 'Tài Khoản & Phân Quyền',
+        path: '/admin/roles-permissions',
+        icon: ShieldCheck,
+        roles: ['ADMIN'],
+      },
+      {
+        label: 'Cài Đặt Hệ Thống',
+        path: '/admin/settings',
+        icon: Settings,
+        roles: ['ADMIN'],
+      },
     ],
   },
 ]
@@ -53,6 +146,7 @@ export const ADMIN_NAV_SECTIONS = [
 export default function AdminSidebar({
   currentPath,
   onNavigate,
+  currentUserRole = 'ADMIN',
   mobileOpen = false,
   onCloseMobile,
 }) {
@@ -63,17 +157,17 @@ export default function AdminSidebar({
         <div
           className="admin-brand"
           onClick={() => {
-            onNavigate('/admin/reports')
+            onNavigate('/admin/dashboard')
             if (onCloseMobile) onCloseMobile()
           }}
-          title="FurniStore Admin Portal"
+          title="FURNISTORE - Quản lý kinh doanh nội thất"
         >
           <div className="admin-brand-icon">
             <Sparkles size={18} />
           </div>
           <div className="admin-brand-info">
-            <h2>FurniStore</h2>
-            <span className="admin-brand-badge">ADMIN PORTAL</span>
+            <h2>FURNISTORE</h2>
+            <span className="admin-brand-badge">ADMIN ERP</span>
           </div>
         </div>
 
@@ -89,52 +183,57 @@ export default function AdminSidebar({
         )}
       </div>
 
-      {/* Navigation List - Scrollbar hidden */}
+      {/* Navigation List filtered by current user role */}
       <nav className="admin-sidebar-nav">
-        {ADMIN_NAV_SECTIONS.map((section, secIdx) => (
-          <div key={secIdx} className="admin-nav-group">
-            <div className="admin-nav-category">{section.title}</div>
-            <div className="admin-nav-items-stack">
-              {section.items.map((item) => {
-                const Icon = item.icon
-                const isActive =
-                  currentPath === item.path ||
-                  (item.path === '/admin/reports' && currentPath === '/admin')
+        {ADMIN_NAV_SECTIONS.map((section, secIdx) => {
+          // Lọc các item thuộc quyền của role hiện tại
+          const visibleItems = section.items.filter((item) =>
+            item.roles.includes(currentUserRole)
+          )
 
-                return (
-                  <button
-                    key={item.path}
-                    type="button"
-                    className={`admin-nav-item ${isActive ? 'active' : ''}`}
-                    onClick={() => {
-                      onNavigate(item.path)
-                      if (onCloseMobile) onCloseMobile()
-                    }}
-                    title={item.label}
-                  >
-                    {/* Active Indigo Indicator pill on far left */}
-                    {isActive && <span className="admin-nav-indicator" />}
+          if (visibleItems.length === 0) return null
 
-                    <div className="admin-nav-item-left">
-                      <Icon
-                        size={17}
-                        className={`admin-nav-icon ${isActive ? 'text-white' : 'text-zinc-400'}`}
-                      />
-                      <span className="admin-nav-label">{item.label}</span>
-                    </div>
+          return (
+            <div key={secIdx} className="admin-nav-group">
+              <div className="admin-nav-category">{section.title}</div>
+              <div className="admin-nav-items-stack">
+                {visibleItems.map((item) => {
+                  const Icon = item.icon
+                  const isActive =
+                    currentPath === item.path ||
+                    (item.path === '/admin/dashboard' &&
+                      (currentPath === '/admin' || currentPath === '/admin/'))
 
-                    {/* Pill Badges */}
-                    {item.badge && (
-                      <span className={`admin-nav-badge ${item.badgeType || 'neutral'}`}>
-                        {item.badge}
-                      </span>
-                    )}
-                  </button>
-                )
-              })}
+                  return (
+                    <button
+                      key={item.path}
+                      type="button"
+                      className={`admin-nav-item ${isActive ? 'active' : ''}`}
+                      onClick={() => {
+                        onNavigate(item.path)
+                        if (onCloseMobile) onCloseMobile()
+                      }}
+                      title={item.label}
+                    >
+                      {isActive && <span className="admin-nav-indicator" />}
+
+                      <div className="admin-nav-item-left">
+                        <Icon size={16} className="admin-nav-icon" />
+                        <span className="admin-nav-label">{item.label}</span>
+                      </div>
+
+                      {item.badge && (
+                        <span className={`admin-nav-badge ${item.badgeType || 'neutral'}`}>
+                          {item.badge}
+                        </span>
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
             </div>
-          </div>
-        ))}
+          )
+        })}
       </nav>
 
       {/* Footer Quick Action */}
@@ -148,9 +247,9 @@ export default function AdminSidebar({
           }}
           title="Mở giao diện khách hàng mua sắm"
         >
-          <ShoppingBag size={15} style={{ color: '#F59E0B' }} />
-          <span>Xem Website Cửa Hàng</span>
-          <ExternalLink size={13} style={{ marginLeft: 'auto', opacity: 0.5 }} />
+          <ShoppingBag size={14} style={{ color: '#D97706' }} />
+          <span>Xem Cửa Hàng Khách</span>
+          <ExternalLink size={12} style={{ marginLeft: 'auto', opacity: 0.6 }} />
         </button>
       </div>
     </aside>

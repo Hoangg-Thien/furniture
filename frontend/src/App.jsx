@@ -80,7 +80,7 @@ export default function App() {
       )
     }
 
-    const activeAdminPath = currentPath === '/admin' ? '/admin/reports' : currentPath
+    const activeAdminPath = currentPath === '/admin' ? '/admin/dashboard' : currentPath
     return <AdminLayout currentPath={activeAdminPath} onNavigate={navigate} />
   }
 

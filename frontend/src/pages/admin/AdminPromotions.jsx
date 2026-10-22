@@ -10,46 +10,91 @@ import {
   PlayCircle,
   X,
   Percent,
+  Calculator,
+  Calendar,
+  Sparkles,
+  ArrowRight,
+  TrendingDown,
+  Layers,
+  ShoppingBag,
 } from 'lucide-react'
-import { MOCK_VOUCHERS } from './adminMockData'
+import { MOCK_VOUCHERS, MOCK_CATEGORIES } from './adminMockData'
 
-const formatCurrency = (val) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val)
+const formatCurrency = (val) =>
+  new Intl.NumberFormat('vi-VN', {
+    style: 'currency',
+    currency: 'VND',
+    maximumFractionDigits: 0,
+  }).format(val)
 
-export default function AdminPromotions({ showToast }) {
+export default function AdminPromotions({ showToast, activeRole = 'ADMIN' }) {
   const [vouchers, setVouchers] = useState(MOCK_VOUCHERS)
+  const [statusTab, setStatusTab] = useState('ALL') // 'ALL' | 'ACTIVE' | 'PAUSED' | 'PENDING_APPROVAL' | 'EXPIRED'
   const [searchTerm, setSearchTerm] = useState('')
   const [createModalOpen, setCreateModalOpen] = useState(false)
 
   // Form State
   const [code, setCode] = useState('')
   const [programName, setProgramName] = useState('')
+  const [discountType, setDiscountType] = useState('PERCENT') // 'PERCENT' | 'FIXED'
   const [discountPercent, setDiscountPercent] = useState('10')
+  const [fixedDiscountAmount, setFixedDiscountAmount] = useState('1500000')
   const [minimumAmount, setMinimumAmount] = useState('10000000')
   const [maxDiscount, setMaxDiscount] = useState('2000000')
   const [quantity, setQuantity] = useState('50')
+  const [startDate, setStartDate] = useState('2026-10-22')
   const [endDate, setEndDate] = useState('2026-12-31')
+  const [appliedCategory, setAppliedCategory] = useState('ALL')
 
-  const filteredVouchers = vouchers.filter(
-    (v) =>
+  // Discount Simulator State
+  const [simulatedOrderValue, setSimulatedOrderValue] = useState(35000000)
+
+  // Status Tab Counts
+  const activeCount = vouchers.filter((v) => v.status === 'ACTIVE').length
+  const pausedCount = vouchers.filter((v) => v.status === 'PAUSED').length
+  const pendingCount = vouchers.filter((v) => v.approvalState === 'PENDING_APPROVAL').length
+  const expiredCount = vouchers.filter((v) => v.status === 'EXPIRED').length
+
+  // Filter Vouchers
+  const filteredVouchers = vouchers.filter((v) => {
+    let matchTab = true
+    if (statusTab === 'ACTIVE') matchTab = v.status === 'ACTIVE'
+    else if (statusTab === 'PAUSED') matchTab = v.status === 'PAUSED'
+    else if (statusTab === 'PENDING_APPROVAL') matchTab = v.approvalState === 'PENDING_APPROVAL'
+    else if (statusTab === 'EXPIRED') matchTab = v.status === 'EXPIRED'
+
+    const matchSearch =
       v.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
       v.programName.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+
+    return matchTab && matchSearch
+  })
+
+  // Quick Action Handlers
+  function handleTogglePause(id, currentStatus, vCode) {
+    const nextStatus = currentStatus === 'ACTIVE' ? 'PAUSED' : 'ACTIVE'
+    setVouchers((prev) =>
+      prev.map((v) => (v.id === id ? { ...v, status: nextStatus } : v))
+    )
+    showToast(`Đã chuyển voucher "${vCode}" sang trạng thái: ${nextStatus === 'ACTIVE' ? 'Đang chạy' : 'Tạm dừng'}`)
+  }
+
+  function handleEndVoucher(id, vCode) {
+    if (window.confirm(`Bạn có chắc chắn muốn kết thúc chiến dịch voucher "${vCode}"?`)) {
+      setVouchers((prev) =>
+        prev.map((v) => (v.id === id ? { ...v, status: 'EXPIRED' } : v))
+      )
+      showToast(`Đã kết thúc voucher "${vCode}".`)
+    }
+  }
 
   function handleApprove(id, vCode) {
-    setVouchers(
-      vouchers.map((v) =>
+    setVouchers((prev) =>
+      prev.map((v) =>
         v.id === id ? { ...v, status: 'ACTIVE', approvalState: 'APPROVED' } : v
       )
     )
-    showToast(`Đã duyệt mã voucher "${vCode}" thành công! Khách hàng có thể sử dụng ngay.`)
-  }
-
-  function handleTogglePause(id, currentStatus, vCode) {
-    const nextStatus = currentStatus === 'ACTIVE' ? 'PAUSED' : 'ACTIVE'
-    setVouchers(
-      vouchers.map((v) => (v.id === id ? { ...v, status: nextStatus } : v))
-    )
-    showToast(`Đã đổi trạng thái voucher "${vCode}" sang "${nextStatus === 'ACTIVE' ? 'Hoạt động' : 'Tạm dừng'}".`)
+    showToast(`Đã phê duyệt voucher "${vCode}" vào hệ thống!`)
   }
 
   function handleCreateVoucher(e) {
@@ -63,247 +108,569 @@ export default function AdminPromotions({ showToast }) {
       id: Date.now(),
       code: code.trim().toUpperCase(),
       programName,
-      discountPercent: Number(discountPercent),
+      discountType,
+      discountPercent: discountType === 'PERCENT' ? Number(discountPercent) : 0,
+      fixedAmount: discountType === 'FIXED' ? Number(fixedDiscountAmount) : 0,
       minimumAmount: Number(minimumAmount),
-      maximumDiscount: Number(maxDiscount),
+      maximumDiscount: discountType === 'PERCENT' ? Number(maxDiscount) : Number(fixedDiscountAmount),
       quantity: Number(quantity),
       usedQuantity: 0,
-      startDate: new Date().toISOString().split('T')[0],
+      startDate,
       endDate,
+      appliedCategory,
       status: 'ACTIVE',
       approvalState: 'APPROVED',
     }
 
     setVouchers([newVoucher, ...vouchers])
     setCreateModalOpen(false)
-    showToast(`Đã tạo và kích hoạt mã voucher "${newVoucher.code}"!`)
+    showToast(`Đã phát hành thành công voucher "${newVoucher.code}"!`)
   }
+
+  // Calculate Simulation Values
+  const simEligible = simulatedOrderValue >= Number(minimumAmount)
+  let simCalculatedDiscount = 0
+  if (simEligible) {
+    if (discountType === 'PERCENT') {
+      const rawDiscount = (simulatedOrderValue * Number(discountPercent)) / 100
+      simCalculatedDiscount = Math.min(rawDiscount, Number(maxDiscount))
+    } else {
+      simCalculatedDiscount = Number(fixedDiscountAmount)
+    }
+  }
+  const simFinalCustomerPay = Math.max(0, simulatedOrderValue - simCalculatedDiscount)
+  const simActualDiscountPercent = simulatedOrderValue > 0
+    ? ((simCalculatedDiscount / simulatedOrderValue) * 100).toFixed(1)
+    : 0
 
   return (
     <div>
+      {/* Page Header */}
       <div className="admin-page-hero">
         <div>
-          <h1 className="admin-page-title">Quản lý Khuyến mãi & Kho Voucher</h1>
+          <h1 className="admin-page-title">Quản Lý Khuyến Mãi & Kho Voucher</h1>
           <p className="admin-page-subtitle">
-            Cấu hình mã giảm giá, mức chiết khấu %, giới hạn đơn hàng tối thiểu và phê duyệt voucher đưa vào hệ thống.
+            Cấu hình mã giảm giá tri ân, chiết khấu theo %, thiết lập trần tối đa và giả lập hiệu quả ngân sách chiến dịch.
           </p>
         </div>
+
         <div className="admin-hero-actions">
-          <button className="admin-btn admin-btn-primary" onClick={() => setCreateModalOpen(true)}>
-            <Plus size={16} /> Tạo Voucher Mới
-          </button>
+          {(activeRole === 'ADMIN' || activeRole === 'SALES') && (
+            <button
+              type="button"
+              className="admin-btn admin-btn-primary"
+              onClick={() => {
+                setCode(`FURNI-${Math.floor(10 + Math.random() * 90)}`)
+                setProgramName('Ưu đãi nội thất phong cách Bắc Âu')
+                setCreateModalOpen(true)
+              }}
+            >
+              <Plus size={16} /> Tạo Voucher Mới
+            </button>
+          )}
         </div>
       </div>
 
+      {/* Status Tab Bar */}
+      <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', marginBottom: '16px' }}>
+        <button
+          type="button"
+          className={`admin-status-tab-btn ${statusTab === 'ALL' ? 'active' : ''}`}
+          onClick={() => setStatusTab('ALL')}
+        >
+          <span>Tất cả ({vouchers.length})</span>
+        </button>
+
+        <button
+          type="button"
+          className={`admin-status-tab-btn ${statusTab === 'ACTIVE' ? 'active' : ''}`}
+          onClick={() => setStatusTab('ACTIVE')}
+        >
+          <span>Đang chạy</span>
+          <span className="admin-status-tab-badge" style={{ background: '#EDF7ED', color: '#2E7D32' }}>
+            {activeCount}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          className={`admin-status-tab-btn ${statusTab === 'PAUSED' ? 'active' : ''}`}
+          onClick={() => setStatusTab('PAUSED')}
+        >
+          <span>Tạm ngưng</span>
+          <span className="admin-status-tab-badge" style={{ background: '#FEF3C7', color: '#B45309' }}>
+            {pausedCount}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          className={`admin-status-tab-btn ${statusTab === 'PENDING_APPROVAL' ? 'active' : ''}`}
+          onClick={() => setStatusTab('PENDING_APPROVAL')}
+        >
+          <span>Chờ duyệt</span>
+          <span className="admin-status-tab-badge" style={{ background: '#EFF6FF', color: '#1D4ED8' }}>
+            {pendingCount}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          className={`admin-status-tab-btn ${statusTab === 'EXPIRED' ? 'active' : ''}`}
+          onClick={() => setStatusTab('EXPIRED')}
+        >
+          <span>Đã kết thúc</span>
+          <span className="admin-status-tab-badge" style={{ background: 'var(--admin-border)', color: 'var(--admin-text-muted)' }}>
+            {expiredCount}
+          </span>
+        </button>
+      </div>
+
+      {/* Filter and Search Bar */}
       <div className="admin-panel">
         <div className="admin-panel-header">
           <div className="admin-table-filters" style={{ width: '100%', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, maxWidth: '400px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, maxWidth: '400px' }}>
               <Search size={16} style={{ color: 'var(--admin-text-dim)' }} />
               <input
                 type="text"
                 className="admin-filter-input"
                 style={{ width: '100%' }}
-                placeholder="Tìm theo mã voucher hoặc tên chương trình..."
+                placeholder="Tìm mã code (TRIAN10...), tên chương trình..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
+            <div style={{ fontSize: '13px', color: 'var(--admin-text-dim)' }}>
+              Đang hiển thị <strong>{filteredVouchers.length}</strong> voucher
+            </div>
           </div>
         </div>
 
+        {/* Vouchers Table */}
         <div className="admin-table-container">
-          <table className="admin-table">
+          <table className="admin-data-table">
             <thead>
               <tr>
-                <th>Mã Voucher</th>
-                <th>Chương Trình Khuyến Mãi</th>
-                <th>Mức Giảm</th>
-                <th>Đơn Tối Thiểu</th>
-                <th>Giảm Tối Đa</th>
-                <th>Đã Dùng / Tổng Số</th>
-                <th>Hạn Dùng</th>
-                <th>Trạng Thái</th>
-                <th style={{ textAlign: 'right' }}>Thao Tác</th>
+                <th>Mã Code & Chương Trình</th>
+                <th>Hình Thức Giảm</th>
+                <th>Điều Kiện Đơn Tối Thiểu</th>
+                <th>Mức Giảm Tối Đa</th>
+                <th className="text-center">Lượt Dùng</th>
+                <th>Thời Gian Hiệu Lực</th>
+                <th className="text-center">Trạng Thái</th>
+                <th className="text-center">Thao Tác Nhanh</th>
               </tr>
             </thead>
             <tbody>
-              {filteredVouchers.map((v) => (
-                <tr key={v.id}>
-                  <td>
-                    <span style={{ fontWeight: 700, color: '#F59E0B', fontFamily: 'monospace', fontSize: '14px', background: 'rgba(217,119,6,0.15)', padding: '4px 8px', borderRadius: '6px' }}>
-                      {v.code}
-                    </span>
-                  </td>
-                  <td>
-                    <div style={{ fontWeight: 600, color: '#FFF' }}>{v.programName}</div>
-                  </td>
-                  <td>
-                    <span style={{ fontWeight: 700, color: '#10B981', fontSize: '14px' }}>
-                      {v.discountPercent}%
-                    </span>
-                  </td>
-                  <td>{formatCurrency(v.minimumAmount)}</td>
-                  <td>{formatCurrency(v.maximumDiscount)}</td>
-                  <td>
-                    <span style={{ fontWeight: 600 }}>{v.usedQuantity}</span> / {v.quantity}
-                    <div style={{ width: '100px', height: '4px', background: 'rgba(255,255,255,0.06)', borderRadius: '999px', marginTop: '4px' }}>
-                      <div
-                        style={{
-                          width: `${Math.min(100, Math.round((v.usedQuantity / v.quantity) * 100))}%`,
-                          height: '100%',
-                          background: '#F59E0B',
-                          borderRadius: '999px',
-                        }}
-                      />
-                    </div>
-                  </td>
-                  <td>
-                    <span style={{ fontSize: '12px', color: 'var(--admin-text-dim)' }}>{v.endDate}</span>
-                  </td>
-                  <td>
-                    {v.approvalState === 'PENDING_APPROVAL' ? (
-                      <span className="admin-badge warning">
-                        <Clock size={12} /> Chờ Admin Duyệt
-                      </span>
-                    ) : v.status === 'ACTIVE' ? (
-                      <span className="admin-badge success">
-                        <CheckCircle size={12} /> Hoạt Động
-                      </span>
-                    ) : (
-                      <span className="admin-badge danger">
-                        <PauseCircle size={12} /> Tạm Ngưng
-                      </span>
-                    )}
-                  </td>
-                  <td style={{ textAlign: 'right' }}>
-                    {v.approvalState === 'PENDING_APPROVAL' ? (
-                      <button
-                        className="admin-btn admin-btn-primary"
-                        style={{ padding: '6px 12px', fontSize: '12px' }}
-                        onClick={() => handleApprove(v.id, v.code)}
+              {filteredVouchers.map((v) => {
+                const isApproved = v.approvalState === 'APPROVED'
+                const usagePercent = Math.round((v.usedQuantity / v.quantity) * 100)
+
+                return (
+                  <tr key={v.id}>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span
+                          style={{
+                            fontWeight: 800,
+                            color: 'var(--admin-primary)',
+                            fontFamily: 'monospace',
+                            fontSize: '13.5px',
+                            background: 'var(--admin-primary-soft)',
+                            padding: '3px 8px',
+                            borderRadius: '6px',
+                            border: '1px solid var(--admin-border)',
+                          }}
+                        >
+                          {v.code}
+                        </span>
+                      </div>
+                      <div style={{ fontWeight: 600, fontSize: '13px', marginTop: '4px' }}>
+                        {v.programName}
+                      </div>
+                    </td>
+
+                    <td>
+                      {v.discountPercent ? (
+                        <span className="admin-status-badge info">
+                          <Percent size={12} style={{ marginRight: '3px' }} />
+                          Giảm {v.discountPercent}%
+                        </span>
+                      ) : (
+                        <span className="admin-status-badge info">
+                          Giảm cố định {formatCurrency(v.maximumDiscount)}
+                        </span>
+                      )}
+                    </td>
+
+                    <td className="tabular-nums" style={{ fontWeight: 600 }}>
+                      Đơn từ {formatCurrency(v.minimumAmount)}
+                    </td>
+
+                    <td className="tabular-nums" style={{ fontWeight: 700, color: 'var(--admin-primary)' }}>
+                      Tối đa {formatCurrency(v.maximumDiscount)}
+                    </td>
+
+                    <td className="text-center tabular-nums">
+                      <div>
+                        {v.usedQuantity} / {v.quantity}
+                      </div>
+                      <div className="admin-stock-bar" style={{ margin: '4px auto 0' }}>
+                        <div
+                          className="admin-stock-fill high"
+                          style={{ width: `${usagePercent}%`, background: 'var(--admin-primary)' }}
+                        />
+                      </div>
+                    </td>
+
+                    <td style={{ fontSize: '12px', color: 'var(--admin-text-dim)' }}>
+                      <div>Từ: {v.startDate}</div>
+                      <div>Đến: {v.endDate}</div>
+                    </td>
+
+                    <td className="text-center">
+                      <span
+                        className={`admin-status-badge ${
+                          v.status === 'ACTIVE'
+                            ? 'success'
+                            : v.status === 'PAUSED'
+                            ? 'warning'
+                            : 'neutral'
+                        }`}
                       >
-                        <CheckCircle size={14} /> Duyệt Ngay
-                      </button>
-                    ) : (
-                      <button
-                        className="admin-btn admin-btn-secondary"
-                        style={{ padding: '6px 12px', fontSize: '12px' }}
-                        onClick={() => handleTogglePause(v.id, v.status, v.code)}
-                      >
-                        {v.status === 'ACTIVE' ? <PauseCircle size={14} /> : <PlayCircle size={14} />}
-                        {v.status === 'ACTIVE' ? ' Tạm Dừng' : ' Kích Hoạt'}
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
+                        <span className="dot" />
+                        {v.status === 'ACTIVE'
+                          ? 'Đang chạy'
+                          : v.status === 'PAUSED'
+                          ? 'Tạm ngưng'
+                          : 'Đã hết hạn'}
+                      </span>
+                    </td>
+
+                    <td className="text-center">
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                        {v.approvalState === 'PENDING_APPROVAL' && (
+                          <button
+                            type="button"
+                            className="admin-btn admin-btn-primary"
+                            style={{ padding: '4px 8px', fontSize: '11.5px' }}
+                            onClick={() => handleApprove(v.id, v.code)}
+                          >
+                            Duyệt
+                          </button>
+                        )}
+
+                        {v.status === 'ACTIVE' && (
+                          <button
+                            type="button"
+                            className="admin-btn admin-btn-secondary"
+                            style={{ padding: '4px 8px', fontSize: '11.5px', color: 'var(--admin-warning)' }}
+                            onClick={() => handleTogglePause(v.id, v.status, v.code)}
+                            title="Tạm ngưng mã voucher"
+                          >
+                            Tạm Dừng
+                          </button>
+                        )}
+
+                        {v.status === 'PAUSED' && (
+                          <button
+                            type="button"
+                            className="admin-btn admin-btn-secondary"
+                            style={{ padding: '4px 8px', fontSize: '11.5px', color: '#10B981' }}
+                            onClick={() => handleTogglePause(v.id, v.status, v.code)}
+                            title="Kích hoạt lại voucher"
+                          >
+                            Kích Hoạt
+                          </button>
+                        )}
+
+                        {v.status !== 'EXPIRED' && (
+                          <button
+                            type="button"
+                            className="admin-btn admin-btn-danger"
+                            style={{ padding: '4px 8px', fontSize: '11.5px' }}
+                            onClick={() => handleEndVoucher(v.id, v.code)}
+                            title="Kết thúc chiến dịch"
+                          >
+                            Kết Thúc
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* Modal: Create Voucher */}
+      {/* ==========================================================================
+          MODAL: CREATE VOUCHER WITH REAL-TIME DISCOUNT SIMULATOR
+         ========================================================================== */}
       {createModalOpen && (
         <div className="admin-modal-backdrop" onClick={() => setCreateModalOpen(false)}>
-          <div className="admin-modal-card" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="admin-modal-card"
+            style={{ maxWidth: '860px', maxHeight: '92vh' }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="admin-modal-header">
-              <h3 className="admin-modal-title">Tạo Chương Trình Khuyến Mãi / Voucher</h3>
+              <div>
+                <h3 className="admin-modal-title">Thiết Lập Chiến Dịch Voucher Mới</h3>
+                <span style={{ fontSize: '12px', color: 'var(--admin-text-muted)' }}>
+                  Tích hợp bộ mô phỏng tính toán chiết khấu ngân sách thời gian thực
+                </span>
+              </div>
               <button className="admin-modal-close" onClick={() => setCreateModalOpen(false)}>
                 <X size={18} />
               </button>
             </div>
+
             <form onSubmit={handleCreateVoucher}>
-              <div className="admin-modal-body">
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                  <div className="admin-form-group">
-                    <label>Mã Voucher (Code) *</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="VD: SOFASALE20"
-                      value={code}
-                      onChange={(e) => setCode(e.target.value)}
-                    />
-                  </div>
-                  <div className="admin-form-group">
-                    <label>Tỷ Lệ Giảm (%) *</label>
-                    <input
-                      type="number"
-                      min="1"
-                      max="100"
-                      required
-                      value={discountPercent}
-                      onChange={(e) => setDiscountPercent(e.target.value)}
-                    />
-                  </div>
-                </div>
+              <div className="admin-modal-body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+                {/* 2 Columns: Form Fields (Left) & Simulator (Right) */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '24px' }}>
+                  {/* Left Column: Form Setup */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                    <div className="admin-form-group">
+                      <label>Mã Voucher (Code) *</label>
+                      <input
+                        type="text"
+                        required
+                        style={{ textTransform: 'uppercase', fontWeight: 700, color: 'var(--admin-primary)' }}
+                        placeholder="VD: PHONGKHACH20, TRIANVIP"
+                        value={code}
+                        onChange={(e) => setCode(e.target.value.toUpperCase())}
+                      />
+                    </div>
 
-                <div className="admin-form-group">
-                  <label>Tên Chương Trình Khuyến Mãi *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="VD: Mừng Đại Lễ Giảm Giá Sofa & Bàn Ăn"
-                    value={programName}
-                    onChange={(e) => setProgramName(e.target.value)}
-                  />
-                </div>
+                    <div className="admin-form-group">
+                      <label>Tên Chương Trình Khuyến Mãi *</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="VD: Tri ân khách hàng mua trọn bộ phòng khách"
+                        value={programName}
+                        onChange={(e) => setProgramName(e.target.value)}
+                      />
+                    </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                  <div className="admin-form-group">
-                    <label>Giá Trị Đơn Tối Thiểu (VNĐ) *</label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="500000"
-                      required
-                      value={minimumAmount}
-                      onChange={(e) => setMinimumAmount(e.target.value)}
-                    />
-                  </div>
-                  <div className="admin-form-group">
-                    <label>Số Tiền Giảm Tối Đa (VNĐ) *</label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="100000"
-                      required
-                      value={maxDiscount}
-                      onChange={(e) => setMaxDiscount(e.target.value)}
-                    />
-                  </div>
-                </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                      <div className="admin-form-group">
+                        <label>Hình Thức Giảm Giá</label>
+                        <select
+                          value={discountType}
+                          onChange={(e) => setDiscountType(e.target.value)}
+                        >
+                          <option value="PERCENT">Giảm theo tỷ lệ %</option>
+                          <option value="FIXED">Giảm số tiền cố định (VNĐ)</option>
+                        </select>
+                      </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                  <div className="admin-form-group">
-                    <label>Tổng Số Lượng Phát Hành *</label>
-                    <input
-                      type="number"
-                      min="1"
-                      required
-                      value={quantity}
-                      onChange={(e) => setQuantity(e.target.value)}
-                    />
+                      {discountType === 'PERCENT' ? (
+                        <div className="admin-form-group">
+                          <label>Tỷ Lệ Giảm (%) *</label>
+                          <input
+                            type="number"
+                            min="1"
+                            max="90"
+                            required
+                            value={discountPercent}
+                            onChange={(e) => setDiscountPercent(e.target.value)}
+                          />
+                        </div>
+                      ) : (
+                        <div className="admin-form-group">
+                          <label>Số Tiền Giảm (VNĐ) *</label>
+                          <input
+                            type="number"
+                            step="50000"
+                            required
+                            value={fixedDiscountAmount}
+                            onChange={(e) => setFixedDiscountAmount(e.target.value)}
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                      <div className="admin-form-group">
+                        <label>Đơn Hàng Tối Thiểu (VNĐ) *</label>
+                        <input
+                          type="number"
+                          step="100000"
+                          required
+                          value={minimumAmount}
+                          onChange={(e) => setMinimumAmount(e.target.value)}
+                        />
+                      </div>
+
+                      {discountType === 'PERCENT' && (
+                        <div className="admin-form-group">
+                          <label>Mức Giảm Tối Đa (Trần VNĐ) *</label>
+                          <input
+                            type="number"
+                            step="100000"
+                            required
+                            value={maxDiscount}
+                            onChange={(e) => setMaxDiscount(e.target.value)}
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                      <div className="admin-form-group">
+                        <label>Tổng Lượt Sử Dụng *</label>
+                        <input
+                          type="number"
+                          min="1"
+                          required
+                          value={quantity}
+                          onChange={(e) => setQuantity(e.target.value)}
+                        />
+                      </div>
+
+                      <div className="admin-form-group">
+                        <label>Áp Dụng Cho Danh Mục</label>
+                        <select
+                          value={appliedCategory}
+                          onChange={(e) => setAppliedCategory(e.target.value)}
+                        >
+                          <option value="ALL">Toàn bộ danh mục nội thất</option>
+                          {MOCK_CATEGORIES.map((c) => (
+                            <option key={c.id} value={c.name}>
+                              {c.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                      <div className="admin-form-group">
+                        <label>Ngày Bắt Đầu</label>
+                        <input
+                          type="date"
+                          value={startDate}
+                          onChange={(e) => setStartDate(e.target.value)}
+                        />
+                      </div>
+                      <div className="admin-form-group">
+                        <label>Ngày Kết Thúc</label>
+                        <input
+                          type="date"
+                          value={endDate}
+                          onChange={(e) => setEndDate(e.target.value)}
+                        />
+                      </div>
+                    </div>
                   </div>
-                  <div className="admin-form-group">
-                    <label>Ngày Hết Hạn *</label>
-                    <input
-                      type="date"
-                      required
-                      value={endDate}
-                      onChange={(e) => setEndDate(e.target.value)}
-                    />
+
+                  {/* Right Column: REAL-TIME DISCOUNT SIMULATOR WIDGET */}
+                  <div>
+                    <div
+                      style={{
+                        background: 'var(--admin-bg)',
+                        border: '2px solid var(--admin-primary)',
+                        borderRadius: '12px',
+                        padding: '18px',
+                        boxShadow: 'var(--admin-card-shadow)',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--admin-primary)', fontWeight: 700, fontSize: '14px', marginBottom: '12px' }}>
+                        <Calculator size={18} />
+                        MÔ PHỎNG SỐ TIỀN GIẢM (SIMULATOR)
+                      </div>
+
+                      <div style={{ fontSize: '12px', color: 'var(--admin-text-muted)', marginBottom: '10px' }}>
+                        Nhập thử giá trị đơn hàng khách mua để kiểm tra số tiền giảm thực tế:
+                      </div>
+
+                      <div className="admin-form-group" style={{ marginBottom: '14px' }}>
+                        <label>Giá Trị Đơn Hàng Thử Nghiệm (VNĐ):</label>
+                        <input
+                          type="number"
+                          step="1000000"
+                          className="tabular-nums"
+                          style={{ fontSize: '15px', fontWeight: 700, color: 'var(--admin-text-main)' }}
+                          value={simulatedOrderValue}
+                          onChange={(e) => setSimulatedOrderValue(Number(e.target.value))}
+                        />
+                      </div>
+
+                      {/* Simulation Result Box */}
+                      <div
+                        style={{
+                          background: 'var(--admin-surface)',
+                          border: '1px solid var(--admin-border)',
+                          borderRadius: '8px',
+                          padding: '14px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '8px',
+                          fontSize: '12.5px',
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ color: 'var(--admin-text-muted)' }}>Đủ điều kiện tối thiểu:</span>
+                          <span style={{ fontWeight: 700, color: simEligible ? '#10B981' : 'var(--admin-danger)' }}>
+                            {simEligible ? '✓ Đạt điều kiện' : '✕ Chưa đạt điều kiện'}
+                          </span>
+                        </div>
+
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ color: 'var(--admin-text-muted)' }}>Số tiền giảm thực tế:</span>
+                          <strong className="tabular-nums" style={{ color: '#10B981', fontSize: '14px' }}>
+                            {formatCurrency(simCalculatedDiscount)}
+                          </strong>
+                        </div>
+
+                        {discountType === 'PERCENT' && simEligible && (
+                          <div style={{ fontSize: '11px', color: 'var(--admin-text-dim)' }}>
+                            (Mức giảm danh nghĩa: {formatCurrency((simulatedOrderValue * Number(discountPercent)) / 100)}, đã áp trần {formatCurrency(Number(maxDiscount))})
+                          </div>
+                        )}
+
+                        <div
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            borderTop: '1px solid var(--admin-border)',
+                            paddingTop: '8px',
+                            marginTop: '4px',
+                            fontWeight: 700,
+                            fontSize: '14px',
+                          }}
+                        >
+                          <span>Khách còn phải trả:</span>
+                          <span className="tabular-nums" style={{ color: 'var(--admin-primary)' }}>
+                            {formatCurrency(simFinalCustomerPay)}
+                          </span>
+                        </div>
+
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11.5px', color: 'var(--admin-text-dim)' }}>
+                          <span>Tỷ lệ chiết khấu thực tế:</span>
+                          <span className="tabular-nums">{simActualDiscountPercent}%</span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
 
               <div className="admin-modal-footer">
-                <button type="button" className="admin-btn admin-btn-secondary" onClick={() => setCreateModalOpen(false)}>
-                  Hủy
+                <button
+                  type="button"
+                  className="admin-btn admin-btn-secondary"
+                  onClick={() => setCreateModalOpen(false)}
+                >
+                  Hủy Bỏ
                 </button>
                 <button type="submit" className="admin-btn admin-btn-primary">
-                  Lưu & Phê Duyệt Voucher
+                  Phát Hành Voucher
                 </button>
               </div>
             </form>

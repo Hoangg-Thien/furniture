@@ -1,16 +1,31 @@
 import React, { useState } from 'react'
-import { ShieldCheck, Lock, User, ArrowLeft, AlertCircle, Eye, EyeOff } from 'lucide-react'
+import {
+  ShieldCheck,
+  Lock,
+  User,
+  ArrowLeft,
+  AlertCircle,
+  Eye,
+  EyeOff,
+  Sparkles,
+  ShoppingBag,
+  Truck,
+  Package,
+  CheckCircle2,
+} from 'lucide-react'
 import { loginUser, setCurrentUser } from '../../lib/auth'
 
 export default function AdminLoginGate({ onLoginSuccess, onNavigate }) {
-  const [username, setUsername] = useState('')
-  const [password, setPassword] = useState('')
+  const [username, setUsername] = useState('admin01')
+  const [password, setPassword] = useState('123456')
   const [showPassword, setShowPassword] = useState(false)
+  const [rememberMe, setRememberMe] = useState(true)
   const [errorMsg, setErrorMsg] = useState('')
   const [loading, setLoading] = useState(false)
+  const [forgotModalOpen, setForgotModalOpen] = useState(false)
 
   async function handleAdminLogin(e) {
-    e.preventDefault()
+    if (e) e.preventDefault()
     setErrorMsg('')
     setLoading(true)
 
@@ -21,18 +36,30 @@ export default function AdminLoginGate({ onLoginSuccess, onNavigate }) {
       } else if (res.user && res.user.role === 'CUSTOMER') {
         setErrorMsg('Tài khoản này là tài khoản Khách hàng (CUSTOMER), không có quyền quản trị hệ thống!')
       } else {
-        // Fallback demo cho môi trường dev khi backend chưa bật hoặc tài khoản mẫu
-        if ((username === 'admin' || username === 'admin01' || username === 'hoangthien') && password) {
-          const mockAdmin = {
+        // Fallback demo cho dev khi backend chưa kết nối hoặc tài khoản mẫu
+        if (username) {
+          const mockUser = {
             id: 1,
             username: username,
-            fullName: 'Hoàng Thiên (Quản Trị Viên)',
-            role: 'ADMIN',
+            fullName: username.includes('admin')
+              ? 'Hoàng Thiên (Tổng Quản Trị Viên)'
+              : username.includes('sale')
+              ? 'Lê Thị Thu Hà (Nhân viên Bán hàng)'
+              : username.includes('kho')
+              ? 'Nguyễn Văn Vũ (Thủ kho chính)'
+              : 'Nguyễn Văn Đạt (Thợ trưởng giao lắp)',
+            role: username.includes('sale')
+              ? 'SALES'
+              : username.includes('kho')
+              ? 'WAREHOUSE'
+              : username.includes('giao') || username.includes('lap')
+              ? 'DISPATCHER'
+              : 'ADMIN',
           }
-          setCurrentUser(mockAdmin)
-          onLoginSuccess(mockAdmin)
+          setCurrentUser(mockUser)
+          onLoginSuccess(mockUser)
         } else {
-          setErrorMsg(res.error || 'Sai tên đăng nhập hoặc mật khẩu quản trị viên!')
+          setErrorMsg(res.error || 'Vui lòng nhập tên đăng nhập và mật khẩu!')
         }
       }
     } catch (err) {
@@ -42,213 +69,363 @@ export default function AdminLoginGate({ onLoginSuccess, onNavigate }) {
     }
   }
 
-  function handleQuickDemoAdmin() {
-    const mockAdmin = {
-      id: 1,
-      username: 'admin01',
-      fullName: 'Hoàng Thiên (Tổng Quản Trị Viên)',
-      role: 'ADMIN',
+  // Quick Demo Login for instant role testing
+  function handleQuickRoleLogin(targetRole) {
+    const rolesMap = {
+      ADMIN: {
+        username: 'admin01',
+        fullName: 'Hoàng Thiên (Tổng Quản Trị Viên)',
+        role: 'ADMIN',
+      },
+      SALES: {
+        username: 'sales_ha',
+        fullName: 'Lê Thị Thu Hà (Nhân viên Bán hàng)',
+        role: 'SALES',
+      },
+      WAREHOUSE: {
+        username: 'kho_vu',
+        fullName: 'Nguyễn Văn Vũ (Thủ kho chính)',
+        role: 'WAREHOUSE',
+      },
+      DISPATCHER: {
+        username: 'tho_dat',
+        fullName: 'Nguyễn Văn Đạt (Điều phối giao lắp)',
+        role: 'DISPATCHER',
+      },
     }
-    setCurrentUser(mockAdmin)
-    onLoginSuccess(mockAdmin)
+
+    const selectedUser = rolesMap[targetRole] || rolesMap.ADMIN
+    setCurrentUser(selectedUser)
+    try {
+      localStorage.setItem('furnistore_active_role', selectedUser.role)
+    } catch {}
+    onLoginSuccess(selectedUser)
   }
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      background: 'radial-gradient(ellipse at 50% 20%, #172033 0%, #0B0F17 100%)',
-      color: '#F8FAFC',
-      padding: '24px',
-      fontFamily: "'DM Sans', sans-serif",
-    }}>
-      <div style={{
-        maxWidth: '460px',
-        width: '100%',
-        background: 'rgba(17, 24, 39, 0.9)',
-        backdropFilter: 'blur(20px)',
-        border: '1px solid rgba(217, 119, 6, 0.35)',
-        borderRadius: '20px',
-        padding: '36px 32px',
-        boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.8), 0 0 35px rgba(217, 119, 6, 0.1)',
-      }}>
-        {/* Security Badge */}
-        <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-          <div style={{
-            width: '54px',
-            height: '54px',
-            borderRadius: '14px',
-            background: 'linear-gradient(135deg, #D97706 0%, #78350F 100%)',
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#FFF',
-            boxShadow: '0 8px 20px rgba(217, 119, 6, 0.35)',
-            marginBottom: '14px',
-          }}>
-            <ShieldCheck size={28} />
-          </div>
-          <h1 style={{ fontSize: '22px', fontWeight: 700, margin: '0 0 6px 0', color: '#FFF' }}>
-            Khu Vực Quản Trị Hệ Thống
-          </h1>
-          <p style={{ fontSize: '13.5px', color: '#94A3B8', margin: 0 }}>
-            Yêu cầu xác thực tài khoản có phân quyền Quản trị viên (ADMIN) để tiếp tục.
-          </p>
-        </div>
-
-        {errorMsg && (
-          <div style={{
-            background: 'rgba(239, 68, 68, 0.15)',
-            border: '1px solid rgba(239, 68, 68, 0.35)',
-            color: '#F87171',
-            borderRadius: '8px',
-            padding: '10px 14px',
-            fontSize: '13px',
-            marginBottom: '18px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-          }}>
-            <AlertCircle size={16} style={{ flexShrink: 0 }} />
-            <span>{errorMsg}</span>
-          </div>
-        )}
-
-        <form onSubmit={handleAdminLogin} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <label style={{ fontSize: '13px', fontWeight: 600, color: '#94A3B8' }}>
-              Tên đăng nhập Quản trị viên
-            </label>
-            <div style={{
+    <div
+      style={{
+        minHeight: '100vh',
+        display: 'flex',
+        background: '#181513',
+        color: '#F5F2EB',
+        fontFamily: "'Be Vietnam Pro', 'Inter', sans-serif",
+      }}
+    >
+      {/* ===================== LEFT COLUMN (50%): HERO BRAND SHOWCASE ===================== */}
+      <div
+        style={{
+          flex: 1,
+          position: 'relative',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between',
+          padding: '48px',
+          backgroundImage: 'linear-gradient(rgba(24, 21, 19, 0.45), rgba(24, 21, 19, 0.85)), url("/images/sofa_goc_chu_L.jpg")',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          borderRight: '1px solid rgba(255, 255, 255, 0.08)',
+        }}
+      >
+        {/* Brand Top */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div
+            style={{
+              width: '42px',
+              height: '42px',
+              borderRadius: '10px',
+              background: 'linear-gradient(135deg, #8B5E3C 0%, #5E3F28 100%)',
               display: 'flex',
               alignItems: 'center',
-              gap: '10px',
-              background: '#0B0F17',
-              border: '1px solid rgba(255, 255, 255, 0.12)',
-              borderRadius: '9px',
-              padding: '10px 14px',
-            }}>
-              <User size={16} style={{ color: '#F59E0B' }} />
-              <input
-                type="text"
-                required
-                placeholder="VD: admin01 hoặc admin"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  outline: 'none',
-                  color: '#FFF',
-                  fontSize: '14px',
-                  width: '100%',
-                }}
-              />
+              justifyContent: 'center',
+              boxShadow: '0 4px 14px rgba(139, 94, 60, 0.4)',
+            }}
+          >
+            <Sparkles size={20} color="#FFF" />
+          </div>
+          <div>
+            <div style={{ fontSize: '20px', fontWeight: 800, letterSpacing: '-0.01em', color: '#FFF' }}>
+              FURNISTORE
+            </div>
+            <div style={{ fontSize: '11px', color: '#D6CEBE', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+              Hệ Thống Quản Trị Kinh Doanh Nội Thất
             </div>
           </div>
+        </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <label style={{ fontSize: '13px', fontWeight: 600, color: '#94A3B8' }}>
-              Mật khẩu bảo mật
-            </label>
-            <div style={{
-              display: 'flex',
+        {/* Brand Philosophy Hero Center */}
+        <div style={{ maxWidth: '520px', margin: 'auto 0' }}>
+          <div
+            style={{
+              display: 'inline-flex',
               alignItems: 'center',
-              gap: '10px',
-              background: '#0B0F17',
-              border: '1px solid rgba(255, 255, 255, 0.12)',
-              borderRadius: '9px',
-              padding: '10px 14px',
-            }}>
-              <Lock size={16} style={{ color: '#F59E0B' }} />
+              gap: '6px',
+              background: 'rgba(255, 255, 255, 0.1)',
+              backdropFilter: 'blur(10px)',
+              padding: '6px 14px',
+              borderRadius: '999px',
+              fontSize: '12px',
+              color: '#F4EFEA',
+              marginBottom: '18px',
+              border: '1px solid rgba(255, 255, 255, 0.15)',
+            }}
+          >
+            <ShieldCheck size={14} style={{ color: '#F59E0B' }} />
+            <span>Cổng Quản Trị & Mini-ERP Nội Thất Độc Quyền</span>
+          </div>
+
+          <h2 style={{ fontSize: '32px', fontWeight: 800, lineHeight: 1.25, color: '#FFF', margin: '0 0 16px 0' }}>
+            Không gian sống tinh tế bắt đầu từ khâu quản trị chuẩn mực.
+          </h2>
+
+          <p style={{ fontSize: '14.5px', color: '#D6CEBE', lineHeight: 1.6, margin: 0 }}>
+            Tích hợp toàn diện ma trận biến thể chất liệu gỗ, điều phối đội thợ giao lắp căn hộ, kiểm soát tồn kho thời gian thực và quản trị tài chính minh bạch.
+          </p>
+
+          {/* Quick Feature Badges */}
+          <div style={{ display: 'flex', gap: '12px', marginTop: '28px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: '#FFF' }}>
+              <CheckCircle2 size={15} style={{ color: '#10B981' }} />
+              <span>Biến thể Gỗ & Da thuộc</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: '#FFF' }}>
+              <CheckCircle2 size={15} style={{ color: '#10B981' }} />
+              <span>Điều phối xe & Thợ lắp đặt</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: '#FFF' }}>
+              <CheckCircle2 size={15} style={{ color: '#10B981' }} />
+              <span>Tích hợp VietQR Hóa đơn A4</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer Back to Store Link */}
+        <div>
+          <button
+            type="button"
+            onClick={() => onNavigate('/')}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: '#D6CEBE',
+              fontSize: '13px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              cursor: 'pointer',
+              padding: 0,
+            }}
+          >
+            <ArrowLeft size={15} />
+            <span>Quay về Website Mua Hàng Của Khách</span>
+          </button>
+        </div>
+      </div>
+
+      {/* ===================== RIGHT COLUMN (50%): AUTH FORM ===================== */}
+      <div
+        style={{
+          flex: 1,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '40px 32px',
+          background: '#221E1C',
+        }}
+      >
+        <div style={{ width: '100%', maxWidth: '440px' }}>
+          {/* Header */}
+          <div style={{ marginBottom: '28px' }}>
+            <h2 style={{ fontSize: '24px', fontWeight: 800, margin: '0 0 8px 0', color: '#FFF' }}>
+              Đăng Nhập Quản Trị
+            </h2>
+            <p style={{ margin: 0, fontSize: '13.5px', color: '#A8A199' }}>
+              Vui lòng nhập tài khoản nhân viên được cấp quyền để truy cập hệ thống.
+            </p>
+          </div>
+
+          {/* Error Message Box */}
+          {errorMsg && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                background: 'rgba(239, 68, 68, 0.15)',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                color: '#FCA5A5',
+                padding: '12px 14px',
+                borderRadius: '8px',
+                fontSize: '13px',
+                marginBottom: '20px',
+              }}
+            >
+              <AlertCircle size={18} style={{ flexShrink: 0 }} />
+              <span>{errorMsg}</span>
+            </div>
+          )}
+
+          {/* Form */}
+          <form onSubmit={handleAdminLogin} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+            {/* Username */}
+            <div className="admin-form-group">
+              <label style={{ color: '#D6CEBE', fontSize: '13px', fontWeight: 600 }}>Tên Đăng Nhập / Email</label>
+              <div style={{ position: 'relative' }}>
+                <User
+                  size={16}
+                  style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#736C65' }}
+                />
+                <input
+                  type="text"
+                  required
+                  style={{ width: '100%', paddingLeft: '38px', background: '#181513', borderColor: '#36302B', color: '#FFF' }}
+                  placeholder="admin01 hoặc email..."
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {/* Password */}
+            <div className="admin-form-group">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <label style={{ color: '#D6CEBE', fontSize: '13px', fontWeight: 600 }}>Mật Khẩu</label>
+                <button
+                  type="button"
+                  style={{ background: 'transparent', border: 'none', color: '#B07D52', fontSize: '12px', cursor: 'pointer', padding: 0 }}
+                  onClick={() => setForgotModalOpen(true)}
+                >
+                  Quên mật khẩu?
+                </button>
+              </div>
+              <div style={{ position: 'relative' }}>
+                <Lock
+                  size={16}
+                  style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#736C65' }}
+                />
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  style={{ width: '100%', paddingLeft: '38px', paddingRight: '38px', background: '#181513', borderColor: '#36302B', color: '#FFF' }}
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+                <button
+                  type="button"
+                  style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: '#736C65', cursor: 'pointer' }}
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+            </div>
+
+            {/* Remember me checkbox */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#A8A199' }}>
               <input
-                type={showPassword ? 'text' : 'password'}
-                required
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  outline: 'none',
-                  color: '#FFF',
-                  fontSize: '14px',
-                  width: '100%',
-                }}
+                type="checkbox"
+                id="rememberMe"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                style={{ accentColor: '#8B5E3C', width: '16px', height: '16px' }}
               />
+              <label htmlFor="rememberMe" style={{ cursor: 'pointer' }}>Ghi nhớ phiên đăng nhập trên thiết bị này</label>
+            </div>
+
+            {/* Submit Button */}
+            <button
+              type="submit"
+              disabled={loading}
+              className="admin-btn admin-btn-primary"
+              style={{
+                width: '100%',
+                padding: '12px',
+                justifyContent: 'center',
+                fontSize: '14.5px',
+                background: 'linear-gradient(135deg, #8B5E3C 0%, #724C30 100%)',
+                boxShadow: '0 4px 14px rgba(139, 94, 60, 0.35)',
+              }}
+            >
+              {loading ? 'Đang xác thực...' : 'Đăng Nhập Vào Hệ Thống'}
+            </button>
+          </form>
+
+          {/* Quick Demo Role Logins */}
+          <div style={{ marginTop: '28px', borderTop: '1px solid #36302B', paddingTop: '20px' }}>
+            <div style={{ fontSize: '12px', color: '#A8A199', marginBottom: '10px', textAlign: 'center' }}>
+              ⚡ Thử nghiệm nhanh với vai trò phân quyền (1 click):
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
               <button
                 type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                style={{ background: 'transparent', border: 'none', color: '#64748B', cursor: 'pointer', padding: 0 }}
+                className="admin-btn admin-btn-secondary"
+                style={{ fontSize: '11.5px', padding: '7px 8px', justifyContent: 'center' }}
+                onClick={() => handleQuickRoleLogin('ADMIN')}
               >
-                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                👑 Admin (Toàn quyền)
+              </button>
+              <button
+                type="button"
+                className="admin-btn admin-btn-secondary"
+                style={{ fontSize: '11.5px', padding: '7px 8px', justifyContent: 'center' }}
+                onClick={() => handleQuickRoleLogin('SALES')}
+              >
+                🛍️ NV Bán Hàng (Sales)
+              </button>
+              <button
+                type="button"
+                className="admin-btn admin-btn-secondary"
+                style={{ fontSize: '11.5px', padding: '7px 8px', justifyContent: 'center' }}
+                onClick={() => handleQuickRoleLogin('WAREHOUSE')}
+              >
+                📦 Thủ Kho (GRN/Tồn)
+              </button>
+              <button
+                type="button"
+                className="admin-btn admin-btn-secondary"
+                style={{ fontSize: '11.5px', padding: '7px 8px', justifyContent: 'center' }}
+                onClick={() => handleQuickRoleLogin('DISPATCHER')}
+              >
+                🚚 Điều Phối Giao Lắp
               </button>
             </div>
           </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              marginTop: '8px',
-              padding: '12px',
-              borderRadius: '10px',
-              background: 'linear-gradient(135deg, #D97706 0%, #B45309 100%)',
-              color: '#FFF',
-              border: 'none',
-              fontSize: '14px',
-              fontWeight: 600,
-              cursor: loading ? 'not-allowed' : 'pointer',
-              boxShadow: '0 4px 14px rgba(217, 119, 6, 0.4)',
-              transition: 'all 0.2s ease',
-            }}
-          >
-            {loading ? 'Đang xác thực bảo mật...' : 'Đăng Nhập Quản Trị'}
-          </button>
-        </form>
-
-        {/* Quick Demo for testing */}
-        <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid rgba(255, 255, 255, 0.08)', textAlign: 'center' }}>
-          <button
-            type="button"
-            onClick={handleQuickDemoAdmin}
-            style={{
-              background: 'rgba(255, 255, 255, 0.05)',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              color: '#FBBF24',
-              borderRadius: '8px',
-              padding: '8px 14px',
-              fontSize: '12.5px',
-              fontWeight: 500,
-              cursor: 'pointer',
-              marginBottom: '16px',
-            }}
-          >
-            ⚡ Xác Thực Nhanh Quyền Quản Trị (Chế độ phát triển)
-          </button>
-
-          <div>
-            <button
-              type="button"
-              onClick={() => onNavigate('/')}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                color: '#94A3B8',
-                fontSize: '13px',
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-              }}
-            >
-              <ArrowLeft size={14} /> Quay về Trang chủ Cửa hàng
-            </button>
-          </div>
         </div>
       </div>
+
+      {/* Forgot Password Modal */}
+      {forgotModalOpen && (
+        <div className="admin-modal-backdrop" onClick={() => setForgotModalOpen(false)}>
+          <div
+            className="admin-modal-card"
+            style={{ maxWidth: '440px', background: '#221E1C', color: '#FFF' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="admin-modal-header" style={{ borderColor: '#36302B' }}>
+              <h3 className="admin-modal-title" style={{ color: '#FFF' }}>Khôi Phục Mật Khẩu Quản Trị</h3>
+              <button className="admin-modal-close" onClick={() => setForgotModalOpen(false)}>
+                <X size={18} />
+              </button>
+            </div>
+            <div className="admin-modal-body">
+              <p style={{ margin: 0, fontSize: '13px', color: '#A8A199', lineHeight: 1.5 }}>
+                Vui lòng liên hệ Trưởng bộ phận IT hoặc Tổng Quản trị viên theo hotline <strong>1900.6868</strong> để được cấp lại mật khẩu xác thực hai lớp (2FA).
+              </p>
+            </div>
+            <div className="admin-modal-footer" style={{ borderColor: '#36302B' }}>
+              <button
+                type="button"
+                className="admin-btn admin-btn-primary"
+                onClick={() => setForgotModalOpen(false)}
+              >
+                Đã Hiểu
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
