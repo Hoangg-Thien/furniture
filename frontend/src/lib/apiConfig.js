@@ -17,8 +17,8 @@ export function getApiBaseUrl() {
     return envUrl.trim().replace(/\/+$/, '')
   }
 
-  // Fallback mặc định về ngrok link của bạn
-  return 'https://lionel-noisome-rurally.ngrok-free.dev'
+  // Fallback mặc định về localhost:8080 của máy bạn
+  return 'http://localhost:8080'
 }
 
 export function setCustomApiBaseUrl(url) {
