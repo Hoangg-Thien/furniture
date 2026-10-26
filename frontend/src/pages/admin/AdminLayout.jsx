@@ -207,7 +207,14 @@ export default function AdminLayout({ currentPath, onNavigate, currentUser: prop
         return <AdminReports showToast={showToast} />
       case '/admin/products':
       case '/admin/categories':
-        return <AdminProducts showToast={showToast} activeRole={activeRole} />
+        return (
+          <AdminProducts
+            showToast={showToast}
+            activeRole={activeRole}
+            currentPath={currentPath}
+            onNavigate={onNavigate}
+          />
+        )
       case '/admin/orders':
         return <AdminOrders showToast={showToast} activeRole={activeRole} />
       case '/admin/inventory':

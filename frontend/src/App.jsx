@@ -11,6 +11,7 @@ const VALID_CLIENT_ROUTES = new Set([
   '',
   '/home',
   '/products',
+  '/categories',
   '/story',
   '/order-success',
 ])
@@ -20,6 +21,7 @@ const VALID_ADMIN_ROUTES = new Set([
   '/admin/',
   '/admin/dashboard',
   '/admin/products',
+  '/admin/categories',
   '/admin/orders',
   '/admin/inventory',
   '/admin/promotions',

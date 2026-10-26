@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   ShoppingBag,
   Plus,
@@ -36,7 +36,8 @@ const formatCurrency = (val) =>
     maximumFractionDigits: 0,
   }).format(val)
 
-export default function AdminProducts({ showToast, activeRole = 'ADMIN' }) {
+export default function AdminProducts({ showToast, activeRole = 'ADMIN', currentPath, onNavigate }) {
+  const isCategoryPath = currentPath === '/admin/categories'
   const [products, setProducts] = useState(MOCK_PRODUCTS)
   const [categories, setCategories] = useState(MOCK_CATEGORIES)
   const [viewMode, setViewMode] = useState('TABLE') // 'TABLE' | 'GRID'
@@ -52,8 +53,22 @@ export default function AdminProducts({ showToast, activeRole = 'ADMIN' }) {
   const [selectedProductIds, setSelectedProductIds] = useState(new Set())
 
   // Modals
-  const [modalMode, setModalMode] = useState(null) // 'CREATE' | 'EDIT' | 'CATEGORY_MANAGE'
+  const [modalMode, setModalMode] = useState(isCategoryPath ? 'CATEGORY_MANAGE' : null) // 'CREATE' | 'EDIT' | 'CATEGORY_MANAGE'
   const [editingProduct, setEditingProduct] = useState(null)
+
+  // Tự động mở modal Quản lý danh mục nếu đường dẫn là /admin/categories
+  useEffect(() => {
+    if (currentPath === '/admin/categories') {
+      setModalMode('CATEGORY_MANAGE')
+    }
+  }, [currentPath])
+
+  const handleCloseCategoryModal = () => {
+    setModalMode(null)
+    if (currentPath === '/admin/categories' && onNavigate) {
+      onNavigate('/admin/products')
+    }
+  }
 
   // 4-Step Create/Edit Form State
   const [formStep, setFormStep] = useState(1) // 1: General -> 2: Variants -> 3: Images -> 4: Pricing/Stock
@@ -396,7 +411,10 @@ export default function AdminProducts({ showToast, activeRole = 'ADMIN' }) {
           <button
             type="button"
             className="admin-btn admin-btn-secondary"
-            onClick={() => setModalMode('CATEGORY_MANAGE')}
+            onClick={() => {
+              setModalMode('CATEGORY_MANAGE')
+              if (onNavigate) onNavigate('/admin/categories')
+            }}
             title="Quản lý cây danh mục nội thất"
           >
             <Layers size={15} /> Quản Lý Danh Mục
@@ -412,6 +430,32 @@ export default function AdminProducts({ showToast, activeRole = 'ADMIN' }) {
             </button>
           )}
         </div>
+      </div>
+
+      {/* Subpage Navigation Tabs: Sản phẩm vs Danh mục */}
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+        <button
+          type="button"
+          onClick={() => {
+            setModalMode(null)
+            if (onNavigate) onNavigate('/admin/products')
+          }}
+          className={`admin-btn ${!isCategoryPath && modalMode !== 'CATEGORY_MANAGE' ? 'admin-btn-primary' : 'admin-btn-secondary'}`}
+          style={{ fontSize: '13px', padding: '8px 16px', borderRadius: '8px' }}
+        >
+          <ShoppingBag size={15} /> Tất Cả Sản Phẩm & Biến Thể
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setModalMode('CATEGORY_MANAGE')
+            if (onNavigate) onNavigate('/admin/categories')
+          }}
+          className={`admin-btn ${isCategoryPath || modalMode === 'CATEGORY_MANAGE' ? 'admin-btn-primary' : 'admin-btn-secondary'}`}
+          style={{ fontSize: '13px', padding: '8px 16px', borderRadius: '8px' }}
+        >
+          <Layers size={15} /> Danh Mục Sản Phẩm ({categories.length})
+        </button>
       </div>
 
       {/* Filter, Search & View Controls */}
@@ -1563,7 +1607,7 @@ export default function AdminProducts({ showToast, activeRole = 'ADMIN' }) {
           MODAL: CATEGORY MANAGEMENT DRAWER
          ========================================================================== */}
       {modalMode === 'CATEGORY_MANAGE' && (
-        <div className="admin-modal-backdrop" onClick={() => setModalMode(null)}>
+        <div className="admin-modal-backdrop" onClick={handleCloseCategoryModal}>
           <div
             className="admin-modal-card"
             style={{ maxWidth: '640px' }}
@@ -1571,7 +1615,7 @@ export default function AdminProducts({ showToast, activeRole = 'ADMIN' }) {
           >
             <div className="admin-modal-header">
               <h3 className="admin-modal-title">Quản Lý Danh Mục Nội Thất</h3>
-              <button className="admin-modal-close" onClick={() => setModalMode(null)}>
+              <button className="admin-modal-close" onClick={handleCloseCategoryModal}>
                 <X size={18} />
               </button>
             </div>
@@ -1669,7 +1713,7 @@ export default function AdminProducts({ showToast, activeRole = 'ADMIN' }) {
               <button
                 type="button"
                 className="admin-btn admin-btn-primary"
-                onClick={() => setModalMode(null)}
+                onClick={handleCloseCategoryModal}
               >
                 Xong
               </button>

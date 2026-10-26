@@ -2,6 +2,54 @@ import { getApiBaseUrl } from './apiConfig'
 
 const CACHE_KEY = 'furniture_cached_products'
 
+// Bảng chuẩn hóa tên sản phẩm có dấu tiếng Việt chuẩn
+const VIETNAMESE_NAME_MAP = {
+  1: 'Sofa góc chữ L vải bọc Milan',
+  2: 'Sofa băng 3 chỗ da PU Oslo',
+  3: 'Ghế thư giãn bập bênh Relax',
+  4: 'Bàn ăn gỗ cao su 6 chỗ Nordic',
+  5: 'Bàn ăn mặt đá ceramic 4 chỗ Venus',
+  6: 'Ghế ăn gỗ sồi đệm bọc Luna',
+  7: 'Ghế bar chân sắt Loft',
+  8: 'Giường ngủ gỗ sồi 1m8 Hana',
+  9: 'Giường bọc nệm 1m6 Royal',
+  10: 'Tủ quần áo 3 cánh gỗ MDF Alice',
+  11: 'Tủ giày thông minh 5 tầng',
+  12: 'Bàn làm việc chân sắt 1m2 Office',
+  13: 'Ghế công thái học Ergo',
+  14: 'Kệ sách gỗ 5 tầng Bookie',
+  15: 'Kệ tivi gỗ óc chó 1m8 Nova',
+  16: 'Đèn chùm pha lê 8 bóng',
+  17: 'Đèn sàn thông trụ Arc',
+  18: 'Thảm lông ngắn phòng khách 2x3m',
+  19: 'Rèm cửa vải chống nắng 2.4m',
+  20: 'Nệm cao su non 1m6 Dreamy',
+}
+
+// Bảng chuẩn hóa tên danh mục có dấu tiếng Việt chuẩn
+const VIETNAMESE_CATEGORY_MAP = {
+  1: 'Sofa và ghế thư giãn',
+  2: 'Bàn ăn',
+  3: 'Ghế ăn và ghế bar',
+  4: 'Giường ngủ',
+  5: 'Tủ quần áo và tủ giày',
+  6: 'Bàn và ghế văn phòng',
+  7: 'Kệ sách và kệ tivi',
+  8: 'Đèn trang trí',
+  9: 'Thảm và rèm cửa',
+  10: 'Nệm và phụ kiện giường',
+  'Sofa va ghe thu gian': 'Sofa và ghế thư giãn',
+  'Ban an': 'Bàn ăn',
+  'Ghe an va ghe bar': 'Ghế ăn và ghế bar',
+  'Giuong ngu': 'Giường ngủ',
+  'Tu quan ao va tu giay': 'Tủ quần áo và tủ giày',
+  'Ban va ghe van phong': 'Bàn và ghế văn phòng',
+  'Ke sach va ke tivi': 'Kệ sách và kệ tivi',
+  'Den trang tri': 'Đèn trang trí',
+  'Tham va rem cua': 'Thảm và rèm cửa',
+  'Nem va phu kien giuong': 'Nệm và phụ kiện giường',
+}
+
 /**
  * Tải danh sách sản phẩm từ Backend API với cơ chế tự động cache và fallback
  */
@@ -15,8 +63,8 @@ export async function loadProducts() {
     if (Array.isArray(rows) && rows.length > 0) {
       const mapped = rows.map((row) => ({
         id: row.id,
-        name: row.name,
-        category: row.category ?? 'Khác',
+        name: VIETNAMESE_NAME_MAP[row.id] || row.name,
+        category: VIETNAMESE_CATEGORY_MAP[row.category] || row.category || 'Khác',
         price: Number(row.price),
         badge: '',
         image: row.imageUrl || '',
@@ -41,7 +89,12 @@ export async function loadProducts() {
       if (cached) {
         const parsed = JSON.parse(cached)
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return { products: parsed, error }
+          const accented = parsed.map((p) => ({
+            ...p,
+            name: VIETNAMESE_NAME_MAP[p.id] || p.name,
+            category: VIETNAMESE_CATEGORY_MAP[p.category] || p.category || 'Khác',
+          }))
+          return { products: accented, error }
         }
       }
     } catch {

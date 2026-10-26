@@ -184,7 +184,9 @@ export default function ClientStorefront({ onNavigate }) {
 
   const filteredProducts = products.filter((product) => {
     const matchesCategory = activeCategory === 'Tất cả' || product.category === activeCategory
-    const matchesSearch = product.name.toLowerCase().includes(searchTerm.trim().toLowerCase())
+    const normSearch = searchTerm.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    const normName = (product.name || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    const matchesSearch = !normSearch || normName.includes(normSearch) || (product.name || '').toLowerCase().includes(searchTerm.trim().toLowerCase())
     return matchesCategory && matchesSearch && (!showFavorites || favorites.includes(product.id))
   })
   const cartItems = products.filter((product) => cart[product.id])
