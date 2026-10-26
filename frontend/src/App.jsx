@@ -3,7 +3,7 @@ import ClientStorefront from './pages/client/ClientStorefront'
 import AdminLayout from './pages/admin/AdminLayout'
 import AdminLoginGate from './pages/admin/AdminLoginGate'
 import NotFoundPage from './pages/common/NotFoundPage'
-import { getCurrentUser } from './lib/auth'
+import { getCurrentUser, getAdminUser } from './lib/auth'
 
 // Danh sách đường dẫn hợp lệ của hệ thống FurniStore
 const VALID_CLIENT_ROUTES = new Set([
@@ -70,7 +70,8 @@ export default function App() {
   const isAdminRoute = VALID_ADMIN_ROUTES.has(currentPath)
   if (isAdminRoute) {
     // BẢO VỆ PHÂN QUYỀN (ROUTE GUARD): Chỉ cho phép nếu đã đăng nhập quyền ADMIN hoặc STAFF
-    const hasAdminAccess = currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'STAFF')
+    const adminUser = getAdminUser()
+    const hasAdminAccess = adminUser && (adminUser.role === 'ADMIN' || adminUser.role === 'STAFF')
     if (!hasAdminAccess) {
       return (
         <AdminLoginGate
@@ -83,7 +84,7 @@ export default function App() {
     }
 
     const activeAdminPath = currentPath === '/admin' ? '/admin/dashboard' : currentPath
-    return <AdminLayout currentPath={activeAdminPath} onNavigate={navigate} currentUser={currentUser} />
+    return <AdminLayout currentPath={activeAdminPath} onNavigate={navigate} currentUser={adminUser} />
   }
 
   // 2. Kiểm tra nếu là đường dẫn Khách hàng hợp lệ

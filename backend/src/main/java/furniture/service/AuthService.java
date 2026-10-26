@@ -73,9 +73,24 @@ public class AuthService {
         }
 
         String identifier = req.username().trim();
-        List<Map<String, Object>> rows = authRepository.findUserWithCustomerByIdentifier(identifier);
-        if (rows.isEmpty()) {
-            throw new SecurityException("Tên đăng nhập hoặc mật khẩu không chính xác");
+        boolean isAdminPortal = "ADMIN".equalsIgnoreCase(req.portal());
+
+        List<Map<String, Object>> rows;
+        if (isAdminPortal) {
+            // Trang Admin Portal: Chỉ query và xác thực trên bảng admins + users (role = ADMIN).
+            // Tài khoản ở bảng users (role CUSTOMER) tuyệt đối không được cấp quyền đăng nhập tại đây.
+            rows = authRepository.findAdminByIdentifier(identifier);
+            if (rows.isEmpty()) {
+                throw new SecurityException("Tên đăng nhập hoặc mật khẩu không chính xác");
+            }
+        } else {
+            // Trang Client (Khách hàng): Chỉ query và xác thực trên bảng users (role = CUSTOMER).
+            // Nếu nhập email/username thuộc bảng admins mà chưa đăng ký ở Client,
+            // trả về lỗi chung: "Email hoặc mật khẩu không chính xác" (tránh lộ thông tin tồn tại).
+            rows = authRepository.findClientUserByIdentifier(identifier);
+            if (rows.isEmpty()) {
+                throw new SecurityException("Email hoặc mật khẩu không chính xác");
+            }
         }
 
         Map<String, Object> user = rows.get(0);
@@ -87,11 +102,14 @@ public class AuthService {
 
         String storedHash = (String) user.get("password_hash");
         if (!PasswordUtil.verify(req.password(), storedHash)) {
-            throw new SecurityException("Tên đăng nhập hoặc mật khẩu không chính xác");
+            String errorMsg = isAdminPortal
+                    ? "Tên đăng nhập hoặc mật khẩu không chính xác"
+                    : "Email hoặc mật khẩu không chính xác";
+            throw new SecurityException(errorMsg);
         }
 
         Number userIdNum = (Number) user.get("user_id");
-        Number customerIdNum = (Number) user.get("customer_id");
+        Number customerIdNum = (Number) (user.containsKey("customer_id") ? user.get("customer_id") : user.get("admin_id"));
 
         return new AuthResponse(
                 userIdNum != null ? userIdNum.longValue() : null,

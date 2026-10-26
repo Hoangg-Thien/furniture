@@ -64,6 +64,25 @@ public class AuthController {
         }
     }
 
+    @PostMapping("/admin/login")
+    public ResponseEntity<?> adminLogin(@RequestBody LoginRequest req) {
+        try {
+            LoginRequest adminReq = new LoginRequest(req.username(), req.password(), "ADMIN");
+            AuthResponse response = authService.login(adminReq);
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
+        } catch (SecurityException ex) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", ex.getMessage()));
+        } catch (IllegalStateException ex) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", ex.getMessage()));
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Lỗi xử lý đăng nhập quản trị: " + ex.getMessage()));
+        }
+    }
+
     @GetMapping("/me")
     public ResponseEntity<?> getProfile(@RequestParam Long userId) {
         try {

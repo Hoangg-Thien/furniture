@@ -30,11 +30,9 @@ export default function AdminLoginGate({ onLoginSuccess, onNavigate }) {
     setLoading(true)
 
     try {
-      const res = await loginUser(username, password)
+      const res = await loginUser(username, password, { requireAdmin: true })
       if (res.user && (res.user.role === 'ADMIN' || res.user.role === 'STAFF')) {
         onLoginSuccess(res.user)
-      } else if (res.user && res.user.role === 'CUSTOMER') {
-        setErrorMsg('Tài khoản này là tài khoản Khách hàng (CUSTOMER), không có quyền quản trị hệ thống!')
       } else {
         setErrorMsg(res.error || 'Tên đăng nhập hoặc mật khẩu không chính xác!')
       }

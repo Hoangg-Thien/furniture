@@ -90,6 +90,36 @@ public class AuthRepository {
         return extractId(customerKeyHolder);
     }
 
+    public List<Map<String, Object>> findClientUserByIdentifier(String identifier) {
+        return jdbcTemplate.queryForList("""
+                SELECT u.id AS user_id, u.username, u.password_hash, u.role, u.is_active,
+                       c.id AS customer_id,
+                       COALESCE(c.full_name, u.username) AS full_name,
+                       c.email,
+                       c.phone,
+                       c.address
+                FROM public.users u
+                LEFT JOIN public.customers c ON c.user_id = u.id
+                WHERE u.role = 'CUSTOMER'
+                  AND (LOWER(u.username) = LOWER(?)
+                     OR (c.email IS NOT NULL AND LOWER(c.email) = LOWER(?)))
+                LIMIT 1
+                """, identifier, identifier);
+    }
+
+    public List<Map<String, Object>> findAdminByIdentifier(String identifier) {
+        return jdbcTemplate.queryForList("""
+                SELECT a.id AS admin_id, a.user_id, u.username, u.password_hash, a.role, u.is_active,
+                       a.full_name, a.email, a.phone, a.address
+                FROM public.admins a
+                JOIN public.users u ON u.id = a.user_id
+                WHERE (u.role = 'ADMIN' OR a.role = 'ADMIN')
+                  AND (LOWER(u.username) = LOWER(?)
+                     OR (a.email IS NOT NULL AND LOWER(a.email) = LOWER(?)))
+                LIMIT 1
+                """, identifier, identifier);
+    }
+
     public List<Map<String, Object>> findUserWithCustomerByIdentifier(String identifier) {
         return jdbcTemplate.queryForList("""
                 SELECT u.id AS user_id, u.username, u.password_hash, u.role, u.is_active,
@@ -138,72 +168,79 @@ public class AuthRepository {
     }
 
     public List<Map<String, Object>> findAllUsers() {
-        return jdbcTemplate.queryForList("SELECT id, username, role, is_active, created_at FROM public.users ORDER BY id ASC");
+        return jdbcTemplate
+                .queryForList("SELECT id, username, role, is_active, created_at FROM public.users ORDER BY id ASC");
     }
 
     public List<Map<String, Object>> findAllCustomers() {
-        return jdbcTemplate.queryForList("SELECT id, user_id, full_name, email, phone, address, role, created_at FROM public.customers ORDER BY id ASC");
+        return jdbcTemplate.queryForList(
+                "SELECT id, user_id, full_name, email, phone, address, role, created_at FROM public.customers ORDER BY id ASC");
     }
 
     public Map<String, Object> syncAdminAccounts() {
-        String admin123Hash = furniture.util.PasswordUtil.hash("admin123");
         String pass123456Hash = furniture.util.PasswordUtil.hash("123456");
 
         Integer adminCount = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM public.users WHERE LOWER(username) = 'admin'", Integer.class);
         if (adminCount != null && adminCount > 0) {
             jdbcTemplate.update(
-                "UPDATE public.users SET password_hash = ?, role = 'ADMIN', is_active = true WHERE LOWER(username) = 'admin'",
-                pass123456Hash);
+                    "UPDATE public.users SET password_hash = ?, role = 'ADMIN', is_active = true WHERE LOWER(username) = 'admin'",
+                    pass123456Hash);
         } else {
             KeyHolder kh = new GeneratedKeyHolder();
             jdbcTemplate.update(conn -> {
                 PreparedStatement ps = conn.prepareStatement(
-                    "INSERT INTO public.users (username, password_hash, role, is_active) VALUES ('admin', ?, 'ADMIN', true)",
-                    new String[]{"id"});
+                        "INSERT INTO public.users (username, password_hash, role, is_active) VALUES ('admin', ?, 'ADMIN', true)",
+                        new String[] { "id" });
                 ps.setString(1, pass123456Hash);
                 return ps;
             }, kh);
             Long newId = extractId(kh);
             if (newId != null) {
                 jdbcTemplate.update(
-                    "INSERT INTO public.admins (user_id, full_name, email, phone, address, role) " +
-                    "VALUES (?, 'Tổng Quản Trị Viên (Admin)', 'admin@furniture.com', '0901888999', 'Hệ thống Quản trị Furniture', 'ADMIN') " +
-                    "ON CONFLICT (user_id) DO NOTHING", newId);
+                        "INSERT INTO public.admins (user_id, full_name, email, phone, address, role) " +
+                                "VALUES (?, 'Tổng Quản Trị Viên (Admin)', 'admin@furniture.com', '0901888999', 'Hệ thống Quản trị Furniture', 'ADMIN') "
+                                +
+                                "ON CONFLICT (user_id) DO NOTHING",
+                        newId);
             }
         }
 
-        jdbcTemplate.update("""
-            INSERT INTO public.admins (user_id, full_name, email, phone, address, role)
-            SELECT u.id, 'Tổng Quản Trị Viên (Admin)', 'admin@furniture.com', '0901888999', 'Hệ thống Quản trị Furniture', 'ADMIN'
-            FROM public.users u WHERE LOWER(u.username) = 'admin'
-            ON CONFLICT (user_id) DO UPDATE SET full_name = EXCLUDED.full_name, role = 'ADMIN'
-            """);
+        jdbcTemplate
+                .update("""
+                        INSERT INTO public.admins (user_id, full_name, email, phone, address, role)
+                        SELECT u.id, 'Tổng Quản Trị Viên (Admin)', 'admin@furniture.com', '0901888999', 'Hệ thống Quản trị Furniture', 'ADMIN'
+                        FROM public.users u WHERE LOWER(u.username) = 'admin'
+                        ON CONFLICT (user_id) DO UPDATE SET full_name = EXCLUDED.full_name, role = 'ADMIN'
+                        """);
 
         jdbcTemplate.update(
-            "UPDATE public.users SET password_hash = ? WHERE username IN ('admin01', 'admin02', 'admin03')",
-            pass123456Hash);
+                "UPDATE public.users SET password_hash = ? WHERE username IN ('admin01', 'admin02', 'admin03')",
+                pass123456Hash);
 
-        jdbcTemplate.update("""
-            INSERT INTO public.admins (user_id, full_name, email, phone, address, role)
-            SELECT u.id, 'Nguyễn Quang Minh (Admin 01)', 'minh.admin@example.com', '0901000001', '25 Le Loi, Quan 1, TP.HCM', 'ADMIN'
-            FROM public.users u WHERE u.username = 'admin01'
-            ON CONFLICT (user_id) DO NOTHING
-            """);
+        jdbcTemplate
+                .update("""
+                        INSERT INTO public.admins (user_id, full_name, email, phone, address, role)
+                        SELECT u.id, 'Nguyễn Quang Minh (Admin 01)', 'minh.admin@example.com', '0901000001', '25 Le Loi, Quan 1, TP.HCM', 'ADMIN'
+                        FROM public.users u WHERE u.username = 'admin01'
+                        ON CONFLICT (user_id) DO NOTHING
+                        """);
 
         try {
-            jdbcTemplate.execute("SELECT setval(pg_get_serial_sequence('public.users', 'id'), COALESCE((SELECT MAX(id) FROM public.users), 0) + 1, false)");
-            jdbcTemplate.execute("SELECT setval(pg_get_serial_sequence('public.admins', 'id'), COALESCE((SELECT MAX(id) FROM public.admins), 0) + 1, false)");
-        } catch (Exception ignored) {}
+            jdbcTemplate.execute(
+                    "SELECT setval(pg_get_serial_sequence('public.users', 'id'), COALESCE((SELECT MAX(id) FROM public.users), 0) + 1, false)");
+            jdbcTemplate.execute(
+                    "SELECT setval(pg_get_serial_sequence('public.admins', 'id'), COALESCE((SELECT MAX(id) FROM public.admins), 0) + 1, false)");
+        } catch (Exception ignored) {
+        }
 
         return Map.of(
-            "status", "success",
-            "message", "Khởi tạo và đồng bộ tài khoản admin trên Supabase thành công!",
-            "accounts", List.of(
-                Map.of("username", "admin", "password", "admin123", "role", "ADMIN", "fullName", "Tổng Quản Trị Viên (Admin)"),
-                Map.of("username", "admin01", "password", "123456", "role", "ADMIN", "fullName", "Nguyễn Quang Minh (Admin 01)")
-            )
-        );
+                "status", "success",
+                "message", "Khởi tạo và đồng bộ tài khoản admin trên Supabase thành công!",
+                "accounts", List.of(
+                        Map.of("username", "admin", "password", "admin123", "role", "ADMIN", "fullName",
+                                "Tổng Quản Trị Viên (Admin)"),
+                        Map.of("username", "admin01", "password", "123456", "role", "ADMIN", "fullName",
+                                "Nguyễn Quang Minh (Admin 01)")));
     }
 }
-

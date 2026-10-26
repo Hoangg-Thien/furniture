@@ -18,7 +18,7 @@ import {
   LayoutDashboard,
 } from 'lucide-react'
 import { loadProducts } from '../../lib/products'
-import { getCurrentUser, logoutUser, updateProfile } from '../../lib/auth'
+import { getClientUser, logoutClientUser, updateProfile } from '../../lib/auth'
 import AuthModal from '../../components/AuthModal'
 import ProfileModal from '../../components/ProfileModal'
 import AccountModal from '../../components/AccountModal'
@@ -44,7 +44,7 @@ export default function ClientStorefront({ onNavigate }) {
   const [productFormOpen, setProductFormOpen] = useState(false)
   const [productImagePreview, setProductImagePreview] = useState('')
   const [notice, setNotice] = useState('')
-  const [currentUser, setCurrentUser] = useState(() => getCurrentUser())
+  const [currentUser, setCurrentUser] = useState(() => getClientUser())
   const [authOpen, setAuthOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const [accountOpen, setAccountOpen] = useState(false)
@@ -108,7 +108,7 @@ export default function ClientStorefront({ onNavigate }) {
   }, [])
 
   function handleLogout() {
-    logoutUser()
+    logoutClientUser()
     setCurrentUser(null)
     setUserMenuOpen(false)
     setNotice('Đã đăng xuất tài khoản thành công.')
@@ -404,21 +404,6 @@ export default function ClientStorefront({ onNavigate }) {
                     <span className="user-dropdown-sub">@{currentUser.username}</span>
                   </div>
                   <div className="user-dropdown-divider" />
-                  {/* Chỉ hiển thị nếu tài khoản đăng nhập có quyền ADMIN */}
-                  {currentUser?.role === 'ADMIN' && (
-                    <button
-                      className="user-dropdown-item"
-                      role="menuitem"
-                      type="button"
-                      style={{ color: '#D97706', fontWeight: 600 }}
-                      onClick={() => {
-                        setUserMenuOpen(false)
-                        onNavigate && onNavigate('/admin/reports')
-                      }}
-                    >
-                      <LayoutDashboard size={15} /> Trang Quản Trị (Admin)
-                    </button>
-                  )}
                   <button
                     className="user-dropdown-item"
                     role="menuitem"

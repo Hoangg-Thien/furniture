@@ -31,7 +31,7 @@ import AdminReviews from './AdminReviews'
 import AdminReports from './AdminReports'
 import AdminSidebar, { ADMIN_NAV_SECTIONS } from './AdminSidebar'
 import { MOCK_ORDERS, MOCK_PRODUCTS, MOCK_CUSTOMERS } from './adminMockData'
-import { getCurrentUser } from '../../lib/auth'
+import { getAdminUser, logoutAdminUser } from '../../lib/auth'
 
 const ROLES_INFO = {
   ADMIN: { label: 'Quản Trị Viên Tối Cao', short: 'Admin', color: '#8B5E3C' },
@@ -45,7 +45,7 @@ export default function AdminLayout({ currentPath, onNavigate, currentUser: prop
   const [toastMessage, setToastMessage] = useState('')
 
   // Thông tin người dùng hiện tại lấy từ phiên đăng nhập Supabase
-  const user = propUser || getCurrentUser()
+  const user = propUser || getAdminUser()
   const displayUsername = user?.username || 'admin'
   const displayName = user?.fullName || user?.username || 'Quản Trị Viên'
   const roleName = user?.role || 'ADMIN'
@@ -431,9 +431,7 @@ export default function AdminLayout({ currentPath, onNavigate, currentUser: prop
                   fontWeight: 600,
                 }}
                 onClick={() => {
-                  try {
-                    localStorage.removeItem('furniture_logged_in_user')
-                  } catch {}
+                  logoutAdminUser()
                   onNavigate('/admin')
                 }}
               >
