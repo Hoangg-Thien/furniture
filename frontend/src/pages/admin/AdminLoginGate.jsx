@@ -16,8 +16,8 @@ import {
 import { loginUser, setCurrentUser } from '../../lib/auth'
 
 export default function AdminLoginGate({ onLoginSuccess, onNavigate }) {
-  const [username, setUsername] = useState('admin01')
-  const [password, setPassword] = useState('123456')
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [rememberMe, setRememberMe] = useState(true)
   const [errorMsg, setErrorMsg] = useState('')
@@ -36,71 +36,16 @@ export default function AdminLoginGate({ onLoginSuccess, onNavigate }) {
       } else if (res.user && res.user.role === 'CUSTOMER') {
         setErrorMsg('Tài khoản này là tài khoản Khách hàng (CUSTOMER), không có quyền quản trị hệ thống!')
       } else {
-        // Fallback demo cho dev khi backend chưa kết nối hoặc tài khoản mẫu
-        if (username) {
-          const mockUser = {
-            id: 1,
-            username: username,
-            fullName: username.includes('admin')
-              ? 'Hoàng Thiên (Tổng Quản Trị Viên)'
-              : username.includes('sale')
-              ? 'Lê Thị Thu Hà (Nhân viên Bán hàng)'
-              : username.includes('kho')
-              ? 'Nguyễn Văn Vũ (Thủ kho chính)'
-              : 'Nguyễn Văn Đạt (Thợ trưởng giao lắp)',
-            role: username.includes('sale')
-              ? 'SALES'
-              : username.includes('kho')
-              ? 'WAREHOUSE'
-              : username.includes('giao') || username.includes('lap')
-              ? 'DISPATCHER'
-              : 'ADMIN',
-          }
-          setCurrentUser(mockUser)
-          onLoginSuccess(mockUser)
-        } else {
-          setErrorMsg(res.error || 'Vui lòng nhập tên đăng nhập và mật khẩu!')
-        }
+        setErrorMsg(res.error || 'Tên đăng nhập hoặc mật khẩu không chính xác!')
       }
     } catch (err) {
-      setErrorMsg('Không thể xác thực: ' + (err.message || 'Lỗi kết nối'))
+      setErrorMsg('Không thể xác thực: ' + (err.message || 'Lỗi kết nối máy chủ'))
     } finally {
       setLoading(false)
     }
   }
 
-  // Quick Demo Login for instant role testing
-  function handleQuickRoleLogin(targetRole) {
-    const rolesMap = {
-      ADMIN: {
-        username: 'admin01',
-        fullName: 'Hoàng Thiên (Tổng Quản Trị Viên)',
-        role: 'ADMIN',
-      },
-      SALES: {
-        username: 'sales_ha',
-        fullName: 'Lê Thị Thu Hà (Nhân viên Bán hàng)',
-        role: 'SALES',
-      },
-      WAREHOUSE: {
-        username: 'kho_vu',
-        fullName: 'Nguyễn Văn Vũ (Thủ kho chính)',
-        role: 'WAREHOUSE',
-      },
-      DISPATCHER: {
-        username: 'tho_dat',
-        fullName: 'Nguyễn Văn Đạt (Điều phối giao lắp)',
-        role: 'DISPATCHER',
-      },
-    }
 
-    const selectedUser = rolesMap[targetRole] || rolesMap.ADMIN
-    setCurrentUser(selectedUser)
-    try {
-      localStorage.setItem('furnistore_active_role', selectedUser.role)
-    } catch {}
-    onLoginSuccess(selectedUser)
-  }
 
   return (
     <div
@@ -279,7 +224,7 @@ export default function AdminLoginGate({ onLoginSuccess, onNavigate }) {
                   type="text"
                   required
                   style={{ width: '100%', paddingLeft: '38px', background: '#181513', borderColor: '#36302B', color: '#FFF' }}
-                  placeholder="admin01 hoặc email..."
+                  placeholder="Tên đăng nhập hoặc email..."
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                 />
@@ -350,48 +295,6 @@ export default function AdminLoginGate({ onLoginSuccess, onNavigate }) {
               {loading ? 'Đang xác thực...' : 'Đăng Nhập Vào Hệ Thống'}
             </button>
           </form>
-
-          {/* Quick Demo Role Logins */}
-          <div style={{ marginTop: '28px', borderTop: '1px solid #36302B', paddingTop: '20px' }}>
-            <div style={{ fontSize: '12px', color: '#A8A199', marginBottom: '10px', textAlign: 'center' }}>
-              ⚡ Thử nghiệm nhanh với vai trò phân quyền (1 click):
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-              <button
-                type="button"
-                className="admin-btn admin-btn-secondary"
-                style={{ fontSize: '11.5px', padding: '7px 8px', justifyContent: 'center' }}
-                onClick={() => handleQuickRoleLogin('ADMIN')}
-              >
-                👑 Admin (Toàn quyền)
-              </button>
-              <button
-                type="button"
-                className="admin-btn admin-btn-secondary"
-                style={{ fontSize: '11.5px', padding: '7px 8px', justifyContent: 'center' }}
-                onClick={() => handleQuickRoleLogin('SALES')}
-              >
-                🛍️ NV Bán Hàng (Sales)
-              </button>
-              <button
-                type="button"
-                className="admin-btn admin-btn-secondary"
-                style={{ fontSize: '11.5px', padding: '7px 8px', justifyContent: 'center' }}
-                onClick={() => handleQuickRoleLogin('WAREHOUSE')}
-              >
-                📦 Thủ Kho (GRN/Tồn)
-              </button>
-              <button
-                type="button"
-                className="admin-btn admin-btn-secondary"
-                style={{ fontSize: '11.5px', padding: '7px 8px', justifyContent: 'center' }}
-                onClick={() => handleQuickRoleLogin('DISPATCHER')}
-              >
-                🚚 Điều Phối Giao Lắp
-              </button>
-            </div>
-          </div>
         </div>
       </div>
 

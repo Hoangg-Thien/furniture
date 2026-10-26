@@ -31,6 +31,7 @@ import AdminReviews from './AdminReviews'
 import AdminReports from './AdminReports'
 import AdminSidebar, { ADMIN_NAV_SECTIONS } from './AdminSidebar'
 import { MOCK_ORDERS, MOCK_PRODUCTS, MOCK_CUSTOMERS } from './adminMockData'
+import { getCurrentUser } from '../../lib/auth'
 
 const ROLES_INFO = {
   ADMIN: { label: 'Quản Trị Viên Tối Cao', short: 'Admin', color: '#8B5E3C' },
@@ -39,9 +40,17 @@ const ROLES_INFO = {
   DISPATCHER: { label: 'Điều Phối Giao & Lắp', short: 'Điều phối', color: '#5B6E4E' },
 }
 
-export default function AdminLayout({ currentPath, onNavigate }) {
+export default function AdminLayout({ currentPath, onNavigate, currentUser: propUser }) {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   const [toastMessage, setToastMessage] = useState('')
+
+  // Thông tin người dùng hiện tại lấy từ phiên đăng nhập Supabase
+  const user = propUser || getCurrentUser()
+  const displayUsername = user?.username || 'admin'
+  const displayName = user?.fullName || user?.username || 'Quản Trị Viên'
+  const roleName = user?.role || 'ADMIN'
+  const roleShort = ROLES_INFO[roleName]?.short || roleName
+  const avatarInitials = (user?.username || 'AD').slice(0, 2).toUpperCase()
 
   // Theme Management (Default Light #F8F7F4 as requested)
   const [theme, setTheme] = useState(() => {
@@ -376,11 +385,26 @@ export default function AdminLayout({ currentPath, onNavigate }) {
             </div>
 
             {/* Admin Avatar & Logout */}
-            <div className="admin-user-profile">
-              <div className="admin-avatar">FS</div>
+            <div className="admin-user-profile" title={`Tài khoản Supabase: ${displayUsername} (${displayName})`}>
+              <div
+                className="admin-avatar"
+                style={{
+                  background: 'linear-gradient(135deg, #8B5E3C 0%, #5E3F28 100%)',
+                  color: '#FFFFFF',
+                  fontWeight: 700,
+                  fontSize: '12px',
+                  letterSpacing: '0.5px',
+                }}
+              >
+                {avatarInitials}
+              </div>
               <div className="admin-user-info">
-                <span className="admin-user-name">Hoàng Thiên</span>
-                <span className="admin-user-role">{ROLES_INFO[activeRole]?.short}</span>
+                <span className="admin-user-name" title={displayName}>
+                  {displayName}
+                </span>
+                <span className="admin-user-role">
+                  {roleShort} • @{displayUsername}
+                </span>
               </div>
               <button
                 type="button"
@@ -403,7 +427,7 @@ export default function AdminLayout({ currentPath, onNavigate }) {
                   try {
                     localStorage.removeItem('furniture_logged_in_user')
                   } catch {}
-                  onNavigate('/')
+                  onNavigate('/admin')
                 }}
               >
                 <LogOut size={13} />

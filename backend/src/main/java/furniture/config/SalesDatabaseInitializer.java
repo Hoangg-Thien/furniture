@@ -14,6 +14,8 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
+import furniture.util.PasswordUtil;
+
 @Component
 @Order(1)
 public class SalesDatabaseInitializer implements CommandLineRunner {
@@ -63,13 +65,14 @@ public class SalesDatabaseInitializer implements CommandLineRunner {
             }
 
             if (alreadyPopulated) {
-                log.info("Supabase database đã có dữ liệu từ sales.sql. Bỏ qua khởi tạo.");
+                log.info("Supabase database đã có dữ liệu từ sales.sql. Bỏ qua khởi tạo schema, tiến hành kiểm tra tài khoản admin.");
                 try (ResultSet rs = st.executeQuery("SELECT COUNT(*) FROM public.users")) {
                     if (rs.next()) log.info("users count: {}", rs.getInt(1));
                 }
                 try (ResultSet rs = st.executeQuery("SELECT COUNT(*) FROM public.customers")) {
                     if (rs.next()) log.info("customers count: {}", rs.getInt(1));
                 }
+                ensureAdminAccounts(st);
                 return;
             }
 
@@ -149,8 +152,85 @@ public class SalesDatabaseInitializer implements CommandLineRunner {
                 if (rs.next()) log.info("public.customers count: {}", rs.getInt(1));
             }
 
+            ensureAdminAccounts(st);
+
         } catch (Exception e) {
             log.error("Lỗi khi khởi tạo database từ sales.sql", e);
+        }
+    }
+
+    public void ensureAdminAccounts(Statement st) {
+        try {
+            String admin123Hash = PasswordUtil.hash("admin123");
+            String pass123456Hash = PasswordUtil.hash("123456");
+
+            // 1. Kiểm tra hoặc tạo tài khoản admin / admin123
+            Long adminUserId = null;
+            try (ResultSet rs = st.executeQuery("SELECT id FROM public.users WHERE LOWER(username) = 'admin'")) {
+                if (rs.next()) {
+                    adminUserId = rs.getLong("id");
+                }
+            } catch (Exception ex) {
+                log.warn("Kiểm tra user admin: {}", ex.getMessage());
+            }
+
+            if (adminUserId != null) {
+                // Đảm bảo mật khẩu 123456, role ADMIN và active
+                st.execute(String.format(
+                    "UPDATE public.users SET password_hash = '%s', role = 'ADMIN', is_active = true WHERE id = %d",
+                    pass123456Hash, adminUserId));
+                st.execute(String.format(
+                    "INSERT INTO public.admins (user_id, full_name, email, phone, address, role) " +
+                    "VALUES (%d, 'Tổng Quản Trị Viên (Admin)', 'admin@furniture.com', '0901888999', 'Hệ thống Quản trị Furniture', 'ADMIN') " +
+                    "ON CONFLICT (user_id) DO UPDATE SET full_name = EXCLUDED.full_name, email = EXCLUDED.email, role = 'ADMIN'",
+                    adminUserId));
+                log.info("Đã đồng bộ tài khoản admin (admin / 123456) trên Supabase thành công.");
+            } else {
+                try (ResultSet rs = st.executeQuery(String.format(
+                    "INSERT INTO public.users (username, password_hash, role, is_active) " +
+                    "VALUES ('admin', '%s', 'ADMIN', true) RETURNING id",
+                    pass123456Hash))) {
+                    if (rs.next()) {
+                        long newAdminId = rs.getLong(1);
+                        st.execute(String.format(
+                            "INSERT INTO public.admins (user_id, full_name, email, phone, address, role) " +
+                            "VALUES (%d, 'Tổng Quản Trị Viên (Admin)', 'admin@furniture.com', '0901888999', 'Hệ thống Quản trị Furniture', 'ADMIN') " +
+                            "ON CONFLICT (user_id) DO NOTHING",
+                            newAdminId));
+                        log.info("Tự động tạo tài khoản admin mới (admin / 123456) thành công trên Supabase! ID: {}", newAdminId);
+                    }
+                }
+            }
+
+            // 2. Đồng bộ mật khẩu cho các tài khoản admin01, admin02, admin03 (mật khẩu: 123456)
+            try {
+                st.execute(String.format(
+                    "UPDATE public.users SET password_hash = '%s' WHERE username IN ('admin01', 'admin02', 'admin03')",
+                    pass123456Hash));
+                log.info("Đã đồng bộ mật khẩu SHA-256 (123456) cho admin01, admin02, admin03 trên Supabase.");
+            } catch (Exception ex) {
+                log.warn("Lỗi cập nhật mật khẩu admin01-03: {}", ex.getMessage());
+            }
+
+            // 3. Đảm bảo admin01 có bản ghi trong bảng admins
+            try {
+                st.execute(
+                    "INSERT INTO public.admins (user_id, full_name, email, phone, address, role) " +
+                    "SELECT u.id, 'Nguyễn Quang Minh (Admin 01)', 'minh.admin@example.com', '0901000001', '25 Le Loi, Quan 1, TP.HCM', 'ADMIN' " +
+                    "FROM public.users u WHERE u.username = 'admin01' " +
+                    "ON CONFLICT (user_id) DO NOTHING");
+            } catch (Exception ex) {
+                log.warn("Lỗi đồng bộ bảng admins cho admin01: {}", ex.getMessage());
+            }
+
+            // 4. Đồng bộ sequence id của PostgreSQL Supabase
+            try {
+                st.execute("SELECT setval(pg_get_serial_sequence('public.users', 'id'), COALESCE((SELECT MAX(id) FROM public.users), 0) + 1, false)");
+                st.execute("SELECT setval(pg_get_serial_sequence('public.admins', 'id'), COALESCE((SELECT MAX(id) FROM public.admins), 0) + 1, false)");
+            } catch (Exception ignored) {}
+
+        } catch (Exception e) {
+            log.error("Lỗi khi tự động cấu hình tài khoản admin trên Supabase", e);
         }
     }
 }

@@ -103,5 +103,22 @@ public class AuthController {
     public List<Map<String, Object>> getAllCustomers() {
         return authService.getAllCustomers();
     }
+
+    @GetMapping("/init-admin")
+    public ResponseEntity<?> initAdmin() {
+        try {
+            Map<String, Object> res = authService.syncAdminAccounts();
+            return ResponseEntity.ok(res);
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Lỗi khởi tạo tài khoản admin: " + ex.getMessage()));
+        }
+    }
+
+    @PostMapping("/init-admin")
+    public ResponseEntity<?> postInitAdmin() {
+        return initAdmin();
+    }
 }
 

@@ -81,7 +81,7 @@ export default function App() {
     }
 
     const activeAdminPath = currentPath === '/admin' ? '/admin/dashboard' : currentPath
-    return <AdminLayout currentPath={activeAdminPath} onNavigate={navigate} />
+    return <AdminLayout currentPath={activeAdminPath} onNavigate={navigate} currentUser={currentUser} />
   }
 
   // 2. Kiểm tra nếu là đường dẫn Khách hàng hợp lệ

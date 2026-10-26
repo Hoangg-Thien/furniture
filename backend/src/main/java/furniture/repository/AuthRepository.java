@@ -93,20 +93,35 @@ public class AuthRepository {
     public List<Map<String, Object>> findUserWithCustomerByIdentifier(String identifier) {
         return jdbcTemplate.queryForList("""
                 SELECT u.id AS user_id, u.username, u.password_hash, u.role, u.is_active,
-                       c.id AS customer_id, c.full_name, c.email, c.phone, c.address
+                       COALESCE(c.id, a.id, s.id) AS customer_id,
+                       COALESCE(c.full_name, a.full_name, s.full_name, u.username) AS full_name,
+                       COALESCE(c.email, a.email, s.email) AS email,
+                       COALESCE(c.phone, a.phone, s.phone) AS phone,
+                       COALESCE(c.address, a.address, s.address) AS address
                 FROM public.users u
                 LEFT JOIN public.customers c ON c.user_id = u.id
-                WHERE (LOWER(u.username) = LOWER(?) OR (c.email IS NOT NULL AND LOWER(c.email) = LOWER(?)))
+                LEFT JOIN public.admins a ON a.user_id = u.id
+                LEFT JOIN public.staff s ON s.user_id = u.id
+                WHERE (LOWER(u.username) = LOWER(?)
+                   OR (c.email IS NOT NULL AND LOWER(c.email) = LOWER(?))
+                   OR (a.email IS NOT NULL AND LOWER(a.email) = LOWER(?))
+                   OR (s.email IS NOT NULL AND LOWER(s.email) = LOWER(?)))
                 LIMIT 1
-                """, identifier, identifier);
+                """, identifier, identifier, identifier, identifier);
     }
 
     public List<Map<String, Object>> findUserWithCustomerById(Long userId) {
         return jdbcTemplate.queryForList("""
                 SELECT u.id AS user_id, u.username, u.password_hash, u.role,
-                       c.id AS customer_id, c.full_name, c.email, c.phone, c.address
+                       COALESCE(c.id, a.id, s.id) AS customer_id,
+                       COALESCE(c.full_name, a.full_name, s.full_name, u.username) AS full_name,
+                       COALESCE(c.email, a.email, s.email) AS email,
+                       COALESCE(c.phone, a.phone, s.phone) AS phone,
+                       COALESCE(c.address, a.address, s.address) AS address
                 FROM public.users u
                 LEFT JOIN public.customers c ON c.user_id = u.id
+                LEFT JOIN public.admins a ON a.user_id = u.id
+                LEFT JOIN public.staff s ON s.user_id = u.id
                 WHERE u.id = ? AND u.is_active = true
                 LIMIT 1
                 """, userId);
@@ -128,6 +143,67 @@ public class AuthRepository {
 
     public List<Map<String, Object>> findAllCustomers() {
         return jdbcTemplate.queryForList("SELECT id, user_id, full_name, email, phone, address, role, created_at FROM public.customers ORDER BY id ASC");
+    }
+
+    public Map<String, Object> syncAdminAccounts() {
+        String admin123Hash = furniture.util.PasswordUtil.hash("admin123");
+        String pass123456Hash = furniture.util.PasswordUtil.hash("123456");
+
+        Integer adminCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM public.users WHERE LOWER(username) = 'admin'", Integer.class);
+        if (adminCount != null && adminCount > 0) {
+            jdbcTemplate.update(
+                "UPDATE public.users SET password_hash = ?, role = 'ADMIN', is_active = true WHERE LOWER(username) = 'admin'",
+                pass123456Hash);
+        } else {
+            KeyHolder kh = new GeneratedKeyHolder();
+            jdbcTemplate.update(conn -> {
+                PreparedStatement ps = conn.prepareStatement(
+                    "INSERT INTO public.users (username, password_hash, role, is_active) VALUES ('admin', ?, 'ADMIN', true)",
+                    new String[]{"id"});
+                ps.setString(1, pass123456Hash);
+                return ps;
+            }, kh);
+            Long newId = extractId(kh);
+            if (newId != null) {
+                jdbcTemplate.update(
+                    "INSERT INTO public.admins (user_id, full_name, email, phone, address, role) " +
+                    "VALUES (?, 'Tổng Quản Trị Viên (Admin)', 'admin@furniture.com', '0901888999', 'Hệ thống Quản trị Furniture', 'ADMIN') " +
+                    "ON CONFLICT (user_id) DO NOTHING", newId);
+            }
+        }
+
+        jdbcTemplate.update("""
+            INSERT INTO public.admins (user_id, full_name, email, phone, address, role)
+            SELECT u.id, 'Tổng Quản Trị Viên (Admin)', 'admin@furniture.com', '0901888999', 'Hệ thống Quản trị Furniture', 'ADMIN'
+            FROM public.users u WHERE LOWER(u.username) = 'admin'
+            ON CONFLICT (user_id) DO UPDATE SET full_name = EXCLUDED.full_name, role = 'ADMIN'
+            """);
+
+        jdbcTemplate.update(
+            "UPDATE public.users SET password_hash = ? WHERE username IN ('admin01', 'admin02', 'admin03')",
+            pass123456Hash);
+
+        jdbcTemplate.update("""
+            INSERT INTO public.admins (user_id, full_name, email, phone, address, role)
+            SELECT u.id, 'Nguyễn Quang Minh (Admin 01)', 'minh.admin@example.com', '0901000001', '25 Le Loi, Quan 1, TP.HCM', 'ADMIN'
+            FROM public.users u WHERE u.username = 'admin01'
+            ON CONFLICT (user_id) DO NOTHING
+            """);
+
+        try {
+            jdbcTemplate.execute("SELECT setval(pg_get_serial_sequence('public.users', 'id'), COALESCE((SELECT MAX(id) FROM public.users), 0) + 1, false)");
+            jdbcTemplate.execute("SELECT setval(pg_get_serial_sequence('public.admins', 'id'), COALESCE((SELECT MAX(id) FROM public.admins), 0) + 1, false)");
+        } catch (Exception ignored) {}
+
+        return Map.of(
+            "status", "success",
+            "message", "Khởi tạo và đồng bộ tài khoản admin trên Supabase thành công!",
+            "accounts", List.of(
+                Map.of("username", "admin", "password", "admin123", "role", "ADMIN", "fullName", "Tổng Quản Trị Viên (Admin)"),
+                Map.of("username", "admin01", "password", "123456", "role", "ADMIN", "fullName", "Nguyễn Quang Minh (Admin 01)")
+            )
+        );
     }
 }
 

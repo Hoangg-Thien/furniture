@@ -189,6 +189,10 @@ public class AuthService {
         return authRepository.findAllCustomers();
     }
 
+    public Map<String, Object> syncAdminAccounts() {
+        return authRepository.syncAdminAccounts();
+    }
+
     private synchronized void appendToSalesSql(Long userId, Long customerId, String username, String passwordHash,
                                                 String fullName, String email, String phone, String address) {
         try {
