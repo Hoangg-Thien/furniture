@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   Truck,
   CheckCircle2,
@@ -24,8 +24,16 @@ import {
   Camera,
   Layers,
   DollarSign,
+  RefreshCw,
 } from 'lucide-react'
 import { MOCK_ORDERS } from './adminMockData'
+import AdminPagination from './AdminPagination'
+import {
+  fetchAdminOrders,
+  updateAdminOrderStatus,
+  updateAdminDispatchInfo,
+  cancelAdminOrder,
+} from '../../lib/adminSales'
 
 const formatCurrency = (val) =>
   new Intl.NumberFormat('vi-VN', {
@@ -45,10 +53,21 @@ const STEPPER_STAGES = [
 
 export default function AdminOrders({ showToast, activeRole = 'ADMIN' }) {
   const [orders, setOrders] = useState(MOCK_ORDERS)
+  const [loading, setLoading] = useState(false)
+  const [isRealData, setIsRealData] = useState(false)
   const [statusTab, setStatusTab] = useState('ALL') // 'ALL' | 'PENDING_CONFIRM' | 'PREPARING' | 'DELIVERING' | 'COMPLETED'
   const [searchTerm, setSearchTerm] = useState('')
   const [paymentFilter, setPaymentFilter] = useState('ALL')
   const [selectedOrder, setSelectedOrder] = useState(null)
+
+  // Phân trang
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize, setPageSize] = useState(8)
+
+  // Tự động chuyển về trang 1 khi thay đổi bộ lọc tìm kiếm hoặc tab
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [statusTab, searchTerm, paymentFilter])
 
   // Edit / Dispatch details state inside modal
   const [dispatchTech, setDispatchTech] = useState('')
@@ -56,6 +75,24 @@ export default function AdminOrders({ showToast, activeRole = 'ADMIN' }) {
   const [dispatchTime, setDispatchTime] = useState('14:00 - 16:30 (Chiều nay)')
   const [dispatchNotes, setDispatchNotes] = useState('Chung cư có thang máy hàng, cần đăng ký ban quản lý tòa nhà.')
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false)
+
+  // Tải dữ liệu đơn hàng thực tế từ Backend Spring Boot MVC
+  const loadOrders = async (silent = false) => {
+    if (!silent) setLoading(true)
+    const { orders: remoteOrders, isRealData: real } = await fetchAdminOrders()
+    if (remoteOrders && remoteOrders.length > 0) {
+      setOrders(remoteOrders)
+      setIsRealData(real)
+      if (real && !silent) {
+        showToast('Đã tải danh sách đơn hàng thực tế từ database!')
+      }
+    }
+    if (!silent) setLoading(false)
+  }
+
+  useEffect(() => {
+    loadOrders()
+  }, [])
 
   // Status counts
   const pendingCount = orders.filter((o) => o.orderStatus === 'PENDING_CONFIRM').length
@@ -85,6 +122,9 @@ export default function AdminOrders({ showToast, activeRole = 'ADMIN' }) {
     return matchTab && matchSearch && matchPayment
   })
 
+  // Danh sách đơn hàng phân trang theo trang hiện tại
+  const paginatedOrders = filteredOrders.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+
   // Open Order Detail Modal
   function handleOpenDetail(order) {
     setSelectedOrder(order)
@@ -92,7 +132,7 @@ export default function AdminOrders({ showToast, activeRole = 'ADMIN' }) {
   }
 
   // Update Status in Stepper Workflow
-  function handleAdvanceStep(orderId, nextStatus, nextDeliveryText) {
+  async function handleAdvanceStep(orderId, nextStatus, nextDeliveryText) {
     setOrders((prev) =>
       prev.map((o) =>
         o.id === orderId
@@ -128,11 +168,20 @@ export default function AdminOrders({ showToast, activeRole = 'ADMIN' }) {
     }
 
     showToast(`Đã chuyển đơn hàng sang trạng thái: "${nextDeliveryText || nextStatus}"`)
+
+    // Gửi request cập nhật thực tế xuống Backend database
+    await updateAdminOrderStatus(orderId, nextStatus, nextDeliveryText)
   }
 
   // Save Dispatch Info
-  function handleSaveDispatch() {
+  async function handleSaveDispatch() {
     if (!selectedOrder) return
+    const payload = {
+      technician: dispatchTech,
+      vehicle: dispatchVehicle,
+      deliveryTime: dispatchTime,
+      deliveryNotes: dispatchNotes,
+    }
     setOrders((prev) =>
       prev.map((o) =>
         o.id === selectedOrder.id
@@ -152,14 +201,18 @@ export default function AdminOrders({ showToast, activeRole = 'ADMIN' }) {
       deliveryNotes: dispatchNotes,
     }))
     showToast(`Đã lưu điều phối thợ "${dispatchTech}" và xe tải thành công!`)
+
+    // Gửi cập nhật điều phối xuống Backend database
+    await updateAdminDispatchInfo(selectedOrder.id, payload)
   }
 
   // Cancel order with safety dialog
-  function handleConfirmCancelOrder() {
+  async function handleConfirmCancelOrder() {
     if (!selectedOrder) return
+    const orderId = selectedOrder.id
     setOrders((prev) =>
       prev.map((o) =>
-        o.id === selectedOrder.id
+        o.id === orderId
           ? { ...o, orderStatus: 'CANCELLED', deliveryStatus: 'Đã hủy đơn hàng' }
           : o
       )
@@ -171,6 +224,9 @@ export default function AdminOrders({ showToast, activeRole = 'ADMIN' }) {
     }))
     setCancelConfirmOpen(false)
     showToast(`Đã hủy đơn hàng #${selectedOrder.orderCode}. Tồn kho đã được hoàn lại!`)
+
+    // Gửi yêu cầu hủy đơn xuống Backend database
+    await cancelAdminOrder(orderId)
   }
 
   // Print invoice simulator
@@ -204,13 +260,29 @@ export default function AdminOrders({ showToast, activeRole = 'ADMIN' }) {
       {/* Header */}
       <div className="admin-page-hero">
         <div>
-          <h1 className="admin-page-title">Quản Lý Đơn Hàng & Điều Phối Giao Lắp</h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <h1 className="admin-page-title">Quản Lý Đơn Hàng & Điều Phối Giao Lắp</h1>
+            {isRealData && (
+              <span className="admin-badge admin-badge-success" style={{ fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                <ShieldCheck size={12} /> Database Supabase Live
+              </span>
+            )}
+          </div>
           <p className="admin-page-subtitle">
             Giám sát đơn hàng nội thất, quản lý đặt cọc và điều phối đội thợ thi công lắp ráp tận nơi tại căn hộ khách hàng.
           </p>
         </div>
 
         <div className="admin-hero-actions">
+          <button
+            type="button"
+            className="admin-btn admin-btn-secondary"
+            onClick={() => loadOrders(false)}
+            title="Làm mới dữ liệu từ máy chủ"
+            disabled={loading}
+          >
+            <RefreshCw size={15} className={loading ? 'animate-spin' : ''} /> {loading ? 'Đang tải...' : 'Làm Mới'}
+          </button>
           <button
             type="button"
             className="admin-btn admin-btn-secondary"
@@ -367,7 +439,7 @@ export default function AdminOrders({ showToast, activeRole = 'ADMIN' }) {
                   </td>
                 </tr>
               ) : (
-                filteredOrders.map((order) => {
+                paginatedOrders.map((order) => {
                   let statusClass = 'warning'
                   let statusText = 'Chờ xác nhận'
 
@@ -503,6 +575,17 @@ export default function AdminOrders({ showToast, activeRole = 'ADMIN' }) {
             </tbody>
           </table>
         </div>
+
+        {/* Thanh phân trang đơn hàng */}
+        <AdminPagination
+          currentPage={currentPage}
+          totalItems={filteredOrders.length}
+          pageSize={pageSize}
+          onPageChange={setCurrentPage}
+          onPageSizeChange={setPageSize}
+          pageSizeOptions={[5, 8, 10, 15, 20]}
+          itemLabel="đơn hàng"
+        />
       </div>
 
       {/* ==========================================================================

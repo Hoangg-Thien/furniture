@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   FileText,
   Printer,
@@ -16,8 +16,15 @@ import {
   Phone,
   MapPin,
   Sparkles,
+  RefreshCw,
 } from 'lucide-react'
 import { MOCK_INVOICES } from './adminMockData'
+import AdminPagination from './AdminPagination'
+import {
+  fetchAdminInvoices,
+  updateAdminInvoicePayment,
+  markAdminInvoicePrinted,
+} from '../../lib/adminSales'
 
 const formatCurrency = (val) =>
   new Intl.NumberFormat('vi-VN', {
@@ -28,15 +35,43 @@ const formatCurrency = (val) =>
 
 export default function AdminInvoices({ showToast, activeRole = 'ADMIN' }) {
   const [invoices, setInvoices] = useState(MOCK_INVOICES)
+  const [loading, setLoading] = useState(false)
+  const [isRealData, setIsRealData] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [paymentFilter, setPaymentFilter] = useState('ALL')
   const [selectedInvoice, setSelectedInvoice] = useState(null)
 
+  // Phân trang
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize, setPageSize] = useState(8)
+
+  // Tự động trở về trang 1 khi thay đổi tìm kiếm hoặc bộ lọc thanh toán
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm, paymentFilter])
+
+  const loadInvoices = async (silent = false) => {
+    if (!silent) setLoading(true)
+    const { invoices: remoteInvoices, isRealData: real } = await fetchAdminInvoices()
+    if (remoteInvoices && remoteInvoices.length > 0) {
+      setInvoices(remoteInvoices)
+      setIsRealData(real)
+      if (real && !silent) {
+        showToast('Đã tải danh sách hóa đơn thực tế từ đơn hàng!')
+      }
+    }
+    if (!silent) setLoading(false)
+  }
+
+  useEffect(() => {
+    loadInvoices()
+  }, [])
+
   const filteredInvoices = invoices.filter((inv) => {
     const matchSearch =
-      inv.invoiceNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      inv.orderCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      inv.customerName.toLowerCase().includes(searchTerm.toLowerCase())
+      (inv.invoiceNumber || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (inv.orderCode || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (inv.customerName || '').toLowerCase().includes(searchTerm.toLowerCase())
 
     const matchPayment =
       paymentFilter === 'ALL' || inv.paymentStatus === paymentFilter
@@ -44,8 +79,12 @@ export default function AdminInvoices({ showToast, activeRole = 'ADMIN' }) {
     return matchSearch && matchPayment
   })
 
-  function handlePrintInvoice(inv) {
+  // Danh sách hóa đơn sau khi cắt theo trang
+  const paginatedInvoices = filteredInvoices.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+
+  async function handlePrintInvoice(inv) {
     showToast(`Đang kết xuất bản in A4 cho hóa đơn #${inv.invoiceNumber}...`)
+    await markAdminInvoicePrinted(inv.orderId || inv.id)
     window.print()
   }
 
@@ -54,13 +93,29 @@ export default function AdminInvoices({ showToast, activeRole = 'ADMIN' }) {
       {/* Page Header */}
       <div className="admin-page-hero">
         <div>
-          <h1 className="admin-page-title">Quản Lý Hóa Đơn & Chứng Từ Giao Lắp</h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <h1 className="admin-page-title">Quản Lý Hóa Đơn & Chứng Từ Giao Lắp</h1>
+            {isRealData && (
+              <span className="admin-badge admin-badge-success" style={{ fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                <ShieldCheck size={12} /> Database Supabase Live
+              </span>
+            )}
+          </div>
           <p className="admin-page-subtitle">
             Hóa đơn bán lẻ & GTGT nội thất, tích hợp mã VietQR thanh toán tự động và mẫu in A4 chuẩn biên bản bàn giao.
           </p>
         </div>
 
         <div className="admin-hero-actions">
+          <button
+            type="button"
+            className="admin-btn admin-btn-secondary"
+            onClick={() => loadInvoices(false)}
+            title="Làm mới hóa đơn từ hệ thống"
+            disabled={loading}
+          >
+            <RefreshCw size={15} className={loading ? 'animate-spin' : ''} /> {loading ? 'Đang tải...' : 'Làm Mới'}
+          </button>
           <button
             type="button"
             className="admin-btn admin-btn-secondary"
@@ -135,80 +190,99 @@ export default function AdminInvoices({ showToast, activeRole = 'ADMIN' }) {
               </tr>
             </thead>
             <tbody>
-              {filteredInvoices.map((inv) => (
-                <tr key={inv.id}>
-                  <td>
-                    <span style={{ fontWeight: 700, color: 'var(--admin-primary)', fontFamily: 'monospace' }}>
-                      {inv.invoiceNumber}
-                    </span>
-                    <div style={{ fontSize: '11px', color: 'var(--admin-text-dim)', marginTop: '2px' }}>
-                      {new Date(inv.issueDate).toLocaleDateString('vi-VN')}
-                    </div>
-                  </td>
-
-                  <td>
-                    <code style={{ color: 'var(--admin-primary)' }}>{inv.orderCode}</code>
-                  </td>
-
-                  <td>
-                    <div style={{ fontWeight: 600 }}>{inv.customerName}</div>
-                    <div style={{ fontSize: '11.5px', color: 'var(--admin-text-dim)' }}>
-                      {inv.taxCode ? `MST: ${inv.taxCode}` : 'Khách lẻ không lấy MST'}
-                    </div>
-                  </td>
-
-                  <td className="text-right tabular-nums">
-                    {formatCurrency(inv.subtotal)}
-                  </td>
-
-                  <td className="text-right tabular-nums">
-                    {formatCurrency(inv.vatAmount)}
-                  </td>
-
-                  <td className="text-right tabular-nums" style={{ color: '#10B981' }}>
-                    {inv.discountAmount > 0 ? `- ${formatCurrency(inv.discountAmount)}` : '0 ₫'}
-                  </td>
-
-                  <td className="text-right tabular-nums">
-                    <div style={{ fontWeight: 700, fontSize: '14.5px', color: 'var(--admin-text-main)' }}>
-                      {formatCurrency(inv.finalAmount)}
-                    </div>
-                  </td>
-
-                  <td className="text-center">
-                    <span
-                      className={`admin-status-badge ${
-                        inv.paymentStatus === 'PAID'
-                          ? 'success'
-                          : inv.paymentStatus === 'DEPOSIT_50'
-                          ? 'warning'
-                          : 'danger'
-                      }`}
-                    >
-                      <span className="dot" />
-                      {inv.paymentStatus === 'PAID'
-                        ? 'Đã trả đủ'
-                        : inv.paymentStatus === 'DEPOSIT_50'
-                        ? 'Đã cọc 50%'
-                        : 'Chưa thanh toán'}
-                    </span>
-                  </td>
-
-                  <td className="text-center">
-                    <button
-                      type="button"
-                      className="admin-btn admin-btn-secondary"
-                      style={{ padding: '5px 10px', fontSize: '12px' }}
-                      onClick={() => setSelectedInvoice(inv)}
-                    >
-                      <Eye size={13} /> Mẫu In A4
-                    </button>
+              {filteredInvoices.length === 0 ? (
+                <tr>
+                  <td colSpan="8" style={{ textAlign: 'center', padding: '36px', color: 'var(--admin-text-muted)' }}>
+                    Không tìm thấy hóa đơn nào phù hợp với bộ lọc.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                paginatedInvoices.map((inv) => (
+                  <tr key={inv.id}>
+                    <td>
+                      <span style={{ fontWeight: 700, color: 'var(--admin-primary)', fontFamily: 'monospace' }}>
+                        {inv.invoiceNumber}
+                      </span>
+                      <div style={{ fontSize: '11px', color: 'var(--admin-text-dim)', marginTop: '2px' }}>
+                        {new Date(inv.issueDate).toLocaleDateString('vi-VN')}
+                      </div>
+                    </td>
+
+                    <td>
+                      <code style={{ color: 'var(--admin-primary)' }}>{inv.orderCode}</code>
+                    </td>
+
+                    <td>
+                      <div style={{ fontWeight: 600 }}>{inv.customerName}</div>
+                      <div style={{ fontSize: '11.5px', color: 'var(--admin-text-dim)' }}>
+                        {inv.taxCode ? `MST: ${inv.taxCode}` : 'Khách lẻ không lấy MST'}
+                      </div>
+                    </td>
+
+                    <td className="text-right tabular-nums">
+                      {formatCurrency(inv.subtotal)}
+                    </td>
+
+                    <td className="text-right tabular-nums">
+                      {formatCurrency(inv.vatAmount)}
+                    </td>
+
+                    <td className="text-right tabular-nums" style={{ color: '#10B981' }}>
+                      {inv.discountAmount > 0 ? `- ${formatCurrency(inv.discountAmount)}` : '0 ₫'}
+                    </td>
+
+                    <td className="text-right tabular-nums">
+                      <div style={{ fontWeight: 700, fontSize: '14.5px', color: 'var(--admin-text-main)' }}>
+                        {formatCurrency(inv.finalAmount)}
+                      </div>
+                    </td>
+
+                    <td className="text-center">
+                      <span
+                        className={`admin-status-badge ${
+                          inv.paymentStatus === 'PAID'
+                            ? 'success'
+                            : inv.paymentStatus === 'DEPOSIT_50'
+                            ? 'warning'
+                            : 'danger'
+                        }`}
+                      >
+                        <span className="dot" />
+                        {inv.paymentStatus === 'PAID'
+                          ? 'Đã trả đủ'
+                          : inv.paymentStatus === 'DEPOSIT_50'
+                          ? 'Đã cọc 50%'
+                          : 'Chưa thanh toán'}
+                      </span>
+                    </td>
+
+                    <td className="text-center">
+                      <button
+                        type="button"
+                        className="admin-btn admin-btn-secondary"
+                        style={{ padding: '5px 10px', fontSize: '12px' }}
+                        onClick={() => setSelectedInvoice(inv)}
+                      >
+                        <Eye size={13} /> Mẫu In A4
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
+
+        {/* Thanh phân trang hóa đơn */}
+        <AdminPagination
+          currentPage={currentPage}
+          totalItems={filteredInvoices.length}
+          pageSize={pageSize}
+          onPageChange={setCurrentPage}
+          onPageSizeChange={setPageSize}
+          pageSizeOptions={[5, 8, 10, 15, 20]}
+          itemLabel="hóa đơn"
+        />
       </div>
 
       {/* ==========================================================================

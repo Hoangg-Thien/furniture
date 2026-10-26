@@ -47,7 +47,9 @@ export default function AdminLayout({ currentPath, onNavigate, currentUser: prop
   // Thông tin người dùng hiện tại lấy từ phiên đăng nhập Supabase
   const user = propUser || getAdminUser()
   const displayUsername = user?.username || 'admin'
-  const displayName = user?.fullName || user?.username || 'Quản Trị Viên'
+  const rawDisplayName = user?.fullName || user?.username || 'Quản Trị Viên'
+  // Rút gọn tên hiển thị loại bỏ phần ngoặc dài dòng (vd: 'Tổng Quản Trị Viên (Admin)' -> 'Quản Trị Viên')
+  const displayName = rawDisplayName.includes('Admin') ? 'Quản Trị Viên' : rawDisplayName.replace(/\s*\(.*?\)/g, '').trim()
   const roleName = user?.role || 'ADMIN'
   const roleShort = ROLES_INFO[roleName]?.short || roleName
   const avatarInitials = (user?.username || 'AD').slice(0, 2).toUpperCase()
@@ -277,9 +279,7 @@ export default function AdminLayout({ currentPath, onNavigate, currentUser: prop
               >
                 FURNISTORE
               </span>
-              <ChevronRight size={13} />
-              <span>Quản trị</span>
-              <ChevronRight size={13} />
+              <ChevronRight size={12} />
               <span className="active">{currentNavLabel}</span>
             </div>
 
@@ -290,8 +290,8 @@ export default function AdminLayout({ currentPath, onNavigate, currentUser: prop
               onClick={() => setSearchModalOpen(true)}
               title="Tìm kiếm toàn cục (Ctrl + K)"
             >
-              <Search size={14} />
-              <span>Tìm đơn, SP, khách...</span>
+              <Search size={13} />
+              <span>Tìm kiếm...</span>
               <span className="admin-kbd-shortcut">Ctrl+K</span>
             </button>
           </div>
@@ -299,12 +299,12 @@ export default function AdminLayout({ currentPath, onNavigate, currentUser: prop
           <div className="admin-header-right">
             {/* Quick Role Switcher */}
             <div className="admin-role-selector" title="Chuyển đổi góc nhìn phân quyền (RBAC)">
-              <UserCheck size={14} style={{ color: ROLES_INFO[activeRole]?.color }} />
+              <UserCheck size={13} style={{ color: ROLES_INFO[activeRole]?.color }} />
               <select value={activeRole} onChange={handleRoleChange}>
-                <option value="ADMIN">Role: Quản Trị Viên (Admin)</option>
-                <option value="SALES">Role: Nhân Viên Bán Hàng</option>
-                <option value="WAREHOUSE">Role: Nhân Viên Kho</option>
-                <option value="DISPATCHER">Role: Điều Phối Giao Lắp</option>
+                <option value="ADMIN">Admin</option>
+                <option value="SALES">Bán hàng</option>
+                <option value="WAREHOUSE">Thủ kho</option>
+                <option value="DISPATCHER">Điều phối</option>
               </select>
             </div>
 
@@ -392,25 +392,26 @@ export default function AdminLayout({ currentPath, onNavigate, currentUser: prop
             </div>
 
             {/* Admin Avatar & Logout */}
-            <div className="admin-user-profile" title={`Tài khoản Supabase: ${displayUsername} (${displayName})`}>
+            <div className="admin-user-profile" title={`Tài khoản: ${displayUsername} (${displayName})`}>
               <div
                 className="admin-avatar"
                 style={{
                   background: 'linear-gradient(135deg, #8B5E3C 0%, #5E3F28 100%)',
                   color: '#FFFFFF',
                   fontWeight: 700,
-                  fontSize: '12px',
-                  letterSpacing: '0.5px',
+                  fontSize: '11px',
+                  width: '30px',
+                  height: '30px',
                 }}
               >
                 {avatarInitials}
               </div>
               <div className="admin-user-info">
-                <span className="admin-user-name" title={displayName}>
+                <span className="admin-user-name" title={displayName} style={{ fontSize: '12px' }}>
                   {displayName}
                 </span>
-                <span className="admin-user-role">
-                  {roleShort} • @{displayUsername}
+                <span className="admin-user-role" style={{ fontSize: '10px' }}>
+                  @{displayUsername}
                 </span>
               </div>
               <button
@@ -420,14 +421,14 @@ export default function AdminLayout({ currentPath, onNavigate, currentUser: prop
                   background: 'var(--admin-danger-soft)',
                   border: '1px solid rgba(185, 28, 28, 0.2)',
                   color: 'var(--admin-danger)',
-                  borderRadius: '7px',
-                  padding: '6px 9px',
+                  borderRadius: '6px',
+                  padding: '4px 8px',
                   cursor: 'pointer',
-                  marginLeft: '6px',
+                  marginLeft: '4px',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '4px',
-                  fontSize: '12px',
+                  fontSize: '11.5px',
                   fontWeight: 600,
                 }}
                 onClick={() => {
@@ -435,7 +436,7 @@ export default function AdminLayout({ currentPath, onNavigate, currentUser: prop
                   onNavigate('/admin')
                 }}
               >
-                <LogOut size={13} />
+                <LogOut size={12} />
                 <span>Thoát</span>
               </button>
             </div>

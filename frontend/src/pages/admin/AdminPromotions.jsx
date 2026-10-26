@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   Tag,
   Plus,
@@ -17,8 +17,18 @@ import {
   TrendingDown,
   Layers,
   ShoppingBag,
+  RefreshCw,
+  ShieldCheck,
 } from 'lucide-react'
 import { MOCK_VOUCHERS, MOCK_CATEGORIES } from './adminMockData'
+import AdminPagination from './AdminPagination'
+import {
+  fetchAdminPromotions,
+  createAdminPromotion,
+  approveAdminPromotion,
+  updateAdminPromotionStatus,
+  deleteAdminPromotion,
+} from '../../lib/adminSales'
 
 const formatCurrency = (val) =>
   new Intl.NumberFormat('vi-VN', {
@@ -29,9 +39,20 @@ const formatCurrency = (val) =>
 
 export default function AdminPromotions({ showToast, activeRole = 'ADMIN' }) {
   const [vouchers, setVouchers] = useState(MOCK_VOUCHERS)
+  const [loading, setLoading] = useState(false)
+  const [isRealData, setIsRealData] = useState(false)
   const [statusTab, setStatusTab] = useState('ALL') // 'ALL' | 'ACTIVE' | 'PAUSED' | 'PENDING_APPROVAL' | 'EXPIRED'
   const [searchTerm, setSearchTerm] = useState('')
   const [createModalOpen, setCreateModalOpen] = useState(false)
+
+  // Phân trang
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize, setPageSize] = useState(8)
+
+  // Tự động trở về trang 1 khi chuyển tab hoặc gõ tìm kiếm
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [statusTab, searchTerm])
 
   // Form State
   const [code, setCode] = useState('')
@@ -48,6 +69,23 @@ export default function AdminPromotions({ showToast, activeRole = 'ADMIN' }) {
 
   // Discount Simulator State
   const [simulatedOrderValue, setSimulatedOrderValue] = useState(35000000)
+
+  const loadVouchers = async (silent = false) => {
+    if (!silent) setLoading(true)
+    const { vouchers: remoteVouchers, isRealData: real } = await fetchAdminPromotions()
+    if (remoteVouchers && remoteVouchers.length > 0) {
+      setVouchers(remoteVouchers)
+      setIsRealData(real)
+      if (real && !silent) {
+        showToast('Đã tải danh sách voucher thực tế từ database!')
+      }
+    }
+    if (!silent) setLoading(false)
+  }
+
+  useEffect(() => {
+    loadVouchers()
+  }, [])
 
   // Status Tab Counts
   const activeCount = vouchers.filter((v) => v.status === 'ACTIVE').length
@@ -70,61 +108,84 @@ export default function AdminPromotions({ showToast, activeRole = 'ADMIN' }) {
     return matchTab && matchSearch
   })
 
+  // Danh sách voucher sau khi phân trang
+  const paginatedVouchers = filteredVouchers.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+
   // Quick Action Handlers
-  function handleTogglePause(id, currentStatus, vCode) {
+  async function handleTogglePause(id, currentStatus, vCode) {
     const nextStatus = currentStatus === 'ACTIVE' ? 'PAUSED' : 'ACTIVE'
     setVouchers((prev) =>
       prev.map((v) => (v.id === id ? { ...v, status: nextStatus } : v))
     )
     showToast(`Đã chuyển voucher "${vCode}" sang trạng thái: ${nextStatus === 'ACTIVE' ? 'Đang chạy' : 'Tạm dừng'}`)
+    await updateAdminPromotionStatus(id, nextStatus)
   }
 
-  function handleEndVoucher(id, vCode) {
+  async function handleEndVoucher(id, vCode) {
     if (window.confirm(`Bạn có chắc chắn muốn kết thúc chiến dịch voucher "${vCode}"?`)) {
       setVouchers((prev) =>
         prev.map((v) => (v.id === id ? { ...v, status: 'EXPIRED' } : v))
       )
       showToast(`Đã kết thúc voucher "${vCode}".`)
+      await updateAdminPromotionStatus(id, 'INACTIVE')
     }
   }
 
-  function handleApprove(id, vCode) {
+  async function handleApprove(id, vCode) {
     setVouchers((prev) =>
       prev.map((v) =>
         v.id === id ? { ...v, status: 'ACTIVE', approvalState: 'APPROVED' } : v
       )
     )
     showToast(`Đã phê duyệt voucher "${vCode}" vào hệ thống!`)
+    await approveAdminPromotion(id)
   }
 
-  function handleCreateVoucher(e) {
+  async function handleCreateVoucher(e) {
     e.preventDefault()
     if (!code || !programName) {
       alert('Vui lòng nhập Mã Voucher và Tên chương trình!')
       return
     }
 
-    const newVoucher = {
-      id: Date.now(),
+    const payload = {
       code: code.trim().toUpperCase(),
-      programName,
-      discountType,
-      discountPercent: discountType === 'PERCENT' ? Number(discountPercent) : 0,
-      fixedAmount: discountType === 'FIXED' ? Number(fixedDiscountAmount) : 0,
+      programName: programName.trim(),
+      description: `Chương trình ${programName.trim()} - Giảm ${discountType === 'PERCENT' ? discountPercent + '%' : formatCurrency(fixedDiscountAmount)}`,
+      discountPercent: discountType === 'PERCENT' ? Number(discountPercent) : 10,
       minimumAmount: Number(minimumAmount),
       maximumDiscount: discountType === 'PERCENT' ? Number(maxDiscount) : Number(fixedDiscountAmount),
       quantity: Number(quantity),
-      usedQuantity: 0,
       startDate,
       endDate,
-      appliedCategory,
-      status: 'ACTIVE',
-      approvalState: 'APPROVED',
     }
 
-    setVouchers([newVoucher, ...vouchers])
-    setCreateModalOpen(false)
-    showToast(`Đã phát hành thành công voucher "${newVoucher.code}"!`)
+    const res = await createAdminPromotion(payload)
+    if (res.success) {
+      showToast(`Đã phát hành thành công voucher "${payload.code}" vào database!`)
+      setCreateModalOpen(false)
+      loadVouchers(true)
+    } else {
+      const newVoucher = {
+        id: Date.now(),
+        code: payload.code,
+        programName: payload.programName,
+        discountType,
+        discountPercent: payload.discountPercent,
+        minimumAmount: payload.minimumAmount,
+        maximumDiscount: payload.maximumDiscount,
+        quantity: payload.quantity,
+        usedQuantity: 0,
+        remainingQuantity: payload.quantity,
+        startDate,
+        endDate,
+        status: 'ACTIVE',
+        approvalState: 'APPROVED',
+      }
+      setVouchers([newVoucher, ...vouchers])
+      setCreateModalOpen(false)
+      showToast(`Đã phát hành voucher "${newVoucher.code}"!`)
+    }
   }
 
   // Calculate Simulation Values
@@ -148,13 +209,29 @@ export default function AdminPromotions({ showToast, activeRole = 'ADMIN' }) {
       {/* Page Header */}
       <div className="admin-page-hero">
         <div>
-          <h1 className="admin-page-title">Quản Lý Khuyến Mãi & Kho Voucher</h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <h1 className="admin-page-title">Quản Lý Khuyến Mãi & Kho Voucher</h1>
+            {isRealData && (
+              <span className="admin-badge admin-badge-success" style={{ fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                <ShieldCheck size={12} /> Database Supabase Live
+              </span>
+            )}
+          </div>
           <p className="admin-page-subtitle">
             Cấu hình mã giảm giá tri ân, chiết khấu theo %, thiết lập trần tối đa và giả lập hiệu quả ngân sách chiến dịch.
           </p>
         </div>
 
         <div className="admin-hero-actions">
+          <button
+            type="button"
+            className="admin-btn admin-btn-secondary"
+            onClick={() => loadVouchers(false)}
+            title="Làm mới voucher từ máy chủ"
+            disabled={loading}
+          >
+            <RefreshCw size={15} className={loading ? 'animate-spin' : ''} /> {loading ? 'Đang tải...' : 'Làm Mới'}
+          </button>
           {(activeRole === 'ADMIN' || activeRole === 'SALES') && (
             <button
               type="button"
@@ -263,8 +340,15 @@ export default function AdminPromotions({ showToast, activeRole = 'ADMIN' }) {
               </tr>
             </thead>
             <tbody>
-              {filteredVouchers.map((v) => {
-                const isApproved = v.approvalState === 'APPROVED'
+              {filteredVouchers.length === 0 ? (
+                <tr>
+                  <td colSpan="8" style={{ textAlign: 'center', padding: '36px', color: 'var(--admin-text-muted)' }}>
+                    Không tìm thấy mã khuyến mãi / voucher nào phù hợp.
+                  </td>
+                </tr>
+              ) : (
+                paginatedVouchers.map((v) => {
+                  const isApproved = v.approvalState === 'APPROVED'
                 const usagePercent = Math.round((v.usedQuantity / v.quantity) * 100)
 
                 return (
@@ -400,10 +484,22 @@ export default function AdminPromotions({ showToast, activeRole = 'ADMIN' }) {
                     </td>
                   </tr>
                 )
-              })}
+                })
+              )}
             </tbody>
           </table>
         </div>
+
+        {/* Thanh phân trang voucher */}
+        <AdminPagination
+          currentPage={currentPage}
+          totalItems={filteredVouchers.length}
+          pageSize={pageSize}
+          onPageChange={setCurrentPage}
+          onPageSizeChange={setPageSize}
+          pageSizeOptions={[5, 8, 10, 15, 20]}
+          itemLabel="voucher"
+        />
       </div>
 
       {/* ==========================================================================

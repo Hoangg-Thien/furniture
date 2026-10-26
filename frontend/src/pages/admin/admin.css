@@ -388,16 +388,16 @@
 .admin-search-trigger {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 8px;
   background: var(--admin-surface);
   border: 1px solid var(--admin-border);
   border-radius: 999px;
-  padding: 6px 14px;
-  font-size: 13px;
+  padding: 5px 12px;
+  font-size: 12.5px;
   color: var(--admin-text-muted);
   cursor: pointer;
   transition: all 0.2s ease;
-  width: 250px;
+  width: 175px;
 }
 
 .admin-search-trigger:hover {
@@ -407,10 +407,10 @@
 
 .admin-kbd-shortcut {
   margin-left: auto;
-  font-size: 11px;
+  font-size: 10.5px;
   background: var(--admin-primary-soft);
   color: var(--admin-primary);
-  padding: 1px 6px;
+  padding: 1px 5px;
   border-radius: 4px;
   font-weight: 600;
   border: 1px solid var(--admin-border);
@@ -419,14 +419,14 @@
 .admin-header-right {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 10px;
 }
 
 /* Theme Toggle Button */
 .admin-icon-btn {
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
+  width: 32px;
+  height: 32px;
+  border-radius: 7px;
   background: var(--admin-surface);
   border: 1px solid var(--admin-border);
   color: var(--admin-text-muted);
@@ -448,8 +448,8 @@
   position: absolute;
   top: 5px;
   right: 5px;
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   background: var(--admin-danger);
   border: 2px solid var(--admin-surface);
@@ -459,12 +459,12 @@
 .admin-role-selector {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   background: var(--admin-surface);
   border: 1px solid var(--admin-border);
-  border-radius: 8px;
-  padding: 4px 10px;
-  font-size: 12.5px;
+  border-radius: 7px;
+  padding: 3px 8px;
+  font-size: 12px;
   color: var(--admin-text-main);
 }
 
@@ -472,7 +472,7 @@
   background: transparent;
   border: none;
   outline: none;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--admin-primary);
   cursor: pointer;
@@ -1834,3 +1834,131 @@
     display: none;
   }
 }
+
+/* ==========================================================================
+   ADMIN PAGINATION BAR
+   ========================================================================== */
+.admin-pagination-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 12px 18px;
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+  margin-top: 18px;
+  font-size: 13px;
+  color: var(--admin-text-muted);
+}
+
+.admin-pagination-info {
+  font-size: 12.5px;
+  color: var(--admin-text-muted);
+}
+
+.admin-pagination-info .text-main {
+  color: var(--admin-text-main);
+  font-weight: 600;
+}
+
+.admin-pagination-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.admin-pagination-pagesize {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 6px;
+  font-size: 12px;
+}
+
+.admin-pagination-select {
+  background: var(--admin-bg);
+  border: 1px solid var(--admin-border);
+  color: var(--admin-text-main);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 12px;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.admin-pagination-select:focus {
+  border-color: var(--admin-primary);
+}
+
+.admin-pagination-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--admin-border);
+  background: var(--admin-bg);
+  color: var(--admin-text-main);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.admin-pagination-nav-btn:hover:not(:disabled) {
+  border-color: var(--admin-primary);
+  color: var(--admin-primary);
+  background: var(--admin-surface-hover);
+}
+
+.admin-pagination-nav-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  border-color: var(--admin-border);
+}
+
+.admin-pagination-numbers {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.admin-pagination-num-btn {
+  min-width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  border: 1px solid var(--admin-border);
+  background: var(--admin-bg);
+  color: var(--admin-text-main);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.admin-pagination-num-btn:hover:not(.active) {
+  border-color: var(--admin-primary);
+  color: var(--admin-primary);
+}
+
+.admin-pagination-num-btn.active {
+  background: var(--admin-primary);
+  color: #FFFFFF;
+  border-color: var(--admin-primary);
+  font-weight: 600;
+  box-shadow: 0 2px 6px rgba(139, 94, 60, 0.25);
+}
+
+.admin-pagination-dots {
+  padding: 0 4px;
+  color: var(--admin-text-dim);
+  font-size: 12px;
+}
+

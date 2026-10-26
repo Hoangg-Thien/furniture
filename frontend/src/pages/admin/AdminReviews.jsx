@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   Star,
   Search,
@@ -12,52 +12,96 @@ import {
   Send,
   Eye,
   Filter,
+  RefreshCw,
+  ShieldCheck,
 } from 'lucide-react'
 import { MOCK_REVIEWS } from './adminMockData'
+import AdminPagination from './AdminPagination'
+import {
+  fetchAdminReviews,
+  toggleAdminReviewStatus,
+  replyAdminReview,
+  deleteAdminReview,
+} from '../../lib/adminSales'
 
 export default function AdminReviews({ showToast, activeRole = 'ADMIN' }) {
   const [reviews, setReviews] = useState(MOCK_REVIEWS)
+  const [loading, setLoading] = useState(false)
+  const [isRealData, setIsRealData] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [starFilter, setStarFilter] = useState('ALL')
   const [selectedPhoto, setSelectedPhoto] = useState(null) // Lightbox zoom photo
   const [replyingReview, setReplyingReview] = useState(null)
   const [replyText, setReplyText] = useState('')
 
+  // Phân trang
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize, setPageSize] = useState(8)
+
+  // Tự động chuyển về trang 1 khi lọc sao hoặc tìm kiếm
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm, starFilter])
+
+  const loadReviews = async (silent = false) => {
+    if (!silent) setLoading(true)
+    const { reviews: remoteReviews, isRealData: real } = await fetchAdminReviews()
+    if (remoteReviews && remoteReviews.length > 0) {
+      setReviews(remoteReviews)
+      setIsRealData(real)
+      if (real && !silent) {
+        showToast('Đã tải danh sách đánh giá thực tế từ database!')
+      }
+    }
+    if (!silent) setLoading(false)
+  }
+
+  useEffect(() => {
+    loadReviews()
+  }, [])
+
   const filteredReviews = reviews.filter((r) => {
     const matchStar = starFilter === 'ALL' || r.rating === Number(starFilter)
     const matchSearch =
-      r.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      r.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      r.comment.toLowerCase().includes(searchTerm.toLowerCase())
+      (r.productName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (r.customerName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (r.comment || '').toLowerCase().includes(searchTerm.toLowerCase())
     return matchStar && matchSearch
   })
 
-  function handleToggleStatus(id, currentStatus) {
+  // Danh sách đánh giá theo trang hiện tại
+  const paginatedReviews = filteredReviews.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+
+  async function handleToggleStatus(id, currentStatus) {
     const nextStatus = currentStatus === 'APPROVED' ? 'HIDDEN' : 'APPROVED'
     setReviews(
       reviews.map((r) => (r.id === id ? { ...r, status: nextStatus } : r))
     )
     showToast(`Đã ${nextStatus === 'APPROVED' ? 'cho phép hiển thị' : 'ẩn'} đánh giá sản phẩm trên sàn bán lẻ!`)
+    await toggleAdminReviewStatus(id)
   }
 
-  function handleDelete(id) {
+  async function handleDelete(id) {
     if (window.confirm('Bạn có chắc chắn muốn xóa vĩnh viễn đánh giá này?')) {
       setReviews(reviews.filter((r) => r.id !== id))
       showToast('Đã xóa đánh giá.')
+      await deleteAdminReview(id)
     }
   }
 
-  function handleSaveReply(reviewId) {
+  async function handleSaveReply(reviewId) {
     if (!replyText.trim()) return
+    const content = replyText.trim()
+    const author = 'FurniStore Chăm Sóc Khách Hàng'
     setReviews(
       reviews.map((r) =>
         r.id === reviewId
           ? {
               ...r,
               storeReply: {
-                author: 'FurniStore Chăm Sóc Khách Hàng',
+                author,
                 date: 'Hôm nay',
-                content: replyText.trim(),
+                content,
               },
             }
           : r
@@ -66,6 +110,7 @@ export default function AdminReviews({ showToast, activeRole = 'ADMIN' }) {
     setReplyingReview(null)
     setReplyText('')
     showToast('Đã gửi phản hồi chính thức của cửa hàng tới khách hàng!')
+    await replyAdminReview(reviewId, author, content)
   }
 
   return (
@@ -73,10 +118,29 @@ export default function AdminReviews({ showToast, activeRole = 'ADMIN' }) {
       {/* Page Header */}
       <div className="admin-page-hero">
         <div>
-          <h1 className="admin-page-title">Quản Lý Đánh Giá & Phản Hồi Khách Hàng</h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <h1 className="admin-page-title">Quản Lý Đánh Giá & Phản Hồi Khách Hàng</h1>
+            {isRealData && (
+              <span className="admin-badge admin-badge-success" style={{ fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                <ShieldCheck size={12} /> Database Supabase Live
+              </span>
+            )}
+          </div>
           <p className="admin-page-subtitle">
             Kiểm duyệt chất lượng sản phẩm nội thất, hình ảnh nghiệm thu thực tế tại gia và tương tác chăm sóc khách hàng.
           </p>
+        </div>
+
+        <div className="admin-hero-actions">
+          <button
+            type="button"
+            className="admin-btn admin-btn-secondary"
+            onClick={() => loadReviews(false)}
+            title="Làm mới đánh giá từ máy chủ"
+            disabled={loading}
+          >
+            <RefreshCw size={15} className={loading ? 'animate-spin' : ''} /> {loading ? 'Đang tải...' : 'Làm Mới'}
+          </button>
         </div>
       </div>
 
@@ -140,8 +204,15 @@ export default function AdminReviews({ showToast, activeRole = 'ADMIN' }) {
               </tr>
             </thead>
             <tbody>
-              {filteredReviews.map((r) => {
-                const isApproved = r.status === 'APPROVED'
+              {filteredReviews.length === 0 ? (
+                <tr>
+                  <td colSpan="6" style={{ textAlign: 'center', padding: '36px', color: 'var(--admin-text-muted)' }}>
+                    Không tìm thấy đánh giá nào phù hợp với bộ lọc.
+                  </td>
+                </tr>
+              ) : (
+                paginatedReviews.map((r) => {
+                  const isApproved = r.status === 'APPROVED'
 
                 return (
                   <tr key={r.id}>
@@ -269,10 +340,21 @@ export default function AdminReviews({ showToast, activeRole = 'ADMIN' }) {
                     </td>
                   </tr>
                 )
-              })}
+              }))}
             </tbody>
           </table>
         </div>
+
+        {/* Thanh phân trang đánh giá */}
+        <AdminPagination
+          currentPage={currentPage}
+          totalItems={filteredReviews.length}
+          pageSize={pageSize}
+          onPageChange={setCurrentPage}
+          onPageSizeChange={setPageSize}
+          pageSizeOptions={[5, 8, 10, 15, 20]}
+          itemLabel="đánh giá"
+        />
       </div>
 
       {/* Lightbox Photo Preview Modal */}
