@@ -85,6 +85,45 @@ export default function AdminInventory({ showToast, activeRole = 'ADMIN' }) {
   const [searchVariantTerm, setSearchVariantTerm] = useState('')
   const [showVariantDropdown, setShowVariantDropdown] = useState(false)
 
+  // Đồng bộ số lượng tồn kho thực tế từ cơ sở dữ liệu Supabase/PostgreSQL
+  React.useEffect(() => {
+    async function fetchRealProducts() {
+      try {
+        const { getApiBaseUrl } = await import('../../lib/apiConfig')
+        const res = await fetch(`${getApiBaseUrl()}/api/products`)
+        if (res.ok) {
+          const data = await res.json()
+          if (Array.isArray(data) && data.length > 0) {
+            setProducts((prev) => {
+              const map = new Map(data.map((d) => [d.id, d]))
+              return prev.map((p) => {
+                const real = map.get(p.id)
+                if (real) {
+                  const realStock = real.quantity != null ? real.quantity : p.totalStock
+                  return {
+                    ...p,
+                    name: real.name || p.name,
+                    category: real.category || p.category,
+                    basePrice: real.price ? Number(real.price) : p.basePrice,
+                    totalStock: realStock,
+                    variants: (p.variants || []).map((v, vIdx) => ({
+                      ...v,
+                      stock: vIdx === 0 ? realStock : 0,
+                    })),
+                  }
+                }
+                return p
+              })
+            })
+          }
+        }
+      } catch (e) {
+        console.warn('Could not load real products into AdminInventory:', e)
+      }
+    }
+    fetchRealProducts()
+  }, [])
+
   // Flatten all variants from products for easy searching
   const allAvailableVariants = products.flatMap((p) =>
     (p.variants || []).map((v) => ({

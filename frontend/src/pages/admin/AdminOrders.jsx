@@ -52,9 +52,9 @@ const STEPPER_STAGES = [
 ]
 
 export default function AdminOrders({ showToast, activeRole = 'ADMIN' }) {
-  const [orders, setOrders] = useState(MOCK_ORDERS)
+  const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(false)
-  const [isRealData, setIsRealData] = useState(false)
+  const [isRealData, setIsRealData] = useState(true)
   const [statusTab, setStatusTab] = useState('ALL') // 'ALL' | 'PENDING_CONFIRM' | 'PREPARING' | 'DELIVERING' | 'COMPLETED'
   const [searchTerm, setSearchTerm] = useState('')
   const [paymentFilter, setPaymentFilter] = useState('ALL')
@@ -80,12 +80,9 @@ export default function AdminOrders({ showToast, activeRole = 'ADMIN' }) {
   const loadOrders = async (silent = false) => {
     if (!silent) setLoading(true)
     const { orders: remoteOrders, isRealData: real } = await fetchAdminOrders()
-    if (remoteOrders && remoteOrders.length > 0) {
+    if (remoteOrders) {
       setOrders(remoteOrders)
       setIsRealData(real)
-      if (real && !silent) {
-        showToast('Đã tải danh sách đơn hàng thực tế từ database!')
-      }
     }
     if (!silent) setLoading(false)
   }

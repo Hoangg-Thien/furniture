@@ -13,17 +13,8 @@ export async function fetchAdminUsers() {
     const data = await res.json()
     return { users: Array.isArray(data) ? data : [], error: null }
   } catch (err) {
-    console.warn('Lỗi fetchAdminUsers, sử dụng danh sách mẫu:', err)
-    return {
-      users: [
-        { id: 1, username: 'admin', role: 'ADMIN', is_active: true, created_at: '2026-03-01T10:00:00Z' },
-        { id: 2, username: 'khoi_furniture', role: 'ADMIN', is_active: true, created_at: '2026-03-05T14:20:00Z' },
-        { id: 3, username: 'hoangthien', role: 'ADMIN', is_active: true, created_at: '2026-03-08T09:15:00Z' },
-        { id: 4, username: 'minhanh', role: 'CUSTOMER', is_active: true, created_at: '2026-03-12T11:45:00Z' },
-        { id: 5, username: 'thanhson', role: 'CUSTOMER', is_active: true, created_at: '2026-03-15T16:30:00Z' },
-      ],
-      error: err.message,
-    }
+    console.warn('Lỗi fetchAdminUsers:', err)
+    return { users: [], error: err.message }
   }
 }
 
@@ -40,15 +31,178 @@ export async function fetchAdminCustomers() {
     const data = await res.json()
     return { customers: Array.isArray(data) ? data : [], error: null }
   } catch (err) {
-    console.warn('Lỗi fetchAdminCustomers, sử dụng danh sách mẫu:', err)
-    return {
-      customers: [
-        { id: 1, user_id: 4, full_name: 'Trần Minh Anh', email: 'minhanh@gmail.com', phone: '0901234567', address: 'Quận 1, TP. Hồ Chí Minh' },
-        { id: 2, user_id: 5, full_name: 'Nguyễn Thanh Sơn', email: 'thanhson@gmail.com', phone: '0912345678', address: 'Quận Cầu Giấy, Hà Nội' },
-        { id: 3, user_id: 2, full_name: 'Duy Khôi Admin', email: 'duykhoi@furniture.vn', phone: '0988776655', address: 'Quận 7, TP. Hồ Chí Minh' },
-      ],
-      error: err.message,
-    }
+    console.warn('Lỗi fetchAdminCustomers:', err)
+    return { customers: [], error: err.message }
+  }
+}
+
+/**
+ * Tải danh sách nhân viên và quản trị viên
+ */
+export async function fetchAdminStaff() {
+  const apiBaseUrl = getApiBaseUrl()
+  try {
+    const res = await fetch(`${apiBaseUrl}/api/auth/staff`, {
+      headers: getApiHeaders(),
+    })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const data = await res.json()
+    return { staff: Array.isArray(data) ? data : [], error: null }
+  } catch (err) {
+    console.warn('Lỗi fetchAdminStaff:', err)
+    return { staff: [], error: err.message }
+  }
+}
+
+/**
+ * Tạo tài khoản nhân viên / quản trị mới
+ */
+export async function createAdminStaff(staffData) {
+  const apiBaseUrl = getApiBaseUrl()
+  try {
+    const res = await fetch(`${apiBaseUrl}/api/auth/staff`, {
+      method: 'POST',
+      headers: getApiHeaders(),
+      body: JSON.stringify(staffData),
+    })
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
+    return { success: true, data }
+  } catch (err) {
+    return { success: false, error: err.message }
+  }
+}
+
+/**
+ * Khóa hoặc Mở khóa tài khoản nhân viên
+ */
+export async function toggleStaffStatus(userId) {
+  const apiBaseUrl = getApiBaseUrl()
+  try {
+    const res = await fetch(`${apiBaseUrl}/api/auth/staff/${userId}/toggle-status`, {
+      method: 'PUT',
+      headers: getApiHeaders(),
+    })
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
+    return { success: true, data }
+  } catch (err) {
+    return { success: false, error: err.message }
+  }
+}
+
+/**
+ * Cập nhật vai trò tài khoản
+ */
+export async function updateStaffRole(userId, role) {
+  const apiBaseUrl = getApiBaseUrl()
+  try {
+    const res = await fetch(`${apiBaseUrl}/api/auth/staff/${userId}/role`, {
+      method: 'PUT',
+      headers: getApiHeaders(),
+      body: JSON.stringify({ role }),
+    })
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
+    return { success: true, data }
+  } catch (err) {
+    return { success: false, error: err.message }
+  }
+}
+
+/**
+ * Đặt lại mật khẩu tài khoản
+ */
+export async function resetStaffPassword(userId, password = '123456') {
+  const apiBaseUrl = getApiBaseUrl()
+  try {
+    const res = await fetch(`${apiBaseUrl}/api/auth/staff/${userId}/reset-password`, {
+      method: 'POST',
+      headers: getApiHeaders(),
+      body: JSON.stringify({ password }),
+    })
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
+    return { success: true, data }
+  } catch (err) {
+    return { success: false, error: err.message }
+  }
+}
+
+/**
+ * Lấy cài đặt hệ thống từ Database
+ */
+export async function fetchSystemSettings() {
+  const apiBaseUrl = getApiBaseUrl()
+  try {
+    const res = await fetch(`${apiBaseUrl}/api/admin/settings`, {
+      headers: getApiHeaders(),
+    })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const data = await res.json()
+    return { settings: data || {}, error: null }
+  } catch (err) {
+    console.warn('Lỗi fetchSystemSettings, fallback to localStorage:', err)
+    const local = localStorage.getItem('funi_system_settings')
+    return { settings: local ? JSON.parse(local) : {}, error: err.message }
+  }
+}
+
+/**
+ * Lưu cài đặt hệ thống vào Database & localStorage
+ */
+export async function saveSystemSettings(settings) {
+  const apiBaseUrl = getApiBaseUrl()
+  localStorage.setItem('funi_system_settings', JSON.stringify(settings))
+  try {
+    const res = await fetch(`${apiBaseUrl}/api/admin/settings`, {
+      method: 'POST',
+      headers: getApiHeaders(),
+      body: JSON.stringify(settings),
+    })
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
+    return { success: true, data }
+  } catch (err) {
+    return { success: true, data: { settings }, offline: true }
+  }
+}
+
+/**
+ * Lấy cấu hình ma trận phân quyền RBAC
+ */
+export async function fetchPermissionsMatrix() {
+  const apiBaseUrl = getApiBaseUrl()
+  try {
+    const res = await fetch(`${apiBaseUrl}/api/admin/permissions`, {
+      headers: getApiHeaders(),
+    })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const data = await res.json()
+    return { matrix: data || {}, error: null }
+  } catch (err) {
+    const local = localStorage.getItem('funi_permissions_matrix')
+    return { matrix: local ? JSON.parse(local) : {}, error: err.message }
+  }
+}
+
+/**
+ * Lưu cấu hình ma trận phân quyền RBAC
+ */
+export async function savePermissionsMatrix(matrix) {
+  const apiBaseUrl = getApiBaseUrl()
+  localStorage.setItem('funi_permissions_matrix', JSON.stringify(matrix))
+  try {
+    const res = await fetch(`${apiBaseUrl}/api/admin/permissions`, {
+      method: 'POST',
+      headers: getApiHeaders(),
+      body: JSON.stringify(matrix),
+    })
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
+    return { success: true, data }
+  } catch (err) {
+    return { success: true, offline: true }
   }
 }
 

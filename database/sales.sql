@@ -747,4 +747,6 @@ INSERT INTO users (id, username, password_hash, role) VALUES (36, 'khoiktvn123',
 INSERT INTO customers (id, user_id, full_name, email, phone, address) VALUES (23, 36, 'Nguyễn Duy Khôi', 'khoikontum05@gmail.com', '0376391659', '33 Bùi Đạt , tổ 4 phường Kon Tum , Quãng Ngãi');
 INSERT INTO orders (id, customer_id, order_date, status, total_amount, discount_amount) VALUES (43, 23, '2026-10-22 22:30:47', 'PENDING', 4074000, 0);
 INSERT INTO order_items (order_id, product_id, quantity, unit_price, amount) VALUES (43, 3, 1, 4200000, 4200000);
+INSERT INTO orders (id, customer_id, order_date, status, total_amount, discount_amount) VALUES (44, 21, '2026-10-27 10:09:41', 'PENDING', 30700000, 0);
+INSERT INTO order_items (order_id, product_id, quantity, unit_price, amount) VALUES (44, 5, 4, 7800000, 31200000);
 COMMIT;

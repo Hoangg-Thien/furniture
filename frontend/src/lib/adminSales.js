@@ -31,13 +31,13 @@ export async function fetchAdminOrders() {
     })
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
     const data = await res.json()
-    if (Array.isArray(data) && data.length > 0) {
+    if (Array.isArray(data)) {
       return { orders: data, error: null, isRealData: true }
     }
   } catch (err) {
-    console.warn('Backend /api/admin/orders offline, sử dụng dữ liệu mẫu dự phòng:', err)
+    console.warn('Backend /api/admin/orders error:', err)
   }
-  return { orders: MOCK_ORDERS, error: null, isRealData: false }
+  return { orders: [], error: null, isRealData: true }
 }
 
 /**
@@ -133,13 +133,13 @@ export async function fetchAdminInvoices() {
     })
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
     const data = await res.json()
-    if (Array.isArray(data) && data.length > 0) {
+    if (Array.isArray(data)) {
       return { invoices: data, error: null, isRealData: true }
     }
   } catch (err) {
-    console.warn('Backend /api/admin/invoices offline, sử dụng danh sách mẫu:', err)
+    console.warn('Backend /api/admin/invoices error:', err)
   }
-  return { invoices: MOCK_INVOICES, error: null, isRealData: false }
+  return { invoices: [], error: null, isRealData: true }
 }
 
 /**
@@ -192,13 +192,13 @@ export async function fetchAdminPromotions() {
     })
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
     const data = await res.json()
-    if (Array.isArray(data) && data.length > 0) {
+    if (Array.isArray(data)) {
       return { vouchers: data, error: null, isRealData: true }
     }
   } catch (err) {
-    console.warn('Backend /api/admin/promotions offline, sử dụng danh sách mẫu:', err)
+    console.warn('Backend /api/admin/promotions error:', err)
   }
-  return { vouchers: MOCK_VOUCHERS, error: null, isRealData: false }
+  return { vouchers: [], error: null, isRealData: true }
 }
 
 /**

@@ -134,6 +134,30 @@ public class OrderRepository {
                 orderId, productId, quantity, unitPrice, amount);
     }
 
+    public void deductProductStock(Long productId, Integer quantity) {
+        if (productId != null && quantity != null && quantity > 0) {
+            try {
+                jdbcTemplate.update(
+                        "UPDATE public.products SET quantity = GREATEST(0, quantity - ?) WHERE id = ?",
+                        quantity, productId);
+            } catch (Exception ex) {
+                System.err.println("Notice: could not deduct product stock: " + ex.getMessage());
+            }
+        }
+    }
+
+    public void restoreProductStock(Long productId, Integer quantity) {
+        if (productId != null && quantity != null && quantity > 0) {
+            try {
+                jdbcTemplate.update(
+                        "UPDATE public.products SET quantity = quantity + ? WHERE id = ?",
+                        quantity, productId);
+            } catch (Exception ex) {
+                System.err.println("Notice: could not restore product stock: " + ex.getMessage());
+            }
+        }
+    }
+
     public List<Map<String, Object>> findOrders(Long customerId) {
         String sql = """
                 SELECT o.id, o.customer_id, to_char(o.order_date, 'YYYY-MM-DD HH24:MI:SS') AS order_date,

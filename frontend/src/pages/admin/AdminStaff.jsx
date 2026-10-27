@@ -1,24 +1,30 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   ShieldCheck,
   Plus,
   Search,
   Lock,
   Unlock,
-  UserCheck,
-  UserX,
-  Mail,
-  Phone,
-  X,
   KeyRound,
   Check,
-  Layers,
   Users,
-  Building2,
-  CheckCircle2,
   Sliders,
+  RefreshCw,
+  Mail,
+  Phone,
+  MapPin,
+  X,
+  AlertCircle,
 } from 'lucide-react'
-import { MOCK_STAFF } from './adminMockData'
+import {
+  fetchAdminStaff,
+  createAdminStaff,
+  toggleStaffStatus,
+  updateStaffRole,
+  resetStaffPassword,
+  fetchPermissionsMatrix,
+  savePermissionsMatrix,
+} from '../../lib/admin'
 
 const PERMISSION_MODULES = [
   {
@@ -69,11 +75,33 @@ const PERMISSION_MODULES = [
   },
 ]
 
-export default function AdminStaff({ showToast, activeRole = 'ADMIN' }) {
-  const [activeTab, setActiveTab] = useState('STAFF') // 'STAFF' | 'PERMISSIONS'
-  const [staffList, setStaffList] = useState(MOCK_STAFF)
+function getRoleLabel(role) {
+  switch (role) {
+    case 'ADMIN':
+      return 'Tổng Quản Trị Viên'
+    case 'STAFF':
+      return 'Nhân Viên Nội Bộ'
+    case 'SALES':
+      return 'Nhân Viên Bán Hàng'
+    case 'WAREHOUSE':
+      return 'Thủ Kho'
+    case 'DISPATCHER':
+      return 'Điều Phối & Thợ Lắp'
+    default:
+      return role || 'Nhân Viên'
+  }
+}
+
+export default function AdminStaff({ showToast, activeRole = 'ADMIN', currentPath = '/admin/staff' }) {
+  const [activeTab, setActiveTab] = useState(
+    currentPath === '/admin/roles-permissions' ? 'PERMISSIONS' : 'STAFF'
+  )
+  const [staffList, setStaffList] = useState([])
+  const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [createModalOpen, setCreateModalOpen] = useState(false)
+  const [resetModalUser, setResetModalUser] = useState(null)
+  const [newPassword, setNewPassword] = useState('123456')
 
   // Permissions Matrix State: Map of permissionId -> Array of Roles
   const [matrixState, setMatrixState] = useState(() => {
@@ -88,58 +116,132 @@ export default function AdminStaff({ showToast, activeRole = 'ADMIN' }) {
 
   // Create Staff Form State
   const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('123456')
   const [fullName, setFullName] = useState('')
-  const [role, setRole] = useState('SALES')
-  const [roleLabel, setRoleLabel] = useState('Nhân viên Bán hàng')
+  const [role, setRole] = useState('STAFF')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
   const [branch, setBranch] = useState('Showroom Quận 7 - TP.HCM')
+  const [submitting, setSubmitting] = useState(false)
+
+  // Load Real Staff from Supabase Database
+  async function loadStaffData() {
+    setLoading(true)
+    const { staff } = await fetchAdminStaff()
+    if (Array.isArray(staff)) {
+      const formatted = staff.map((s) => ({
+        id: s.user_id || s.id,
+        username: s.username,
+        fullName: s.full_name || s.fullName || s.username,
+        role: s.role,
+        roleLabel: getRoleLabel(s.role),
+        email: s.email || `${s.username}@furniture.com`,
+        phone: s.phone || 'Chưa cập nhật',
+        branch: s.address || 'Showroom Quận 7',
+        status: s.is_active ? 'ACTIVE' : 'LOCKED',
+        createdAt: s.created_at,
+      }))
+      setStaffList(formatted)
+    } else {
+      setStaffList([])
+    }
+    setLoading(false)
+  }
+
+  // Load Saved Permissions Matrix
+  async function loadPermissions() {
+    const { matrix } = await fetchPermissionsMatrix()
+    if (matrix && Object.keys(matrix).length > 0) {
+      setMatrixState((prev) => ({
+        ...prev,
+        ...matrix,
+      }))
+    }
+  }
+
+  useEffect(() => {
+    loadStaffData()
+    loadPermissions()
+  }, [])
+
+  useEffect(() => {
+    if (currentPath === '/admin/roles-permissions') {
+      setActiveTab('PERMISSIONS')
+    }
+  }, [currentPath])
 
   const filteredStaff = staffList.filter(
     (s) =>
-      s.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      s.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      s.roleLabel.toLowerCase().includes(searchTerm.toLowerCase())
+      s.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      s.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      s.roleLabel?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      s.branch?.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
-  function handleToggleLock(id, currentStatus, name) {
+  async function handleToggleLock(id, currentStatus, name) {
     const nextStatus = currentStatus === 'ACTIVE' ? 'LOCKED' : 'ACTIVE'
-    setStaffList(
-      staffList.map((s) => (s.id === id ? { ...s, status: nextStatus } : s))
+    // Optimistic UI update
+    setStaffList((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, status: nextStatus } : s))
     )
-    showToast(`Đã ${nextStatus === 'LOCKED' ? 'khóa tài khoản' : 'mở khóa tài khoản'} của ${name}!`)
+
+    const res = await toggleStaffStatus(id)
+    if (res.success) {
+      showToast(`Đã ${nextStatus === 'LOCKED' ? 'khóa tài khoản' : 'mở khóa tài khoản'} của ${name}!`)
+    } else {
+      showToast(`Lỗi: ${res.error || 'Không thể đổi trạng thái tài khoản'}`, 'error')
+      loadStaffData()
+    }
   }
 
-  function handleCreateStaff(e) {
+  async function handleResetPassword(e) {
     e.preventDefault()
-    if (!username || !fullName) {
-      alert('Vui lòng nhập Username và Họ tên nhân viên!')
+    if (!resetModalUser) return
+    const res = await resetStaffPassword(resetModalUser.id, newPassword)
+    if (res.success) {
+      showToast(`Đã đặt lại mật khẩu cho tài khoản @${resetModalUser.username}!`)
+      setResetModalUser(null)
+      setNewPassword('123456')
+    } else {
+      showToast(`Lỗi reset mật khẩu: ${res.error}`, 'error')
+    }
+  }
+
+  async function handleCreateStaff(e) {
+    e.preventDefault()
+    if (!username.trim() || !fullName.trim()) {
+      showToast('Vui lòng nhập Username và Họ tên nhân viên!', 'error')
       return
     }
 
-    const newStaff = {
-      id: Date.now(),
+    setSubmitting(true)
+    const payload = {
       username: username.trim().toLowerCase(),
-      fullName,
-      role,
-      roleLabel,
-      branch,
-      email: email || `${username}@furnistore.vn`,
-      phone: phone || '0903889922',
-      status: 'ACTIVE',
-      lastLogin: new Date().toISOString(),
+      password: password.trim() || '123456',
+      fullName: fullName.trim(),
+      email: email.trim() || `${username.trim().toLowerCase()}@furniture.com`,
+      phone: phone.trim() || '0903889922',
+      address: branch.trim(),
+      role: role.trim(),
     }
 
-    setStaffList([...staffList, newStaff])
-    setCreateModalOpen(false)
-    setUsername('')
-    setFullName('')
-    setEmail('')
-    setPhone('')
-    showToast(`Đã thêm thành công nhân sự "${fullName}" với vai trò ${roleLabel}!`)
+    const res = await createAdminStaff(payload)
+    setSubmitting(false)
+
+    if (res.success) {
+      showToast(`Đã tạo thành công tài khoản "${fullName}" với vai trò ${getRoleLabel(role)}!`)
+      setCreateModalOpen(false)
+      setUsername('')
+      setPassword('123456')
+      setFullName('')
+      setEmail('')
+      setPhone('')
+      loadStaffData()
+    } else {
+      showToast(`Lỗi tạo nhân viên: ${res.error}`, 'error')
+    }
   }
 
-  // Toggle single cell in Permission Matrix
   function handleToggleMatrixCell(permId, targetRole) {
     setMatrixState((prev) => {
       const currentRoles = prev[permId] || []
@@ -155,8 +257,13 @@ export default function AdminStaff({ showToast, activeRole = 'ADMIN' }) {
     })
   }
 
-  function handleSaveMatrix() {
-    showToast('Đã lưu cấu hình ma trận phân quyền Role × Permission vào cơ sở dữ liệu!')
+  async function handleSaveMatrix() {
+    const res = await savePermissionsMatrix(matrixState)
+    if (res.success) {
+      showToast('Đã lưu cấu hình ma trận phân quyền Role × Permission vào cơ sở dữ liệu!')
+    } else {
+      showToast('Đã lưu vào bộ nhớ cục bộ!', 'info')
+    }
   }
 
   return (
@@ -164,26 +271,34 @@ export default function AdminStaff({ showToast, activeRole = 'ADMIN' }) {
       {/* Page Header */}
       <div className="admin-page-hero">
         <div>
-          <h1 className="admin-page-title">Quản Lý Nhân Sự & Phân Quyền Vai Trò</h1>
+          <h1 className="admin-page-title">Quản Lý Tài Khoản & Phân Quyền (RBAC)</h1>
           <p className="admin-page-subtitle">
-            Cấp quyền tài khoản, phân quyền ma trận 2 chiều (Role × Function) và kiểm soát an toàn bảo mật dữ liệu doanh nghiệp.
+            Cấp tài khoản nhân sự từ cơ sở dữ liệu Supabase, phân quyền chức năng 2 chiều (Role × Function) và kiểm soát an toàn bảo mật.
           </p>
         </div>
 
         <div className="admin-hero-actions">
-          {(activeRole === 'ADMIN') && (
+          <button
+            type="button"
+            className="admin-btn admin-btn-secondary"
+            onClick={loadStaffData}
+            title="Làm mới dữ liệu từ Database"
+          >
+            <RefreshCw size={15} className={loading ? 'admin-spin' : ''} /> Làm mới
+          </button>
+          {activeRole === 'ADMIN' && (
             <button
               type="button"
               className="admin-btn admin-btn-primary"
               onClick={() => setCreateModalOpen(true)}
             >
-              <Plus size={16} /> Thêm Nhân Viên Mới
+              <Plus size={16} /> Cấp Tài Khoản Mới
             </button>
           )}
         </div>
       </div>
 
-      {/* Main Tab Toggle: Danh Sách Nhân Viên vs Ma Trận Phân Quyền */}
+      {/* Main Tab Toggle */}
       <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
         <button
           type="button"
@@ -191,7 +306,7 @@ export default function AdminStaff({ showToast, activeRole = 'ADMIN' }) {
           onClick={() => setActiveTab('STAFF')}
         >
           <Users size={15} />
-          <span>Danh Sách Nhân Viên & Đội Thợ</span>
+          <span>Danh Sách Nhân Viên & Ban Quản Trị</span>
           <span className="admin-status-tab-badge">{staffList.length}</span>
         </button>
 
@@ -209,118 +324,158 @@ export default function AdminStaff({ showToast, activeRole = 'ADMIN' }) {
       {activeTab === 'STAFF' && (
         <div className="admin-panel">
           <div className="admin-panel-header">
-            <div className="admin-table-filters" style={{ width: '100%', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, maxWidth: '400px' }}>
+            <div className="admin-table-filters" style={{ width: '100%', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: '280px', maxWidth: '420px' }}>
                 <Search size={16} style={{ color: 'var(--admin-text-dim)' }} />
                 <input
                   type="text"
                   className="admin-filter-input"
                   style={{ width: '100%' }}
-                  placeholder="Tìm theo tên nhân viên, username, chức vụ..."
+                  placeholder="Tìm theo tên, username, chức vụ, chi nhánh..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
 
               <div style={{ fontSize: '13px', color: 'var(--admin-text-dim)' }}>
-                Đang hoạt động: <strong>{staffList.filter((s) => s.status === 'ACTIVE').length}</strong> / {staffList.length} nhân sự
+                Đang hoạt động:{' '}
+                <strong style={{ color: '#16A34A' }}>
+                  {staffList.filter((s) => s.status === 'ACTIVE').length}
+                </strong>{' '}
+                / {staffList.length} tài khoản
               </div>
             </div>
           </div>
 
           <div className="admin-table-container">
-            <table className="admin-data-table">
-              <thead>
-                <tr>
-                  <th>Nhân Viên</th>
-                  <th>Tài Khoản (Username)</th>
-                  <th>Vai Trò Phân Quyền</th>
-                  <th>Chi Nhánh / Kho Phụ Trách</th>
-                  <th>Số Điện Thoại</th>
-                  <th className="text-center">Trạng Thái</th>
-                  <th className="text-center">Thao Tác Bảo Mật</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredStaff.map((s) => {
-                  const isActive = s.status === 'ACTIVE'
+            {loading ? (
+              <div style={{ padding: '48px', textAlign: 'center', color: 'var(--admin-text-dim)' }}>
+                <RefreshCw size={24} className="admin-spin" style={{ margin: '0 auto 12px' }} />
+                <div>Đang tải danh sách tài khoản từ Supabase...</div>
+              </div>
+            ) : filteredStaff.length === 0 ? (
+              <div style={{ padding: '48px 24px', textAlign: 'center', color: 'var(--admin-text-dim)' }}>
+                <AlertCircle size={32} style={{ margin: '0 auto 12px', opacity: 0.5 }} />
+                <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--admin-text-main)' }}>
+                  {searchTerm ? 'Không tìm thấy tài khoản phù hợp' : 'Chưa có tài khoản nhân sự nào trong Database'}
+                </div>
+                <p style={{ fontSize: '13px', marginTop: '6px' }}>
+                  {searchTerm ? 'Vui lòng thử từ khóa tìm kiếm khác.' : 'Bấm nút "Cấp Tài Khoản Mới" để tạo tài khoản nhân viên.'}
+                </p>
+              </div>
+            ) : (
+              <table className="admin-data-table">
+                <thead>
+                  <tr>
+                    <th>Nhân Sự</th>
+                    <th>Tài Khoản (Username)</th>
+                    <th>Vai Trò Phân Quyền</th>
+                    <th>Chi Nhánh / Địa Chỉ</th>
+                    <th>Số Điện Thoại</th>
+                    <th className="text-center">Trạng Thái</th>
+                    <th className="text-center">Bảo Mật & Thao Tác</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredStaff.map((s) => {
+                    const isActive = s.status === 'ACTIVE'
+                    const isAdmin = s.role === 'ADMIN'
 
-                  return (
-                    <tr key={s.id}>
-                      <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          <div
-                            style={{
-                              width: '36px',
-                              height: '36px',
-                              borderRadius: '50%',
-                              background: 'linear-gradient(135deg, #8B5E3C 0%, #5E3F28 100%)',
-                              color: '#FFF',
-                              fontWeight: 700,
-                              fontSize: '13px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                            }}
-                          >
-                            {s.fullName.slice(0, 2).toUpperCase()}
+                    return (
+                      <tr key={s.id}>
+                        <td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <div
+                              style={{
+                                width: '38px',
+                                height: '38px',
+                                borderRadius: '50%',
+                                background: isAdmin
+                                  ? 'linear-gradient(135deg, #B45309 0%, #78350F 100%)'
+                                  : 'linear-gradient(135deg, #8B5E3C 0%, #5E3F28 100%)',
+                                color: '#FFF',
+                                fontWeight: 700,
+                                fontSize: '13px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                flexShrink: 0,
+                              }}
+                            >
+                              {(s.fullName || s.username).slice(0, 2).toUpperCase()}
+                            </div>
+                            <div>
+                              <div style={{ fontWeight: 600, color: 'var(--admin-text-main)' }}>
+                                {s.fullName}
+                              </div>
+                              <div style={{ fontSize: '11.5px', color: 'var(--admin-text-muted)' }}>
+                                {s.email}
+                              </div>
+                            </div>
                           </div>
-                          <div>
-                            <div style={{ fontWeight: 600, color: 'var(--admin-text-main)' }}>{s.fullName}</div>
-                            <div style={{ fontSize: '11.5px', color: 'var(--admin-text-muted)' }}>{s.email}</div>
+                        </td>
+
+                        <td>
+                          <code style={{ fontWeight: 700, color: 'var(--admin-primary)', background: 'var(--admin-card-bg)', padding: '2px 6px', borderRadius: '4px' }}>
+                            @{s.username}
+                          </code>
+                        </td>
+
+                        <td>
+                          <span className={`admin-status-badge ${isAdmin ? 'warning' : 'info'}`} style={{ fontSize: '12px' }}>
+                            <ShieldCheck size={12} style={{ marginRight: '4px' }} />
+                            {s.roleLabel}
+                          </span>
+                        </td>
+
+                        <td>
+                          <span style={{ fontSize: '12.5px', color: 'var(--admin-text-main)' }}>
+                            {s.branch}
+                          </span>
+                        </td>
+
+                        <td>
+                          <div style={{ fontSize: '12.5px', color: 'var(--admin-text-main)' }}>{s.phone}</div>
+                        </td>
+
+                        <td className="text-center">
+                          <span className={`admin-status-badge ${isActive ? 'success' : 'danger'}`}>
+                            <span className="dot" />
+                            {isActive ? 'Hoạt động' : 'Đã khóa'}
+                          </span>
+                        </td>
+
+                        <td className="text-center">
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                            <button
+                              type="button"
+                              className={`admin-btn ${isActive ? 'admin-btn-danger' : 'admin-btn-secondary'}`}
+                              style={{ padding: '5px 10px', fontSize: '11.5px' }}
+                              onClick={() => handleToggleLock(s.id, s.status, s.fullName)}
+                              title={isActive ? 'Khóa tài khoản này' : 'Mở khóa tài khoản'}
+                            >
+                              {isActive ? <Lock size={12} /> : <Unlock size={12} />}
+                              <span>{isActive ? 'Khóa' : 'Mở'}</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              className="admin-btn admin-btn-secondary"
+                              style={{ padding: '5px 10px', fontSize: '11.5px' }}
+                              onClick={() => setResetModalUser(s)}
+                              title="Đặt lại mật khẩu cho tài khoản này"
+                            >
+                              <KeyRound size={12} />
+                              <span>Reset MK</span>
+                            </button>
                           </div>
-                        </div>
-                      </td>
-
-                      <td>
-                        <code style={{ fontWeight: 700, color: 'var(--admin-primary)' }}>
-                          @{s.username}
-                        </code>
-                      </td>
-
-                      <td>
-                        <span className="admin-status-badge info" style={{ fontSize: '11.5px' }}>
-                          <ShieldCheck size={12} style={{ marginRight: '3px' }} />
-                          {s.roleLabel}
-                        </span>
-                      </td>
-
-                      <td>
-                        <span style={{ fontSize: '12.5px' }}>{s.branch || 'Showroom Quận 7'}</span>
-                      </td>
-
-                      <td>
-                        <div style={{ fontSize: '12.5px', color: 'var(--admin-text-main)' }}>{s.phone}</div>
-                      </td>
-
-                      <td className="text-center">
-                        <span
-                          className={`admin-status-badge ${isActive ? 'success' : 'danger'}`}
-                        >
-                          <span className="dot" />
-                          {isActive ? 'Hoạt động' : 'Đã khóa'}
-                        </span>
-                      </td>
-
-                      <td className="text-center">
-                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                          <button
-                            type="button"
-                            className={`admin-btn ${isActive ? 'admin-btn-danger' : 'admin-btn-secondary'}`}
-                            style={{ padding: '4px 10px', fontSize: '11.5px' }}
-                            onClick={() => handleToggleLock(s.id, s.status, s.fullName)}
-                            title={isActive ? 'Khóa tài khoản này' : 'Mở khóa tài khoản'}
-                          >
-                            {isActive ? <Lock size={12} /> : <Unlock size={12} />}
-                            <span>{isActive ? 'Khóa' : 'Mở Khóa'}</span>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            )}
           </div>
         </div>
       )}
@@ -344,7 +499,7 @@ export default function AdminStaff({ showToast, activeRole = 'ADMIN' }) {
               className="admin-btn admin-btn-primary"
               onClick={handleSaveMatrix}
             >
-              <Check size={15} /> Lưu Thay Đổi Phân Quyền
+              <Check size={15} /> Lưu Cấu Hình Phân Quyền
             </button>
           </div>
 
@@ -355,19 +510,19 @@ export default function AdminStaff({ showToast, activeRole = 'ADMIN' }) {
                   <th style={{ width: '40%' }}>Chức Năng & Quyền Thao Tác</th>
                   <th className="text-center" style={{ width: '15%' }}>
                     <div style={{ fontWeight: 700, color: 'var(--admin-primary)' }}>ADMIN</div>
-                    <div style={{ fontSize: '10.5px', textTransform: 'none', color: 'var(--admin-text-dim)' }}>Quản trị tối cao</div>
+                    <div style={{ fontSize: '10.5px', textTransform: 'none', color: 'var(--admin-text-dim)' }}>Tổng Quản Trị</div>
                   </th>
                   <th className="text-center" style={{ width: '15%' }}>
                     <div style={{ fontWeight: 700, color: '#2563EB' }}>SALES</div>
-                    <div style={{ fontSize: '10.5px', textTransform: 'none', color: 'var(--admin-text-dim)' }}>NV Bán hàng</div>
+                    <div style={{ fontSize: '10.5px', textTransform: 'none', color: 'var(--admin-text-dim)' }}>NV Bán Hàng</div>
                   </th>
                   <th className="text-center" style={{ width: '15%' }}>
                     <div style={{ fontWeight: 700, color: '#D97706' }}>WAREHOUSE</div>
-                    <div style={{ fontSize: '10.5px', textTransform: 'none', color: 'var(--admin-text-dim)' }}>Thủ kho</div>
+                    <div style={{ fontSize: '10.5px', textTransform: 'none', color: 'var(--admin-text-dim)' }}>Thủ Kho</div>
                   </th>
                   <th className="text-center" style={{ width: '15%' }}>
                     <div style={{ fontWeight: 700, color: '#5B6E4E' }}>DISPATCHER</div>
-                    <div style={{ fontSize: '10.5px', textTransform: 'none', color: 'var(--admin-text-dim)' }}>Điều phối giao lắp</div>
+                    <div style={{ fontSize: '10.5px', textTransform: 'none', color: 'var(--admin-text-dim)' }}>Điều Phối Giao Lắp</div>
                   </th>
                 </tr>
               </thead>
@@ -375,7 +530,7 @@ export default function AdminStaff({ showToast, activeRole = 'ADMIN' }) {
                 {PERMISSION_MODULES.map((module, mIdx) => (
                   <React.Fragment key={mIdx}>
                     <tr style={{ background: 'var(--admin-bg)' }}>
-                      <td colSpan="5" style={{ fontWeight: 700, fontSize: '12px', color: 'var(--admin-primary)', padding: '8px 18px', textTransform: 'uppercase' }}>
+                      <td colSpan="5" style={{ fontWeight: 700, fontSize: '12px', color: 'var(--admin-primary)', padding: '10px 18px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                         {module.category}
                       </td>
                     </tr>
@@ -399,18 +554,19 @@ export default function AdminStaff({ showToast, activeRole = 'ADMIN' }) {
                             const isAdminSupreme = roleKey === 'ADMIN'
 
                             return (
-                              <td key={roleKey} className="text-center">
+                              <td key={roleKey} className="text-center" style={{ verticalAlign: 'middle' }}>
                                 <input
                                   type="checkbox"
                                   checked={isChecked}
-                                  disabled={isAdminSupreme} // Admin always has full access
+                                  disabled={isAdminSupreme}
                                   onChange={() => handleToggleMatrixCell(perm.id, roleKey)}
                                   style={{
-                                    width: '16px',
-                                    height: '16px',
-                                    cursor: isAdminSupreme ? 'not-allowed' : 'pointer',
+                                    width: '18px',
+                                    height: '18px',
                                     accentColor: 'var(--admin-primary)',
+                                    cursor: isAdminSupreme ? 'not-allowed' : 'pointer',
                                   }}
+                                  title={isAdminSupreme ? 'ADMIN mặc định toàn quyền tối cao' : `Cấp quyền ${perm.id} cho ${roleKey}`}
                                 />
                               </td>
                             )
@@ -426,100 +582,174 @@ export default function AdminStaff({ showToast, activeRole = 'ADMIN' }) {
         </div>
       )}
 
-      {/* Modal: Create Staff */}
+      {/* MODAL 1: CREATE STAFF ACCOUNT */}
       {createModalOpen && (
         <div className="admin-modal-backdrop" onClick={() => setCreateModalOpen(false)}>
-          <div className="admin-modal-card" style={{ maxWidth: '600px' }} onClick={(e) => e.stopPropagation()}>
+          <div className="admin-modal" style={{ maxWidth: '520px' }} onClick={(e) => e.stopPropagation()}>
             <div className="admin-modal-header">
-              <h3 className="admin-modal-title">Cấp Tài Khoản Nhân Viên Mới</h3>
-              <button className="admin-modal-close" onClick={() => setCreateModalOpen(false)}>
+              <h2 className="admin-modal-title">Cấp Tài Khoản Nhân Viên / Quản Trị Mới</h2>
+              <button
+                type="button"
+                className="admin-modal-close"
+                onClick={() => setCreateModalOpen(false)}
+              >
                 <X size={18} />
               </button>
             </div>
+
             <form onSubmit={handleCreateStaff}>
-              <div className="admin-modal-body">
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-                  <div className="admin-form-group">
-                    <label>Họ Và Tên Nhân Viên *</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="VD: Lê Thị Kim Thoa"
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
-                    />
-                  </div>
-                  <div className="admin-form-group">
-                    <label>Tên Đăng Nhập (Username) *</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="VD: thoa.le"
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                    />
+              <div className="admin-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <div>
+                  <label className="admin-form-label">Tên Đăng Nhập (Username) *</label>
+                  <input
+                    type="text"
+                    required
+                    className="admin-form-input"
+                    placeholder="ví dụ: hung_sales, loan_kho..."
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                  />
+                  <div style={{ fontSize: '11px', color: 'var(--admin-text-dim)', marginTop: '3px' }}>
+                    Tên đăng nhập viết liền không dấu, dùng để đăng nhập hệ thống nội bộ.
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-                  <div className="admin-form-group">
-                    <label>Vai Trò Phân Quyền (Role) *</label>
-                    <select
-                      value={role}
-                      onChange={(e) => {
-                        const val = e.target.value
-                        setRole(val)
-                        if (val === 'SALES') setRoleLabel('Nhân viên Bán hàng')
-                        else if (val === 'WAREHOUSE') setRoleLabel('Thủ kho Nội thất')
-                        else if (val === 'DISPATCHER') setRoleLabel('Điều phối Giao lắp')
-                        else setRoleLabel('Quản trị viên')
-                      }}
-                    >
-                      <option value="SALES">Nhân viên Bán hàng (Sales)</option>
-                      <option value="WAREHOUSE">Thủ kho Nội thất (Warehouse)</option>
-                      <option value="DISPATCHER">Điều phối Giao & Lắp (Dispatcher)</option>
-                      <option value="ADMIN">Tổng Quản trị viên (Admin)</option>
-                    </select>
-                  </div>
-
-                  <div className="admin-form-group">
-                    <label>Chi Nhánh / Showroom Trực Thuộc</label>
-                    <input
-                      type="text"
-                      value={branch}
-                      onChange={(e) => setBranch(e.target.value)}
-                    />
-                  </div>
+                <div>
+                  <label className="admin-form-label">Mật Khẩu Khởi Tạo *</label>
+                  <input
+                    type="text"
+                    required
+                    className="admin-form-input"
+                    placeholder="Mặc định: 123456"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-                  <div className="admin-form-group">
-                    <label>Số Điện Thoại</label>
-                    <input
-                      type="text"
-                      placeholder="0918..."
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                    />
-                  </div>
-                  <div className="admin-form-group">
-                    <label>Email Công Việc</label>
+                <div>
+                  <label className="admin-form-label">Họ và Tên Nhân Viên *</label>
+                  <input
+                    type="text"
+                    required
+                    className="admin-form-input"
+                    placeholder="ví dụ: Nguyễn Hoàng Long"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <label className="admin-form-label">Vai Trò Phân Quyền *</label>
+                  <select
+                    className="admin-form-input"
+                    value={role}
+                    onChange={(e) => setRole(e.target.value)}
+                  >
+                    <option value="STAFF">Nhân Viên Nội Bộ (STAFF)</option>
+                    <option value="ADMIN">Tổng Quản Trị Viên (ADMIN)</option>
+                  </select>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label className="admin-form-label">Email Công Vụ</label>
                     <input
                       type="email"
-                      placeholder="thoa.le@furnistore.vn"
+                      className="admin-form-input"
+                      placeholder="nhanvien@furniture.com"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                     />
                   </div>
+                  <div>
+                    <label className="admin-form-label">Số Điện Thoại</label>
+                    <input
+                      type="text"
+                      className="admin-form-input"
+                      placeholder="0901xxxxxx"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="admin-form-label">Chi Nhánh / Kho Phụ Trách</label>
+                  <input
+                    type="text"
+                    className="admin-form-input"
+                    placeholder="ví dụ: Showroom Quận 7, Kho Bình Tân..."
+                    value={branch}
+                    onChange={(e) => setBranch(e.target.value)}
+                  />
                 </div>
               </div>
 
               <div className="admin-modal-footer">
-                <button type="button" className="admin-btn admin-btn-secondary" onClick={() => setCreateModalOpen(false)}>
+                <button
+                  type="button"
+                  className="admin-btn admin-btn-secondary"
+                  onClick={() => setCreateModalOpen(false)}
+                >
                   Hủy Bỏ
                 </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="admin-btn admin-btn-primary"
+                >
+                  {submitting ? 'Đang tạo...' : 'Tạo Tài Khoản'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 2: RESET PASSWORD */}
+      {resetModalUser && (
+        <div className="admin-modal-backdrop" onClick={() => setResetModalUser(null)}>
+          <div className="admin-modal" style={{ maxWidth: '440px' }} onClick={(e) => e.stopPropagation()}>
+            <div className="admin-modal-header">
+              <h2 className="admin-modal-title">Đặt Lại Mật Khẩu Tài Khoản</h2>
+              <button
+                type="button"
+                className="admin-modal-close"
+                onClick={() => setResetModalUser(null)}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleResetPassword}>
+              <div className="admin-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <div style={{ fontSize: '13.5px', color: 'var(--admin-text-main)' }}>
+                  Bạn đang đặt lại mật khẩu cho nhân sự: <strong>{resetModalUser.fullName}</strong> (<code>@{resetModalUser.username}</code>)
+                </div>
+
+                <div>
+                  <label className="admin-form-label">Mật khẩu mới</label>
+                  <input
+                    type="text"
+                    required
+                    className="admin-form-input"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Nhập mật khẩu mới..."
+                  />
+                </div>
+              </div>
+
+              <div className="admin-modal-footer">
+                <button
+                  type="button"
+                  className="admin-btn admin-btn-secondary"
+                  onClick={() => setResetModalUser(null)}
+                >
+                  Hủy
+                </button>
                 <button type="submit" className="admin-btn admin-btn-primary">
-                  Cấp Quyền & Tạo Tài Khoản
+                  Xác Nhận Đổi Mật Khẩu
                 </button>
               </div>
             </form>

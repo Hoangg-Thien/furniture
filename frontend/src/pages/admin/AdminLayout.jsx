@@ -29,8 +29,8 @@ import AdminStaff from './AdminStaff'
 import AdminSuppliers from './AdminSuppliers'
 import AdminReviews from './AdminReviews'
 import AdminReports from './AdminReports'
+import AdminSettings from './AdminSettings'
 import AdminSidebar, { ADMIN_NAV_SECTIONS } from './AdminSidebar'
-import { MOCK_ORDERS, MOCK_PRODUCTS, MOCK_CUSTOMERS } from './adminMockData'
 import { getAdminUser, logoutAdminUser } from '../../lib/auth'
 
 const ROLES_INFO = {
@@ -167,24 +167,9 @@ export default function AdminLayout({ currentPath, onNavigate, currentUser: prop
 
   // Search results calculation
   const searchResults = {
-    orders: MOCK_ORDERS.filter(
-      (o) =>
-        globalSearchTerm &&
-        (o.orderCode.toLowerCase().includes(globalSearchTerm.toLowerCase()) ||
-          o.customerName.toLowerCase().includes(globalSearchTerm.toLowerCase()))
-    ).slice(0, 3),
-    products: MOCK_PRODUCTS.filter(
-      (p) =>
-        globalSearchTerm &&
-        (p.name.toLowerCase().includes(globalSearchTerm.toLowerCase()) ||
-          p.code.toLowerCase().includes(globalSearchTerm.toLowerCase()))
-    ).slice(0, 3),
-    customers: MOCK_CUSTOMERS.filter(
-      (c) =>
-        globalSearchTerm &&
-        (c.name.toLowerCase().includes(globalSearchTerm.toLowerCase()) ||
-          c.phone.includes(globalSearchTerm))
-    ).slice(0, 3),
+    orders: [],
+    products: [],
+    customers: [],
   }
 
   const hasAnyResults =
@@ -229,7 +214,15 @@ export default function AdminLayout({ currentPath, onNavigate, currentUser: prop
         return <AdminCustomers showToast={showToast} activeRole={activeRole} />
       case '/admin/staff':
       case '/admin/roles-permissions':
-        return <AdminStaff showToast={showToast} activeRole={activeRole} />
+        return (
+          <AdminStaff
+            showToast={showToast}
+            activeRole={activeRole}
+            currentPath={currentPath}
+          />
+        )
+      case '/admin/settings':
+        return <AdminSettings showToast={showToast} activeRole={activeRole} />
       case '/admin/suppliers':
         return <AdminSuppliers showToast={showToast} activeRole={activeRole} />
       case '/admin/reviews':

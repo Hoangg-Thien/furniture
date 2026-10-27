@@ -60,13 +60,15 @@ public class DashboardRepository {
         String curSql = "SELECT COALESCE(SUM(total_amount), 0) AS rev, COUNT(*) AS ords " +
                 "FROM public.orders WHERE status != 'CANCELLED' AND " + currentWhere;
         Map<String, Object> curMap = jdbcTemplate.queryForMap(curSql);
-        BigDecimal currentRev = curMap.get("rev") != null ? new BigDecimal(curMap.get("rev").toString()) : BigDecimal.ZERO;
+        BigDecimal currentRev = curMap.get("rev") != null ? new BigDecimal(curMap.get("rev").toString())
+                : BigDecimal.ZERO;
         long currentOrds = curMap.get("ords") != null ? ((Number) curMap.get("ords")).longValue() : 0L;
 
         String prevSql = "SELECT COALESCE(SUM(total_amount), 0) AS rev, COUNT(*) AS ords " +
                 "FROM public.orders WHERE status != 'CANCELLED' AND " + prevWhere;
         Map<String, Object> prevMap = jdbcTemplate.queryForMap(prevSql);
-        BigDecimal prevRev = prevMap.get("rev") != null ? new BigDecimal(prevMap.get("rev").toString()) : BigDecimal.ZERO;
+        BigDecimal prevRev = prevMap.get("rev") != null ? new BigDecimal(prevMap.get("rev").toString())
+                : BigDecimal.ZERO;
         long prevOrds = prevMap.get("ords") != null ? ((Number) prevMap.get("ords")).longValue() : 0L;
 
         result.put("currentRevenue", currentRev);
@@ -87,7 +89,7 @@ public class DashboardRepository {
                     )::timestamp AS m_start
                 ),
                 monthly_orders AS (
-                    SELECT 
+                    SELECT
                         date_trunc('month', o.order_date)::timestamp AS m_start,
                         COALESCE(SUM(o.total_amount), 0) AS rev
                     FROM public.orders o
@@ -95,14 +97,14 @@ public class DashboardRepository {
                     GROUP BY date_trunc('month', o.order_date)
                 ),
                 monthly_costs AS (
-                    SELECT 
+                    SELECT
                         date_trunc('month', pr.receipt_date)::timestamp AS m_start,
                         COALESCE(SUM(pr.total_amount), 0) AS cogs
                     FROM public.purchase_receipts pr
                     WHERE pr.status != 'CANCELLED'
                     GROUP BY date_trunc('month', pr.receipt_date)
                 )
-                SELECT 
+                SELECT
                     to_char(m.m_start, 'YYYY-MM') AS month_key,
                     'Tháng ' || to_char(m.m_start, 'FMMM') AS month_label,
                     COALESCE(mo.rev, 0) AS revenue,
@@ -119,10 +121,13 @@ public class DashboardRepository {
             BigDecimal rev = rs.getBigDecimal("revenue");
             BigDecimal cost = rs.getBigDecimal("cost");
 
-            if (rev == null) rev = BigDecimal.ZERO;
-            if (cost == null) cost = BigDecimal.ZERO;
+            if (rev == null)
+                rev = BigDecimal.ZERO;
+            if (cost == null)
+                cost = BigDecimal.ZERO;
 
-            // Nếu tháng đó có doanh thu nhưng chưa có phiếu nhập kho, ước tính giá vốn 58% doanh thu
+            // Nếu tháng đó có doanh thu nhưng chưa có phiếu nhập kho, ước tính giá vốn 58%
+            // doanh thu
             if (cost.compareTo(BigDecimal.ZERO) == 0 && rev.compareTo(BigDecimal.ZERO) > 0) {
                 cost = rev.multiply(new BigDecimal("0.58")).setScale(0, RoundingMode.HALF_UP);
             }
@@ -139,7 +144,7 @@ public class DashboardRepository {
 
     public List<CategoryShareDto> getCategoryShare() {
         String sql = """
-                SELECT 
+                SELECT
                     COALESCE(c.name, 'Nội thất khác') AS category,
                     COALESCE(SUM(oi.amount), 0) AS revenue,
                     COALESCE(SUM(oi.quantity), 0) AS count
@@ -162,7 +167,7 @@ public class DashboardRepository {
         // Nếu chưa có đơn hàng nào, lấy theo danh mục sản phẩm đang bày bán
         if (list.isEmpty()) {
             String fallbackSql = """
-                    SELECT 
+                    SELECT
                         c.name AS category,
                         COALESCE(SUM(p.selling_price), 0) AS revenue,
                         COUNT(p.id) AS count
@@ -199,7 +204,7 @@ public class DashboardRepository {
 
     public List<RecentOrderDto> getRecentOrders(int limit) {
         String sql = """
-                SELECT 
+                SELECT
                     o.id,
                     o.customer_id,
                     to_char(o.order_date, 'YYYY-MM-DD HH24:MI:SS') AS order_date,
@@ -255,8 +260,7 @@ public class DashboardRepository {
                     paymentStatus,
                     deliveryStatus,
                     staff,
-                    orderDate != null ? orderDate : ""
-            );
+                    orderDate != null ? orderDate : "");
         }, limit);
     }
 
@@ -264,11 +268,17 @@ public class DashboardRepository {
         String sql = """
                 SELECT 
                     p.id,
-                    'FURN-' || UPPER(SUBSTRING(COALESCE(c.name, 'GEN'), 1, 4)) || '-' || LPAD(p.id::text, 2, '0') AS code,
+                    'FURN-SP-' || LPAD(p.id::text, 3, '0') AS code,
                     p.name,
                     COALESCE(c.name, 'Nội thất') AS category,
                     COALESCE(p.description, '') AS description,
-                    ROUND(p.selling_price * 0.65, -2) AS cost_price,
+                    COALESCE(
+                        (SELECT pri.unit_cost 
+                         FROM public.purchase_receipt_items pri 
+                         WHERE pri.product_id = p.id 
+                         ORDER BY pri.purchase_receipt_id DESC LIMIT 1),
+                        ROUND(p.selling_price * 0.60, -2)
+                    ) AS cost_price,
                     p.selling_price AS base_price,
                     p.quantity AS total_stock,
                     p.unit,
@@ -276,6 +286,7 @@ public class DashboardRepository {
                 FROM public.products p
                 LEFT JOIN public.categories c ON c.id = p.category_id
                 WHERE COALESCE(p.is_active, TRUE) = TRUE
+                  AND p.quantity <= 15
                 ORDER BY p.quantity ASC, p.id ASC
                 LIMIT ?
                 """;
@@ -290,7 +301,6 @@ public class DashboardRepository {
                 rs.getBigDecimal("base_price"),
                 rs.getInt("total_stock"),
                 rs.getString("unit"),
-                rs.getString("image_url")
-        ), limit);
+                rs.getString("image_url")), limit);
     }
 }

@@ -18,5 +18,9 @@ public class ProductService {
     public List<ProductResponse> getAllProducts() {
         return productRepository.findAllActiveProducts();
     }
+
+    public boolean updateStock(Long productId, int quantity) {
+        return productRepository.updateStock(productId, quantity) > 0;
+    }
 }
 

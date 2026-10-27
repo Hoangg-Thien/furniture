@@ -33,5 +33,21 @@ public class ProductController {
             return ResponseEntity.status(500).body(Map.of("error", e.getMessage(), "type", e.getClass().getName()));
         }
     }
+
+    @org.springframework.web.bind.annotation.PutMapping("/{id}/stock")
+    public ResponseEntity<?> updateStock(
+            @org.springframework.web.bind.annotation.PathVariable Long id,
+            @org.springframework.web.bind.annotation.RequestBody Map<String, Integer> body) {
+        try {
+            Integer quantity = body.get("quantity");
+            if (quantity == null || quantity < 0) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Số lượng tồn kho không hợp lệ"));
+            }
+            boolean success = productService.updateStock(id, quantity);
+            return ResponseEntity.ok(Map.of("success", success, "productId", id, "newStock", quantity));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
+        }
+    }
 }
 

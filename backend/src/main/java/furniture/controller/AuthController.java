@@ -123,6 +123,63 @@ public class AuthController {
         return authService.getAllCustomers();
     }
 
+    @GetMapping("/staff")
+    public List<Map<String, Object>> getAllStaff() {
+        return authService.getAllStaff();
+    }
+
+    @PostMapping("/staff")
+    public ResponseEntity<?> createStaff(@RequestBody Map<String, String> req) {
+        try {
+            Map<String, Object> result = authService.createStaff(req);
+            return ResponseEntity.status(HttpStatus.CREATED).body(result);
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Lỗi tạo tài khoản nhân sự: " + ex.getMessage()));
+        }
+    }
+
+    @PutMapping("/staff/{userId}/toggle-status")
+    public ResponseEntity<?> toggleStaffStatus(@PathVariable Long userId) {
+        try {
+            boolean active = authService.toggleUserStatus(userId);
+            return ResponseEntity.ok(Map.of(
+                    "userId", userId,
+                    "isActive", active,
+                    "message", active ? "Đã mở khóa tài khoản" : "Đã khóa tài khoản"));
+        } catch (Exception ex) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Lỗi thay đổi trạng thái tài khoản: " + ex.getMessage()));
+        }
+    }
+
+    @PutMapping("/staff/{userId}/role")
+    public ResponseEntity<?> updateStaffRole(@PathVariable Long userId, @RequestBody Map<String, String> body) {
+        try {
+            String role = body.get("role");
+            authService.updateUserRole(userId, role);
+            return ResponseEntity.ok(Map.of("userId", userId, "role", role, "message", "Cập nhật vai trò thành công!"));
+        } catch (Exception ex) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Lỗi cập nhật vai trò: " + ex.getMessage()));
+        }
+    }
+
+    @PostMapping("/staff/{userId}/reset-password")
+    public ResponseEntity<?> resetStaffPassword(@PathVariable Long userId, @RequestBody(required = false) Map<String, String> body) {
+        try {
+            String pass = (body != null && body.containsKey("password")) ? body.get("password") : "123456";
+            authService.resetUserPassword(userId, pass);
+            return ResponseEntity.ok(Map.of("userId", userId, "message", "Mật khẩu đã được thiết lập lại thành công!"));
+        } catch (Exception ex) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Lỗi reset mật khẩu: " + ex.getMessage()));
+        }
+    }
+
     @GetMapping("/init-admin")
     public ResponseEntity<?> initAdmin() {
         try {

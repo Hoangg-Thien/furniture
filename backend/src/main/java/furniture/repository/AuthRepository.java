@@ -243,4 +243,105 @@ public class AuthRepository {
                         Map.of("username", "admin01", "password", "123456", "role", "ADMIN", "fullName",
                                 "Nguyễn Quang Minh (Admin 01)")));
     }
+
+    public List<Map<String, Object>> findAllStaff() {
+        return jdbcTemplate.queryForList("""
+            SELECT 
+                u.id AS user_id,
+                u.username,
+                u.role,
+                u.is_active,
+                u.created_at,
+                COALESCE(s.full_name, a.full_name, u.username) AS full_name,
+                COALESCE(s.email, a.email, u.username || '@furniture.com') AS email,
+                COALESCE(s.phone, a.phone, '') AS phone,
+                COALESCE(s.address, a.address, 'Trụ sở chính') AS address,
+                s.id AS staff_id,
+                a.id AS admin_id
+            FROM public.users u
+            LEFT JOIN public.staff s ON s.user_id = u.id
+            LEFT JOIN public.admins a ON a.user_id = u.id
+            WHERE u.role IN ('STAFF', 'ADMIN')
+            ORDER BY u.id ASC
+        """);
+    }
+
+    public Map<String, Object> createStaffUser(String username, String password, String fullName, String email, String phone, String address, String role) {
+        String reqRole = (role != null && !role.isBlank()) ? role.trim().toUpperCase() : "STAFF";
+        String baseDbRole = "ADMIN".equals(reqRole) ? "ADMIN" : "STAFF";
+
+        Integer exists = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM public.users WHERE LOWER(username) = LOWER(?)", Integer.class, username.trim());
+        if (exists != null && exists > 0) {
+            throw new IllegalArgumentException("Tên đăng nhập '" + username + "' đã tồn tại trên hệ thống!");
+        }
+
+        String passHash = furniture.util.PasswordUtil.hash((password != null && !password.isBlank()) ? password : "123456");
+
+        KeyHolder kh = new GeneratedKeyHolder();
+        jdbcTemplate.update(conn -> {
+            PreparedStatement ps = conn.prepareStatement(
+                "INSERT INTO public.users (username, password_hash, role, is_active) VALUES (?, ?, ?, true)",
+                new String[] { "id" }
+            );
+            ps.setString(1, username.trim().toLowerCase());
+            ps.setString(2, passHash);
+            ps.setString(3, baseDbRole);
+            return ps;
+        }, kh);
+
+        Long newUserId = extractId(kh);
+        String finalEmail = (email != null && !email.isBlank()) ? email.trim() : (username.trim() + "@furniture.com");
+        String finalPhone = (phone != null && !phone.isBlank()) ? phone.trim() : "";
+        String finalAddress = (address != null && !address.isBlank()) ? address.trim() : "Showroom Furniture";
+
+        if (newUserId != null) {
+            if ("ADMIN".equals(baseDbRole)) {
+                jdbcTemplate.update(
+                    "INSERT INTO public.admins (user_id, full_name, email, phone, address, role) VALUES (?, ?, ?, ?, ?, 'ADMIN')",
+                    newUserId, fullName, finalEmail, finalPhone, finalAddress
+                );
+            } else {
+                jdbcTemplate.update(
+                    "INSERT INTO public.staff (user_id, full_name, email, phone, address, role) VALUES (?, ?, ?, ?, ?, 'STAFF')",
+                    newUserId, fullName, finalEmail, finalPhone, finalAddress
+                );
+            }
+        }
+
+        return Map.of(
+            "userId", newUserId != null ? newUserId : 0,
+            "username", username,
+            "role", baseDbRole,
+            "fullName", fullName,
+            "email", finalEmail,
+            "phone", finalPhone,
+            "address", finalAddress,
+            "isActive", true
+        );
+    }
+
+    public boolean toggleUserStatus(Long userId) {
+        Boolean current = jdbcTemplate.queryForObject(
+            "SELECT is_active FROM public.users WHERE id = ?", Boolean.class, userId);
+        boolean next = current == null || !current;
+        jdbcTemplate.update("UPDATE public.users SET is_active = ? WHERE id = ?", next, userId);
+        return next;
+    }
+
+    public void updateUserRole(Long userId, String newRole) {
+        String baseDbRole = "ADMIN".equalsIgnoreCase(newRole) ? "ADMIN" : "STAFF";
+        jdbcTemplate.update("UPDATE public.users SET role = ? WHERE id = ?", baseDbRole, userId);
+        try {
+            jdbcTemplate.update("UPDATE public.staff SET role = ? WHERE user_id = ?", baseDbRole, userId);
+        } catch (Exception ignore) {}
+        try {
+            jdbcTemplate.update("UPDATE public.admins SET role = ? WHERE user_id = ?", baseDbRole, userId);
+        } catch (Exception ignore) {}
+    }
+
+    public void resetUserPassword(Long userId, String newPassword) {
+        String hash = furniture.util.PasswordUtil.hash(newPassword);
+        jdbcTemplate.update("UPDATE public.users SET password_hash = ? WHERE id = ?", hash, userId);
+    }
 }

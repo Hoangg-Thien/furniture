@@ -211,6 +211,41 @@ public class AuthService {
         return authRepository.syncAdminAccounts();
     }
 
+    public List<Map<String, Object>> getAllStaff() {
+        return authRepository.findAllStaff();
+    }
+
+    public Map<String, Object> createStaff(Map<String, String> req) {
+        String username = req.get("username");
+        String password = req.get("password");
+        String fullName = req.get("fullName");
+        String email = req.get("email");
+        String phone = req.get("phone");
+        String address = req.get("address");
+        String role = req.get("role");
+
+        if (username == null || username.isBlank()) {
+            throw new IllegalArgumentException("Username không được để trống!");
+        }
+        if (fullName == null || fullName.isBlank()) {
+            throw new IllegalArgumentException("Họ và tên nhân viên không được để trống!");
+        }
+
+        return authRepository.createStaffUser(username, password, fullName, email, phone, address, role);
+    }
+
+    public boolean toggleUserStatus(Long userId) {
+        return authRepository.toggleUserStatus(userId);
+    }
+
+    public void updateUserRole(Long userId, String role) {
+        authRepository.updateUserRole(userId, role);
+    }
+
+    public void resetUserPassword(Long userId, String newPassword) {
+        authRepository.resetUserPassword(userId, (newPassword != null && !newPassword.isBlank()) ? newPassword : "123456");
+    }
+
     private synchronized void appendToSalesSql(Long userId, Long customerId, String username, String passwordHash,
                                                 String fullName, String email, String phone, String address) {
         try {

@@ -12,10 +12,6 @@ import {
   RefreshCw,
   Database,
 } from 'lucide-react'
-import {
-  MOCK_REVENUE_CHART,
-  MOCK_PRODUCTS,
-} from './adminMockData'
 import { fetchFinancialReports } from '../../lib/dashboard'
 
 const formatCurrency = (val) =>
@@ -40,19 +36,12 @@ export default function AdminReports({ showToast }) {
     loadReports()
   }, [])
 
-  // Sử dụng dữ liệu thật từ Supabase nếu có, fallback về dữ liệu mẫu nếu mất kết nối
-  const totalRevenue = reportData?.totalRevenue ?? MOCK_REVENUE_CHART.reduce((s, i) => s + i.revenue, 0)
-  const totalCost = reportData?.totalCost ?? MOCK_REVENUE_CHART.reduce((s, i) => s + i.cost, 0)
-  const totalProfit = reportData?.totalProfit ?? MOCK_REVENUE_CHART.reduce((s, i) => s + i.profit, 0)
-  const profitMargin = reportData?.profitMargin ?? 44.0
-  const monthlyDetails = reportData?.monthlyDetails?.length ? reportData.monthlyDetails : MOCK_REVENUE_CHART.map((m) => ({
-    month: m.month,
-    revenue: m.revenue,
-    cost: m.cost,
-    profit: m.profit,
-    margin: Math.round((m.profit / m.revenue) * 100),
-    performance: 'Đạt Chỉ Tiêu Doanh Số',
-  }))
+  // Sử dụng dữ liệu thật từ backend / Supabase (mặc định 0 nếu database trống)
+  const totalRevenue = reportData?.totalRevenue ?? 0
+  const totalCost = reportData?.totalCost ?? 0
+  const totalProfit = reportData?.totalProfit ?? 0
+  const profitMargin = reportData?.profitMargin ?? 0
+  const monthlyDetails = reportData?.monthlyDetails?.length ? reportData.monthlyDetails : []
 
   return (
     <div>
@@ -160,91 +149,39 @@ export default function AdminReports({ showToast }) {
               </tr>
             </thead>
             <tbody>
-              {monthlyDetails.map((m, idx) => (
-                <tr key={m.month || idx}>
-                  <td style={{ fontWeight: 600 }}>{m.month}</td>
-                  <td className="text-right" style={{ fontWeight: 700, color: 'var(--admin-primary)' }}>
-                    {formatCurrency(m.revenue)}
-                  </td>
-                  <td className="text-right" style={{ color: 'var(--admin-text-muted)' }}>
-                    {formatCurrency(m.cost)}
-                  </td>
-                  <td className="text-right" style={{ fontWeight: 700, color: '#16A34A' }}>
-                    {formatCurrency(m.profit)}
-                  </td>
-                  <td className="text-center">
-                    <span className={`admin-status-badge ${m.margin >= 40 ? 'success' : m.margin > 0 ? 'info' : 'warning'}`}>
-                      <span className="dot" />
-                      {m.margin}%
-                    </span>
-                  </td>
-                  <td>
-                    <span style={{ fontSize: '12.5px', color: 'var(--admin-text-main)' }}>
-                      {m.performance}
-                    </span>
+              {monthlyDetails.length === 0 ? (
+                <tr>
+                  <td colSpan="6" style={{ textAlign: 'center', padding: '32px 16px', color: 'var(--admin-text-muted)' }}>
+                    Chưa có dữ liệu giao dịch phát sinh trong 6 tháng gần nhất.
                   </td>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Top Selling Products */}
-      <div className="admin-panel">
-        <div className="admin-panel-header">
-          <h2 className="admin-panel-title">
-            <Layers size={18} style={{ color: '#60A5FA' }} />
-            Top Mẫu Nội Thất Tiêu Biểu Trong Kho FurniStore
-          </h2>
-        </div>
-        <div className="admin-table-container">
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>Xếp Hạng</th>
-                <th>Sản Phẩm</th>
-                <th>Nhóm Danh Mục</th>
-                <th className="text-right">Giá Niêm Yết</th>
-                <th className="text-center">Tồn Kho Sẵn Có</th>
-                <th className="text-right">Ước Tính Giá Vốn</th>
-              </tr>
-            </thead>
-            <tbody>
-              {MOCK_PRODUCTS.slice(0, 5).map((p, idx) => (
-                <tr key={p.id}>
-                  <td>
-                    <span style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      width: '26px',
-                      height: '26px',
-                      borderRadius: '50%',
-                      background: idx === 0 ? '#F59E0B' : idx === 1 ? '#94A3B8' : idx === 2 ? '#B45309' : 'rgba(0,0,0,0.06)',
-                      color: idx < 3 ? '#FFF' : 'var(--admin-text-main)',
-                      fontWeight: 700,
-                      fontSize: '12px',
-                    }}>
-                      {idx + 1}
-                    </span>
-                  </td>
-                  <td style={{ fontWeight: 600 }}>{p.name}</td>
-                  <td>{p.category}</td>
-                  <td className="text-right tabular-nums" style={{ fontWeight: 700, color: 'var(--admin-primary)' }}>
-                    {formatCurrency(p.basePrice)}
-                  </td>
-                  <td className="text-center">
-                    <span className="admin-status-badge success">
-                      <span className="dot" />
-                      {p.totalStock} cái
-                    </span>
-                  </td>
-                  <td className="text-right tabular-nums" style={{ color: 'var(--admin-text-muted)' }}>
-                    {formatCurrency(p.costPrice)}
-                  </td>
-                </tr>
-              ))}
+              ) : (
+                monthlyDetails.map((m, idx) => (
+                  <tr key={m.month || idx}>
+                    <td style={{ fontWeight: 600 }}>{m.month}</td>
+                    <td className="text-right" style={{ fontWeight: 700, color: 'var(--admin-primary)' }}>
+                      {formatCurrency(m.revenue)}
+                    </td>
+                    <td className="text-right" style={{ color: 'var(--admin-text-muted)' }}>
+                      {formatCurrency(m.cost)}
+                    </td>
+                    <td className="text-right" style={{ fontWeight: 700, color: '#16A34A' }}>
+                      {formatCurrency(m.profit)}
+                    </td>
+                    <td className="text-center">
+                      <span className={`admin-status-badge ${m.margin >= 40 ? 'success' : m.margin > 0 ? 'info' : 'warning'}`}>
+                        <span className="dot" />
+                        {m.margin}%
+                      </span>
+                    </td>
+                    <td>
+                      <span style={{ fontSize: '12.5px', color: 'var(--admin-text-main)' }}>
+                        {m.performance}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

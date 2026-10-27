@@ -288,7 +288,20 @@ public class AdminSalesRepository {
      * @return Số dòng cập nhật
      */
     public int cancelOrder(Long orderId) {
-        // Lấy voucher_id của đơn trước khi hủy
+        // 1. Hoàn lại tồn kho cho các sản phẩm trong đơn đã hủy
+        try {
+            List<Map<String, Object>> items = jdbcTemplate.queryForList(
+                    "SELECT product_id, quantity FROM public.order_items WHERE order_id = ?", orderId);
+            for (Map<String, Object> it : items) {
+                Long pId = ((Number) it.get("product_id")).longValue();
+                Integer qty = ((Number) it.get("quantity")).intValue();
+                jdbcTemplate.update("UPDATE public.products SET quantity = quantity + ? WHERE id = ?", qty, pId);
+            }
+        } catch (Exception ex) {
+            System.err.println("Notice: Không thể hoàn tồn kho khi hủy đơn #" + orderId + ": " + ex.getMessage());
+        }
+
+        // 2. Lấy voucher_id của đơn trước khi hủy
         List<Long> voucherIds = jdbcTemplate.query(
             "SELECT voucher_id FROM public.orders WHERE id = ? AND voucher_id IS NOT NULL",
             (rs, rowNum) -> rs.getLong("voucher_id"), orderId);
@@ -297,7 +310,7 @@ public class AdminSalesRepository {
             "UPDATE public.orders SET status = 'CANCELLED', delivery_status = 'Đã hủy đơn hàng' WHERE id = ?",
             orderId);
 
-        // Hoàn lại used_quantity của voucher nếu đơn bị hủy
+        // 3. Hoàn lại used_quantity của voucher nếu đơn bị hủy
         if (updated > 0 && !voucherIds.isEmpty() && voucherIds.get(0) != null) {
             try {
                 jdbcTemplate.update("UPDATE public.vouchers SET used_quantity = GREATEST(used_quantity - 1, 0) WHERE id = ?",

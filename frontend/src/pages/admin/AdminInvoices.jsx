@@ -34,9 +34,9 @@ const formatCurrency = (val) =>
   }).format(val)
 
 export default function AdminInvoices({ showToast, activeRole = 'ADMIN' }) {
-  const [invoices, setInvoices] = useState(MOCK_INVOICES)
+  const [invoices, setInvoices] = useState([])
   const [loading, setLoading] = useState(false)
-  const [isRealData, setIsRealData] = useState(false)
+  const [isRealData, setIsRealData] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [paymentFilter, setPaymentFilter] = useState('ALL')
   const [selectedInvoice, setSelectedInvoice] = useState(null)
@@ -53,12 +53,9 @@ export default function AdminInvoices({ showToast, activeRole = 'ADMIN' }) {
   const loadInvoices = async (silent = false) => {
     if (!silent) setLoading(true)
     const { invoices: remoteInvoices, isRealData: real } = await fetchAdminInvoices()
-    if (remoteInvoices && remoteInvoices.length > 0) {
+    if (remoteInvoices) {
       setInvoices(remoteInvoices)
       setIsRealData(real)
-      if (real && !silent) {
-        showToast('Đã tải danh sách hóa đơn thực tế từ đơn hàng!')
-      }
     }
     if (!silent) setLoading(false)
   }

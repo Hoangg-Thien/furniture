@@ -17,7 +17,6 @@ import {
   Truck,
   Plus,
 } from 'lucide-react'
-import { MOCK_CUSTOMERS, MOCK_ORDERS } from './adminMockData'
 
 const formatCurrency = (val) =>
   new Intl.NumberFormat('vi-VN', {
@@ -27,29 +26,53 @@ const formatCurrency = (val) =>
   }).format(val)
 
 export default function AdminCustomers({ showToast, activeRole = 'ADMIN' }) {
-  const [customers, setCustomers] = useState(MOCK_CUSTOMERS)
+  const [customers, setCustomers] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
   const [tierFilter, setTierFilter] = useState('ALL')
   const [selectedCustomer, setSelectedCustomer] = useState(null)
 
+  React.useEffect(() => {
+    async function loadCustomers() {
+      try {
+        const { getApiBaseUrl } = await import('../../lib/apiConfig')
+        const res = await fetch(`${getApiBaseUrl()}/api/auth/customers`)
+        if (res.ok) {
+          const data = await res.json()
+          if (Array.isArray(data)) {
+            setCustomers(
+              data.map((c) => ({
+                id: c.id,
+                fullName: c.full_name || 'Khách hàng #' + c.id,
+                phone: c.phone || 'Chưa cập nhật',
+                email: c.email || 'Chưa cập nhật',
+                address: c.address || 'TP. Hồ Chí Minh',
+                tier: 'MEMBER',
+                ordersCount: 0,
+                totalSpent: 0,
+                joinDate: c.created_at ? new Date(c.created_at).toLocaleDateString('vi-VN') : '2026',
+              }))
+            )
+          }
+        }
+      } catch (err) {
+        console.warn('Lỗi tải khách hàng từ database:', err)
+      }
+    }
+    loadCustomers()
+  }, [])
+
   const filteredCustomers = customers.filter((c) => {
     const matchTier = tierFilter === 'ALL' || c.tier === tierFilter
     const matchSearch =
-      c.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.phone.includes(searchTerm) ||
-      c.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.address.toLowerCase().includes(searchTerm.toLowerCase())
+      (c.fullName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (c.phone || '').includes(searchTerm) ||
+      (c.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (c.address || '').toLowerCase().includes(searchTerm.toLowerCase())
     return matchTier && matchSearch
   })
 
   // Customer purchase history
-  const customerOrders = selectedCustomer
-    ? MOCK_ORDERS.filter(
-        (o) =>
-          o.customerName.toLowerCase().includes(selectedCustomer.fullName.toLowerCase()) ||
-          o.phone === selectedCustomer.phone
-      )
-    : []
+  const customerOrders = []
 
   return (
     <div>

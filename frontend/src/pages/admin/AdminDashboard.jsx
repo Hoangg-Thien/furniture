@@ -19,13 +19,6 @@ import {
   RefreshCw,
   Database,
 } from 'lucide-react'
-import {
-  MOCK_DASHBOARD_STATS,
-  MOCK_REVENUE_CHART,
-  MOCK_CATEGORY_SHARE,
-  MOCK_ORDERS,
-  MOCK_PRODUCTS,
-} from './adminMockData'
 import { fetchDashboardOverview, fetchDashboardPeriodStats } from '../../lib/dashboard'
 
 const formatCurrency = (val) =>
@@ -57,35 +50,29 @@ export default function AdminDashboard({ onNavigate, showToast, activeRole = 'AD
     loadOverview()
   }, [])
 
-  // Dynamic values based on timePeriod (lấy dữ liệu thật từ Supabase nếu có, fallback về mock)
+  // Dynamic values based on timePeriod (mặc định là 0, chỉ cập nhật khi backend trả về số liệu thực tế)
   const periodStats = overviewData?.periodStats?.[timePeriod] || {
-    revenue: overviewData?.stats?.totalRevenue ?? MOCK_DASHBOARD_STATS.totalRevenue,
-    growth: overviewData?.stats?.revenueGrowth ?? MOCK_DASHBOARD_STATS.revenueGrowth,
-    orders: overviewData?.stats?.totalOrders ?? MOCK_DASHBOARD_STATS.totalOrders,
-    ordersGrowth: overviewData?.stats?.ordersGrowth ?? MOCK_DASHBOARD_STATS.ordersGrowth,
-    pendingDeliveries: overviewData?.stats?.pendingDeliveries ?? MOCK_DASHBOARD_STATS.pendingDeliveries,
-    lowStock: overviewData?.stats?.lowStockAlerts ?? 5,
+    revenue: overviewData?.stats?.totalRevenue ?? 0,
+    growth: overviewData?.stats?.revenueGrowth ?? 0,
+    orders: overviewData?.stats?.totalOrders ?? 0,
+    ordersGrowth: overviewData?.stats?.ordersGrowth ?? 0,
+    pendingDeliveries: overviewData?.stats?.pendingDeliveries ?? 0,
   }
 
   // Dữ liệu biểu đồ 6 tháng (Doanh thu - Giá vốn - Lãi gộp)
   const chartItems = overviewData?.revenueChart?.length
     ? overviewData.revenueChart
-    : MOCK_REVENUE_CHART
+    : []
 
   // Tỷ trọng doanh thu theo danh mục
   const categoryShareList = overviewData?.categoryShare?.length
     ? overviewData.categoryShare
-    : MOCK_CATEGORY_SHARE
+    : []
 
   // Đơn hàng gần đây
   const recentOrdersList = overviewData?.recentOrders?.length
     ? overviewData.recentOrders
-    : MOCK_ORDERS
-
-  // Biến thể tồn kho thấp
-  const lowStockProducts = overviewData?.lowStockProducts?.length
-    ? overviewData.lowStockProducts
-    : MOCK_PRODUCTS.filter((p) => p.totalStock < 6)
+    : []
 
   // Tính maxVal cho biểu đồ cột động
   const maxVal = Math.max(
@@ -202,7 +189,7 @@ export default function AdminDashboard({ onNavigate, showToast, activeRole = 'AD
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <Truck size={18} style={{ color: 'var(--admin-primary)' }} />
             <span>
-              <strong>Lịch điều phối hôm nay:</strong> Có <strong>{periodStats.pendingDeliveries || 4} đơn hàng</strong> cần sắp xếp đội thợ giao và lắp ráp căn hộ tại khu vực TP.HCM.
+              <strong>Lịch điều phối hôm nay:</strong> Có <strong>{periodStats.pendingDeliveries || 0} đơn hàng</strong> cần sắp xếp đội thợ giao và lắp ráp tại khu vực TP.HCM.
             </span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -276,7 +263,7 @@ export default function AdminDashboard({ onNavigate, showToast, activeRole = 'AD
               <TrendingUp size={11} /> {periodStats.ordersGrowth >= 0 ? '+' : ''}{periodStats.ordersGrowth}%
             </span>
             <span style={{ color: 'var(--admin-text-muted)' }}>
-              {overviewData?.stats?.totalCustomers ? `${overviewData.stats.totalCustomers} khách hàng` : '8 đơn chờ duyệt'}
+              {overviewData?.stats?.totalCustomers ? `${overviewData.stats.totalCustomers} khách hàng` : '0 khách hàng'}
             </span>
           </div>
         </div>
@@ -306,26 +293,26 @@ export default function AdminDashboard({ onNavigate, showToast, activeRole = 'AD
           </div>
         </div>
 
-        {/* Metric 4: Low Stock Alert */}
+        {/* Metric 4: Customers */}
         <div
           className="admin-metric-card"
-          onClick={() => onNavigate('/admin/inventory')}
-          title="Xem tồn kho biến thể"
+          onClick={() => onNavigate('/admin/customers')}
+          title="Xem danh sách khách hàng thành viên"
         >
           <div className="admin-metric-header">
-            <span className="admin-metric-title">Cảnh Báo Tồn Kho</span>
-            <div className="admin-metric-icon-box rose">
-              <AlertTriangle size={18} />
+            <span className="admin-metric-title">Khách Hàng Thành Viên</span>
+            <div className="admin-metric-icon-box emerald">
+              <UserCheck size={18} />
             </div>
           </div>
-          <div className="admin-metric-value tabular-nums" style={{ color: 'var(--admin-danger)' }}>
-            {lowStockProducts.length} sản phẩm
+          <div className="admin-metric-value tabular-nums">
+            {overviewData?.stats?.totalCustomers ?? 0} khách
           </div>
           <div className="admin-metric-footer">
-            <span className="trend-badge down">
-              <ShieldAlert size={11} /> Mức tồn thấp
+            <span className="trend-badge up">
+              <TrendingUp size={11} /> Đã kích hoạt
             </span>
-            <span style={{ color: 'var(--admin-text-muted)' }}>cần tạo GRN nhập</span>
+            <span style={{ color: 'var(--admin-text-muted)' }}>tài khoản hệ thống</span>
           </div>
         </div>
       </div>
@@ -550,7 +537,14 @@ export default function AdminDashboard({ onNavigate, showToast, activeRole = 'AD
               </tr>
             </thead>
             <tbody>
-              {recentOrdersList.slice(0, 5).map((order) => {
+              {recentOrdersList.length === 0 ? (
+                <tr>
+                  <td colSpan="8" style={{ textAlign: 'center', padding: '36px 16px', color: 'var(--admin-text-muted)' }}>
+                    Chưa có đơn hàng nào phát sinh trong hệ thống. Hãy thử mua hàng trên cửa hàng để xem thống kê cập nhật trực tiếp!
+                  </td>
+                </tr>
+              ) : (
+                recentOrdersList.slice(0, 5).map((order) => {
                 let statusType = 'warning'
                 let statusLabel = 'Chờ xác nhận'
 
@@ -647,106 +641,7 @@ export default function AdminDashboard({ onNavigate, showToast, activeRole = 'AD
                     </td>
                   </tr>
                 )
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Urgent Low Stock Alerts Widget */}
-      <div className="admin-panel" style={{ border: '1px solid rgba(185, 28, 28, 0.25)' }}>
-        <div
-          className="admin-panel-header"
-          style={{ background: 'var(--admin-danger-soft)' }}
-        >
-          <h2 className="admin-panel-title" style={{ color: 'var(--admin-danger)' }}>
-            <AlertTriangle size={17} />
-            Cảnh Báo Sản Phẩm Tồn Kho Thấp Nhất (Theo Database Supabase)
-          </h2>
-          <button
-            className="admin-btn admin-btn-primary"
-            style={{
-              background: 'linear-gradient(135deg, #B91C1C 0%, #991B1B 100%)',
-              boxShadow: 'none',
-              fontSize: '12.5px',
-            }}
-            onClick={() => onNavigate('/admin/inventory')}
-          >
-            <Package size={14} /> Lập Phiếu Nhập Kho GRN
-          </button>
-        </div>
-
-        <div className="admin-table-container">
-          <table className="admin-data-table">
-            <thead>
-              <tr>
-                <th>Mã SKU / Mã SP</th>
-                <th>Tên Sản Phẩm</th>
-                <th>Phân Loại Danh Mục</th>
-                <th className="text-right">Giá Vốn Nhập (Ước Tính)</th>
-                <th className="text-right">Giá Bán Niêm Yết</th>
-                <th className="text-center">Mức Tồn Thực Tế</th>
-                <th className="text-center">Hành Động</th>
-              </tr>
-            </thead>
-            <tbody>
-              {lowStockProducts.map((p) => {
-                const stock = p.totalStock ?? p.quantity ?? 0
-                return (
-                  <tr key={p.id}>
-                    <td>
-                      <code
-                        style={{
-                          color: 'var(--admin-primary)',
-                          fontWeight: 700,
-                          background: 'var(--admin-surface-hover)',
-                          padding: '2px 6px',
-                          borderRadius: '4px',
-                        }}
-                      >
-                        {p.code || `FURN-SP-${String(p.id).padStart(2, '0')}`}
-                      </code>
-                    </td>
-                    <td>
-                      <div style={{ fontWeight: 600 }}>{p.name}</div>
-                      <div style={{ fontSize: '11.5px', color: 'var(--admin-text-muted)' }}>
-                        {p.description}
-                      </div>
-                    </td>
-                    <td>{p.category}</td>
-                    <td className="text-right tabular-nums">
-                      {formatCurrency(p.costPrice || (p.selling_price ? Math.round(p.selling_price * 0.65) : 0))}
-                    </td>
-                    <td className="text-right tabular-nums" style={{ fontWeight: 600 }}>
-                      {formatCurrency(p.basePrice || p.selling_price)}
-                    </td>
-                    <td className="text-center">
-                      <span className={`admin-status-badge ${stock <= 10 ? 'danger' : 'warning'}`}>
-                        <span className="dot" />
-                        Chỉ còn {stock} cái
-                      </span>
-                      <div className="admin-stock-bar" style={{ margin: '4px auto 0' }}>
-                        <div
-                          className="admin-stock-fill low"
-                          style={{ width: `${Math.min((stock / 20) * 100, 100)}%` }}
-                        />
-                      </div>
-                    </td>
-                    <td className="text-center">
-                      <button
-                        className="admin-btn admin-btn-secondary"
-                        style={{ padding: '4px 10px', fontSize: '12px' }}
-                        onClick={() => {
-                          showToast(`Đã thêm mã "${p.code || p.name}" vào bản nháp phiếu nhập kho GRN!`)
-                          onNavigate('/admin/inventory')
-                        }}
-                      >
-                        Nhập Thêm
-                      </button>
-                    </td>
-                  </tr>
-                )
-              })}
+              }))}
             </tbody>
           </table>
         </div>

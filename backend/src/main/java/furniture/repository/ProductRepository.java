@@ -18,7 +18,9 @@ public class ProductRepository {
     public List<ProductResponse> findAllActiveProducts() {
         return jdbcTemplate.query("""
                 SELECT p.id, p.name, p.description, p.selling_price, p.image_url,
-                       COALESCE(c.name, 'Khác') AS category_name
+                       COALESCE(c.name, 'Khác') AS category_name,
+                       COALESCE(p.quantity, 0) AS quantity,
+                       COALESCE(p.unit, 'Chiếc') AS unit
                 FROM public.products p
                 LEFT JOIN public.categories c ON c.id = p.category_id
                 WHERE COALESCE(p.is_active, TRUE) = TRUE
@@ -29,7 +31,13 @@ public class ProductRepository {
                 resultSet.getString("description"),
                 resultSet.getString("category_name"),
                 resultSet.getBigDecimal("selling_price"),
-                resultSet.getString("image_url")));
+                resultSet.getString("image_url"),
+                resultSet.getInt("quantity"),
+                resultSet.getString("unit")));
+    }
+
+    public int updateStock(Long productId, int quantity) {
+        return jdbcTemplate.update("UPDATE public.products SET quantity = GREATEST(0, ?) WHERE id = ?", quantity, productId);
     }
 }
 

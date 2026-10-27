@@ -56,6 +56,40 @@ export default function AdminProducts({ showToast, activeRole = 'ADMIN', current
   const [modalMode, setModalMode] = useState(isCategoryPath ? 'CATEGORY_MANAGE' : null) // 'CREATE' | 'EDIT' | 'CATEGORY_MANAGE'
   const [editingProduct, setEditingProduct] = useState(null)
 
+  // Tự động tải sản phẩm thực tế từ Database Supabase / Spring Boot
+  useEffect(() => {
+    async function loadRealProducts() {
+      try {
+        const { getApiBaseUrl } = await import('../../lib/apiConfig')
+        const res = await fetch(`${getApiBaseUrl()}/api/products`)
+        if (res.ok) {
+          const rows = await res.json()
+          if (Array.isArray(rows) && rows.length > 0) {
+            setProducts(
+              rows.map((r) => ({
+                id: r.id,
+                code: `FURN-SP-${String(r.id).padStart(3, '0')}`,
+                name: r.name,
+                description: r.description || '',
+                category: r.category || 'Nội thất',
+                basePrice: Number(r.price || 0),
+                costPrice: Math.round(Number(r.price || 0) * 0.60),
+                totalStock: r.quantity != null ? r.quantity : 0,
+                unit: r.unit || 'Chiếc',
+                image: r.imageUrl || '',
+                isActive: true,
+                variants: [],
+              }))
+            )
+          }
+        }
+      } catch (err) {
+        console.warn('Lỗi tải sản phẩm thật vào AdminProducts:', err)
+      }
+    }
+    loadRealProducts()
+  }, [])
+
   // Tự động mở modal Quản lý danh mục nếu đường dẫn là /admin/categories
   useEffect(() => {
     if (currentPath === '/admin/categories') {

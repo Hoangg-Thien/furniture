@@ -95,7 +95,7 @@ public class OrderService {
         // Cập nhật lượt dùng voucher
         orderRepository.incrementVoucherUsedQuantity(req.voucherId());
 
-        // 5. Lưu order_items
+        // 5. Lưu order_items và trừ tồn kho thực tế trong database
         for (OrderItemDto item : req.items()) {
             if (item.productId() == null || item.quantity() == null || item.quantity() <= 0) {
                 continue;
@@ -103,6 +103,7 @@ public class OrderService {
             BigDecimal price = item.unitPrice() != null ? item.unitPrice() : BigDecimal.ZERO;
             BigDecimal amount = price.multiply(BigDecimal.valueOf(item.quantity()));
             orderRepository.insertOrderItem(orderId, item.productId(), item.quantity(), price, amount);
+            orderRepository.deductProductStock(item.productId(), item.quantity());
         }
 
         // 6. Ghi đồng bộ sales.sql
