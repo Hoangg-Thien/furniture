@@ -16,18 +16,65 @@ import {
   X,
 } from 'lucide-react'
 import { loadProducts } from './lib/products'
-import { getCurrentUser, logoutUser, updateProfile } from './lib/auth'
+import {
+  getCurrentUser,
+  logoutUser,
+  updateProfile,
+  getCurrentAdminUser,
+  logoutAdminUser,
+} from './lib/auth'
 import AuthModal from './components/AuthModal'
 import ProfileModal from './components/ProfileModal'
 import AccountModal from './components/AccountModal'
 import OrderReviewPage from './components/OrderReviewPage'
 import MyOrdersModal from './components/MyOrdersModal'
 import VouchersModal from './components/VouchersModal'
+import AdminLayout from './admin/AdminLayout'
+import AdminLoginPage from './admin/AdminLoginPage'
+import NotFoundPage from './components/NotFoundPage'
 import './App.css'
 
 const formatPrice = (price) => `${new Intl.NumberFormat('vi-VN').format(price)}₫`
 
 function App() {
+  // Hệ thống định tuyến:
+  // - '' hoặc '/' => 'store' (Trang chủ Storefront)
+  // - '/admin' => 'admin' (Trang quản trị Admin)
+  // - Bất kỳ đường dẫn nào khác (như /1321, /abc) => '404' (Trang Không tìm thấy)
+  function getCurrentRoute() {
+    if (typeof window === 'undefined') return 'store'
+    const path = window.location.pathname.toLowerCase().replace(/\/+$/, '')
+    if (path === '' || path === '/') return 'store'
+    if (path === '/admin' || path === '/admin/login') return 'admin'
+    return '404'
+  }
+
+  const [currentRoute, setCurrentRoute] = useState(() => getCurrentRoute())
+
+  function handleGoToAdmin() {
+    window.history.pushState(null, '', '/admin')
+    setCurrentRoute('admin')
+  }
+
+  function handleBackToStore() {
+    window.history.pushState(null, '', '/')
+    setCurrentRoute('store')
+  }
+
+  useEffect(() => {
+    function handleLocationChange() {
+      setCurrentRoute(getCurrentRoute())
+    }
+    // Xóa hash sót lại nếu có
+    if (window.location.hash.toLowerCase().includes('admin')) {
+      window.history.replaceState(null, '', window.location.pathname)
+    }
+    window.addEventListener('popstate', handleLocationChange)
+    return () => {
+      window.removeEventListener('popstate', handleLocationChange)
+    }
+  }, [])
+
   const [products, setProducts] = useState([])
   const [catalogError, setCatalogError] = useState('')
   const [activeCategory, setActiveCategory] = useState('Tất cả')
@@ -43,6 +90,7 @@ function App() {
   const [productImagePreview, setProductImagePreview] = useState('')
   const [notice, setNotice] = useState('')
   const [currentUser, setCurrentUser] = useState(() => getCurrentUser())
+  const [adminUser, setAdminUser] = useState(() => getCurrentAdminUser())
   const [authOpen, setAuthOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const [accountOpen, setAccountOpen] = useState(false)
@@ -180,6 +228,22 @@ function App() {
     return () => window.removeEventListener('popstate', handlePopState)
   }, [])
 
+  // Khóa cuộn trang nền và hỗ trợ đóng giỏ hàng bằng phím Escape
+  useEffect(() => {
+    if (cartOpen) {
+      const originalOverflow = document.body.style.overflow
+      document.body.style.overflow = 'hidden'
+      const handleKeyDown = (e) => {
+        if (e.key === 'Escape') setCartOpen(false)
+      }
+      window.addEventListener('keydown', handleKeyDown)
+      return () => {
+        document.body.style.overflow = originalOverflow
+        window.removeEventListener('keydown', handleKeyDown)
+      }
+    }
+  }, [cartOpen])
+
   const filteredProducts = products.filter((product) => {
     const matchesCategory = activeCategory === 'Tất cả' || product.category === activeCategory
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.trim().toLowerCase())
@@ -288,6 +352,40 @@ function App() {
     event.preventDefault()
     setNotice('Đây mới là giao diện xem trước. Sản phẩm chưa được lưu vì backend chưa hỗ trợ thêm sản phẩm.')
     window.setTimeout(() => setNotice(''), 5000)
+  }
+
+  function handleAdminLoginSuccess(user) {
+    setAdminUser(user)
+  }
+
+  function handleAdminLogout() {
+    logoutAdminUser()
+    setAdminUser(null)
+  }
+
+  if (currentRoute === 'admin') {
+    const hasAdminAccess = adminUser && (adminUser.role === 'ADMIN' || adminUser.role === 'STAFF')
+
+    if (!hasAdminAccess) {
+      return (
+        <AdminLoginPage
+          onLoginSuccess={handleAdminLoginSuccess}
+          onBackToStore={handleBackToStore}
+        />
+      )
+    }
+
+    return (
+      <AdminLayout
+        currentUser={adminUser}
+        onLogout={handleAdminLogout}
+        onBackToStore={handleBackToStore}
+      />
+    )
+  }
+
+  if (currentRoute === '404') {
+    return <NotFoundPage />
   }
 
   return (
@@ -734,7 +832,9 @@ function App() {
               </>
             ) : (
               <div className="empty-cart">
-                <ShoppingBag size={30} strokeWidth={1.4} />
+                <div className="empty-cart-icon-wrap">
+                  <ShoppingBag size={32} strokeWidth={1.5} />
+                </div>
                 <h3>Giỏ hàng đang trống</h3>
                 <p>Thêm một món đồ bạn thích, FuniStore giữ giúp bạn ở đây.</p>
                 <button type="button" onClick={() => setCartOpen(false)}>Tiếp tục khám phá</button>

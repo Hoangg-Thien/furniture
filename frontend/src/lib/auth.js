@@ -1,32 +1,68 @@
 import { getApiBaseUrl } from './apiConfig'
 
-const SESSION_USER_KEY = 'furniture_logged_in_user'
+const SESSION_CUSTOMER_KEY = 'furniture_customer_user'
+const SESSION_ADMIN_KEY = 'furniture_admin_user'
+const LEGACY_SESSION_KEY = 'furniture_logged_in_user'
 
 /**
- * Lấy thông tin tài khoản hiện đang đăng nhập từ Session LocalStorage
+ * ====================================================================
+ * PHÂN HỆ KHÁCH HÀNG (STOREFRONT CLIENT)
+ * Chỉ cho phép tài khoản có vai trò 'CUSTOMER' đăng nhập tại Cửa hàng.
+ * Tuyệt đối không cho tài khoản ADMIN hoặc STAFF hiển thị tại đây.
+ * ====================================================================
+ */
+
+/**
+ * Lấy thông tin tài khoản Khách hàng từ localStorage
  */
 export function getCurrentUser() {
   try {
-    const raw = localStorage.getItem(SESSION_USER_KEY)
-    return raw ? JSON.parse(raw) : null
+    // 1. Kiểm tra session khách hàng chuẩn
+    let raw = localStorage.getItem(SESSION_CUSTOMER_KEY)
+    
+    // 2. Migration từ legacy key nếu có
+    if (!raw) {
+      raw = localStorage.getItem(LEGACY_SESSION_KEY)
+      if (raw) {
+        localStorage.removeItem(LEGACY_SESSION_KEY)
+      }
+    }
+
+    if (!raw) return null
+    const user = JSON.parse(raw)
+
+    // QUAN TRỌNG: Nếu tài khoản trong session KHÔNG PHẢI là CUSTOMER (vd: staff01, admin01),
+    // lập tức xóa bỏ để tránh hiển thị sai trên giao diện Cửa hàng!
+    if (!user || user.role !== 'CUSTOMER') {
+      localStorage.removeItem(SESSION_CUSTOMER_KEY)
+      localStorage.removeItem(LEGACY_SESSION_KEY)
+      return null
+    }
+
+    return user
   } catch {
     return null
   }
 }
 
 export function setCurrentUser(user) {
-  if (user) {
-    localStorage.setItem(SESSION_USER_KEY, JSON.stringify(user))
+  if (user && user.role === 'CUSTOMER') {
+    localStorage.setItem(SESSION_CUSTOMER_KEY, JSON.stringify(user))
   } else {
-    localStorage.removeItem(SESSION_USER_KEY)
+    localStorage.removeItem(SESSION_CUSTOMER_KEY)
+    localStorage.removeItem(LEGACY_SESSION_KEY)
   }
 }
 
+export function logoutUser() {
+  setCurrentUser(null)
+}
+
 /**
- * Đăng nhập: Gọi trực tiếp Backend API (/api/auth/login)
- * Backend kiểm tra trong bảng "users" và "customers" của sales.sql
+ * Đăng nhập dành riêng cho Khách hàng tại Cửa hàng (Storefront)
+ * Chặn tài khoản ADMIN / STAFF không cho đăng nhập tại modal mua sắm
  */
-export async function loginUser(username, password) {
+export async function loginCustomer(username, password) {
   const apiBaseUrl = getApiBaseUrl()
   try {
     const response = await fetch(`${apiBaseUrl}/api/auth/login`, {
@@ -40,6 +76,15 @@ export async function loginUser(username, password) {
       return { user: null, error: data.error || 'Tên đăng nhập hoặc mật khẩu không chính xác' }
     }
 
+    // Tại Cửa hàng: Chỉ cho phép tài khoản Khách hàng (CUSTOMER).
+    // Bất kỳ tài khoản nào khác đều coi là không chính xác để bảo mật tuyệt đối.
+    if (data.role !== 'CUSTOMER') {
+      return {
+        user: null,
+        error: 'Tên đăng nhập hoặc mật khẩu không chính xác',
+      }
+    }
+
     setCurrentUser(data)
     return { user: data, error: null }
   } catch (err) {
@@ -50,9 +95,11 @@ export async function loginUser(username, password) {
   }
 }
 
+// Alias cho backwards compatibility
+export const loginUser = loginCustomer
+
 /**
- * Đăng ký tài khoản: Gọi trực tiếp Backend API (/api/auth/register)
- * Backend sẽ lưu thông tin trực tiếp vào bảng "users" và "customers" trong database sales.sql
+ * Đăng ký tài khoản Khách hàng
  */
 export async function registerUser({ username, password, fullName, email, phone, address }) {
   const apiBaseUrl = getApiBaseUrl()
@@ -79,14 +126,7 @@ export async function registerUser({ username, password, fullName, email, phone,
 }
 
 /**
- * Đăng xuất tài khoản
- */
-export function logoutUser() {
-  setCurrentUser(null)
-}
-
-/**
- * Cập nhật thông tin tài khoản: Gọi Backend API PUT /api/auth/update/{userId}
+ * Cập nhật thông tin tài khoản Khách hàng
  */
 export async function updateProfile(userId, { fullName, email, phone, address, currentPassword, newPassword }) {
   const apiBaseUrl = getApiBaseUrl()
@@ -106,5 +146,78 @@ export async function updateProfile(userId, { fullName, email, phone, address, c
     return { user: data, error: null }
   } catch {
     return { user: null, error: 'Không thể kết nối đến Backend Server (port 8080).' }
+  }
+}
+
+
+/**
+ * ====================================================================
+ * PHÂN HỆ QUẢN TRỊ (ADMIN & STAFF PORTAL)
+ * Hoàn toàn tách biệt khỏi phiên làm việc mua sắm của Khách hàng.
+ * ====================================================================
+ */
+
+/**
+ * Lấy thông tin tài khoản Quản trị / Nhân viên đang đăng nhập
+ */
+export function getCurrentAdminUser() {
+  try {
+    const raw = localStorage.getItem(SESSION_ADMIN_KEY)
+    if (!raw) return null
+    const user = JSON.parse(raw)
+    if (user && (user.role === 'ADMIN' || user.role === 'STAFF')) {
+      return user
+    }
+    localStorage.removeItem(SESSION_ADMIN_KEY)
+    return null
+  } catch {
+    return null
+  }
+}
+
+export function setCurrentAdminUser(user) {
+  if (user && (user.role === 'ADMIN' || user.role === 'STAFF')) {
+    localStorage.setItem(SESSION_ADMIN_KEY, JSON.stringify(user))
+  } else {
+    localStorage.removeItem(SESSION_ADMIN_KEY)
+  }
+}
+
+export function logoutAdminUser() {
+  setCurrentAdminUser(null)
+}
+
+/**
+ * Đăng nhập dành riêng cho Trang Quản Trị (/admin)
+ */
+export async function loginAdmin(username, password) {
+  const apiBaseUrl = getApiBaseUrl()
+  try {
+    const response = await fetch(`${apiBaseUrl}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    })
+
+    const data = await response.json()
+    if (!response.ok) {
+      return { user: null, error: data.error || 'Tên đăng nhập hoặc mật khẩu không chính xác' }
+    }
+
+    // Tại Trang Quản trị: Chỉ cho phép ADMIN hoặc STAFF.
+    if (data.role !== 'ADMIN' && data.role !== 'STAFF') {
+      return {
+        user: null,
+        error: 'Tên đăng nhập hoặc mật khẩu không chính xác',
+      }
+    }
+
+    setCurrentAdminUser(data)
+    return { user: data, error: null }
+  } catch (err) {
+    return {
+      user: null,
+      error: 'Không thể kết nối đến Backend Server (port 8080). Vui lòng kiểm tra backend.',
+    }
   }
 }
