@@ -203,7 +203,25 @@ public class AdminSupplierController {
 | `GET` | `/api/admin/suppliers` | `ADMIN`, `STAFF` | Lấy danh sách nhà cung cấp kèm số phiếu nhập |
 | `POST` | `/api/admin/suppliers` | `ADMIN`, `STAFF` | Thêm nhà cung cấp nội thất mới |
 | `PUT` | `/api/admin/suppliers/{id}` | `ADMIN`, `STAFF` | Cập nhật thông tin đối tác cung ứng |
+| `DELETE` | `/api/admin/suppliers/{id}` | `ADMIN`, `STAFF` | Xóa nhà cung cấp (chặn xóa nếu có phiếu nhập) |
 | `GET` | `/api/admin/suppliers/{id}/receipts` | `ADMIN`, `STAFF` | Xem lịch sử các đợt nhập hàng từ nhà cung cấp này |
+| `GET` | `/api/admin/suppliers/{id}/receipts/{receiptId}/items` | `ADMIN`, `STAFF` | Xem chi tiết mặt hàng trong phiếu nhập |
+| `POST` | `/api/admin/suppliers/{id}/receipts` | `ADMIN`, `STAFF` | Lập phiếu nhập hàng mới (tự động cộng kho khi COMPLETED) |
+| `PATCH` | `/api/admin/suppliers/{id}/receipts/{receiptId}/status` | `ADMIN`, `STAFF` | Chuyển trạng thái phiếu nhập kho |
+
+---
+
+## 5. TÌNH TRẠNG TRIỂN KHAI THỰC TẾ (STATUS: ✅ ĐÃ HOÀN THIỆN 100%)
+
+- **Backend (Spring Boot JDBC Direct):**
+  - Model DTOs: `SupplierRequest`, `SupplierResponse`, `PurchaseReceiptSummaryDto`, `PurchaseReceiptItemDto`, `CreateReceiptRequest`.
+  - Repository: `AdminSupplierRepository.java` (truy vấn danh bạ xưởng, đếm phiếu nhập, tính tổng chi phí nhập, truy xuất chi tiết mặt hàng và tự động cập nhật tồn kho `products.quantity`).
+  - Service: `AdminSupplierService.java` (kiểm tra trùng tên đối tác, định dạng SĐT, chặn xóa đối tác có ràng buộc phiếu nhập).
+  - Controller: `AdminSupplierController.java` (đầy đủ các RESTful endpoints).
+  - Unit Tests: `AdminSupplierServiceTest.java` (12/12 unit tests đạt chuẩn 100%).
+- **Frontend (React Vite Admin UI):**
+  - Component: `AdminSupplierManagement.jsx` (KPI thẻ thống kê, bảng danh bạ xưởng mộc, modal thêm/sửa, drawer xem lịch sử nhập kho và form lập phiếu nhập kho tự động tính tiền).
+  - Điều hướng: Tích hợp hoàn tất vào `AdminLayout.jsx` và `AdminSidebar.jsx` (Module `suppliers`).
 
 ---
 

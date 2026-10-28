@@ -16,7 +16,7 @@ Chào mừng bạn đến với bộ tài liệu kế hoạch thiết kế giao 
 | 03 | [Module 03 - Quản lý Nhân viên](03_QUAN_LY_NHAN_VIEN.md) | Quản lý nhân viên kinh doanh/kho, phân công xử lý đơn hàng, cấp quyền đăng nhập hệ thống. | ✅ Đã triển khai |
 | 04 | [Module 04 - Quản lý Loại nội thất](04_QUAN_LY_LOAI_NOI_THAT.md) | Danh mục phòng khách, phòng ngủ, phòng ăn; kiểm tra ràng buộc chống xóa danh mục đang có sản phẩm. | ✅ Đã triển khai |
 | 05 | [Module 05 - Quản lý Sản phẩm & Hình ảnh](05_QUAN_LY_SAN_PHAM_HINH_ANH.md) | Quản lý kho hàng nội thất, đơn giá, số lượng tồn kho, cảnh báo hết hàng, thư viện album ảnh sản phẩm nhiều góc chụp. | ✅ Đã triển khai |
-| 06 | [Module 06 - Quản lý Nhà cung cấp Nội thất](06_QUAN_LY_NHA_CUNG_CAP.md) | Hồ sơ xưởng/nhà cung cấp gỗ, vải, phụ kiện; quản lý lịch sử phiếu nhập hàng (`purchase_receipts`) cập nhật kho. | Hoàn thiện |
+| 06 | [Module 06 - Quản lý Nhà cung cấp Nội thất](06_QUAN_LY_NHA_CUNG_CAP.md) | Hồ sơ xưởng/nhà cung cấp gỗ, vải, phụ kiện; quản lý lịch sử phiếu nhập hàng (`purchase_receipts`) cập nhật kho. | ✅ Đã triển khai |
 | 07 | [Module 07 - Quản lý Khuyến mãi & Voucher](07_QUAN_LY_KHUYEN_MAI_VOUCHER.md) | Chiến dịch khuyến mãi với 3 nhánh: Giảm theo sản phẩm, Chiết khấu bậc đơn hàng, Phát hành mã Voucher. | Hoàn thiện |
 | 08 | [Module 08 - Quản lý Đơn đặt hàng (Orders)](08_QUAN_LY_DON_DAT_HANG.md) | Quy trình vòng đời đơn hàng (`PENDING` ➔ `CONFIRMED` ➔ `COMPLETED` / `CANCELLED`), hoàn kho & voucher khi hủy đơn. | Hoàn thiện |
 | 09 | [Module 09 - Quản lý Hóa đơn (Invoices)](09_QUAN_LY_HOA_DON.md) | Lập hóa đơn bán hàng, thuật toán áp dụng voucher & chiết khấu, phương thức thanh toán QR/POS/Cash, in hóa đơn A4/K80. | Hoàn thiện |
