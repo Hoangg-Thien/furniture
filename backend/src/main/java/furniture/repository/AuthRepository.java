@@ -19,8 +19,9 @@ public class AuthRepository {
     }
 
     private Long extractId(KeyHolder keyHolder) {
-        if (keyHolder.getKeys() != null) {
-            for (Map.Entry<String, Object> entry : keyHolder.getKeys().entrySet()) {
+        Map<String, Object> keys = keyHolder.getKeys();
+        if (keys != null) {
+            for (Map.Entry<String, Object> entry : keys.entrySet()) {
                 if ("id".equalsIgnoreCase(entry.getKey()) && entry.getValue() instanceof Number num) {
                     return num.longValue();
                 }

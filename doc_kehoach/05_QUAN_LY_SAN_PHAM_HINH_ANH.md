@@ -1,6 +1,14 @@
 # TÀI LIỆU MODULE 05: QUẢN LÝ SẢN PHẨM & ALBUM HÌNH ẢNH
 ## QUẢN TRỊ DANH MỤC NỘI THẤT, KHO HÀNG & THƯ VIỆN ẢNH ĐA GÓC
 
+> **Trạng thái:** ✅ **ĐÃ TRIỂN KHAI HOÀN CHỈNH (FULLSTACK + UNIT TESTS 100% PASSED)**  
+> - **Backend Controller**: [`AdminProductController.java`](file:///d:/furniture/backend/src/main/java/furniture/controller/AdminProductController.java)  
+> - **Backend Service**: [`AdminProductService.java`](file:///d:/furniture/backend/src/main/java/furniture/service/AdminProductService.java), [`FileStorageService.java`](file:///d:/furniture/backend/src/main/java/furniture/service/FileStorageService.java)  
+> - **Backend Repository**: [`AdminProductRepository.java`](file:///d:/furniture/backend/src/main/java/furniture/repository/AdminProductRepository.java)  
+> - **DTOs**: [`SaveProductRequest.java`](file:///d:/furniture/backend/src/main/java/furniture/model/admin/product/SaveProductRequest.java), [`ProductImageDto.java`](file:///d:/furniture/backend/src/main/java/furniture/model/admin/product/ProductImageDto.java), [`ProductSummaryDto.java`](file:///d:/furniture/backend/src/main/java/furniture/model/admin/product/ProductSummaryDto.java), [`ProductDetailDto.java`](file:///d:/furniture/backend/src/main/java/furniture/model/admin/product/ProductDetailDto.java)  
+> - **Frontend UI**: [`AdminProductManagement.jsx`](file:///d:/furniture/frontend/src/admin/AdminProductManagement.jsx) (Tích hợp trong [`AdminLayout.jsx`](file:///d:/furniture/frontend/src/admin/AdminLayout.jsx))  
+> - **Unit Tests**: [`AdminProductServiceTest.java`](file:///d:/furniture/backend/src/test/java/furniture/AdminProductServiceTest.java) (8/8 tests passed, kiểm tra đầy đủ tìm kiếm, lọc lowStock < 5, CRUD, upload ảnh, set primary ⭐)
+
 [⬅️ Quay lại Trang Mục Lục](README.md) | [Tiếp theo: Module 06 - Quản lý Nhà cung cấp ➡️](06_QUAN_LY_NHA_CUNG_CAP.md)
 
 ---

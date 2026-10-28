@@ -36,8 +36,9 @@ public class AdminCategoryRepository {
     }
 
     private Long extractId(KeyHolder keyHolder) {
-        if (keyHolder.getKeys() != null) {
-            for (Map.Entry<String, Object> entry : keyHolder.getKeys().entrySet()) {
+        Map<String, Object> keys = keyHolder.getKeys();
+        if (keys != null) {
+            for (Map.Entry<String, Object> entry : keys.entrySet()) {
                 if ("id".equalsIgnoreCase(entry.getKey()) && entry.getValue() instanceof Number num) {
                     return num.longValue();
                 }
@@ -51,6 +52,7 @@ public class AdminCategoryRepository {
         }
     }
 
+    @SuppressWarnings("null")
     public List<CategoryResponse> findAllWithProductCount(String search, Boolean isActive) {
         StringBuilder sql = new StringBuilder("""
                 SELECT c.id, c.name, c.description, COUNT(p.id) AS product_count,
@@ -79,7 +81,8 @@ public class AdminCategoryRepository {
                 ORDER BY c.id ASC
                 """);
 
-        return jdbcTemplate.query(sql.toString(), (rs, rowNum) -> new CategoryResponse(
+        String querySql = sql.toString();
+        return jdbcTemplate.query(querySql, (rs, rowNum) -> new CategoryResponse(
                 rs.getLong("id"),
                 rs.getString("name"),
                 rs.getString("description"),
