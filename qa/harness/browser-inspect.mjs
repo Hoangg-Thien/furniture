@@ -1,0 +1,13 @@
+import { chromium } from 'file:///C:/Users/LENOVO/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright/index.mjs'
+const browser = await chromium.launch({ executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: true, args: ['--no-sandbox'] })
+const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } })
+page.on('pageerror', e => console.log('PAGEERROR', e.message))
+await page.goto('http://127.0.0.1:5175')
+await page.locator('.product-card').first().waitFor()
+console.log('TITLE', await page.title())
+console.log('BUTTONS', await page.getByRole('button').allTextContents())
+console.log('CARDS', await page.locator('.product-card').count())
+await page.screenshot({ path: 'qa/artifacts/storefront.png', fullPage: true })
+await page.getByRole('button', { name: /Mở giỏ hàng/ }).click()
+console.log('CART', (await page.locator('body').innerText()).slice(-5000))
+await browser.close()

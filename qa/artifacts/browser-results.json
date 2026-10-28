@@ -1,0 +1,211 @@
+{
+  "results": [
+    {
+      "name": "Storefront loads real catalog",
+      "pass": true
+    },
+    {
+      "name": "Search filters product name",
+      "pass": true
+    },
+    {
+      "name": "Search no results",
+      "pass": true
+    },
+    {
+      "name": "Category filter",
+      "pass": true
+    },
+    {
+      "name": "Price preset",
+      "pass": true
+    },
+    {
+      "name": "Price ascending sort",
+      "pass": true
+    },
+    {
+      "name": "Invalid custom price range shows message",
+      "pass": true
+    },
+    {
+      "name": "Favorites filter",
+      "pass": true
+    },
+    {
+      "name": "Cart add item",
+      "pass": true
+    },
+    {
+      "name": "Cart increase quantity",
+      "pass": true
+    },
+    {
+      "name": "Guest checkout asks login",
+      "pass": true
+    },
+    {
+      "name": "Customer login through UI",
+      "pass": true
+    },
+    {
+      "name": "Checkout shipping form opens",
+      "pass": true
+    },
+    {
+      "name": "Checkout confirmation step",
+      "pass": true
+    },
+    {
+      "name": "Checkout creates backend order",
+      "pass": true,
+      "order": {
+        "orderId": 82,
+        "orderCode": "FUNI-2026-000082",
+        "status": "PENDING",
+        "totalAmount": 14500000,
+        "message": "Đặt hàng thành công và đã lưu vào cơ sở dữ liệu!"
+      }
+    },
+    {
+      "name": "Refresh retains shipping recipient name",
+      "pass": false,
+      "expectedRecipient": "QA Browser Receiver",
+      "containsAccountName": true
+    },
+    {
+      "name": "Cart resets on refresh as documented",
+      "pass": true,
+      "cartLabel": "Mở giỏ hàng, 0 sản phẩm",
+      "note": "README describes memory-only cart; this is a limitation, not a confirmed regression."
+    },
+    {
+      "name": "Offline cancellation must not claim server success",
+      "pass": false,
+      "offline": {
+        "success": true,
+        "message": "Đã hủy đơn hàng thành công."
+      }
+    },
+    {
+      "name": "Local order history writes preferred key",
+      "pass": false,
+      "preferred": [
+        {
+          "id": "OLD"
+        }
+      ],
+      "legacy": [
+        {
+          "id": "NEW"
+        },
+        {
+          "id": "OLD"
+        }
+      ]
+    },
+    {
+      "name": "Admin login through UI",
+      "pass": true
+    },
+    {
+      "name": "Dashboard loads real backend statistics",
+      "pass": false,
+      "requestedUrl": "http://127.0.0.1:5175/api/admin/statistics/overview",
+      "contentType": "text/html",
+      "actualBackendRevenue": 31509000,
+      "shownRevenue": "452.800.000 ₫"
+    },
+    {
+      "name": "Global search finds existing product",
+      "pass": false,
+      "query": "QA chair 79850515",
+      "resultCount": 0
+    },
+    {
+      "name": "Admin module dashboard renders",
+      "pass": true,
+      "preview": "Hệ thống quản trị >\nTổng quan hoạt động\nBảng Điều Khiển Kinh Doanh Showroom\nThêm sản phẩm\nXem đơn đặt hàng\nDOANH THU TÍCH LŨY\n452.800.000 ₫\n+14.2% so với tháng trước\nĐƠN "
+    },
+    {
+      "name": "Admin module orders renders",
+      "pass": true,
+      "preview": "Trang chủ > Quản lý đơn hàng >\nModule 08\nQuy Trình Xử Lý & Điều Phối Đơn Hàng\n\nTheo dõi vòng đời đơn đặt hàng nội thất: Chờ tiếp nhận, Gán nhân viên điều phối, Nghiệm thu"
+    },
+    {
+      "name": "Admin module invoices renders",
+      "pass": true,
+      "preview": "Trang chủ > Quản lý hóa đơn >\nModule 09\nQuản Lý Hóa Đơn & Thanh Toán\n\nXuất chứng từ thanh toán chính thức, áp dụng chiết khấu voucher & VAT, quét VietQR động và in hóa đơ"
+    },
+    {
+      "name": "Admin module customers renders",
+      "pass": true,
+      "preview": "Trang chủ > Quản lý khách hàng (CRM) >\nModule 02\nHồ Sơ Khách Hàng & Phân Hạng Tiêu Dùng\nLàm Mới\nXuất DS Khách Hàng (Excel)\nPhân hạng:\nTất cả phân hạng\nVIP Diamond (≥ 50 t"
+    },
+    {
+      "name": "Admin module products renders",
+      "pass": true,
+      "preview": "Trang chủ > Kho & Chuỗi Cung Ứng >\nQuản lý Sản phẩm & Album Ảnh\nSản Phẩm Nội Thất & Album Đa Góc\n\nQuản trị kho hàng nội thất cao cấp, đơn giá, kiểm soát tồn kho và thư vi"
+    },
+    {
+      "name": "Admin module suppliers renders",
+      "pass": true,
+      "preview": "Trang chủ > Kho & Chuỗi Cung Ứng >\nNhà Cung Cấp & Nhập Kho\nHồ Sơ Nhà Cung Cấp & Lịch Sử Nhập Kho\n\nQuản trị danh bạ xưởng mộc, đối tác vật tư - phụ kiện cao cấp và theo dõ"
+    },
+    {
+      "name": "Admin module users renders",
+      "pass": true,
+      "preview": "Trang chủ > Quản lý tài khoản & Phân quyền >\nModule 01\nQuản Lý Tài Khoản & Phân Quyền\nLàm Mới\nTạo Tài Khoản Mới\nVai trò:\nTất cả vai trò\nADMIN (Quản trị viên)\nSTAFF (Nhân "
+    },
+    {
+      "name": "Admin module staff renders",
+      "pass": true,
+      "preview": "Trang chủ > Quản trị nhân sự >\nModule 03\nQuản Lý Đội Ngũ Nhân Viên\nLàm Mới\nThêm Nhân Viên Mới\nTrạng thái:\nTất cả trạng thái\nĐang làm việc\nĐã khóa / Thôi việc\nMÃ NV\tHỌ VÀ "
+    },
+    {
+      "name": "Admin module categories renders",
+      "pass": true,
+      "preview": "Trang chủ/Kho & Chuỗi Cung Ứng/Quản lý Loại nội thất\nDanh Mục & Loại Nội Thất\n\nCấu trúc phân loại không gian nội thất, điều khiển trạng thái hiển thị/ẩn sản phẩm trên web"
+    },
+    {
+      "name": "Admin module promotions renders",
+      "pass": true,
+      "preview": "Trang chủ > Khuyến mãi & Voucher (Module 07)\nChiến Dịch Khuyến Mãi & Kho Voucher Nội Thất\n\nCấu hình 3 cơ chế ưu đãi: Giảm giá trực tiếp theo sản phẩm, Chiết khấu bậc đơn "
+    },
+    {
+      "name": "Admin module reports renders",
+      "pass": true,
+      "preview": "Bán Hàng & Dòng Tiền >\nThống kê & Báo cáo\nTrung Tâm Phân Tích & Báo Cáo Doanh Thu\nLàm mới\nXuất Báo Cáo Excel\nHôm nay\n7 ngày qua\n30 ngày qua\nTháng này\nTừ ngày:\nĐến ngày:\nD"
+    },
+    {
+      "name": "Uploaded product image uses backend URL and loads",
+      "pass": false,
+      "image": {
+        "src": "http://127.0.0.1:5175/uploads/products/4f3c7885-f62b-404f-980d-fe6ca9b32e98.png",
+        "complete": true,
+        "naturalWidth": 0
+      }
+    },
+    {
+      "name": "Empty catalog does not resurrect cached products",
+      "pass": false,
+      "displayedCount": 22
+    },
+    {
+      "name": "Mobile storefront no horizontal overflow",
+      "pass": true,
+      "viewport": 390,
+      "content": 390
+    },
+    {
+      "name": "Unknown path shows 404",
+      "pass": true
+    },
+    {
+      "name": "No uncaught browser runtime errors",
+      "pass": true,
+      "errors": []
+    }
+  ],
+  "pageErrors": []
+}

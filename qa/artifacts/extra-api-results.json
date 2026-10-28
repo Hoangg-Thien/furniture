@@ -1,0 +1,662 @@
+[
+  {
+    "name": "Category detail",
+    "pass": true,
+    "method": "GET",
+    "route": "/api/admin/categories/12",
+    "status": 200,
+    "response": {
+      "id": 12,
+      "name": "QA category 79850515",
+      "description": "Updated QA",
+      "productCount": 1,
+      "isActive": true
+    }
+  },
+  {
+    "name": "Category toggle hide with products",
+    "pass": true,
+    "method": "PUT",
+    "route": "/api/admin/categories/12/toggle-status",
+    "status": 200,
+    "response": {
+      "message": "Đã tạm ẩn loại nội thất khỏi cửa hàng thành công",
+      "category": {
+        "id": 12,
+        "name": "QA category 79850515",
+        "description": "Updated QA",
+        "productCount": 1,
+        "isActive": false
+      }
+    }
+  },
+  {
+    "name": "Hidden category products hidden from storefront",
+    "pass": true
+  },
+  {
+    "name": "Category toggle activate",
+    "pass": true,
+    "method": "PUT",
+    "route": "/api/admin/categories/12/toggle-status",
+    "status": 200,
+    "response": {
+      "message": "Đã kích hoạt hiển thị loại nội thất công khai trên cửa hàng",
+      "category": {
+        "id": 12,
+        "name": "QA category 79850515",
+        "description": "Updated QA",
+        "productCount": 1,
+        "isActive": true
+      }
+    }
+  },
+  {
+    "name": "Product toggle hide",
+    "pass": true,
+    "method": "PUT",
+    "route": "/api/admin/products/22/toggle-status",
+    "status": 200,
+    "response": {
+      "isActive": false,
+      "message": "Đã tạm ẩn sản phẩm khỏi cửa hàng"
+    }
+  },
+  {
+    "name": "Hidden product removed from catalog",
+    "pass": true
+  },
+  {
+    "name": "Product toggle show",
+    "pass": true,
+    "method": "PUT",
+    "route": "/api/admin/products/22/toggle-status",
+    "status": 200,
+    "response": {
+      "isActive": true,
+      "message": "Đã bật hiển thị sản phẩm công khai"
+    }
+  },
+  {
+    "name": "Category empty create",
+    "pass": true,
+    "method": "POST",
+    "route": "/api/admin/categories",
+    "status": 201,
+    "response": {
+      "id": 15,
+      "name": "QA empty 80192869",
+      "description": null,
+      "productCount": 0,
+      "isActive": true
+    }
+  },
+  {
+    "name": "Category empty delete",
+    "pass": true,
+    "method": "DELETE",
+    "route": "/api/admin/categories/15",
+    "status": 200,
+    "response": {
+      "message": "Đã xóa loại nội thất thành công"
+    }
+  },
+  {
+    "name": "Supplier empty create",
+    "pass": true,
+    "method": "POST",
+    "route": "/api/admin/suppliers",
+    "status": 201,
+    "response": {
+      "id": 15,
+      "name": "QA empty 80192869",
+      "phone": null,
+      "email": null,
+      "address": null,
+      "totalReceiptsCount": 0,
+      "totalReceiptValue": 0
+    }
+  },
+  {
+    "name": "Supplier empty delete",
+    "pass": true,
+    "method": "DELETE",
+    "route": "/api/admin/suppliers/15",
+    "status": 200,
+    "response": {
+      "message": "Đã xóa nhà cung cấp thành công"
+    }
+  },
+  {
+    "name": "Promotion edit",
+    "pass": true,
+    "method": "PUT",
+    "route": "/api/admin/promotions/14",
+    "status": 200,
+    "response": {
+      "id": 14,
+      "name": "QA promo 79850515",
+      "description": "QA edited",
+      "startDate": "2026-01-01T00:00:00",
+      "endDate": "2027-12-31T23:59:59",
+      "status": "ACTIVE",
+      "productDiscountsCount": 0,
+      "orderDiscountsCount": 0,
+      "vouchersCount": 2,
+      "isCurrentlyRunning": true
+    }
+  },
+  {
+    "name": "Promotion product discount create",
+    "pass": true,
+    "method": "POST",
+    "route": "/api/admin/promotions/14/product-discounts",
+    "status": 201,
+    "response": {
+      "id": 18,
+      "promotionProgramId": 14,
+      "productId": 22,
+      "productName": "QA chair 79850515",
+      "productImageUrl": "/uploads/products/4f3c7885-f62b-404f-980d-fe6ca9b32e98.png",
+      "unit": "cai",
+      "sellingPrice": 100000,
+      "discountPercent": 20,
+      "discountedPrice": 80000,
+      "startDate": "2026-01-01T00:00:00",
+      "endDate": "2027-12-31T23:59:59"
+    }
+  },
+  {
+    "name": "Promotion order discount create",
+    "pass": true,
+    "method": "POST",
+    "route": "/api/admin/promotions/14/order-discounts",
+    "status": 201,
+    "response": {
+      "id": 13,
+      "promotionProgramId": 14,
+      "minimumAmount": 0,
+      "discountPercent": 10,
+      "startDate": "2026-01-01T00:00:00",
+      "endDate": "2027-12-31T23:59:59"
+    }
+  },
+  {
+    "name": "Order for shipping and promotion verification",
+    "pass": true,
+    "method": "POST",
+    "route": "/api/orders",
+    "status": 200,
+    "response": {
+      "orderId": 77,
+      "orderCode": "FUNI-2026-000077",
+      "status": "PENDING",
+      "totalAmount": 135000,
+      "message": "Đặt hàng thành công và đã lưu vào cơ sở dữ liệu!"
+    }
+  },
+  {
+    "name": "Order stores recipient full name",
+    "pass": false,
+    "expected": "QA Receiver First",
+    "actual": "QA Admin edited"
+  },
+  {
+    "name": "Order second shipping address",
+    "pass": true,
+    "method": "POST",
+    "route": "/api/orders",
+    "status": 200,
+    "response": {
+      "orderId": 78,
+      "orderCode": "FUNI-2026-000078",
+      "status": "PENDING",
+      "totalAmount": 135000,
+      "message": "Đặt hàng thành công và đã lưu vào cơ sở dữ liệu!"
+    }
+  },
+  {
+    "name": "Earlier order shipping address remains unchanged",
+    "pass": false,
+    "before": "QA first shipping address",
+    "after": "QA second shipping address"
+  },
+  {
+    "name": "Invoice applies configured product and order promotions",
+    "pass": false,
+    "calc": {
+      "orderId": 77,
+      "originalSubtotal": 135000,
+      "orderDiscount": 0,
+      "voucherDiscount": 0,
+      "voucherCode": null,
+      "voucherValid": false,
+      "voucherMessage": null,
+      "includeVat": false,
+      "vatPercent": 8,
+      "vatAmount": 0,
+      "finalAmount": 135000
+    },
+    "expectedProductDiscount": "20%",
+    "expectedOrderDiscount": "10%",
+    "reference": "doc_kehoach/09_QUAN_LY_HOA_DON.md B2-B4"
+  },
+  {
+    "name": "Promotion product discount delete",
+    "pass": true,
+    "method": "DELETE",
+    "route": "/api/admin/promotions/14/product-discounts/18",
+    "status": 200,
+    "response": {
+      "message": "Đã gỡ bỏ giảm giá sản phẩm"
+    }
+  },
+  {
+    "name": "Promotion order discount delete",
+    "pass": true,
+    "method": "DELETE",
+    "route": "/api/admin/promotions/14/order-discounts/13",
+    "status": 200,
+    "response": {
+      "message": "Đã gỡ bỏ chiết khấu bậc đơn hàng"
+    }
+  },
+  {
+    "name": "Voucher status inactive",
+    "pass": true,
+    "method": "PUT",
+    "route": "/api/admin/promotions/vouchers/15/status?status=INACTIVE",
+    "status": 200,
+    "response": {
+      "message": "Đã cập nhật trạng thái voucher"
+    }
+  },
+  {
+    "name": "Inactive voucher validation rejected",
+    "pass": true,
+    "method": "POST",
+    "route": "/api/vouchers/validate",
+    "status": 400,
+    "response": {
+      "error": "Voucher này đã bị tạm ngừng áp dụng."
+    }
+  },
+  {
+    "name": "Voucher approve",
+    "pass": true,
+    "method": "PUT",
+    "route": "/api/vouchers/15/approve",
+    "status": 200,
+    "response": {
+      "message": "Đã phê duyệt voucher thành công! Voucher hiện đã có mặt trong Kho Vouchers của khách hàng."
+    }
+  },
+  {
+    "name": "Voucher reject",
+    "pass": true,
+    "method": "PUT",
+    "route": "/api/vouchers/15/reject",
+    "status": 200,
+    "response": {
+      "message": "Đã từ chối / ngừng áp dụng voucher này."
+    }
+  },
+  {
+    "name": "Voucher approve again",
+    "pass": true,
+    "method": "PUT",
+    "route": "/api/vouchers/15/approve",
+    "status": 200,
+    "response": {
+      "message": "Đã phê duyệt voucher thành công! Voucher hiện đã có mặt trong Kho Vouchers của khách hàng."
+    }
+  },
+  {
+    "name": "Public voucher create draft",
+    "pass": true,
+    "method": "POST",
+    "route": "/api/vouchers",
+    "status": 201,
+    "response": {
+      "status": "DRAFT",
+      "code": "QADRAFT80192869",
+      "message": "Tạo voucher cửa hàng thành công! Voucher đang ở trạng thái 'Chờ Admin duyệt' trước khi vào Kho Voucher."
+    }
+  },
+  {
+    "name": "Draft voucher validation rejected",
+    "pass": true,
+    "method": "POST",
+    "route": "/api/vouchers/validate",
+    "status": 400,
+    "response": {
+      "error": "Voucher 'QADRAFT80192869' hiện đang chờ Admin phê duyệt, chưa thể áp dụng."
+    }
+  },
+  {
+    "name": "Exhausted voucher validation rejected",
+    "pass": true,
+    "method": "POST",
+    "route": "/api/vouchers/validate",
+    "status": 400,
+    "response": {
+      "error": "Voucher 'QA79850515' đã hết số lượng lượt dùng."
+    }
+  },
+  {
+    "name": "Order rejects exhausted voucher even bypassing validation",
+    "pass": false,
+    "status": 200,
+    "data": {
+      "orderId": 79,
+      "orderCode": "FUNI-2026-000079",
+      "status": "PENDING",
+      "totalAmount": 125000,
+      "message": "Đặt hàng thành công và đã lưu vào cơ sở dữ liệu!"
+    }
+  },
+  {
+    "name": "Order without identity must not use first customer",
+    "pass": false,
+    "status": 200,
+    "data": {
+      "orderId": 80,
+      "orderCode": "FUNI-2026-000080",
+      "status": "PENDING",
+      "totalAmount": 135000,
+      "message": "Đặt hàng thành công và đã lưu vào cơ sở dữ liệu!"
+    },
+    "actualCustomerId": 1
+  },
+  {
+    "name": "Duplicate product rows preserve total quantity",
+    "pass": false,
+    "status": 200,
+    "data": {
+      "orderId": 81,
+      "orderCode": "FUNI-2026-000081",
+      "status": "PENDING",
+      "totalAmount": 335000,
+      "message": "Đặt hàng thành công và đã lưu vào cơ sở dữ liệu!"
+    },
+    "storedItems": {
+      "qty": 2,
+      "amount": "200000.00"
+    },
+    "expectedQty": 3
+  },
+  {
+    "name": "Receipt completed can be reverted (probe)",
+    "pass": true,
+    "method": "PATCH",
+    "route": "/api/admin/suppliers/12/receipts/17/status",
+    "status": 200,
+    "response": {
+      "message": "Đã cập nhật trạng thái phiếu nhập"
+    }
+  },
+  {
+    "name": "Receipt reverted then completed (probe)",
+    "pass": true,
+    "method": "PATCH",
+    "route": "/api/admin/suppliers/12/receipts/17/status",
+    "status": 200,
+    "response": {
+      "message": "Đã cập nhật trạng thái phiếu nhập"
+    }
+  },
+  {
+    "name": "Receipt status round trip cannot inflate stock",
+    "pass": false,
+    "before": 20,
+    "after": 23,
+    "repeatedAddition": 3
+  },
+  {
+    "name": "Receipt rejects all zero quantity items",
+    "pass": false,
+    "status": 201,
+    "data": {
+      "receiptId": 20,
+      "message": "Tạo phiếu nhập kho thành công"
+    }
+  },
+  {
+    "name": "Category revenue obeys date range with no orders",
+    "pass": false,
+    "revenue": [
+      {
+        "categoryId": 12,
+        "categoryName": "QA category 79850515",
+        "totalRevenue": 100002200000,
+        "soldQuantity": 1000023,
+        "percentage": 49.76
+      },
+      {
+        "categoryId": 11,
+        "categoryName": "QA category 79727517",
+        "totalRevenue": 100000500000,
+        "soldQuantity": 1000006,
+        "percentage": 49.76
+      },
+      {
+        "categoryId": 1,
+        "categoryName": "Sofa va ghe thu gian",
+        "totalRevenue": 683200000,
+        "soldQuantity": 66,
+        "percentage": 0.34
+      },
+      {
+        "categoryId": 4,
+        "categoryName": "Giuong ngu",
+        "totalRevenue": 93200000,
+        "soldQuantity": 12,
+        "percentage": 0.05
+      },
+      {
+        "categoryId": 2,
+        "categoryName": "Ban an",
+        "totalRevenue": 54600000,
+        "soldQuantity": 8,
+        "percentage": 0.03
+      },
+      {
+        "categoryId": 3,
+        "categoryName": "Ghe an va ghe bar",
+        "totalRevenue": 32100000,
+        "soldQuantity": 32,
+        "percentage": 0.02
+      },
+      {
+        "categoryId": 7,
+        "categoryName": "Ke sach va ke tivi",
+        "totalRevenue": 28700000,
+        "soldQuantity": 10,
+        "percentage": 0.01
+      },
+      {
+        "categoryId": 6,
+        "categoryName": "Ban va ghe van phong",
+        "totalRevenue": 27500000,
+        "soldQuantity": 10,
+        "percentage": 0.01
+      },
+      {
+        "categoryId": 9,
+        "categoryName": "Tham va rem cua",
+        "totalRevenue": 17150000,
+        "soldQuantity": 9,
+        "percentage": 0.01
+      },
+      {
+        "categoryId": 10,
+        "categoryName": "Nem va phu kien giuong",
+        "totalRevenue": 11800000,
+        "soldQuantity": 2,
+        "percentage": 0.01
+      },
+      {
+        "categoryId": 5,
+        "categoryName": "Tu quan ao va tu giay",
+        "totalRevenue": 11600000,
+        "soldQuantity": 3,
+        "percentage": 0.01
+      },
+      {
+        "categoryId": 8,
+        "categoryName": "Den trang tri",
+        "totalRevenue": 10800000,
+        "soldQuantity": 5,
+        "percentage": 0.01
+      }
+    ]
+  },
+  {
+    "name": "Upload valid PNG",
+    "pass": true,
+    "status": 200,
+    "data": [
+      {
+        "id": 23,
+        "imageUrl": "/uploads/products/4f3c7885-f62b-404f-980d-fe6ca9b32e98.png",
+        "isPrimary": true,
+        "displayOrder": 1
+      },
+      {
+        "id": 24,
+        "imageUrl": "/uploads/products/14af83e3-5097-4d02-90f8-8cdc0c11ed9c.png",
+        "isPrimary": false,
+        "displayOrder": 2
+      },
+      {
+        "id": 25,
+        "imageUrl": "/uploads/products/c0420407-4b11-4af7-aece-6e3d4990a164.html",
+        "isPrimary": false,
+        "displayOrder": 3
+      },
+      {
+        "id": 26,
+        "imageUrl": "/uploads/products/aaca5a47-0650-4fa0-9bbd-67becef7af7b.png",
+        "isPrimary": false,
+        "displayOrder": 4
+      }
+    ]
+  },
+  {
+    "name": "Uploaded image URL is served",
+    "pass": true,
+    "path": "/uploads/products/4f3c7885-f62b-404f-980d-fe6ca9b32e98.png",
+    "status": 200,
+    "type": "image/png"
+  },
+  {
+    "name": "Image upload rejects HTML files",
+    "pass": false,
+    "status": 200,
+    "response": [
+      {
+        "id": 23,
+        "imageUrl": "/uploads/products/4f3c7885-f62b-404f-980d-fe6ca9b32e98.png",
+        "isPrimary": true,
+        "displayOrder": 1
+      },
+      {
+        "id": 24,
+        "imageUrl": "/uploads/products/14af83e3-5097-4d02-90f8-8cdc0c11ed9c.png",
+        "isPrimary": false,
+        "displayOrder": 2
+      },
+      {
+        "id": 25,
+        "imageUrl": "/uploads/products/c0420407-4b11-4af7-aece-6e3d4990a164.html",
+        "isPrimary": false,
+        "displayOrder": 3
+      },
+      {
+        "id": 26,
+        "imageUrl": "/uploads/products/aaca5a47-0650-4fa0-9bbd-67becef7af7b.png",
+        "isPrimary": false,
+        "displayOrder": 4
+      },
+      {
+        "id": 27,
+        "imageUrl": "/uploads/products/dba24a8c-22bc-4069-b8db-5672a11f33cc.html",
+        "isPrimary": false,
+        "displayOrder": 5
+      }
+    ]
+  },
+  {
+    "name": "Empty promotion create",
+    "pass": true,
+    "method": "POST",
+    "route": "/api/admin/promotions",
+    "status": 201,
+    "response": {
+      "id": 19,
+      "name": "QA deletable 80192869",
+      "description": null,
+      "startDate": "2026-01-01T00:00:00",
+      "endDate": "2027-12-31T23:59:59",
+      "status": "DRAFT",
+      "productDiscountsCount": 0,
+      "orderDiscountsCount": 0,
+      "vouchersCount": 0,
+      "isCurrentlyRunning": false
+    }
+  },
+  {
+    "name": "Empty promotion delete",
+    "pass": true,
+    "method": "DELETE",
+    "route": "/api/admin/promotions/19",
+    "status": 200,
+    "response": {
+      "message": "Đã xóa chương trình khuyến mãi thành công"
+    }
+  },
+  {
+    "name": "Admin creates CUSTOMER account",
+    "pass": true,
+    "method": "POST",
+    "route": "/api/admin/users",
+    "status": 201,
+    "response": {
+      "id": 42,
+      "username": "qacustomer80192869",
+      "role": "CUSTOMER",
+      "isActive": true,
+      "createdAt": "2026-10-28T16:36:33.1518168"
+    }
+  },
+  {
+    "name": "Admin-created CUSTOMER can login",
+    "pass": true,
+    "method": "POST",
+    "route": "/api/auth/login",
+    "status": 200,
+    "response": {
+      "userId": 42,
+      "customerId": null,
+      "username": "qacustomer80192869",
+      "fullName": null,
+      "email": null,
+      "phone": null,
+      "address": null,
+      "role": "CUSTOMER",
+      "message": "Đăng nhập thành công!"
+    }
+  },
+  {
+    "name": "Admin-created CUSTOMER has linked customer profile",
+    "pass": false,
+    "customerId": null,
+    "userId": 42
+  },
+  {
+    "name": "Stored password hash must not be accepted as password",
+    "pass": false,
+    "status": 200,
+    "authenticatedAs": "qa79850515"
+  }
+]

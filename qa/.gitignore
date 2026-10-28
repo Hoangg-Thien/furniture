@@ -1,0 +1,6 @@
+harness/node_modules/
+harness/npm-cache/
+runtime/
+database/
+artifacts/*.xml
+artifacts/classpath.txt

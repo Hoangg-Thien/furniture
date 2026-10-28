@@ -1,0 +1,1810 @@
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::               (v3.5.13)
+
+2026-10-28T16:35:27.274+07:00 DEBUG 25372 --- [demo] [           main] o.s.boot.SpringApplication               : Loading source class furniture.Application
+2026-10-28T16:35:27.305+07:00 DEBUG 25372 --- [demo] [           main] ConfigServletWebServerApplicationContext : Refreshing org.springframework.boot.web.servlet.context.AnnotationConfigServletWebServerApplicationContext@f107c50
+2026-10-28T16:35:27.760+07:00 DEBUG 25372 --- [demo] [           main] o.s.b.a.AutoConfigurationPackages        : @EnableAutoConfiguration was declared on a class in the package 'furniture'. Automatic @Repository and @Entity scanning is enabled.
+2026-10-28T16:35:36.145+07:00 DEBUG 25372 --- [demo] [           main] .s.b.w.e.t.TomcatServletWebServerFactory : Code archive: C:\Users\LENOVO\.m2\repository\org\springframework\boot\spring-boot\3.5.13\spring-boot-3.5.13.jar
+2026-10-28T16:35:36.145+07:00 DEBUG 25372 --- [demo] [           main] .s.b.w.e.t.TomcatServletWebServerFactory : Code archive: C:\Users\LENOVO\.m2\repository\org\springframework\boot\spring-boot\3.5.13\spring-boot-3.5.13.jar
+2026-10-28T16:35:36.146+07:00 DEBUG 25372 --- [demo] [           main] .s.b.w.e.t.TomcatServletWebServerFactory : None of the document roots [src/main/webapp, public, static] point to a directory and will be ignored.
+2026-10-28T16:35:36.169+07:00  INFO 25372 --- [demo] [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port 18081 (http)
+2026-10-28T16:35:36.244+07:00 DEBUG 25372 --- [demo] [           main] w.s.c.ServletWebServerApplicationContext : Published root WebApplicationContext as ServletContext attribute with name [org.springframework.web.context.WebApplicationContext.ROOT]
+2026-10-28T16:35:36.245+07:00  INFO 25372 --- [demo] [           main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 8941 ms
+2026-10-28T16:35:36.267+07:00 DEBUG 25372 --- [demo] [           main] o.s.b.w.s.ServletContextInitializerBeans : Mapping filters: characterEncodingFilter urls=[/*] order=-2147483648, formContentFilter urls=[/*] order=-9900, requestContextFilter urls=[/*] order=-105
+2026-10-28T16:35:36.267+07:00 DEBUG 25372 --- [demo] [           main] o.s.b.w.s.ServletContextInitializerBeans : Mapping servlets: dispatcherServlet urls=[/]
+2026-10-28T16:35:36.287+07:00 DEBUG 25372 --- [demo] [           main] o.s.b.w.s.f.OrderedRequestContextFilter  : Filter 'requestContextFilter' configured for use
+2026-10-28T16:35:36.289+07:00 DEBUG 25372 --- [demo] [           main] s.b.w.s.f.OrderedCharacterEncodingFilter : Filter 'characterEncodingFilter' configured for use
+2026-10-28T16:35:36.289+07:00 DEBUG 25372 --- [demo] [           main] o.s.b.w.s.f.OrderedFormContentFilter     : Filter 'formContentFilter' configured for use
+2026-10-28T16:35:36.852+07:00  WARN 25372 --- [demo] [           main] org.hibernate.orm.deprecation            : HHH90000025: PostgreSQLDialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+2026-10-28T16:35:37.172+07:00 DEBUG 25372 --- [demo] [           main] o.s.jdbc.core.JdbcTemplate               : Executing SQL statement [ALTER TABLE public.categories ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT true]
+2026-10-28T16:35:37.183+07:00  WARN 25372 --- [demo] [           main] f.repository.AdminCategoryRepository     : Lưu ý khi kiểm tra cột is_active trong public.categories: StatementCallback; bad SQL grammar [ALTER TABLE public.categories ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT true]
+2026-10-28T16:35:37.236+07:00 DEBUG 25372 --- [demo] [           main] o.s.jdbc.core.JdbcTemplate               : Executing SQL statement [CREATE TABLE IF NOT EXISTS public.invoices (
+    id BIGSERIAL PRIMARY KEY,
+    invoice_code VARCHAR(50) UNIQUE NOT NULL,
+    order_id BIGINT UNIQUE NOT NULL,
+    customer_id BIGINT NOT NULL,
+    staff_id BIGINT,
+    subtotal_amount NUMERIC(15,2) NOT NULL CHECK (subtotal_amount >= 0),
+    discount_amount NUMERIC(15,2) NOT NULL DEFAULT 0 CHECK (discount_amount >= 0),
+    voucher_code VARCHAR(50),
+    voucher_discount NUMERIC(15,2) NOT NULL DEFAULT 0 CHECK (voucher_discount >= 0),
+    tax_amount NUMERIC(15,2) NOT NULL DEFAULT 0 CHECK (tax_amount >= 0),
+    final_amount NUMERIC(15,2) NOT NULL CHECK (final_amount >= 0),
+    payment_method VARCHAR(50) NOT NULL DEFAULT 'CASH',
+    payment_status VARCHAR(30) NOT NULL DEFAULT 'PAID',
+    payment_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    notes TEXT,
+    CONSTRAINT ck_invoices_payment_method CHECK (payment_method IN ('CASH', 'BANK_TRANSFER', 'CREDIT_CARD', 'VNPAY', 'MOMO')),
+    CONSTRAINT ck_invoices_payment_status CHECK (payment_status IN ('PENDING', 'PAID', 'REFUNDED')),
+    CONSTRAINT fk_invoices_order FOREIGN KEY (order_id) REFERENCES public.orders (id),
+    CONSTRAINT fk_invoices_customer FOREIGN KEY (customer_id) REFERENCES public.customers (id),
+    CONSTRAINT fk_invoices_staff FOREIGN KEY (staff_id) REFERENCES public.staff (id)
+);
+CREATE INDEX IF NOT EXISTS idx_invoices_order ON public.invoices (order_id);
+CREATE INDEX IF NOT EXISTS idx_invoices_customer ON public.invoices (customer_id);
+CREATE INDEX IF NOT EXISTS idx_invoices_payment_date ON public.invoices (payment_date);
+]
+2026-10-28T16:35:37.251+07:00  WARN 25372 --- [demo] [           main] f.repository.AdminInvoiceRepository      : Lưu ý khi kiểm tra bảng invoices: StatementCallback; bad SQL grammar [CREATE TABLE IF NOT EXISTS public.invoices (
+    id BIGSERIAL PRIMARY KEY,
+    invoice_code VARCHAR(50) UNIQUE NOT NULL,
+    order_id BIGINT UNIQUE NOT NULL,
+    customer_id BIGINT NOT NULL,
+    staff_id BIGINT,
+    subtotal_amount NUMERIC(15,2) NOT NULL CHECK (subtotal_amount >= 0),
+    discount_amount NUMERIC(15,2) NOT NULL DEFAULT 0 CHECK (discount_amount >= 0),
+    voucher_code VARCHAR(50),
+    voucher_discount NUMERIC(15,2) NOT NULL DEFAULT 0 CHECK (voucher_discount >= 0),
+    tax_amount NUMERIC(15,2) NOT NULL DEFAULT 0 CHECK (tax_amount >= 0),
+    final_amount NUMERIC(15,2) NOT NULL CHECK (final_amount >= 0),
+    payment_method VARCHAR(50) NOT NULL DEFAULT 'CASH',
+    payment_status VARCHAR(30) NOT NULL DEFAULT 'PAID',
+    payment_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    notes TEXT,
+    CONSTRAINT ck_invoices_payment_method CHECK (payment_method IN ('CASH', 'BANK_TRANSFER', 'CREDIT_CARD', 'VNPAY', 'MOMO')),
+    CONSTRAINT ck_invoices_payment_status CHECK (payment_status IN ('PENDING', 'PAID', 'REFUNDED')),
+    CONSTRAINT fk_invoices_order FOREIGN KEY (order_id) REFERENCES public.orders (id),
+    CONSTRAINT fk_invoices_customer FOREIGN KEY (customer_id) REFERENCES public.customers (id),
+    CONSTRAINT fk_invoices_staff FOREIGN KEY (staff_id) REFERENCES public.staff (id)
+);
+CREATE INDEX IF NOT EXISTS idx_invoices_order ON public.invoices (order_id);
+CREATE INDEX IF NOT EXISTS idx_invoices_customer ON public.invoices (customer_id);
+CREATE INDEX IF NOT EXISTS idx_invoices_payment_date ON public.invoices (payment_date);
+]
+2026-10-28T16:35:37.283+07:00 DEBUG 25372 --- [demo] [           main] o.s.jdbc.core.JdbcTemplate               : Executing SQL statement [CREATE TABLE IF NOT EXISTS public.product_images (
+    id BIGSERIAL PRIMARY KEY,
+    product_id BIGINT NOT NULL,
+    image_url TEXT NOT NULL,
+    is_primary BOOLEAN NOT NULL DEFAULT false,
+    display_order INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_product_images_product FOREIGN KEY (product_id)
+        REFERENCES public.products (id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_product_images_product ON public.product_images (product_id);
+CREATE INDEX IF NOT EXISTS idx_product_images_primary ON public.product_images (product_id, is_primary);
+]
+2026-10-28T16:35:37.288+07:00  WARN 25372 --- [demo] [           main] f.repository.AdminProductRepository      : Lưu ý khi kiểm tra bảng product_images: StatementCallback; bad SQL grammar [CREATE TABLE IF NOT EXISTS public.product_images (
+    id BIGSERIAL PRIMARY KEY,
+    product_id BIGINT NOT NULL,
+    image_url TEXT NOT NULL,
+    is_primary BOOLEAN NOT NULL DEFAULT false,
+    display_order INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_product_images_product FOREIGN KEY (product_id)
+        REFERENCES public.products (id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_product_images_product ON public.product_images (product_id);
+CREATE INDEX IF NOT EXISTS idx_product_images_primary ON public.product_images (product_id, is_primary);
+]
+2026-10-28T16:35:37.309+07:00 DEBUG 25372 --- [demo] [           main] o.s.jdbc.core.JdbcTemplate               : Executing SQL statement [SELECT setval(pg_get_serial_sequence('public.promotion_programs', 'id'), COALESCE((SELECT MAX(id) FROM public.promotion_programs), 1))]
+2026-10-28T16:35:37.311+07:00  WARN 25372 --- [demo] [           main] f.repository.AdminPromotionRepository    : Lưu ý khi đồng bộ sequence khuyến mãi: StatementCallback; bad SQL grammar [SELECT setval(pg_get_serial_sequence('public.promotion_programs', 'id'), COALESCE((SELECT MAX(id) FROM public.promotion_programs), 1))]
+2026-10-28T16:35:37.343+07:00 DEBUG 25372 --- [demo] [           main] o.s.jdbc.core.JdbcTemplate               : Executing SQL statement [SELECT setval(pg_get_serial_sequence('public.suppliers', 'id'), COALESCE((SELECT MAX(id) FROM public.suppliers), 1))]
+2026-10-28T16:35:37.345+07:00  WARN 25372 --- [demo] [           main] f.repository.AdminSupplierRepository     : Lưu ý đồng bộ sequence public.suppliers: StatementCallback; bad SQL grammar [SELECT setval(pg_get_serial_sequence('public.suppliers', 'id'), COALESCE((SELECT MAX(id) FROM public.suppliers), 1))]
+2026-10-28T16:35:37.345+07:00 DEBUG 25372 --- [demo] [           main] o.s.jdbc.core.JdbcTemplate               : Executing SQL statement [SELECT setval(pg_get_serial_sequence('public.purchase_receipts', 'id'), COALESCE((SELECT MAX(id) FROM public.purchase_receipts), 1))]
+2026-10-28T16:35:37.346+07:00  WARN 25372 --- [demo] [           main] f.repository.AdminSupplierRepository     : Lưu ý đồng bộ sequence public.purchase_receipts: StatementCallback; bad SQL grammar [SELECT setval(pg_get_serial_sequence('public.purchase_receipts', 'id'), COALESCE((SELECT MAX(id) FROM public.purchase_receipts), 1))]
+2026-10-28T16:35:37.376+07:00 DEBUG 25372 --- [demo] [           main] o.s.jdbc.core.JdbcTemplate               : Executing SQL statement [ALTER TABLE public.orders ALTER COLUMN order_date TYPE TIMESTAMP(0)]
+Notice: Could not alter order_date type to TIMESTAMP(0): StatementCallback; bad SQL grammar [ALTER TABLE public.orders ALTER COLUMN order_date TYPE TIMESTAMP(0)]
+2026-10-28T16:35:37.378+07:00 DEBUG 25372 --- [demo] [           main] o.s.jdbc.core.JdbcTemplate               : Executing SQL statement [ALTER TABLE public.orders ALTER COLUMN order_date SET DEFAULT (date_trunc('second', CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh'))]
+Notice: Could not alter default order_date: StatementCallback; bad SQL grammar [ALTER TABLE public.orders ALTER COLUMN order_date SET DEFAULT (date_trunc('second', CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh'))]
+2026-10-28T16:35:37.379+07:00 DEBUG 25372 --- [demo] [           main] o.s.jdbc.core.JdbcTemplate               : Executing SQL statement [UPDATE public.orders SET order_date = date_trunc('second', order_date)]
+Notice: Could not update old orders date: StatementCallback; bad SQL grammar [UPDATE public.orders SET order_date = date_trunc('second', order_date)]
+2026-10-28T16:35:37.380+07:00 DEBUG 25372 --- [demo] [           main] o.s.jdbc.core.JdbcTemplate               : Executing SQL statement [UPDATE public.orders o
+SET total_amount = (
+    SELECT COALESCE(SUM(oi.amount), 0) - COALESCE(o.discount_amount, 0)
+    FROM public.order_items oi
+    WHERE oi.order_id = o.id
+)
+WHERE o.voucher_id IS NOT NULL
+  AND o.discount_amount > 0
+  AND o.total_amount < (
+    SELECT COALESCE(SUM(oi.amount), 0) - COALESCE(o.discount_amount, 0)
+    FROM public.order_items oi
+    WHERE oi.order_id = o.id
+  )
+]
+Notice: Could not correct double discount orders: StatementCallback; bad SQL grammar [UPDATE public.orders o
+SET total_amount = (
+    SELECT COALESCE(SUM(oi.amount), 0) - COALESCE(o.discount_amount, 0)
+    FROM public.order_items oi
+    WHERE oi.order_id = o.id
+)
+WHERE o.voucher_id IS NOT NULL
+  AND o.discount_amount > 0
+  AND o.total_amount < (
+    SELECT COALESCE(SUM(oi.amount), 0) - COALESCE(o.discount_amount, 0)
+    FROM public.order_items oi
+    WHERE oi.order_id = o.id
+  )
+]
+2026-10-28T16:35:37.397+07:00 DEBUG 25372 --- [demo] [           main] o.s.jdbc.core.JdbcTemplate               : Executing SQL query [SELECT COUNT(*) FROM public.vouchers WHERE UPPER(code) IN ('FUNI500K', 'NEP500K')]
+Notice: initDefaultVouchers exception: StatementCallback; bad SQL grammar [SELECT COUNT(*) FROM public.vouchers WHERE UPPER(code) IN ('FUNI500K', 'NEP500K')]
+2026-10-28T16:35:37.569+07:00 DEBUG 25372 --- [demo] [           main] s.w.s.m.m.a.RequestMappingHandlerMapping : 90 mappings in 'requestMappingHandlerMapping'
+2026-10-28T16:35:37.675+07:00 DEBUG 25372 --- [demo] [           main] o.s.w.s.handler.SimpleUrlHandlerMapping  : Patterns [/webjars/**, /**, /uploads/**] in 'resourceHandlerMapping'
+2026-10-28T16:35:37.697+07:00 DEBUG 25372 --- [demo] [           main] s.w.s.m.m.a.RequestMappingHandlerAdapter : ControllerAdvice beans: 0 @ModelAttribute, 0 @InitBinder, 1 RequestBodyAdvice, 1 ResponseBodyAdvice
+2026-10-28T16:35:37.728+07:00 DEBUG 25372 --- [demo] [           main] .m.m.a.ExceptionHandlerExceptionResolver : ControllerAdvice beans: 0 @ExceptionHandler, 1 ResponseBodyAdvice
+2026-10-28T16:35:37.840+07:00  INFO 25372 --- [demo] [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port 18081 (http) with context path '/'
+2026-10-28T16:35:37.853+07:00 DEBUG 25372 --- [demo] [           main] .s.b.a.l.ConditionEvaluationReportLogger : 
+
+
+============================
+CONDITIONS EVALUATION REPORT
+============================
+
+
+Positive matches:
+-----------------
+
+   AopAutoConfiguration matched:
+      - @ConditionalOnBooleanProperty (spring.aop.auto=true) matched (OnPropertyCondition)
+
+   AopAutoConfiguration.AspectJAutoProxyingConfiguration matched:
+      - @ConditionalOnClass found required class 'org.aspectj.weaver.Advice' (OnClassCondition)
+
+   AopAutoConfiguration.AspectJAutoProxyingConfiguration.CglibAutoProxyConfiguration matched:
+      - @ConditionalOnBooleanProperty (spring.aop.proxy-target-class=true) matched (OnPropertyCondition)
+
+   ApplicationAvailabilityAutoConfiguration#applicationAvailability matched:
+      - @ConditionalOnMissingBean (types: org.springframework.boot.availability.ApplicationAvailability; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   DataSourceAutoConfiguration matched:
+      - @ConditionalOnClass found required classes 'javax.sql.DataSource', 'org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseType' (OnClassCondition)
+      - @ConditionalOnMissingBean (types: io.r2dbc.spi.ConnectionFactory; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   DataSourceAutoConfiguration.PooledDataSourceConfiguration matched:
+      - AnyNestedCondition 1 matched 1 did not; NestedCondition on DataSourceAutoConfiguration.PooledDataSourceCondition.PooledDataSourceAvailable PooledDataSource found supported DataSource; NestedCondition on DataSourceAutoConfiguration.PooledDataSourceCondition.ExplicitType @ConditionalOnProperty (spring.datasource.type) did not find property 'spring.datasource.type' (DataSourceAutoConfiguration.PooledDataSourceCondition)
+      - @ConditionalOnMissingBean (types: javax.sql.DataSource,javax.sql.XADataSource; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   DataSourceAutoConfiguration.PooledDataSourceConfiguration#jdbcConnectionDetails matched:
+      - @ConditionalOnMissingBean (types: org.springframework.boot.autoconfigure.jdbc.JdbcConnectionDetails; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   DataSourceConfiguration.Hikari matched:
+      - @ConditionalOnClass found required class 'com.zaxxer.hikari.HikariDataSource' (OnClassCondition)
+      - @ConditionalOnProperty (spring.datasource.type=com.zaxxer.hikari.HikariDataSource) matched (OnPropertyCondition)
+      - @ConditionalOnMissingBean (types: javax.sql.DataSource; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   DataSourceInitializationConfiguration matched:
+      - @ConditionalOnClass found required class 'org.springframework.jdbc.datasource.init.DatabasePopulator' (OnClassCondition)
+      - @ConditionalOnSingleCandidate (types: javax.sql.DataSource; SearchStrategy: all) found a single bean 'dataSource'; @ConditionalOnMissingBean (types: org.springframework.boot.autoconfigure.sql.init.SqlDataSourceScriptDatabaseInitializer,org.springframework.boot.autoconfigure.sql.init.SqlR2dbcScriptDatabaseInitializer; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   DataSourcePoolMetadataProvidersConfiguration.HikariPoolDataSourceMetadataProviderConfiguration matched:
+      - @ConditionalOnClass found required class 'com.zaxxer.hikari.HikariDataSource' (OnClassCondition)
+
+   DataSourceTransactionManagerAutoConfiguration matched:
+      - @ConditionalOnClass found required classes 'javax.sql.DataSource', 'org.springframework.jdbc.core.JdbcTemplate', 'org.springframework.transaction.TransactionManager' (OnClassCondition)
+
+   DataSourceTransactionManagerAutoConfiguration.JdbcTransactionManagerConfiguration matched:
+      - @ConditionalOnSingleCandidate (types: javax.sql.DataSource; SearchStrategy: all) found a single bean 'dataSource' (OnBeanCondition)
+
+   DispatcherServletAutoConfiguration matched:
+      - @ConditionalOnClass found required class 'org.springframework.web.servlet.DispatcherServlet' (OnClassCondition)
+      - found 'session' scope (OnWebApplicationCondition)
+
+   DispatcherServletAutoConfiguration.DispatcherServletConfiguration matched:
+      - @ConditionalOnClass found required class 'jakarta.servlet.ServletRegistration' (OnClassCondition)
+      - Default DispatcherServlet did not find dispatcher servlet beans (DispatcherServletAutoConfiguration.DefaultDispatcherServletCondition)
+
+   DispatcherServletAutoConfiguration.DispatcherServletRegistrationConfiguration matched:
+      - @ConditionalOnClass found required class 'jakarta.servlet.ServletRegistration' (OnClassCondition)
+      - DispatcherServlet Registration did not find servlet registration bean (DispatcherServletAutoConfiguration.DispatcherServletRegistrationCondition)
+
+   DispatcherServletAutoConfiguration.DispatcherServletRegistrationConfiguration#dispatcherServletRegistration matched:
+      - @ConditionalOnBean (names: dispatcherServlet types: org.springframework.web.servlet.DispatcherServlet; SearchStrategy: all) found bean 'dispatcherServlet' (OnBeanCondition)
+
+   EmbeddedWebServerFactoryCustomizerAutoConfiguration matched:
+      - @ConditionalOnWebApplication (required) found 'session' scope (OnWebApplicationCondition)
+      - @ConditionalOnWarDeployment the application is not deployed as a WAR file. (OnWarDeploymentCondition)
+
+   EmbeddedWebServerFactoryCustomizerAutoConfiguration.TomcatWebServerFactoryCustomizerConfiguration matched:
+      - @ConditionalOnClass found required classes 'org.apache.catalina.startup.Tomcat', 'org.apache.coyote.UpgradeProtocol' (OnClassCondition)
+
+   ErrorMvcAutoConfiguration matched:
+      - @ConditionalOnClass found required classes 'jakarta.servlet.Servlet', 'org.springframework.web.servlet.DispatcherServlet' (OnClassCondition)
+      - found 'session' scope (OnWebApplicationCondition)
+
+   ErrorMvcAutoConfiguration#basicErrorController matched:
+      - @ConditionalOnMissingBean (types: org.springframework.boot.web.servlet.error.ErrorController; SearchStrategy: current) did not find any beans (OnBeanCondition)
+
+   ErrorMvcAutoConfiguration#errorAttributes matched:
+      - @ConditionalOnMissingBean (types: org.springframework.boot.web.servlet.error.ErrorAttributes; SearchStrategy: current) did not find any beans (OnBeanCondition)
+
+   ErrorMvcAutoConfiguration.DefaultErrorViewResolverConfiguration#conventionErrorViewResolver matched:
+      - @ConditionalOnBean (types: org.springframework.web.servlet.DispatcherServlet; SearchStrategy: all) found bean 'dispatcherServlet'; @ConditionalOnMissingBean (types: org.springframework.boot.autoconfigure.web.servlet.error.ErrorViewResolver; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   ErrorMvcAutoConfiguration.WhitelabelErrorViewConfiguration matched:
+      - @ConditionalOnBooleanProperty (server.error.whitelabel.enabled=true) matched (OnPropertyCondition)
+      - ErrorTemplate Missing did not find error template view (ErrorMvcAutoConfiguration.ErrorTemplateMissingCondition)
+
+   ErrorMvcAutoConfiguration.WhitelabelErrorViewConfiguration#beanNameViewResolver matched:
+      - @ConditionalOnMissingBean (types: org.springframework.web.servlet.view.BeanNameViewResolver; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   ErrorMvcAutoConfiguration.WhitelabelErrorViewConfiguration#defaultErrorView matched:
+      - @ConditionalOnMissingBean (names: error; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   GenericCacheConfiguration matched:
+      - Cache org.springframework.boot.autoconfigure.cache.GenericCacheConfiguration automatic cache type (CacheCondition)
+
+   HibernateJpaAutoConfiguration matched:
+      - @ConditionalOnClass found required classes 'org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean', 'jakarta.persistence.EntityManager', 'org.hibernate.engine.spi.SessionImplementor' (OnClassCondition)
+
+   HibernateJpaConfiguration matched:
+      - @ConditionalOnSingleCandidate (types: javax.sql.DataSource; SearchStrategy: all) found a single bean 'dataSource' (OnBeanCondition)
+
+   HttpClientAutoConfiguration matched:
+      - @ConditionalOnClass found required class 'org.springframework.http.client.ClientHttpRequestFactory' (OnClassCondition)
+      - NoneNestedConditions 0 matched 1 did not; NestedCondition on NotReactiveWebApplicationCondition.ReactiveWebApplication did not find reactive web application classes (NotReactiveWebApplicationCondition)
+
+   HttpClientAutoConfiguration#clientHttpRequestFactoryBuilder matched:
+      - @ConditionalOnMissingBean (types: org.springframework.boot.http.client.ClientHttpRequestFactoryBuilder<?>; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   HttpClientAutoConfiguration#clientHttpRequestFactorySettings matched:
+      - @ConditionalOnMissingBean (types: org.springframework.boot.http.client.ClientHttpRequestFactorySettings; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   HttpEncodingAutoConfiguration matched:
+      - @ConditionalOnClass found required class 'org.springframework.web.filter.CharacterEncodingFilter' (OnClassCondition)
+      - found 'session' scope (OnWebApplicationCondition)
+      - @ConditionalOnBooleanProperty (server.servlet.encoding.enabled=true) matched (OnPropertyCondition)
+
+   HttpEncodingAutoConfiguration#characterEncodingFilter matched:
+      - @ConditionalOnMissingBean (types: org.springframework.web.filter.CharacterEncodingFilter; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   HttpMessageConvertersAutoConfiguration matched:
+      - @ConditionalOnClass found required class 'org.springframework.http.converter.HttpMessageConverter' (OnClassCondition)
+      - NoneNestedConditions 0 matched 1 did not; NestedCondition on HttpMessageConvertersAutoConfiguration.NotReactiveWebApplicationCondition.ReactiveWebApplication did not find reactive web application classes (HttpMessageConvertersAutoConfiguration.NotReactiveWebApplicationCondition)
+
+   HttpMessageConvertersAutoConfiguration#messageConverters matched:
+      - @ConditionalOnMissingBean (types: org.springframework.boot.autoconfigure.http.HttpMessageConverters; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   HttpMessageConvertersAutoConfiguration.StringHttpMessageConverterConfiguration matched:
+      - @ConditionalOnClass found required class 'org.springframework.http.converter.StringHttpMessageConverter' (OnClassCondition)
+
+   HttpMessageConvertersAutoConfiguration.StringHttpMessageConverterConfiguration#stringHttpMessageConverter matched:
+      - @ConditionalOnMissingBean (types: org.springframework.http.converter.StringHttpMessageConverter; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   JacksonAutoConfiguration matched:
+      - @ConditionalOnClass found required class 'com.fasterxml.jackson.databind.ObjectMapper' (OnClassCondition)
+
+   JacksonAutoConfiguration.Jackson2ObjectMapperBuilderCustomizerConfiguration matched:
+      - @ConditionalOnClass found required class 'org.springframework.http.converter.json.Jackson2ObjectMapperBuilder' (OnClassCondition)
+
+   JacksonAutoConfiguration.JacksonObjectMapperBuilderConfiguration matched:
+      - @ConditionalOnClass found required class 'org.springframework.http.converter.json.Jackson2ObjectMapperBuilder' (OnClassCondition)
+
+   JacksonAutoConfiguration.JacksonObjectMapperBuilderConfiguration#jacksonObjectMapperBuilder matched:
+      - @ConditionalOnMissingBean (types: org.springframework.http.converter.json.Jackson2ObjectMapperBuilder; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   JacksonAutoConfiguration.JacksonObjectMapperConfiguration matched:
+      - @ConditionalOnClass found required class 'org.springframework.http.converter.json.Jackson2ObjectMapperBuilder' (OnClassCondition)
+
+   JacksonAutoConfiguration.JacksonObjectMapperConfiguration#jacksonObjectMapper matched:
+      - @ConditionalOnMissingBean (types: com.fasterxml.jackson.databind.ObjectMapper; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   JacksonAutoConfiguration.ParameterNamesModuleConfiguration matched:
+      - @ConditionalOnClass found required class 'com.fasterxml.jackson.module.paramnames.ParameterNamesModule' (OnClassCondition)
+
+   JacksonAutoConfiguration.ParameterNamesModuleConfiguration#parameterNamesModule matched:
+      - @ConditionalOnMissingBean (types: com.fasterxml.jackson.module.paramnames.ParameterNamesModule; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   JacksonHttpMessageConvertersConfiguration.MappingJackson2HttpMessageConverterConfiguration matched:
+      - @ConditionalOnClass found required class 'com.fasterxml.jackson.databind.ObjectMapper' (OnClassCondition)
+      - @ConditionalOnPreferredJsonMapper JACKSON no property was configured and Jackson is the default (OnPreferredJsonMapperCondition)
+      - @ConditionalOnBean (types: com.fasterxml.jackson.databind.ObjectMapper; SearchStrategy: all) found bean 'jacksonObjectMapper' (OnBeanCondition)
+
+   JacksonHttpMessageConvertersConfiguration.MappingJackson2HttpMessageConverterConfiguration#mappingJackson2HttpMessageConverter matched:
+      - @ConditionalOnMissingBean (types: org.springframework.http.converter.json.MappingJackson2HttpMessageConverter ignored: org.springframework.hateoas.server.mvc.TypeConstrainedMappingJackson2HttpMessageConverter,org.springframework.data.rest.webmvc.alps.AlpsJsonHttpMessageConverter; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   JdbcClientAutoConfiguration matched:
+      - @ConditionalOnSingleCandidate (types: org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate; SearchStrategy: all) found a single bean 'namedParameterJdbcTemplate'; @ConditionalOnMissingBean (types: org.springframework.jdbc.core.simple.JdbcClient; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   JdbcTemplateAutoConfiguration matched:
+      - @ConditionalOnClass found required classes 'javax.sql.DataSource', 'org.springframework.jdbc.core.JdbcTemplate' (OnClassCondition)
+      - @ConditionalOnSingleCandidate (types: javax.sql.DataSource; SearchStrategy: all) found a single bean 'dataSource' (OnBeanCondition)
+
+   JdbcTemplateConfiguration matched:
+      - @ConditionalOnMissingBean (types: org.springframework.jdbc.core.JdbcOperations; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   JpaBaseConfiguration#entityManagerFactory matched:
+      - @ConditionalOnMissingBean (types: org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean,jakarta.persistence.EntityManagerFactory; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   JpaBaseConfiguration#entityManagerFactoryBuilder matched:
+      - @ConditionalOnMissingBean (types: org.springframework.boot.orm.jpa.EntityManagerFactoryBuilder; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   JpaBaseConfiguration#jpaVendorAdapter matched:
+      - @ConditionalOnMissingBean (types: org.springframework.orm.jpa.JpaVendorAdapter; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   JpaBaseConfiguration#transactionManager matched:
+      - @ConditionalOnMissingBean (types: org.springframework.transaction.TransactionManager; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   JpaBaseConfiguration.PersistenceManagedTypesConfiguration matched:
+      - @ConditionalOnMissingBean (types: org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean,jakarta.persistence.EntityManagerFactory; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   JpaBaseConfiguration.PersistenceManagedTypesConfiguration#persistenceManagedTypes matched:
+      - @ConditionalOnMissingBean (types: org.springframework.orm.jpa.persistenceunit.PersistenceManagedTypes; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   JpaRepositoriesAutoConfiguration matched:
+      - @ConditionalOnClass found required class 'org.springframework.data.jpa.repository.JpaRepository' (OnClassCondition)
+      - @ConditionalOnBooleanProperty (spring.data.jpa.repositories.enabled=true) matched (OnPropertyCondition)
+      - @ConditionalOnBean (types: javax.sql.DataSource; SearchStrategy: all) found bean 'dataSource'; @ConditionalOnMissingBean (types: org.springframework.data.jpa.repository.support.JpaRepositoryFactoryBean,org.springframework.data.jpa.repository.config.JpaRepositoryConfigExtension; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   JtaAutoConfiguration matched:
+      - @ConditionalOnClass found required class 'jakarta.transaction.Transaction' (OnClassCondition)
+      - @ConditionalOnBooleanProperty (spring.jta.enabled=true) matched (OnPropertyCondition)
+
+   LifecycleAutoConfiguration#defaultLifecycleProcessor matched:
+      - @ConditionalOnMissingBean (names: lifecycleProcessor; SearchStrategy: current) did not find any beans (OnBeanCondition)
+
+   MultipartAutoConfiguration matched:
+      - @ConditionalOnClass found required classes 'jakarta.servlet.Servlet', 'org.springframework.web.multipart.support.StandardServletMultipartResolver', 'jakarta.servlet.MultipartConfigElement' (OnClassCondition)
+      - found 'session' scope (OnWebApplicationCondition)
+      - @ConditionalOnBooleanProperty (spring.servlet.multipart.enabled=true) matched (OnPropertyCondition)
+
+   MultipartAutoConfiguration#multipartConfigElement matched:
+      - @ConditionalOnMissingBean (types: jakarta.servlet.MultipartConfigElement; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   MultipartAutoConfiguration#multipartResolver matched:
+      - @ConditionalOnMissingBean (types: org.springframework.web.multipart.MultipartResolver; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   NamedParameterJdbcTemplateConfiguration matched:
+      - @ConditionalOnSingleCandidate (types: org.springframework.jdbc.core.JdbcTemplate; SearchStrategy: all) found a single bean 'jdbcTemplate'; @ConditionalOnMissingBean (types: org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   NoOpCacheConfiguration matched:
+      - Cache org.springframework.boot.autoconfigure.cache.NoOpCacheConfiguration automatic cache type (CacheCondition)
+
+   PersistenceExceptionTranslationAutoConfiguration matched:
+      - @ConditionalOnClass found required class 'org.springframework.dao.annotation.PersistenceExceptionTranslationPostProcessor' (OnClassCondition)
+
+   PersistenceExceptionTranslationAutoConfiguration#persistenceExceptionTranslationPostProcessor matched:
+      - @ConditionalOnBooleanProperty (spring.dao.exceptiontranslation.enabled=true) matched (OnPropertyCondition)
+      - @ConditionalOnMissingBean (types: org.springframework.dao.annotation.PersistenceExceptionTranslationPostProcessor; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   PropertyPlaceholderAutoConfiguration#propertySourcesPlaceholderConfigurer matched:
+      - @ConditionalOnMissingBean (types: org.springframework.context.support.PropertySourcesPlaceholderConfigurer; SearchStrategy: current) did not find any beans (OnBeanCondition)
+
+   RestClientAutoConfiguration matched:
+      - @ConditionalOnClass found required class 'org.springframework.web.client.RestClient' (OnClassCondition)
+      - AnyNestedCondition 1 matched 1 did not; NestedCondition on NotReactiveWebApplicationOrVirtualThreadsExecutorEnabledCondition.VirtualThreadsExecutorEnabled found non-matching nested conditions @ConditionalOnThreading did not find VIRTUAL; NestedCondition on NotReactiveWebApplicationOrVirtualThreadsExecutorEnabledCondition.NotReactiveWebApplication NoneNestedConditions 0 matched 1 did not; NestedCondition on NotReactiveWebApplicationCondition.ReactiveWebApplication did not find reactive web application classes (NotReactiveWebApplicationOrVirtualThreadsExecutorEnabledCondition)
+
+   RestClientAutoConfiguration#httpMessageConvertersRestClientCustomizer matched:
+      - @ConditionalOnMissingBean (types: org.springframework.boot.autoconfigure.web.client.HttpMessageConvertersRestClientCustomizer; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   RestClientAutoConfiguration#restClientBuilder matched:
+      - @ConditionalOnMissingBean (types: org.springframework.web.client.RestClient$Builder; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   RestClientAutoConfiguration#restClientBuilderConfigurer matched:
+      - @ConditionalOnMissingBean (types: org.springframework.boot.autoconfigure.web.client.RestClientBuilderConfigurer; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   RestClientAutoConfiguration#restClientSsl matched:
+      - @ConditionalOnBean (types: org.springframework.boot.ssl.SslBundles; SearchStrategy: all) found bean 'sslBundleRegistry'; @ConditionalOnMissingBean (types: org.springframework.boot.autoconfigure.web.client.RestClientSsl; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   RestTemplateAutoConfiguration matched:
+      - @ConditionalOnClass found required class 'org.springframework.web.client.RestTemplate' (OnClassCondition)
+      - NoneNestedConditions 0 matched 1 did not; NestedCondition on NotReactiveWebApplicationCondition.ReactiveWebApplication did not find reactive web application classes (NotReactiveWebApplicationCondition)
+
+   RestTemplateAutoConfiguration#restTemplateBuilder matched:
+      - @ConditionalOnMissingBean (types: org.springframework.boot.web.client.RestTemplateBuilder; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   ServletWebServerFactoryAutoConfiguration matched:
+      - @ConditionalOnClass found required class 'jakarta.servlet.ServletRequest' (OnClassCondition)
+      - found 'session' scope (OnWebApplicationCondition)
+
+   ServletWebServerFactoryAutoConfiguration.TomcatConfiguration matched:
+      - @ConditionalOnClass found required class 'org.apache.catalina.startup.Tomcat' (OnClassCondition)
+
+   ServletWebServerFactoryConfiguration.EmbeddedTomcat matched:
+      - @ConditionalOnClass found required classes 'jakarta.servlet.Servlet', 'org.apache.catalina.startup.Tomcat', 'org.apache.coyote.UpgradeProtocol' (OnClassCondition)
+      - @ConditionalOnMissingBean (types: org.springframework.boot.web.servlet.server.ServletWebServerFactory; SearchStrategy: current) did not find any beans (OnBeanCondition)
+
+   SimpleCacheConfiguration matched:
+      - Cache org.springframework.boot.autoconfigure.cache.SimpleCacheConfiguration automatic cache type (CacheCondition)
+
+   SpringDataWebAutoConfiguration matched:
+      - @ConditionalOnClass found required classes 'org.springframework.data.web.PageableHandlerMethodArgumentResolver', 'org.springframework.web.servlet.config.annotation.WebMvcConfigurer' (OnClassCondition)
+      - found 'session' scope (OnWebApplicationCondition)
+      - @ConditionalOnMissingBean (types: org.springframework.data.web.PageableHandlerMethodArgumentResolver; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   SpringDataWebAutoConfiguration#pageableCustomizer matched:
+      - @ConditionalOnMissingBean (types: org.springframework.data.web.config.PageableHandlerMethodArgumentResolverCustomizer; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   SpringDataWebAutoConfiguration#sortCustomizer matched:
+      - @ConditionalOnMissingBean (types: org.springframework.data.web.config.SortHandlerMethodArgumentResolverCustomizer; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   SpringDataWebAutoConfiguration#springDataWebSettings matched:
+      - @ConditionalOnMissingBean (types: org.springframework.data.web.config.SpringDataWebSettings; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   SqlInitializationAutoConfiguration matched:
+      - @ConditionalOnBooleanProperty (spring.sql.init.enabled=true) matched (OnPropertyCondition)
+      - NoneNestedConditions 0 matched 1 did not; NestedCondition on SqlInitializationAutoConfiguration.SqlInitializationModeCondition.ModeIsNever @ConditionalOnProperty (spring.sql.init.mode=never) did not find property 'spring.sql.init.mode' (SqlInitializationAutoConfiguration.SqlInitializationModeCondition)
+
+   SslAutoConfiguration#sslBundleRegistry matched:
+      - @ConditionalOnMissingBean (types: org.springframework.boot.ssl.SslBundleRegistry,org.springframework.boot.ssl.SslBundles; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   TaskExecutionAutoConfiguration matched:
+      - @ConditionalOnClass found required class 'org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor' (OnClassCondition)
+
+   TaskExecutorConfigurations.AsyncConfigurerConfiguration matched:
+      - @ConditionalOnMissingBean (types: org.springframework.scheduling.annotation.AsyncConfigurer; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   TaskExecutorConfigurations.AsyncConfigurerConfiguration#applicationTaskExecutorAsyncConfigurer matched:
+      - @ConditionalOnMissingBean (types: org.springframework.scheduling.annotation.AsyncConfigurer; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   TaskExecutorConfigurations.SimpleAsyncTaskExecutorBuilderConfiguration#simpleAsyncTaskExecutorBuilder matched:
+      - @ConditionalOnMissingBean (types: org.springframework.boot.task.SimpleAsyncTaskExecutorBuilder; SearchStrategy: all) did not find any beans (OnBeanCondition)
+      - @ConditionalOnThreading found PLATFORM (OnThreadingCondition)
+
+   TaskExecutorConfigurations.TaskExecutorConfiguration matched:
+      - AnyNestedCondition 1 matched 1 did not; NestedCondition on TaskExecutorConfigurations.OnExecutorCondition.ModelCondition @ConditionalOnProperty (spring.task.execution.mode=force) did not find property 'spring.task.execution.mode'; NestedCondition on TaskExecutorConfigurations.OnExecutorCondition.ExecutorBeanCondition @ConditionalOnMissingBean (types: java.util.concurrent.Executor; SearchStrategy: all) did not find any beans (TaskExecutorConfigurations.OnExecutorCondition)
+
+   TaskExecutorConfigurations.TaskExecutorConfiguration#applicationTaskExecutor matched:
+      - @ConditionalOnThreading found PLATFORM (OnThreadingCondition)
+
+   TaskExecutorConfigurations.ThreadPoolTaskExecutorBuilderConfiguration#threadPoolTaskExecutorBuilder matched:
+      - @ConditionalOnMissingBean (types: org.springframework.boot.task.ThreadPoolTaskExecutorBuilder; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   TaskSchedulingAutoConfiguration matched:
+      - @ConditionalOnClass found required class 'org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler' (OnClassCondition)
+
+   TaskSchedulingConfigurations.SimpleAsyncTaskSchedulerBuilderConfiguration#simpleAsyncTaskSchedulerBuilder matched:
+      - @ConditionalOnMissingBean (types: org.springframework.boot.task.SimpleAsyncTaskSchedulerBuilder; SearchStrategy: all) did not find any beans (OnBeanCondition)
+      - @ConditionalOnThreading found PLATFORM (OnThreadingCondition)
+
+   TaskSchedulingConfigurations.ThreadPoolTaskSchedulerBuilderConfiguration#threadPoolTaskSchedulerBuilder matched:
+      - @ConditionalOnMissingBean (types: org.springframework.boot.task.ThreadPoolTaskSchedulerBuilder; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   TransactionAutoConfiguration matched:
+      - @ConditionalOnClass found required class 'org.springframework.transaction.PlatformTransactionManager' (OnClassCondition)
+
+   TransactionAutoConfiguration.EnableTransactionManagementConfiguration matched:
+      - @ConditionalOnBean (types: org.springframework.transaction.TransactionManager; SearchStrategy: all) found bean 'transactionManager'; @ConditionalOnMissingBean (types: org.springframework.transaction.annotation.AbstractTransactionManagementConfiguration; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   TransactionAutoConfiguration.EnableTransactionManagementConfiguration.CglibAutoProxyConfiguration matched:
+      - @ConditionalOnBooleanProperty (spring.aop.proxy-target-class=true) matched (OnPropertyCondition)
+
+   TransactionAutoConfiguration.TransactionTemplateConfiguration matched:
+      - @ConditionalOnSingleCandidate (types: org.springframework.transaction.PlatformTransactionManager; SearchStrategy: all) found a single bean 'transactionManager' (OnBeanCondition)
+
+   TransactionAutoConfiguration.TransactionTemplateConfiguration#transactionTemplate matched:
+      - @ConditionalOnMissingBean (types: org.springframework.transaction.support.TransactionOperations; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   TransactionManagerCustomizationAutoConfiguration matched:
+      - @ConditionalOnClass found required class 'org.springframework.transaction.PlatformTransactionManager' (OnClassCondition)
+
+   TransactionManagerCustomizationAutoConfiguration#platformTransactionManagerCustomizers matched:
+      - @ConditionalOnMissingBean (types: org.springframework.boot.autoconfigure.transaction.TransactionManagerCustomizers; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   ValidationAutoConfiguration matched:
+      - @ConditionalOnClass found required class 'jakarta.validation.executable.ExecutableValidator' (OnClassCondition)
+      - @ConditionalOnResource found location classpath:META-INF/services/jakarta.validation.spi.ValidationProvider (OnResourceCondition)
+
+   ValidationAutoConfiguration#defaultValidator matched:
+      - @ConditionalOnMissingBean (types: jakarta.validation.Validator; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   ValidationAutoConfiguration#methodValidationPostProcessor matched:
+      - @ConditionalOnMissingBean (types: org.springframework.validation.beanvalidation.MethodValidationPostProcessor; SearchStrategy: current) did not find any beans (OnBeanCondition)
+
+   WebMvcAutoConfiguration matched:
+      - @ConditionalOnClass found required classes 'jakarta.servlet.Servlet', 'org.springframework.web.servlet.DispatcherServlet', 'org.springframework.web.servlet.config.annotation.WebMvcConfigurer' (OnClassCondition)
+      - found 'session' scope (OnWebApplicationCondition)
+      - @ConditionalOnMissingBean (types: org.springframework.web.servlet.config.annotation.WebMvcConfigurationSupport; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   WebMvcAutoConfiguration#formContentFilter matched:
+      - @ConditionalOnBooleanProperty (spring.mvc.formcontent.filter.enabled=true) matched (OnPropertyCondition)
+      - @ConditionalOnMissingBean (types: org.springframework.web.filter.FormContentFilter; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   WebMvcAutoConfiguration.EnableWebMvcConfiguration#flashMapManager matched:
+      - @ConditionalOnMissingBean (names: flashMapManager; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   WebMvcAutoConfiguration.EnableWebMvcConfiguration#localeResolver matched:
+      - @ConditionalOnMissingBean (names: localeResolver; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   WebMvcAutoConfiguration.EnableWebMvcConfiguration#themeResolver matched:
+      - @ConditionalOnMissingBean (names: themeResolver; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   WebMvcAutoConfiguration.EnableWebMvcConfiguration#viewNameTranslator matched:
+      - @ConditionalOnMissingBean (names: viewNameTranslator; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   WebMvcAutoConfiguration.WebMvcAutoConfigurationAdapter#defaultViewResolver matched:
+      - @ConditionalOnMissingBean (types: org.springframework.web.servlet.view.InternalResourceViewResolver; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   WebMvcAutoConfiguration.WebMvcAutoConfigurationAdapter#requestContextFilter matched:
+      - @ConditionalOnMissingBean (types: org.springframework.web.context.request.RequestContextListener,org.springframework.web.filter.RequestContextFilter; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   WebMvcAutoConfiguration.WebMvcAutoConfigurationAdapter#viewResolver matched:
+      - @ConditionalOnBean (types: org.springframework.web.servlet.ViewResolver; SearchStrategy: all) found beans 'defaultViewResolver', 'beanNameViewResolver', 'mvcViewResolver'; @ConditionalOnMissingBean (names: viewResolver types: org.springframework.web.servlet.view.ContentNegotiatingViewResolver; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   WebSocketServletAutoConfiguration matched:
+      - @ConditionalOnClass found required classes 'jakarta.servlet.Servlet', 'jakarta.websocket.server.ServerContainer' (OnClassCondition)
+      - found 'session' scope (OnWebApplicationCondition)
+
+   WebSocketServletAutoConfiguration.TomcatWebSocketConfiguration matched:
+      - @ConditionalOnClass found required classes 'org.apache.catalina.startup.Tomcat', 'org.apache.tomcat.websocket.server.WsSci' (OnClassCondition)
+
+   WebSocketServletAutoConfiguration.TomcatWebSocketConfiguration#websocketServletWebServerCustomizer matched:
+      - @ConditionalOnMissingBean (names: websocketServletWebServerCustomizer; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+
+Negative matches:
+-----------------
+
+   ActiveMQAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'jakarta.jms.ConnectionFactory' (OnClassCondition)
+
+   AopAutoConfiguration.AspectJAutoProxyingConfiguration.JdkDynamicAutoProxyConfiguration:
+      Did not match:
+         - @ConditionalOnBooleanProperty (spring.aop.proxy-target-class=false) did not find property 'spring.aop.proxy-target-class' (OnPropertyCondition)
+
+   AopAutoConfiguration.ClassProxyingConfiguration:
+      Did not match:
+         - @ConditionalOnMissingClass found unwanted class 'org.aspectj.weaver.Advice' (OnClassCondition)
+
+   ArtemisAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'jakarta.jms.ConnectionFactory' (OnClassCondition)
+
+   BatchAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.springframework.batch.core.launch.JobLauncher' (OnClassCondition)
+
+   Cache2kCacheConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.cache2k.Cache2kBuilder' (OnClassCondition)
+
+   CacheAutoConfiguration:
+      Did not match:
+         - @ConditionalOnBean (types: org.springframework.cache.interceptor.CacheAspectSupport; SearchStrategy: all) did not find any beans of type org.springframework.cache.interceptor.CacheAspectSupport (OnBeanCondition)
+      Matched:
+         - @ConditionalOnClass found required class 'org.springframework.cache.CacheManager' (OnClassCondition)
+
+   CacheAutoConfiguration.CacheManagerEntityManagerFactoryDependsOnPostProcessor:
+      Did not match:
+         - Ancestor org.springframework.boot.autoconfigure.cache.CacheAutoConfiguration did not match (ConditionEvaluationReport.AncestorsMatchedCondition)
+      Matched:
+         - @ConditionalOnClass found required class 'org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean' (OnClassCondition)
+
+   CaffeineCacheConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'com.github.benmanes.caffeine.cache.Caffeine' (OnClassCondition)
+
+   CassandraAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'com.datastax.oss.driver.api.core.CqlSession' (OnClassCondition)
+
+   CassandraDataAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'com.datastax.oss.driver.api.core.CqlSession' (OnClassCondition)
+
+   CassandraReactiveDataAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'com.datastax.oss.driver.api.core.CqlSession' (OnClassCondition)
+
+   CassandraReactiveRepositoriesAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.springframework.data.cassandra.ReactiveSession' (OnClassCondition)
+
+   CassandraRepositoriesAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'com.datastax.oss.driver.api.core.CqlSession' (OnClassCondition)
+
+   org.springframework.boot.autoconfigure.http.client.reactive.ClientHttpConnectorAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'reactor.core.publisher.Mono' (OnClassCondition)
+
+   org.springframework.boot.autoconfigure.web.reactive.function.client.ClientHttpConnectorAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.springframework.web.reactive.function.client.WebClient' (OnClassCondition)
+
+   CodecsAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.springframework.web.reactive.function.client.WebClient' (OnClassCondition)
+
+   CouchbaseAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'com.couchbase.client.java.Cluster' (OnClassCondition)
+
+   CouchbaseCacheConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'com.couchbase.client.java.Cluster' (OnClassCondition)
+
+   CouchbaseDataAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'com.couchbase.client.java.Bucket' (OnClassCondition)
+
+   CouchbaseReactiveDataAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'com.couchbase.client.java.Cluster' (OnClassCondition)
+
+   CouchbaseReactiveRepositoriesAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'com.couchbase.client.java.Cluster' (OnClassCondition)
+
+   CouchbaseRepositoriesAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'com.couchbase.client.java.Bucket' (OnClassCondition)
+
+   DataSourceAutoConfiguration.EmbeddedDatabaseConfiguration:
+      Did not match:
+         - EmbeddedDataSource spring.datasource.url is set (DataSourceAutoConfiguration.EmbeddedDatabaseCondition)
+
+   DataSourceCheckpointRestoreConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.crac.Resource' (OnClassCondition)
+
+   DataSourceConfiguration.Dbcp2:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.apache.commons.dbcp2.BasicDataSource' (OnClassCondition)
+
+   DataSourceConfiguration.Generic:
+      Did not match:
+         - @ConditionalOnProperty (spring.datasource.type) did not find property 'spring.datasource.type' (OnPropertyCondition)
+
+   DataSourceConfiguration.OracleUcp:
+      Did not match:
+         - @ConditionalOnClass did not find required classes 'oracle.ucp.jdbc.PoolDataSourceImpl', 'oracle.jdbc.OracleConnection' (OnClassCondition)
+
+   DataSourceConfiguration.Tomcat:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.apache.tomcat.jdbc.pool.DataSource' (OnClassCondition)
+
+   DataSourceJmxConfiguration:
+      Did not match:
+         - @ConditionalOnBooleanProperty (spring.jmx.enabled=true) did not find property 'spring.jmx.enabled' (OnPropertyCondition)
+
+   DataSourcePoolMetadataProvidersConfiguration.CommonsDbcp2PoolDataSourceMetadataProviderConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.apache.commons.dbcp2.BasicDataSource' (OnClassCondition)
+
+   DataSourcePoolMetadataProvidersConfiguration.OracleUcpPoolDataSourceMetadataProviderConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required classes 'oracle.ucp.jdbc.PoolDataSource', 'oracle.jdbc.OracleConnection' (OnClassCondition)
+
+   DataSourcePoolMetadataProvidersConfiguration.TomcatDataSourcePoolMetadataProviderConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.apache.tomcat.jdbc.pool.DataSource' (OnClassCondition)
+
+   DataSourceTransactionManagerAutoConfiguration.JdbcTransactionManagerConfiguration#transactionManager:
+      Did not match:
+         - @ConditionalOnMissingBean (types: org.springframework.transaction.TransactionManager; SearchStrategy: all) found beans of type 'org.springframework.transaction.TransactionManager' transactionManager (OnBeanCondition)
+
+   DispatcherServletAutoConfiguration.DispatcherServletConfiguration#multipartResolver:
+      Did not match:
+         - @ConditionalOnBean (types: org.springframework.web.multipart.MultipartResolver; SearchStrategy: all) did not find any beans of type org.springframework.web.multipart.MultipartResolver (OnBeanCondition)
+
+   ElasticsearchClientAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'co.elastic.clients.elasticsearch.ElasticsearchClient' (OnClassCondition)
+
+   ElasticsearchDataAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.springframework.data.elasticsearch.client.elc.ElasticsearchTemplate' (OnClassCondition)
+
+   ElasticsearchRepositoriesAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.springframework.data.elasticsearch.repository.ElasticsearchRepository' (OnClassCondition)
+
+   ElasticsearchRestClientAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.elasticsearch.client.RestClientBuilder' (OnClassCondition)
+
+   EmbeddedLdapAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'com.unboundid.ldap.listener.InMemoryDirectoryServer' (OnClassCondition)
+
+   EmbeddedWebServerFactoryCustomizerAutoConfiguration.JettyWebServerFactoryCustomizerConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required classes 'org.eclipse.jetty.server.Server', 'org.eclipse.jetty.util.Loader', 'org.eclipse.jetty.ee10.webapp.WebAppContext' (OnClassCondition)
+
+   EmbeddedWebServerFactoryCustomizerAutoConfiguration.NettyWebServerFactoryCustomizerConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'reactor.netty.http.server.HttpServer' (OnClassCondition)
+
+   EmbeddedWebServerFactoryCustomizerAutoConfiguration.TomcatWebServerFactoryCustomizerConfiguration#tomcatVirtualThreadsProtocolHandlerCustomizer:
+      Did not match:
+         - @ConditionalOnThreading did not find VIRTUAL (OnThreadingCondition)
+
+   EmbeddedWebServerFactoryCustomizerAutoConfiguration.UndertowWebServerFactoryCustomizerConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required classes 'io.undertow.Undertow', 'org.xnio.SslClientAuthMode' (OnClassCondition)
+
+   ErrorWebFluxAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.springframework.web.reactive.config.WebFluxConfigurer' (OnClassCondition)
+
+   FlywayAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.flywaydb.core.Flyway' (OnClassCondition)
+
+   FreeMarkerAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'freemarker.template.Configuration' (OnClassCondition)
+
+   GraphQlAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'graphql.GraphQL' (OnClassCondition)
+
+   GraphQlQueryByExampleAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'graphql.GraphQL' (OnClassCondition)
+
+   GraphQlQuerydslAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'com.querydsl.core.Query' (OnClassCondition)
+
+   GraphQlRSocketAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'graphql.GraphQL' (OnClassCondition)
+
+   GraphQlReactiveQueryByExampleAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'graphql.GraphQL' (OnClassCondition)
+
+   GraphQlReactiveQuerydslAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'com.querydsl.core.Query' (OnClassCondition)
+
+   GraphQlWebFluxAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'graphql.GraphQL' (OnClassCondition)
+
+   GraphQlWebFluxSecurityAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'graphql.GraphQL' (OnClassCondition)
+
+   GraphQlWebMvcAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'graphql.GraphQL' (OnClassCondition)
+
+   GraphQlWebMvcSecurityAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'graphql.GraphQL' (OnClassCondition)
+
+   GroovyTemplateAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'groovy.text.markup.MarkupTemplateEngine' (OnClassCondition)
+
+   GsonAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'com.google.gson.Gson' (OnClassCondition)
+
+   GsonHttpMessageConvertersConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'com.google.gson.Gson' (OnClassCondition)
+
+   H2ConsoleAutoConfiguration:
+      Did not match:
+         - @ConditionalOnBooleanProperty (spring.h2.console.enabled=true) did not find property 'spring.h2.console.enabled' (OnPropertyCondition)
+      Matched:
+         - @ConditionalOnClass found required class 'org.h2.server.web.JakartaWebServlet' (OnClassCondition)
+         - found 'session' scope (OnWebApplicationCondition)
+
+   HazelcastAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'com.hazelcast.core.HazelcastInstance' (OnClassCondition)
+
+   HazelcastCacheConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'com.hazelcast.core.HazelcastInstance' (OnClassCondition)
+
+   HazelcastJpaDependencyAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'com.hazelcast.core.HazelcastInstance' (OnClassCondition)
+
+   HttpHandlerAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.springframework.web.reactive.DispatcherHandler' (OnClassCondition)
+
+   HypermediaAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.springframework.hateoas.EntityModel' (OnClassCondition)
+
+   InfinispanCacheConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.infinispan.spring.embedded.provider.SpringEmbeddedCacheManager' (OnClassCondition)
+
+   IntegrationAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.springframework.integration.config.EnableIntegration' (OnClassCondition)
+
+   JCacheCacheConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'javax.cache.Caching' (OnClassCondition)
+
+   JacksonHttpMessageConvertersConfiguration.MappingJackson2XmlHttpMessageConverterConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'com.fasterxml.jackson.dataformat.xml.XmlMapper' (OnClassCondition)
+
+   JdbcRepositoriesAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.springframework.data.jdbc.repository.config.AbstractJdbcConfiguration' (OnClassCondition)
+
+   JerseyAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.glassfish.jersey.server.spring.SpringComponentProvider' (OnClassCondition)
+
+   JmsAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'jakarta.jms.Message' (OnClassCondition)
+
+   JmxAutoConfiguration:
+      Did not match:
+         - @ConditionalOnBooleanProperty (spring.jmx.enabled=true) did not find property 'spring.jmx.enabled' (OnPropertyCondition)
+      Matched:
+         - @ConditionalOnClass found required class 'org.springframework.jmx.export.MBeanExporter' (OnClassCondition)
+
+   JndiConnectionFactoryAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.springframework.jms.core.JmsTemplate' (OnClassCondition)
+
+   JndiDataSourceAutoConfiguration:
+      Did not match:
+         - @ConditionalOnProperty (spring.datasource.jndi-name) did not find property 'spring.datasource.jndi-name' (OnPropertyCondition)
+      Matched:
+         - @ConditionalOnClass found required classes 'javax.sql.DataSource', 'org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseType' (OnClassCondition)
+
+   JndiJtaConfiguration:
+      Did not match:
+         - @ConditionalOnJndi JNDI environment is not available (OnJndiCondition)
+      Matched:
+         - @ConditionalOnClass found required class 'org.springframework.transaction.jta.JtaTransactionManager' (OnClassCondition)
+
+   JooqAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.jooq.DSLContext' (OnClassCondition)
+
+   JpaBaseConfiguration.JpaWebConfiguration:
+      Did not match:
+         - @ConditionalOnBooleanProperty (spring.jpa.open-in-view=true) found different value in property 'spring.jpa.open-in-view' (OnPropertyCondition)
+      Matched:
+         - @ConditionalOnClass found required class 'org.springframework.web.servlet.config.annotation.WebMvcConfigurer' (OnClassCondition)
+         - found 'session' scope (OnWebApplicationCondition)
+
+   JpaRepositoriesAutoConfiguration#entityManagerFactoryBootstrapExecutorCustomizer:
+      Did not match:
+         - AnyNestedCondition 0 matched 2 did not; NestedCondition on JpaRepositoriesAutoConfiguration.BootstrapExecutorCondition.LazyBootstrapMode @ConditionalOnProperty (spring.data.jpa.repositories.bootstrap-mode=lazy) did not find property 'spring.data.jpa.repositories.bootstrap-mode'; NestedCondition on JpaRepositoriesAutoConfiguration.BootstrapExecutorCondition.DeferredBootstrapMode @ConditionalOnProperty (spring.data.jpa.repositories.bootstrap-mode=deferred) did not find property 'spring.data.jpa.repositories.bootstrap-mode' (JpaRepositoriesAutoConfiguration.BootstrapExecutorCondition)
+
+   JsonbAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'jakarta.json.bind.Jsonb' (OnClassCondition)
+
+   JsonbHttpMessageConvertersConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'jakarta.json.bind.Jsonb' (OnClassCondition)
+
+   KafkaAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.springframework.kafka.core.KafkaTemplate' (OnClassCondition)
+
+   LdapAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.springframework.ldap.core.ContextSource' (OnClassCondition)
+
+   LdapRepositoriesAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.springframework.data.ldap.repository.LdapRepository' (OnClassCondition)
+
+   LiquibaseAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'liquibase.change.DatabaseChange' (OnClassCondition)
+
+   MailSenderAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'jakarta.mail.internet.MimeMessage' (OnClassCondition)
+
+   MailSenderValidatorAutoConfiguration:
+      Did not match:
+         - @ConditionalOnSingleCandidate did not find required type 'org.springframework.mail.javamail.JavaMailSenderImpl' (OnBeanCondition)
+
+   MessageSourceAutoConfiguration:
+      Did not match:
+         - ResourceBundle did not find bundle with basename messages (MessageSourceAutoConfiguration.ResourceBundleCondition)
+
+   MongoAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'com.mongodb.client.MongoClient' (OnClassCondition)
+
+   MongoDataAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'com.mongodb.client.MongoClient' (OnClassCondition)
+
+   MongoReactiveAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'com.mongodb.reactivestreams.client.MongoClient' (OnClassCondition)
+
+   MongoReactiveDataAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'com.mongodb.reactivestreams.client.MongoClient' (OnClassCondition)
+
+   MongoReactiveRepositoriesAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'com.mongodb.reactivestreams.client.MongoClient' (OnClassCondition)
+
+   MongoRepositoriesAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'com.mongodb.client.MongoClient' (OnClassCondition)
+
+   MustacheAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'com.samskivert.mustache.Mustache' (OnClassCondition)
+
+   Neo4jAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.neo4j.driver.Driver' (OnClassCondition)
+
+   Neo4jDataAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.neo4j.driver.Driver' (OnClassCondition)
+
+   Neo4jReactiveDataAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.neo4j.driver.Driver' (OnClassCondition)
+
+   Neo4jReactiveRepositoriesAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.neo4j.driver.Driver' (OnClassCondition)
+
+   Neo4jRepositoriesAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.neo4j.driver.Driver' (OnClassCondition)
+
+   NettyAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'io.netty.util.NettyRuntime' (OnClassCondition)
+
+   OAuth2AuthorizationServerAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.springframework.security.oauth2.server.authorization.OAuth2Authorization' (OnClassCondition)
+
+   OAuth2AuthorizationServerJwtAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'com.nimbusds.jose.jwk.source.JWKSource' (OnClassCondition)
+
+   OAuth2ClientAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.springframework.security.oauth2.client.registration.ClientRegistration' (OnClassCondition)
+
+   OAuth2ClientWebSecurityAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.springframework.security.config.annotation.web.configuration.EnableWebSecurity' (OnClassCondition)
+
+   OAuth2ResourceServerAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.springframework.security.oauth2.server.resource.authentication.BearerTokenAuthenticationToken' (OnClassCondition)
+
+   ProjectInfoAutoConfiguration#buildProperties:
+      Did not match:
+         - @ConditionalOnResource did not find resource '${spring.info.build.location:classpath:META-INF/build-info.properties}' (OnResourceCondition)
+
+   ProjectInfoAutoConfiguration#gitProperties:
+      Did not match:
+         - GitResource did not find git info at classpath:git.properties (ProjectInfoAutoConfiguration.GitResourceAvailableCondition)
+
+   PulsarAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.apache.pulsar.client.api.PulsarClient' (OnClassCondition)
+
+   PulsarReactiveAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.apache.pulsar.client.api.PulsarClient' (OnClassCondition)
+
+   QuartzAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.quartz.Scheduler' (OnClassCondition)
+
+   R2dbcAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'io.r2dbc.spi.ConnectionFactory' (OnClassCondition)
+
+   R2dbcDataAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.springframework.data.r2dbc.core.R2dbcEntityTemplate' (OnClassCondition)
+
+   R2dbcInitializationConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required classes 'io.r2dbc.spi.ConnectionFactory', 'org.springframework.r2dbc.connection.init.DatabasePopulator' (OnClassCondition)
+
+   R2dbcProxyAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'io.r2dbc.proxy.ProxyConnectionFactory' (OnClassCondition)
+
+   R2dbcRepositoriesAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'io.r2dbc.spi.ConnectionFactory' (OnClassCondition)
+
+   R2dbcTransactionManagerAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.springframework.r2dbc.connection.R2dbcTransactionManager' (OnClassCondition)
+
+   RSocketGraphQlClientAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'graphql.GraphQL' (OnClassCondition)
+
+   RSocketMessagingAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'io.rsocket.RSocket' (OnClassCondition)
+
+   RSocketRequesterAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'io.rsocket.RSocket' (OnClassCondition)
+
+   RSocketSecurityAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.springframework.security.rsocket.core.SecuritySocketAcceptorInterceptor' (OnClassCondition)
+
+   RSocketServerAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'io.rsocket.core.RSocketServer' (OnClassCondition)
+
+   RSocketStrategiesAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'io.netty.buffer.PooledByteBufAllocator' (OnClassCondition)
+
+   RabbitAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'com.rabbitmq.client.Channel' (OnClassCondition)
+
+   ReactiveElasticsearchClientAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'co.elastic.clients.transport.ElasticsearchTransport' (OnClassCondition)
+
+   ReactiveElasticsearchRepositoriesAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'reactor.core.publisher.Mono' (OnClassCondition)
+
+   ReactiveMultipartAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.springframework.web.reactive.config.WebFluxConfigurer' (OnClassCondition)
+
+   ReactiveOAuth2ClientAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'reactor.core.publisher.Flux' (OnClassCondition)
+
+   ReactiveOAuth2ClientWebSecurityAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'reactor.core.publisher.Flux' (OnClassCondition)
+
+   ReactiveOAuth2ResourceServerAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity' (OnClassCondition)
+
+   ReactiveSecurityAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'reactor.core.publisher.Flux' (OnClassCondition)
+
+   ReactiveUserDetailsServiceAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.springframework.security.authentication.ReactiveAuthenticationManager' (OnClassCondition)
+
+   ReactiveWebServerFactoryAutoConfiguration:
+      Did not match:
+         - @ConditionalOnWebApplication did not find reactive web application classes (OnWebApplicationCondition)
+
+   ReactorAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'reactor.core.publisher.Hooks' (OnClassCondition)
+
+   RedisAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.springframework.data.redis.core.RedisOperations' (OnClassCondition)
+
+   RedisCacheConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.springframework.data.redis.connection.RedisConnectionFactory' (OnClassCondition)
+
+   RedisReactiveAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'reactor.core.publisher.Flux' (OnClassCondition)
+
+   RedisRepositoriesAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.springframework.data.redis.repository.configuration.EnableRedisRepositories' (OnClassCondition)
+
+   RepositoryRestMvcAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.springframework.data.rest.webmvc.config.RepositoryRestMvcConfiguration' (OnClassCondition)
+
+   Saml2RelyingPartyAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistrationRepository' (OnClassCondition)
+
+   SecurityAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.springframework.security.authentication.DefaultAuthenticationEventPublisher' (OnClassCondition)
+
+   SecurityFilterAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.springframework.security.config.http.SessionCreationPolicy' (OnClassCondition)
+
+   SendGridAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'com.sendgrid.SendGrid' (OnClassCondition)
+
+   ServletWebServerFactoryAutoConfiguration.ForwardedHeaderFilterConfiguration:
+      Did not match:
+         - @ConditionalOnProperty (server.forward-headers-strategy=framework) did not find property 'server.forward-headers-strategy' (OnPropertyCondition)
+
+   ServletWebServerFactoryConfiguration.EmbeddedJetty:
+      Did not match:
+         - @ConditionalOnClass did not find required classes 'org.eclipse.jetty.server.Server', 'org.eclipse.jetty.util.Loader', 'org.eclipse.jetty.ee10.webapp.WebAppContext' (OnClassCondition)
+
+   ServletWebServerFactoryConfiguration.EmbeddedUndertow:
+      Did not match:
+         - @ConditionalOnClass did not find required classes 'io.undertow.Undertow', 'org.xnio.SslClientAuthMode' (OnClassCondition)
+
+   SessionAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.springframework.session.Session' (OnClassCondition)
+
+   SpringApplicationAdminJmxAutoConfiguration:
+      Did not match:
+         - @ConditionalOnBooleanProperty (spring.application.admin.enabled=true) did not find property 'spring.application.admin.enabled' (OnPropertyCondition)
+
+   TaskExecutorConfigurations.SimpleAsyncTaskExecutorBuilderConfiguration#simpleAsyncTaskExecutorBuilderVirtualThreads:
+      Did not match:
+         - @ConditionalOnMissingBean (types: org.springframework.boot.task.SimpleAsyncTaskExecutorBuilder; SearchStrategy: all) found beans of type 'org.springframework.boot.task.SimpleAsyncTaskExecutorBuilder' simpleAsyncTaskExecutorBuilder (OnBeanCondition)
+
+   TaskExecutorConfigurations.TaskExecutorConfiguration#applicationTaskExecutorVirtualThreads:
+      Did not match:
+         - @ConditionalOnThreading did not find VIRTUAL (OnThreadingCondition)
+
+   TaskSchedulingAutoConfiguration#scheduledBeanLazyInitializationExcludeFilter:
+      Did not match:
+         - @ConditionalOnBean (names: org.springframework.context.annotation.internalScheduledAnnotationProcessor; SearchStrategy: all) did not find any beans named org.springframework.context.annotation.internalScheduledAnnotationProcessor (OnBeanCondition)
+
+   TaskSchedulingConfigurations.SimpleAsyncTaskSchedulerBuilderConfiguration#simpleAsyncTaskSchedulerBuilderVirtualThreads:
+      Did not match:
+         - @ConditionalOnMissingBean (types: org.springframework.boot.task.SimpleAsyncTaskSchedulerBuilder; SearchStrategy: all) found beans of type 'org.springframework.boot.task.SimpleAsyncTaskSchedulerBuilder' simpleAsyncTaskSchedulerBuilder (OnBeanCondition)
+
+   TaskSchedulingConfigurations.TaskSchedulerConfiguration:
+      Did not match:
+         - @ConditionalOnBean (names: org.springframework.context.annotation.internalScheduledAnnotationProcessor; SearchStrategy: all) did not find any beans named org.springframework.context.annotation.internalScheduledAnnotationProcessor (OnBeanCondition)
+
+   ThymeleafAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.thymeleaf.spring6.SpringTemplateEngine' (OnClassCondition)
+
+   TransactionAutoConfiguration#transactionalOperator:
+      Did not match:
+         - @ConditionalOnSingleCandidate (types: org.springframework.transaction.ReactiveTransactionManager; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   TransactionAutoConfiguration.AspectJTransactionManagementConfiguration:
+      Did not match:
+         - @ConditionalOnBean (types: org.springframework.transaction.aspectj.AbstractTransactionAspect; SearchStrategy: all) did not find any beans of type org.springframework.transaction.aspectj.AbstractTransactionAspect (OnBeanCondition)
+
+   TransactionAutoConfiguration.EnableTransactionManagementConfiguration.JdkDynamicAutoProxyConfiguration:
+      Did not match:
+         - @ConditionalOnBooleanProperty (spring.aop.proxy-target-class=false) did not find property 'spring.aop.proxy-target-class' (OnPropertyCondition)
+
+   UserDetailsServiceAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.springframework.security.authentication.AuthenticationManager' (OnClassCondition)
+
+   WebClientAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.springframework.web.reactive.function.client.WebClient' (OnClassCondition)
+
+   WebFluxAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.springframework.web.reactive.config.WebFluxConfigurer' (OnClassCondition)
+
+   WebMvcAutoConfiguration#hiddenHttpMethodFilter:
+      Did not match:
+         - @ConditionalOnBooleanProperty (spring.mvc.hiddenmethod.filter.enabled=true) did not find property 'spring.mvc.hiddenmethod.filter.enabled' (OnPropertyCondition)
+
+   WebMvcAutoConfiguration.ProblemDetailsErrorHandlingConfiguration:
+      Did not match:
+         - @ConditionalOnBooleanProperty (spring.mvc.problemdetails.enabled=true) did not find property 'spring.mvc.problemdetails.enabled' (OnPropertyCondition)
+
+   WebMvcAutoConfiguration.ResourceChainCustomizerConfiguration:
+      Did not match:
+         - @ConditionalOnEnabledResourceChain did not find class org.webjars.WebJarVersionLocator (OnEnabledResourceChainCondition)
+
+   WebMvcAutoConfiguration.WebMvcAutoConfigurationAdapter#beanNameViewResolver:
+      Did not match:
+         - @ConditionalOnMissingBean (types: org.springframework.web.servlet.view.BeanNameViewResolver; SearchStrategy: all) found beans of type 'org.springframework.web.servlet.view.BeanNameViewResolver' beanNameViewResolver (OnBeanCondition)
+
+   WebServiceTemplateAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.springframework.oxm.Marshaller' (OnClassCondition)
+
+   WebServicesAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.springframework.ws.transport.http.MessageDispatcherServlet' (OnClassCondition)
+
+   WebSessionIdResolverAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'reactor.core.publisher.Mono' (OnClassCondition)
+
+   WebSocketMessagingAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.springframework.web.socket.config.annotation.DelegatingWebSocketMessageBrokerConfiguration' (OnClassCondition)
+
+   WebSocketReactiveAutoConfiguration:
+      Did not match:
+         - @ConditionalOnWebApplication did not find reactive web application classes (OnWebApplicationCondition)
+
+   WebSocketServletAutoConfiguration.JettyWebSocketConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.eclipse.jetty.ee10.websocket.jakarta.server.config.JakartaWebSocketServletContainerInitializer' (OnClassCondition)
+
+   WebSocketServletAutoConfiguration.UndertowWebSocketConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'io.undertow.websockets.jsr.Bootstrap' (OnClassCondition)
+
+   XADataSourceAutoConfiguration:
+      Did not match:
+         - @ConditionalOnBean (types: org.springframework.boot.jdbc.XADataSourceWrapper; SearchStrategy: all) did not find any beans of type org.springframework.boot.jdbc.XADataSourceWrapper (OnBeanCondition)
+      Matched:
+         - @ConditionalOnClass found required classes 'javax.sql.DataSource', 'jakarta.transaction.TransactionManager', 'org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseType' (OnClassCondition)
+
+
+Exclusions:
+-----------
+
+    None
+
+
+Unconditional classes:
+----------------------
+
+    org.springframework.boot.autoconfigure.context.ConfigurationPropertiesAutoConfiguration
+
+    org.springframework.boot.autoconfigure.ssl.SslAutoConfiguration
+
+    org.springframework.boot.autoconfigure.context.LifecycleAutoConfiguration
+
+    org.springframework.boot.autoconfigure.context.PropertyPlaceholderAutoConfiguration
+
+    org.springframework.boot.autoconfigure.availability.ApplicationAvailabilityAutoConfiguration
+
+    org.springframework.boot.autoconfigure.info.ProjectInfoAutoConfiguration
+
+
+
+2026-10-28T16:35:37.856+07:00 DEBUG 25372 --- [demo] [           main] o.s.b.a.ApplicationAvailabilityBean      : Application availability state LivenessState changed to CORRECT
+2026-10-28T16:35:37.859+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : Không thể đổi kiểu TIMESTAMP(0) order_date: ERROR: relation "public.orders" does not exist
+2026-10-28T16:35:37.861+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : Không thể cập nhật DEFAULT order_date: ERROR: relation "public.orders" does not exist
+2026-10-28T16:35:37.862+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : Không thể cập nhật order_date đơn cũ: ERROR: relation "public.orders" does not exist
+  Position: 8
+2026-10-28T16:35:38.166+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : SQL skip (INSERT INTO users (id, username, password_hash, role) VALUES): ERROR: duplicate key value violates unique constraint "users_pkey"
+  Detail: Key (id)=(34) already exists.
+2026-10-28T16:35:38.168+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : SQL skip (INSERT INTO customers (id, user_id, full_name, email, phone,): ERROR: current transaction is aborted, commands ignored until end of transaction block
+2026-10-28T16:35:38.169+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : SQL skip (INSERT INTO orders (id, customer_id, order_date, status, tot): ERROR: current transaction is aborted, commands ignored until end of transaction block
+2026-10-28T16:35:38.170+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : SQL skip (INSERT INTO order_items (order_id, product_id, quantity, uni): ERROR: current transaction is aborted, commands ignored until end of transaction block
+2026-10-28T16:35:38.171+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : SQL skip (INSERT INTO orders (id, customer_id, order_date, status, tot): ERROR: current transaction is aborted, commands ignored until end of transaction block
+2026-10-28T16:35:38.171+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : SQL skip (INSERT INTO order_items (order_id, product_id, quantity, uni): ERROR: current transaction is aborted, commands ignored until end of transaction block
+2026-10-28T16:35:38.172+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : SQL skip (INSERT INTO orders (id, customer_id, order_date, status, tot): ERROR: current transaction is aborted, commands ignored until end of transaction block
+2026-10-28T16:35:38.172+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : SQL skip (INSERT INTO order_items (order_id, product_id, quantity, uni): ERROR: current transaction is aborted, commands ignored until end of transaction block
+2026-10-28T16:35:38.173+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : SQL skip (INSERT INTO orders (id, customer_id, order_date, status, tot): ERROR: current transaction is aborted, commands ignored until end of transaction block
+2026-10-28T16:35:38.174+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : SQL skip (INSERT INTO order_items (order_id, product_id, quantity, uni): ERROR: current transaction is aborted, commands ignored until end of transaction block
+2026-10-28T16:35:38.175+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : SQL skip (INSERT INTO orders (id, customer_id, order_date, status, tot): ERROR: current transaction is aborted, commands ignored until end of transaction block
+2026-10-28T16:35:38.175+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : SQL skip (INSERT INTO order_items (order_id, product_id, quantity, uni): ERROR: current transaction is aborted, commands ignored until end of transaction block
+2026-10-28T16:35:38.176+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : SQL skip (INSERT INTO orders (id, customer_id, order_date, status, tot): ERROR: current transaction is aborted, commands ignored until end of transaction block
+2026-10-28T16:35:38.177+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : SQL skip (INSERT INTO order_items (order_id, product_id, quantity, uni): ERROR: current transaction is aborted, commands ignored until end of transaction block
+2026-10-28T16:35:38.178+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : SQL skip (INSERT INTO orders (id, customer_id, order_date, status, tot): ERROR: current transaction is aborted, commands ignored until end of transaction block
+2026-10-28T16:35:38.180+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : SQL skip (INSERT INTO order_items (order_id, product_id, quantity, uni): ERROR: current transaction is aborted, commands ignored until end of transaction block
+2026-10-28T16:35:38.181+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : SQL skip (INSERT INTO orders (id, customer_id, order_date, status, tot): ERROR: current transaction is aborted, commands ignored until end of transaction block
+2026-10-28T16:35:38.181+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : SQL skip (INSERT INTO order_items (order_id, product_id, quantity, uni): ERROR: current transaction is aborted, commands ignored until end of transaction block
+2026-10-28T16:35:38.182+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : SQL skip (INSERT INTO orders (id, customer_id, order_date, status, tot): ERROR: current transaction is aborted, commands ignored until end of transaction block
+2026-10-28T16:35:38.182+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : SQL skip (INSERT INTO order_items (order_id, product_id, quantity, uni): ERROR: current transaction is aborted, commands ignored until end of transaction block
+2026-10-28T16:35:38.183+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : SQL skip (INSERT INTO orders (id, customer_id, order_date, status, tot): ERROR: current transaction is aborted, commands ignored until end of transaction block
+2026-10-28T16:35:38.184+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : SQL skip (INSERT INTO order_items (order_id, product_id, quantity, uni): ERROR: current transaction is aborted, commands ignored until end of transaction block
+2026-10-28T16:35:38.185+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : SQL skip (INSERT INTO orders (id, customer_id, order_date, status, tot): ERROR: current transaction is aborted, commands ignored until end of transaction block
+2026-10-28T16:35:38.185+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : SQL skip (INSERT INTO order_items (order_id, product_id, quantity, uni): ERROR: current transaction is aborted, commands ignored until end of transaction block
+2026-10-28T16:35:38.186+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : SQL skip (INSERT INTO orders (id, customer_id, order_date, status, tot): ERROR: current transaction is aborted, commands ignored until end of transaction block
+2026-10-28T16:35:38.186+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : SQL skip (INSERT INTO order_items (order_id, product_id, quantity, uni): ERROR: current transaction is aborted, commands ignored until end of transaction block
+2026-10-28T16:35:38.187+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : SQL skip (INSERT INTO orders (id, customer_id, order_date, status, tot): ERROR: current transaction is aborted, commands ignored until end of transaction block
+2026-10-28T16:35:38.187+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : SQL skip (INSERT INTO order_items (order_id, product_id, quantity, uni): ERROR: current transaction is aborted, commands ignored until end of transaction block
+2026-10-28T16:35:38.188+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : SQL skip (INSERT INTO order_items (order_id, product_id, quantity, uni): ERROR: current transaction is aborted, commands ignored until end of transaction block
+2026-10-28T16:35:38.188+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : SQL skip (INSERT INTO order_items (order_id, product_id, quantity, uni): ERROR: current transaction is aborted, commands ignored until end of transaction block
+2026-10-28T16:35:38.189+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : SQL skip (INSERT INTO order_items (order_id, product_id, quantity, uni): ERROR: current transaction is aborted, commands ignored until end of transaction block
+2026-10-28T16:35:38.189+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : SQL skip (INSERT INTO order_items (order_id, product_id, quantity, uni): ERROR: current transaction is aborted, commands ignored until end of transaction block
+2026-10-28T16:35:38.190+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : SQL skip (INSERT INTO orders (id, customer_id, order_date, status, tot): ERROR: current transaction is aborted, commands ignored until end of transaction block
+2026-10-28T16:35:38.190+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : SQL skip (INSERT INTO order_items (order_id, product_id, quantity, uni): ERROR: current transaction is aborted, commands ignored until end of transaction block
+2026-10-28T16:35:38.191+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : SQL skip (INSERT INTO order_items (order_id, product_id, quantity, uni): ERROR: current transaction is aborted, commands ignored until end of transaction block
+2026-10-28T16:35:38.191+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : SQL skip (INSERT INTO order_items (order_id, product_id, quantity, uni): ERROR: current transaction is aborted, commands ignored until end of transaction block
+2026-10-28T16:35:38.192+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : SQL skip (INSERT INTO orders (id, customer_id, order_date, status, tot): ERROR: current transaction is aborted, commands ignored until end of transaction block
+2026-10-28T16:35:38.193+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : SQL skip (INSERT INTO order_items (order_id, product_id, quantity, uni): ERROR: current transaction is aborted, commands ignored until end of transaction block
+2026-10-28T16:35:38.193+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : SQL skip (INSERT INTO orders (id, customer_id, order_date, status, tot): ERROR: current transaction is aborted, commands ignored until end of transaction block
+2026-10-28T16:35:38.194+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : SQL skip (INSERT INTO order_items (order_id, product_id, quantity, uni): ERROR: current transaction is aborted, commands ignored until end of transaction block
+2026-10-28T16:35:38.194+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : SQL skip (INSERT INTO orders (id, customer_id, order_date, status, tot): ERROR: current transaction is aborted, commands ignored until end of transaction block
+2026-10-28T16:35:38.195+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : SQL skip (INSERT INTO order_items (order_id, product_id, quantity, uni): ERROR: current transaction is aborted, commands ignored until end of transaction block
+2026-10-28T16:35:38.195+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : SQL skip (INSERT INTO order_items (order_id, product_id, quantity, uni): ERROR: current transaction is aborted, commands ignored until end of transaction block
+2026-10-28T16:35:38.196+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : SQL skip (INSERT INTO orders (id, customer_id, order_date, status, tot): ERROR: current transaction is aborted, commands ignored until end of transaction block
+2026-10-28T16:35:38.196+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : SQL skip (INSERT INTO order_items (order_id, product_id, quantity, uni): ERROR: current transaction is aborted, commands ignored until end of transaction block
+2026-10-28T16:35:38.197+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : SQL skip (INSERT INTO users (id, username, password_hash, role) VALUES): ERROR: current transaction is aborted, commands ignored until end of transaction block
+2026-10-28T16:35:38.197+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : SQL skip (INSERT INTO customers (id, user_id, full_name, email, phone,): ERROR: current transaction is aborted, commands ignored until end of transaction block
+2026-10-28T16:35:38.198+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : SQL skip (INSERT INTO orders (id, customer_id, order_date, status, tot): ERROR: current transaction is aborted, commands ignored until end of transaction block
+2026-10-28T16:35:38.198+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : SQL skip (INSERT INTO order_items (order_id, product_id, quantity, uni): ERROR: current transaction is aborted, commands ignored until end of transaction block
+2026-10-28T16:35:38.198+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : SQL skip (INSERT INTO order_items (order_id, product_id, quantity, uni): ERROR: current transaction is aborted, commands ignored until end of transaction block
+2026-10-28T16:35:38.199+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : SQL skip (INSERT INTO order_items (order_id, product_id, quantity, uni): ERROR: current transaction is aborted, commands ignored until end of transaction block
+2026-10-28T16:35:38.199+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : SQL skip (INSERT INTO order_items (order_id, product_id, quantity, uni): ERROR: current transaction is aborted, commands ignored until end of transaction block
+2026-10-28T16:35:38.200+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : SQL skip (INSERT INTO order_items (order_id, product_id, quantity, uni): ERROR: current transaction is aborted, commands ignored until end of transaction block
+2026-10-28T16:35:38.200+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : SQL skip (INSERT INTO order_items (order_id, product_id, quantity, uni): ERROR: current transaction is aborted, commands ignored until end of transaction block
+2026-10-28T16:35:38.201+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : SQL skip (INSERT INTO order_items (order_id, product_id, quantity, uni): ERROR: current transaction is aborted, commands ignored until end of transaction block
+2026-10-28T16:35:38.202+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : SQL skip (INSERT INTO orders (id, customer_id, order_date, status, tot): ERROR: current transaction is aborted, commands ignored until end of transaction block
+2026-10-28T16:35:38.202+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : SQL skip (INSERT INTO order_items (order_id, product_id, quantity, uni): ERROR: current transaction is aborted, commands ignored until end of transaction block
+2026-10-28T16:35:38.203+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : SQL skip (INSERT INTO order_items (order_id, product_id, quantity, uni): ERROR: current transaction is aborted, commands ignored until end of transaction block
+2026-10-28T16:35:38.203+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : SQL skip (INSERT INTO order_items (order_id, product_id, quantity, uni): ERROR: current transaction is aborted, commands ignored until end of transaction block
+2026-10-28T16:35:38.204+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : SQL skip (INSERT INTO orders (id, customer_id, order_date, status, tot): ERROR: current transaction is aborted, commands ignored until end of transaction block
+2026-10-28T16:35:38.204+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : SQL skip (INSERT INTO order_items (order_id, product_id, quantity, uni): ERROR: current transaction is aborted, commands ignored until end of transaction block
+2026-10-28T16:35:38.204+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : SQL skip (INSERT INTO order_items (order_id, product_id, quantity, uni): ERROR: current transaction is aborted, commands ignored until end of transaction block
+2026-10-28T16:35:38.205+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : SQL skip (INSERT INTO orders (id, customer_id, order_date, status, tot): ERROR: current transaction is aborted, commands ignored until end of transaction block
+2026-10-28T16:35:38.205+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : SQL skip (INSERT INTO order_items (order_id, product_id, quantity, uni): ERROR: current transaction is aborted, commands ignored until end of transaction block
+2026-10-28T16:35:38.206+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : SQL skip (INSERT INTO orders (id, customer_id, order_date, status, tot): ERROR: current transaction is aborted, commands ignored until end of transaction block
+2026-10-28T16:35:38.206+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : SQL skip (INSERT INTO order_items (order_id, product_id, quantity, uni): ERROR: current transaction is aborted, commands ignored until end of transaction block
+2026-10-28T16:35:38.206+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : SQL skip (INSERT INTO orders (id, customer_id, order_date, status, tot): ERROR: current transaction is aborted, commands ignored until end of transaction block
+2026-10-28T16:35:38.207+07:00  WARN 25372 --- [demo] [           main] f.config.SalesDatabaseInitializer        : SQL skip (INSERT INTO order_items (order_id, product_id, quantity, uni): ERROR: current transaction is aborted, commands ignored until end of transaction block
+2026-10-28T16:35:38.222+07:00 DEBUG 25372 --- [demo] [           main] o.s.b.a.ApplicationAvailabilityBean      : Application availability state ReadinessState changed to ACCEPTING_TRAFFIC
+2026-10-28T16:35:38.330+07:00  INFO 25372 --- [demo] [.1-18081-exec-1] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2026-10-28T16:35:38.331+07:00 DEBUG 25372 --- [demo] [.1-18081-exec-1] o.s.web.servlet.DispatcherServlet        : Detected StandardServletMultipartResolver
+2026-10-28T16:35:38.331+07:00 DEBUG 25372 --- [demo] [.1-18081-exec-1] o.s.web.servlet.DispatcherServlet        : Detected AcceptHeaderLocaleResolver
+2026-10-28T16:35:38.331+07:00 DEBUG 25372 --- [demo] [.1-18081-exec-1] o.s.web.servlet.DispatcherServlet        : Detected FixedThemeResolver
+2026-10-28T16:35:38.331+07:00 DEBUG 25372 --- [demo] [.1-18081-exec-1] o.s.web.servlet.DispatcherServlet        : Detected org.springframework.web.servlet.view.DefaultRequestToViewNameTranslator@1bd59b82
+2026-10-28T16:35:38.332+07:00 DEBUG 25372 --- [demo] [.1-18081-exec-1] o.s.web.servlet.DispatcherServlet        : Detected org.springframework.web.servlet.support.SessionFlashMapManager@5f67181f
+2026-10-28T16:35:38.332+07:00 DEBUG 25372 --- [demo] [.1-18081-exec-1] o.s.web.servlet.DispatcherServlet        : enableLoggingRequestDetails='false': request parameters and headers will be masked to prevent unsafe logging of potentially sensitive data
+2026-10-28T16:35:38.332+07:00  INFO 25372 --- [demo] [.1-18081-exec-1] o.s.web.servlet.DispatcherServlet        : Completed initialization in 1 ms
+2026-10-28T16:35:38.337+07:00 DEBUG 25372 --- [demo] [.1-18081-exec-1] o.s.web.servlet.DispatcherServlet        : GET "/api/products", parameters={}
+2026-10-28T16:35:38.343+07:00 DEBUG 25372 --- [demo] [.1-18081-exec-1] s.w.s.m.m.a.RequestMappingHandlerMapping : Mapped to furniture.controller.ProductController#getProducts()
+2026-10-28T16:35:38.355+07:00 DEBUG 25372 --- [demo] [.1-18081-exec-1] o.s.jdbc.core.JdbcTemplate               : Executing SQL query [SELECT p.id, p.name, p.description, p.selling_price, p.image_url,
+       COALESCE(c.name, 'Khác') AS category_name
+FROM public.products p
+LEFT JOIN public.categories c ON c.id = p.category_id
+WHERE COALESCE(p.is_active, TRUE) = TRUE
+ORDER BY p.id
+]
+2026-10-28T16:35:38.369+07:00 DEBUG 25372 --- [demo] [.1-18081-exec-1] o.s.w.s.m.m.a.HttpEntityMethodProcessor  : Using 'application/json', given [*/*] and supported [application/json, application/*+json]
+2026-10-28T16:35:38.371+07:00 DEBUG 25372 --- [demo] [.1-18081-exec-1] o.s.w.s.m.m.a.HttpEntityMethodProcessor  : Writing [[]]
+2026-10-28T16:35:38.383+07:00 DEBUG 25372 --- [demo] [.1-18081-exec-1] o.s.web.servlet.DispatcherServlet        : Completed 200 OK
+2026-10-28T16:35:39.894+07:00 DEBUG 25372 --- [demo] [.1-18081-exec-2] o.s.web.servlet.DispatcherServlet        : GET "/api/products", parameters={}
+2026-10-28T16:35:39.895+07:00 DEBUG 25372 --- [demo] [.1-18081-exec-2] s.w.s.m.m.a.RequestMappingHandlerMapping : Mapped to furniture.controller.ProductController#getProducts()
+2026-10-28T16:35:39.895+07:00 DEBUG 25372 --- [demo] [.1-18081-exec-2] o.s.jdbc.core.JdbcTemplate               : Executing SQL query [SELECT p.id, p.name, p.description, p.selling_price, p.image_url,
+       COALESCE(c.name, 'Khác') AS category_name
+FROM public.products p
+LEFT JOIN public.categories c ON c.id = p.category_id
+WHERE COALESCE(p.is_active, TRUE) = TRUE
+ORDER BY p.id
+]
+2026-10-28T16:35:39.897+07:00 DEBUG 25372 --- [demo] [.1-18081-exec-2] o.s.w.s.m.m.a.HttpEntityMethodProcessor  : Using 'application/json', given [*/*] and supported [application/json, application/*+json]
+2026-10-28T16:35:39.897+07:00 DEBUG 25372 --- [demo] [.1-18081-exec-2] o.s.w.s.m.m.a.HttpEntityMethodProcessor  : Writing [[]]
+2026-10-28T16:35:39.898+07:00 DEBUG 25372 --- [demo] [.1-18081-exec-2] o.s.web.servlet.DispatcherServlet        : Completed 200 OK
+2026-10-28T16:35:39.902+07:00 DEBUG 25372 --- [demo] [.1-18081-exec-3] o.s.web.servlet.DispatcherServlet        : GET "/api/admin/categories", parameters={}
+2026-10-28T16:35:39.902+07:00 DEBUG 25372 --- [demo] [.1-18081-exec-3] s.w.s.m.m.a.RequestMappingHandlerMapping : Mapped to furniture.controller.AdminCategoryController#getAllCategories(String, String)
+2026-10-28T16:35:39.909+07:00 DEBUG 25372 --- [demo] [.1-18081-exec-3] o.s.jdbc.core.JdbcTemplate               : Executing prepared SQL query
+2026-10-28T16:35:39.909+07:00 DEBUG 25372 --- [demo] [.1-18081-exec-3] o.s.jdbc.core.JdbcTemplate               : Executing prepared SQL statement [SELECT c.id, c.name, c.description, COUNT(p.id) AS product_count,
+       COALESCE(c.is_active, true) AS is_active
+FROM public.categories c
+LEFT JOIN public.products p ON p.category_id = c.id
+WHERE 1=1
+GROUP BY c.id, c.name, c.description, c.is_active
+ORDER BY c.id ASC
+]
+2026-10-28T16:35:39.920+07:00 DEBUG 25372 --- [demo] [.1-18081-exec-3] o.s.web.servlet.DispatcherServlet        : Failed to complete request: org.springframework.jdbc.BadSqlGrammarException: PreparedStatementCallback; bad SQL grammar [SELECT c.id, c.name, c.description, COUNT(p.id) AS product_count,
+       COALESCE(c.is_active, true) AS is_active
+FROM public.categories c
+LEFT JOIN public.products p ON p.category_id = c.id
+WHERE 1=1
+GROUP BY c.id, c.name, c.description, c.is_active
+ORDER BY c.id ASC
+]
+2026-10-28T16:35:39.921+07:00 ERROR 25372 --- [demo] [.1-18081-exec-3] o.a.c.c.C.[.[.[/].[dispatcherServlet]    : Servlet.service() for servlet [dispatcherServlet] in context with path [] threw exception [Request processing failed: org.springframework.jdbc.BadSqlGrammarException: PreparedStatementCallback; bad SQL grammar [SELECT c.id, c.name, c.description, COUNT(p.id) AS product_count,
+       COALESCE(c.is_active, true) AS is_active
+FROM public.categories c
+LEFT JOIN public.products p ON p.category_id = c.id
+WHERE 1=1
+GROUP BY c.id, c.name, c.description, c.is_active
+ORDER BY c.id ASC
+]] with root cause
+
+org.postgresql.util.PSQLException: ERROR: column c.is_active does not exist
+  Hint: Perhaps you meant to reference the column "p.is_active".
+  Position: 83
+	at org.postgresql.core.v3.QueryExecutorImpl.receiveErrorResponse(QueryExecutorImpl.java:2904) ~[postgresql-42.7.12.jar:42.7.12]
+	at org.postgresql.core.v3.QueryExecutorImpl.processResults(QueryExecutorImpl.java:2589) ~[postgresql-42.7.12.jar:42.7.12]
+	at org.postgresql.core.v3.QueryExecutorImpl.execute(QueryExecutorImpl.java:431) ~[postgresql-42.7.12.jar:42.7.12]
+	at org.postgresql.jdbc.PgStatement.executeInternal(PgStatement.java:534) ~[postgresql-42.7.12.jar:42.7.12]
+	at org.postgresql.jdbc.PgStatement.execute(PgStatement.java:437) ~[postgresql-42.7.12.jar:42.7.12]
+	at org.postgresql.jdbc.PgPreparedStatement.executeWithFlags(PgPreparedStatement.java:196) ~[postgresql-42.7.12.jar:42.7.12]
+	at org.postgresql.jdbc.PgPreparedStatement.executeQuery(PgPreparedStatement.java:139) ~[postgresql-42.7.12.jar:42.7.12]
+	at com.zaxxer.hikari.pool.ProxyPreparedStatement.executeQuery(ProxyPreparedStatement.java:52) ~[HikariCP-6.3.3.jar:na]
+	at com.zaxxer.hikari.pool.HikariProxyPreparedStatement.executeQuery(HikariProxyPreparedStatement.java) ~[HikariCP-6.3.3.jar:na]
+	at org.springframework.jdbc.core.JdbcTemplate$1.doInPreparedStatement(JdbcTemplate.java:732) ~[spring-jdbc-6.2.17.jar:6.2.17]
+	at org.springframework.jdbc.core.JdbcTemplate.execute(JdbcTemplate.java:658) ~[spring-jdbc-6.2.17.jar:6.2.17]
+	at org.springframework.jdbc.core.JdbcTemplate.query(JdbcTemplate.java:723) ~[spring-jdbc-6.2.17.jar:6.2.17]
+	at org.springframework.jdbc.core.JdbcTemplate.query(JdbcTemplate.java:754) ~[spring-jdbc-6.2.17.jar:6.2.17]
+	at org.springframework.jdbc.core.JdbcTemplate.query(JdbcTemplate.java:767) ~[spring-jdbc-6.2.17.jar:6.2.17]
+	at org.springframework.jdbc.core.JdbcTemplate.query(JdbcTemplate.java:825) ~[spring-jdbc-6.2.17.jar:6.2.17]
+	at furniture.repository.AdminCategoryRepository.findAllWithProductCount(AdminCategoryRepository.java:85) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565) ~[na:na]
+	at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:360) ~[spring-aop-6.2.17.jar:6.2.17]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.invokeJoinpoint(ReflectiveMethodInvocation.java:196) ~[spring-aop-6.2.17.jar:6.2.17]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:163) ~[spring-aop-6.2.17.jar:6.2.17]
+	at org.springframework.dao.support.PersistenceExceptionTranslationInterceptor.invoke(PersistenceExceptionTranslationInterceptor.java:138) ~[spring-tx-6.2.17.jar:6.2.17]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184) ~[spring-aop-6.2.17.jar:6.2.17]
+	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:728) ~[spring-aop-6.2.17.jar:6.2.17]
+	at furniture.repository.AdminCategoryRepository$$SpringCGLIB$$0.findAllWithProductCount(<generated>) ~[classes/:na]
+	at furniture.service.AdminCategoryService.getAllCategories(AdminCategoryService.java:22) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565) ~[na:na]
+	at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:360) ~[spring-aop-6.2.17.jar:6.2.17]
+	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:724) ~[spring-aop-6.2.17.jar:6.2.17]
+	at furniture.service.AdminCategoryService$$SpringCGLIB$$0.getAllCategories(<generated>) ~[classes/:na]
+	at furniture.controller.AdminCategoryController.getAllCategories(AdminCategoryController.java:46) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565) ~[na:na]
+	at org.springframework.web.method.support.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:258) ~[spring-web-6.2.17.jar:6.2.17]
+	at org.springframework.web.method.support.InvocableHandlerMethod.invokeForRequest(InvocableHandlerMethod.java:191) ~[spring-web-6.2.17.jar:6.2.17]
+	at org.springframework.web.servlet.mvc.method.annotation.ServletInvocableHandlerMethod.invokeAndHandle(ServletInvocableHandlerMethod.java:118) ~[spring-webmvc-6.2.17.jar:6.2.17]
+	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.invokeHandlerMethod(RequestMappingHandlerAdapter.java:991) ~[spring-webmvc-6.2.17.jar:6.2.17]
+	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.handleInternal(RequestMappingHandlerAdapter.java:896) ~[spring-webmvc-6.2.17.jar:6.2.17]
+	at org.springframework.web.servlet.mvc.method.AbstractHandlerMethodAdapter.handle(AbstractHandlerMethodAdapter.java:87) ~[spring-webmvc-6.2.17.jar:6.2.17]
+	at org.springframework.web.servlet.DispatcherServlet.doDispatch(DispatcherServlet.java:1089) ~[spring-webmvc-6.2.17.jar:6.2.17]
+	at org.springframework.web.servlet.DispatcherServlet.doService(DispatcherServlet.java:979) ~[spring-webmvc-6.2.17.jar:6.2.17]
+	at org.springframework.web.servlet.FrameworkServlet.processRequest(FrameworkServlet.java:1014) ~[spring-webmvc-6.2.17.jar:6.2.17]
+	at org.springframework.web.servlet.FrameworkServlet.doGet(FrameworkServlet.java:903) ~[spring-webmvc-6.2.17.jar:6.2.17]
+	at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:564) ~[tomcat-embed-core-10.1.53.jar:6.0]
+	at org.springframework.web.servlet.FrameworkServlet.service(FrameworkServlet.java:885) ~[spring-webmvc-6.2.17.jar:6.2.17]
+	at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:658) ~[tomcat-embed-core-10.1.53.jar:6.0]
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:193) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:138) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.apache.tomcat.websocket.server.WsFilter.doFilter(WsFilter.java:51) ~[tomcat-embed-websocket-10.1.53.jar:10.1.53]
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:162) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:138) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.springframework.web.filter.RequestContextFilter.doFilterInternal(RequestContextFilter.java:100) ~[spring-web-6.2.17.jar:6.2.17]
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.2.17.jar:6.2.17]
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:162) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:138) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.springframework.web.filter.FormContentFilter.doFilterInternal(FormContentFilter.java:93) ~[spring-web-6.2.17.jar:6.2.17]
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.2.17.jar:6.2.17]
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:162) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:138) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.springframework.web.filter.CharacterEncodingFilter.doFilterInternal(CharacterEncodingFilter.java:201) ~[spring-web-6.2.17.jar:6.2.17]
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.2.17.jar:6.2.17]
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:162) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:138) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.apache.catalina.core.StandardWrapperValve.invoke(StandardWrapperValve.java:165) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.apache.catalina.core.StandardContextValve.invoke(StandardContextValve.java:88) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.apache.catalina.authenticator.AuthenticatorBase.invoke(AuthenticatorBase.java:492) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.apache.catalina.core.StandardHostValve.invoke(StandardHostValve.java:113) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.apache.catalina.valves.ErrorReportValve.invoke(ErrorReportValve.java:83) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.apache.catalina.core.StandardEngineValve.invoke(StandardEngineValve.java:72) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.apache.catalina.connector.CoyoteAdapter.service(CoyoteAdapter.java:342) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.apache.coyote.http11.Http11Processor.service(Http11Processor.java:399) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.apache.coyote.AbstractProcessorLight.process(AbstractProcessorLight.java:63) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.apache.coyote.AbstractProtocol$ConnectionHandler.process(AbstractProtocol.java:903) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.apache.tomcat.util.net.NioEndpoint$SocketProcessor.doRun(NioEndpoint.java:1775) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.apache.tomcat.util.net.SocketProcessorBase.run(SocketProcessorBase.java:52) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.apache.tomcat.util.threads.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:973) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.apache.tomcat.util.threads.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:491) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:63) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at java.base/java.lang.Thread.run(Thread.java:1516) ~[na:na]
+
+2026-10-28T16:35:39.929+07:00 DEBUG 25372 --- [demo] [.1-18081-exec-3] o.s.web.servlet.DispatcherServlet        : "ERROR" dispatch for GET "/error", parameters={}
+2026-10-28T16:35:39.930+07:00 DEBUG 25372 --- [demo] [.1-18081-exec-3] s.w.s.m.m.a.RequestMappingHandlerMapping : Mapped to org.springframework.boot.autoconfigure.web.servlet.error.BasicErrorController#error(HttpServletRequest)
+2026-10-28T16:35:39.934+07:00 DEBUG 25372 --- [demo] [.1-18081-exec-3] o.s.w.s.m.m.a.HttpEntityMethodProcessor  : Using 'application/json', given [*/*] and supported [application/json, application/*+json]
+2026-10-28T16:35:39.937+07:00 DEBUG 25372 --- [demo] [.1-18081-exec-3] o.s.w.s.m.m.a.HttpEntityMethodProcessor  : Writing [{timestamp=Wed Oct 28 16:35:39 GMT+07:00 2026, status=500, error=Internal Server Error, path=/api/ad (truncated)...]
+2026-10-28T16:35:39.955+07:00 DEBUG 25372 --- [demo] [.1-18081-exec-3] o.s.web.servlet.DispatcherServlet        : Exiting from "ERROR" dispatch, status 500
+2026-10-28T16:35:39.958+07:00 DEBUG 25372 --- [demo] [.1-18081-exec-4] o.s.web.servlet.DispatcherServlet        : GET "/api/admin/products", parameters={}
+2026-10-28T16:35:39.958+07:00 DEBUG 25372 --- [demo] [.1-18081-exec-4] s.w.s.m.m.a.RequestMappingHandlerMapping : Mapped to furniture.controller.AdminProductController#getProducts(Long, String, Boolean, String, int, int)
+2026-10-28T16:35:39.962+07:00 DEBUG 25372 --- [demo] [.1-18081-exec-4] o.s.jdbc.core.JdbcTemplate               : Executing prepared SQL query
+2026-10-28T16:35:39.962+07:00 DEBUG 25372 --- [demo] [.1-18081-exec-4] o.s.jdbc.core.JdbcTemplate               : Executing prepared SQL statement [SELECT COUNT(*) FROM public.products p  WHERE 1=1 ]
+2026-10-28T16:35:39.965+07:00 DEBUG 25372 --- [demo] [.1-18081-exec-4] o.s.jdbc.core.JdbcTemplate               : Executing prepared SQL query
+2026-10-28T16:35:39.965+07:00 DEBUG 25372 --- [demo] [.1-18081-exec-4] o.s.jdbc.core.JdbcTemplate               : Executing prepared SQL statement [SELECT p.id, p.name, p.category_id, c.name AS category_name,
+       p.unit, p.selling_price, p.image_url, p.quantity, p.is_active, p.created_at
+FROM public.products p
+LEFT JOIN public.categories c ON c.id = p.category_id
+ WHERE 1=1 ORDER BY p.id DESC
+LIMIT ? OFFSET ?
+]
+2026-10-28T16:35:39.976+07:00 DEBUG 25372 --- [demo] [.1-18081-exec-4] o.s.w.s.m.m.a.HttpEntityMethodProcessor  : Using 'application/json', given [*/*] and supported [application/json, application/*+json]
+2026-10-28T16:35:39.980+07:00 DEBUG 25372 --- [demo] [.1-18081-exec-4] o.s.w.s.m.m.a.HttpEntityMethodProcessor  : Writing [PageResponse[content=[], page=0, size=10, totalElements=0, totalPages=1, first=true, last=true]]
+2026-10-28T16:35:39.982+07:00 DEBUG 25372 --- [demo] [.1-18081-exec-4] o.s.web.servlet.DispatcherServlet        : Completed 200 OK
+2026-10-28T16:35:39.984+07:00 DEBUG 25372 --- [demo] [.1-18081-exec-5] o.s.web.servlet.DispatcherServlet        : GET "/api/admin/invoices", parameters={}
+2026-10-28T16:35:39.984+07:00 DEBUG 25372 --- [demo] [.1-18081-exec-5] s.w.s.m.m.a.RequestMappingHandlerMapping : Mapped to furniture.controller.AdminInvoiceController#getInvoices(String, String, String, LocalDate, LocalDate, int, int)
+2026-10-28T16:35:39.986+07:00 DEBUG 25372 --- [demo] [.1-18081-exec-5] o.s.jdbc.core.JdbcTemplate               : Executing prepared SQL query
+2026-10-28T16:35:39.986+07:00 DEBUG 25372 --- [demo] [.1-18081-exec-5] o.s.jdbc.core.JdbcTemplate               : Executing prepared SQL statement [SELECT COUNT(*)
+FROM public.invoices i
+LEFT JOIN public.customers c ON c.id = i.customer_id
+ WHERE 1=1]
+2026-10-28T16:35:39.987+07:00 DEBUG 25372 --- [demo] [.1-18081-exec-5] o.s.web.servlet.DispatcherServlet        : Failed to complete request: org.springframework.jdbc.BadSqlGrammarException: PreparedStatementCallback; bad SQL grammar [SELECT COUNT(*)
+FROM public.invoices i
+LEFT JOIN public.customers c ON c.id = i.customer_id
+ WHERE 1=1]
+2026-10-28T16:35:39.988+07:00 ERROR 25372 --- [demo] [.1-18081-exec-5] o.a.c.c.C.[.[.[/].[dispatcherServlet]    : Servlet.service() for servlet [dispatcherServlet] in context with path [] threw exception [Request processing failed: org.springframework.jdbc.BadSqlGrammarException: PreparedStatementCallback; bad SQL grammar [SELECT COUNT(*)
+FROM public.invoices i
+LEFT JOIN public.customers c ON c.id = i.customer_id
+ WHERE 1=1]] with root cause
+
+org.postgresql.util.PSQLException: ERROR: relation "public.invoices" does not exist
+  Position: 22
+	at org.postgresql.core.v3.QueryExecutorImpl.receiveErrorResponse(QueryExecutorImpl.java:2904) ~[postgresql-42.7.12.jar:42.7.12]
+	at org.postgresql.core.v3.QueryExecutorImpl.processResults(QueryExecutorImpl.java:2589) ~[postgresql-42.7.12.jar:42.7.12]
+	at org.postgresql.core.v3.QueryExecutorImpl.execute(QueryExecutorImpl.java:431) ~[postgresql-42.7.12.jar:42.7.12]
+	at org.postgresql.jdbc.PgStatement.executeInternal(PgStatement.java:534) ~[postgresql-42.7.12.jar:42.7.12]
+	at org.postgresql.jdbc.PgStatement.execute(PgStatement.java:437) ~[postgresql-42.7.12.jar:42.7.12]
+	at org.postgresql.jdbc.PgPreparedStatement.executeWithFlags(PgPreparedStatement.java:196) ~[postgresql-42.7.12.jar:42.7.12]
+	at org.postgresql.jdbc.PgPreparedStatement.executeQuery(PgPreparedStatement.java:139) ~[postgresql-42.7.12.jar:42.7.12]
+	at com.zaxxer.hikari.pool.ProxyPreparedStatement.executeQuery(ProxyPreparedStatement.java:52) ~[HikariCP-6.3.3.jar:na]
+	at com.zaxxer.hikari.pool.HikariProxyPreparedStatement.executeQuery(HikariProxyPreparedStatement.java) ~[HikariCP-6.3.3.jar:na]
+	at org.springframework.jdbc.core.JdbcTemplate$1.doInPreparedStatement(JdbcTemplate.java:732) ~[spring-jdbc-6.2.17.jar:6.2.17]
+	at org.springframework.jdbc.core.JdbcTemplate.execute(JdbcTemplate.java:658) ~[spring-jdbc-6.2.17.jar:6.2.17]
+	at org.springframework.jdbc.core.JdbcTemplate.query(JdbcTemplate.java:723) ~[spring-jdbc-6.2.17.jar:6.2.17]
+	at org.springframework.jdbc.core.JdbcTemplate.query(JdbcTemplate.java:754) ~[spring-jdbc-6.2.17.jar:6.2.17]
+	at org.springframework.jdbc.core.JdbcTemplate.query(JdbcTemplate.java:767) ~[spring-jdbc-6.2.17.jar:6.2.17]
+	at org.springframework.jdbc.core.JdbcTemplate.queryForObject(JdbcTemplate.java:889) ~[spring-jdbc-6.2.17.jar:6.2.17]
+	at org.springframework.jdbc.core.JdbcTemplate.queryForObject(JdbcTemplate.java:918) ~[spring-jdbc-6.2.17.jar:6.2.17]
+	at furniture.repository.AdminInvoiceRepository.findInvoices(AdminInvoiceRepository.java:203) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565) ~[na:na]
+	at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:360) ~[spring-aop-6.2.17.jar:6.2.17]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.invokeJoinpoint(ReflectiveMethodInvocation.java:196) ~[spring-aop-6.2.17.jar:6.2.17]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:163) ~[spring-aop-6.2.17.jar:6.2.17]
+	at org.springframework.dao.support.PersistenceExceptionTranslationInterceptor.invoke(PersistenceExceptionTranslationInterceptor.java:138) ~[spring-tx-6.2.17.jar:6.2.17]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184) ~[spring-aop-6.2.17.jar:6.2.17]
+	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:728) ~[spring-aop-6.2.17.jar:6.2.17]
+	at furniture.repository.AdminInvoiceRepository$$SpringCGLIB$$0.findInvoices(<generated>) ~[classes/:na]
+	at furniture.service.AdminInvoiceService.getInvoices(AdminInvoiceService.java:60) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565) ~[na:na]
+	at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:360) ~[spring-aop-6.2.17.jar:6.2.17]
+	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:724) ~[spring-aop-6.2.17.jar:6.2.17]
+	at furniture.service.AdminInvoiceService$$SpringCGLIB$$0.getInvoices(<generated>) ~[classes/:na]
+	at furniture.controller.AdminInvoiceController.getInvoices(AdminInvoiceController.java:53) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565) ~[na:na]
+	at org.springframework.web.method.support.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:258) ~[spring-web-6.2.17.jar:6.2.17]
+	at org.springframework.web.method.support.InvocableHandlerMethod.invokeForRequest(InvocableHandlerMethod.java:191) ~[spring-web-6.2.17.jar:6.2.17]
+	at org.springframework.web.servlet.mvc.method.annotation.ServletInvocableHandlerMethod.invokeAndHandle(ServletInvocableHandlerMethod.java:118) ~[spring-webmvc-6.2.17.jar:6.2.17]
+	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.invokeHandlerMethod(RequestMappingHandlerAdapter.java:991) ~[spring-webmvc-6.2.17.jar:6.2.17]
+	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.handleInternal(RequestMappingHandlerAdapter.java:896) ~[spring-webmvc-6.2.17.jar:6.2.17]
+	at org.springframework.web.servlet.mvc.method.AbstractHandlerMethodAdapter.handle(AbstractHandlerMethodAdapter.java:87) ~[spring-webmvc-6.2.17.jar:6.2.17]
+	at org.springframework.web.servlet.DispatcherServlet.doDispatch(DispatcherServlet.java:1089) ~[spring-webmvc-6.2.17.jar:6.2.17]
+	at org.springframework.web.servlet.DispatcherServlet.doService(DispatcherServlet.java:979) ~[spring-webmvc-6.2.17.jar:6.2.17]
+	at org.springframework.web.servlet.FrameworkServlet.processRequest(FrameworkServlet.java:1014) ~[spring-webmvc-6.2.17.jar:6.2.17]
+	at org.springframework.web.servlet.FrameworkServlet.doGet(FrameworkServlet.java:903) ~[spring-webmvc-6.2.17.jar:6.2.17]
+	at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:564) ~[tomcat-embed-core-10.1.53.jar:6.0]
+	at org.springframework.web.servlet.FrameworkServlet.service(FrameworkServlet.java:885) ~[spring-webmvc-6.2.17.jar:6.2.17]
+	at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:658) ~[tomcat-embed-core-10.1.53.jar:6.0]
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:193) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:138) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.apache.tomcat.websocket.server.WsFilter.doFilter(WsFilter.java:51) ~[tomcat-embed-websocket-10.1.53.jar:10.1.53]
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:162) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:138) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.springframework.web.filter.RequestContextFilter.doFilterInternal(RequestContextFilter.java:100) ~[spring-web-6.2.17.jar:6.2.17]
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.2.17.jar:6.2.17]
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:162) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:138) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.springframework.web.filter.FormContentFilter.doFilterInternal(FormContentFilter.java:93) ~[spring-web-6.2.17.jar:6.2.17]
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.2.17.jar:6.2.17]
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:162) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:138) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.springframework.web.filter.CharacterEncodingFilter.doFilterInternal(CharacterEncodingFilter.java:201) ~[spring-web-6.2.17.jar:6.2.17]
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.2.17.jar:6.2.17]
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:162) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:138) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.apache.catalina.core.StandardWrapperValve.invoke(StandardWrapperValve.java:165) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.apache.catalina.core.StandardContextValve.invoke(StandardContextValve.java:88) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.apache.catalina.authenticator.AuthenticatorBase.invoke(AuthenticatorBase.java:492) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.apache.catalina.core.StandardHostValve.invoke(StandardHostValve.java:113) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.apache.catalina.valves.ErrorReportValve.invoke(ErrorReportValve.java:83) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.apache.catalina.core.StandardEngineValve.invoke(StandardEngineValve.java:72) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.apache.catalina.connector.CoyoteAdapter.service(CoyoteAdapter.java:342) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.apache.coyote.http11.Http11Processor.service(Http11Processor.java:399) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.apache.coyote.AbstractProcessorLight.process(AbstractProcessorLight.java:63) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.apache.coyote.AbstractProtocol$ConnectionHandler.process(AbstractProtocol.java:903) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.apache.tomcat.util.net.NioEndpoint$SocketProcessor.doRun(NioEndpoint.java:1775) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.apache.tomcat.util.net.SocketProcessorBase.run(SocketProcessorBase.java:52) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.apache.tomcat.util.threads.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:973) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.apache.tomcat.util.threads.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:491) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:63) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at java.base/java.lang.Thread.run(Thread.java:1516) ~[na:na]
+
+2026-10-28T16:35:39.989+07:00 DEBUG 25372 --- [demo] [.1-18081-exec-5] o.s.web.servlet.DispatcherServlet        : "ERROR" dispatch for GET "/error", parameters={}
+2026-10-28T16:35:39.989+07:00 DEBUG 25372 --- [demo] [.1-18081-exec-5] s.w.s.m.m.a.RequestMappingHandlerMapping : Mapped to org.springframework.boot.autoconfigure.web.servlet.error.BasicErrorController#error(HttpServletRequest)
+2026-10-28T16:35:39.990+07:00 DEBUG 25372 --- [demo] [.1-18081-exec-5] o.s.w.s.m.m.a.HttpEntityMethodProcessor  : Using 'application/json', given [*/*] and supported [application/json, application/*+json]
+2026-10-28T16:35:39.990+07:00 DEBUG 25372 --- [demo] [.1-18081-exec-5] o.s.w.s.m.m.a.HttpEntityMethodProcessor  : Writing [{timestamp=Wed Oct 28 16:35:39 GMT+07:00 2026, status=500, error=Internal Server Error, path=/api/ad (truncated)...]
+2026-10-28T16:35:39.990+07:00 DEBUG 25372 --- [demo] [.1-18081-exec-5] o.s.web.servlet.DispatcherServlet        : Exiting from "ERROR" dispatch, status 500
+2026-10-28T16:35:39.995+07:00 DEBUG 25372 --- [demo] [.1-18081-exec-9] o.s.web.servlet.DispatcherServlet        : POST "/api/auth/login", parameters={}
+2026-10-28T16:35:39.996+07:00 DEBUG 25372 --- [demo] [.1-18081-exec-9] s.w.s.m.m.a.RequestMappingHandlerMapping : Mapped to furniture.controller.AuthController#login(LoginRequest)
+2026-10-28T16:35:40.014+07:00 DEBUG 25372 --- [demo] [.1-18081-exec-9] m.m.a.RequestResponseBodyMethodProcessor : Read "application/json;charset=UTF-8" to [LoginRequest[username=admin01, password=123456]]
+2026-10-28T16:35:40.016+07:00 DEBUG 25372 --- [demo] [.1-18081-exec-9] o.s.jdbc.core.JdbcTemplate               : Executing prepared SQL query
+2026-10-28T16:35:40.016+07:00 DEBUG 25372 --- [demo] [.1-18081-exec-9] o.s.jdbc.core.JdbcTemplate               : Executing prepared SQL statement [SELECT u.id AS user_id, u.username, u.password_hash, u.role, u.is_active,
+       COALESCE(c.id, s.id) AS customer_id,
+       COALESCE(s.full_name, c.full_name) AS full_name,
+       COALESCE(s.email, c.email) AS email,
+       COALESCE(s.phone, c.phone) AS phone,
+       COALESCE(s.address, c.address) AS address
+FROM public.users u
+LEFT JOIN public.customers c ON c.user_id = u.id
+LEFT JOIN public.staff s ON s.user_id = u.id
+WHERE (
+    LOWER(u.username) = LOWER(?)
+    OR (c.email IS NOT NULL AND LOWER(c.email) = LOWER(?))
+    OR (s.email IS NOT NULL AND LOWER(s.email) = LOWER(?))
+)
+LIMIT 1
+]
+2026-10-28T16:35:40.020+07:00 DEBUG 25372 --- [demo] [.1-18081-exec-9] o.s.w.s.m.m.a.HttpEntityMethodProcessor  : Using 'application/json', given [*/*] and supported [application/json, application/*+json]
+2026-10-28T16:35:40.020+07:00 DEBUG 25372 --- [demo] [.1-18081-exec-9] o.s.w.s.m.m.a.HttpEntityMethodProcessor  : Writing [{error=Tên đăng nhập hoặc mật khẩu không chính xác}]
+2026-10-28T16:35:40.021+07:00 DEBUG 25372 --- [demo] [.1-18081-exec-9] o.s.web.servlet.DispatcherServlet        : Completed 401 UNAUTHORIZED
+2026-10-28T16:37:16.825+07:00  WARN 25372 --- [demo] [l-1:housekeeper] com.zaxxer.hikari.pool.PoolBase          : HikariPool-1 - Failed to validate connection org.postgresql.jdbc.PgConnection@6fab172e (This connection has been closed.). Possibly consider using a shorter maxLifetime value.
+2026-10-28T16:38:17.205+07:00  WARN 25372 --- [demo] [onnection-adder] com.zaxxer.hikari.pool.PoolBase          : HikariPool-1 - Pool is empty, failed to create/setup connection (a5b96cad-34be-48ea-9492-1aa55ad54a8f)
+
+org.postgresql.util.PSQLException: Connection to 127.0.0.1:15434 refused. Check that the hostname and port are correct and that the postmaster is accepting TCP/IP connections.
+	at org.postgresql.core.v3.ConnectionFactoryImpl.openConnectionImpl(ConnectionFactoryImpl.java:425) ~[postgresql-42.7.12.jar:42.7.12]
+	at org.postgresql.core.ConnectionFactory.openConnection(ConnectionFactory.java:52) ~[postgresql-42.7.12.jar:42.7.12]
+	at org.postgresql.jdbc.PgConnection.<init>(PgConnection.java:290) ~[postgresql-42.7.12.jar:42.7.12]
+	at org.postgresql.Driver.makeConnection(Driver.java:448) ~[postgresql-42.7.12.jar:42.7.12]
+	at org.postgresql.Driver.connect(Driver.java:298) ~[postgresql-42.7.12.jar:42.7.12]
+	at com.zaxxer.hikari.util.DriverDataSource.getConnection(DriverDataSource.java:144) ~[HikariCP-6.3.3.jar:na]
+	at com.zaxxer.hikari.pool.PoolBase.newConnection(PoolBase.java:370) ~[HikariCP-6.3.3.jar:na]
+	at com.zaxxer.hikari.pool.PoolBase.newPoolEntry(PoolBase.java:207) ~[HikariCP-6.3.3.jar:na]
+	at com.zaxxer.hikari.pool.HikariPool.createPoolEntry(HikariPool.java:488) ~[HikariCP-6.3.3.jar:na]
+	at com.zaxxer.hikari.pool.HikariPool$PoolEntryCreator.call(HikariPool.java:752) ~[HikariCP-6.3.3.jar:na]
+	at com.zaxxer.hikari.pool.HikariPool$PoolEntryCreator.call(HikariPool.java:731) ~[HikariCP-6.3.3.jar:na]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:330) ~[na:na]
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090) ~[na:na]
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614) ~[na:na]
+	at java.base/java.lang.Thread.run(Thread.java:1516) ~[na:na]
+Caused by: java.net.ConnectException: Connection refused: getsockopt
+	at java.base/sun.nio.ch.Net.pollConnect(Native Method) ~[na:na]
+	at java.base/sun.nio.ch.Net.pollConnectNow(Net.java:642) ~[na:na]
+	at java.base/sun.nio.ch.NioSocketImpl.timedFinishConnect(NioSocketImpl.java:548) ~[na:na]
+	at java.base/sun.nio.ch.NioSocketImpl.connect(NioSocketImpl.java:599) ~[na:na]
+	at java.base/java.net.SocksSocketImpl.connect(SocksSocketImpl.java:284) ~[na:na]
+	at java.base/java.net.Socket.connect(Socket.java:668) ~[na:na]
+	at org.postgresql.core.PGStream.createSocket(PGStream.java:271) ~[postgresql-42.7.12.jar:42.7.12]
+	at org.postgresql.core.PGStream.<init>(PGStream.java:132) ~[postgresql-42.7.12.jar:42.7.12]
+	at org.postgresql.core.v3.ConnectionFactoryImpl.tryConnect(ConnectionFactoryImpl.java:219) ~[postgresql-42.7.12.jar:42.7.12]
+	at org.postgresql.core.v3.ConnectionFactoryImpl.openConnectionImpl(ConnectionFactoryImpl.java:365) ~[postgresql-42.7.12.jar:42.7.12]
+	... 14 common frames omitted
+
+2026-10-28T16:39:22.318+07:00  WARN 25372 --- [demo] [onnection-adder] com.zaxxer.hikari.pool.PoolBase          : HikariPool-1 - Pool is empty, failed to create/setup connection (36a42599-7fb5-496e-8419-50e3e61ef4a0)
+
+org.postgresql.util.PSQLException: Connection to 127.0.0.1:15434 refused. Check that the hostname and port are correct and that the postmaster is accepting TCP/IP connections.
+	at org.postgresql.core.v3.ConnectionFactoryImpl.openConnectionImpl(ConnectionFactoryImpl.java:425) ~[postgresql-42.7.12.jar:42.7.12]
+	at org.postgresql.core.ConnectionFactory.openConnection(ConnectionFactory.java:52) ~[postgresql-42.7.12.jar:42.7.12]
+	at org.postgresql.jdbc.PgConnection.<init>(PgConnection.java:290) ~[postgresql-42.7.12.jar:42.7.12]
+	at org.postgresql.Driver.makeConnection(Driver.java:448) ~[postgresql-42.7.12.jar:42.7.12]
+	at org.postgresql.Driver.connect(Driver.java:298) ~[postgresql-42.7.12.jar:42.7.12]
+	at com.zaxxer.hikari.util.DriverDataSource.getConnection(DriverDataSource.java:144) ~[HikariCP-6.3.3.jar:na]
+	at com.zaxxer.hikari.pool.PoolBase.newConnection(PoolBase.java:370) ~[HikariCP-6.3.3.jar:na]
+	at com.zaxxer.hikari.pool.PoolBase.newPoolEntry(PoolBase.java:207) ~[HikariCP-6.3.3.jar:na]
+	at com.zaxxer.hikari.pool.HikariPool.createPoolEntry(HikariPool.java:488) ~[HikariCP-6.3.3.jar:na]
+	at com.zaxxer.hikari.pool.HikariPool$PoolEntryCreator.call(HikariPool.java:752) ~[HikariCP-6.3.3.jar:na]
+	at com.zaxxer.hikari.pool.HikariPool$PoolEntryCreator.call(HikariPool.java:731) ~[HikariCP-6.3.3.jar:na]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:330) ~[na:na]
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090) ~[na:na]
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614) ~[na:na]
+	at java.base/java.lang.Thread.run(Thread.java:1516) ~[na:na]
+Caused by: java.net.ConnectException: Connection refused: getsockopt
+	at java.base/sun.nio.ch.Net.pollConnect(Native Method) ~[na:na]
+	at java.base/sun.nio.ch.Net.pollConnectNow(Net.java:642) ~[na:na]
+	at java.base/sun.nio.ch.NioSocketImpl.timedFinishConnect(NioSocketImpl.java:548) ~[na:na]
+	at java.base/sun.nio.ch.NioSocketImpl.connect(NioSocketImpl.java:599) ~[na:na]
+	at java.base/java.net.SocksSocketImpl.connect(SocksSocketImpl.java:284) ~[na:na]
+	at java.base/java.net.Socket.connect(Socket.java:668) ~[na:na]
+	at org.postgresql.core.PGStream.createSocket(PGStream.java:271) ~[postgresql-42.7.12.jar:42.7.12]
+	at org.postgresql.core.PGStream.<init>(PGStream.java:132) ~[postgresql-42.7.12.jar:42.7.12]
+	at org.postgresql.core.v3.ConnectionFactoryImpl.tryConnect(ConnectionFactoryImpl.java:219) ~[postgresql-42.7.12.jar:42.7.12]
+	at org.postgresql.core.v3.ConnectionFactoryImpl.openConnectionImpl(ConnectionFactoryImpl.java:365) ~[postgresql-42.7.12.jar:42.7.12]
+	... 14 common frames omitted
+
+2026-10-28T16:40:27.481+07:00  WARN 25372 --- [demo] [onnection-adder] com.zaxxer.hikari.pool.PoolBase          : HikariPool-1 - Pool is empty, failed to create/setup connection (bb9414ff-8189-42bb-8a30-438b1d614629)
+
+org.postgresql.util.PSQLException: Connection to 127.0.0.1:15434 refused. Check that the hostname and port are correct and that the postmaster is accepting TCP/IP connections.
+	at org.postgresql.core.v3.ConnectionFactoryImpl.openConnectionImpl(ConnectionFactoryImpl.java:425) ~[postgresql-42.7.12.jar:42.7.12]
+	at org.postgresql.core.ConnectionFactory.openConnection(ConnectionFactory.java:52) ~[postgresql-42.7.12.jar:42.7.12]
+	at org.postgresql.jdbc.PgConnection.<init>(PgConnection.java:290) ~[postgresql-42.7.12.jar:42.7.12]
+	at org.postgresql.Driver.makeConnection(Driver.java:448) ~[postgresql-42.7.12.jar:42.7.12]
+	at org.postgresql.Driver.connect(Driver.java:298) ~[postgresql-42.7.12.jar:42.7.12]
+	at com.zaxxer.hikari.util.DriverDataSource.getConnection(DriverDataSource.java:144) ~[HikariCP-6.3.3.jar:na]
+	at com.zaxxer.hikari.pool.PoolBase.newConnection(PoolBase.java:370) ~[HikariCP-6.3.3.jar:na]
+	at com.zaxxer.hikari.pool.PoolBase.newPoolEntry(PoolBase.java:207) ~[HikariCP-6.3.3.jar:na]
+	at com.zaxxer.hikari.pool.HikariPool.createPoolEntry(HikariPool.java:488) ~[HikariCP-6.3.3.jar:na]
+	at com.zaxxer.hikari.pool.HikariPool$PoolEntryCreator.call(HikariPool.java:752) ~[HikariCP-6.3.3.jar:na]
+	at com.zaxxer.hikari.pool.HikariPool$PoolEntryCreator.call(HikariPool.java:731) ~[HikariCP-6.3.3.jar:na]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:330) ~[na:na]
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090) ~[na:na]
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614) ~[na:na]
+	at java.base/java.lang.Thread.run(Thread.java:1516) ~[na:na]
+Caused by: java.net.ConnectException: Connection refused: getsockopt
+	at java.base/sun.nio.ch.Net.pollConnect(Native Method) ~[na:na]
+	at java.base/sun.nio.ch.Net.pollConnectNow(Net.java:642) ~[na:na]
+	at java.base/sun.nio.ch.NioSocketImpl.timedFinishConnect(NioSocketImpl.java:548) ~[na:na]
+	at java.base/sun.nio.ch.NioSocketImpl.connect(NioSocketImpl.java:599) ~[na:na]
+	at java.base/java.net.SocksSocketImpl.connect(SocksSocketImpl.java:284) ~[na:na]
+	at java.base/java.net.Socket.connect(Socket.java:668) ~[na:na]
+	at org.postgresql.core.PGStream.createSocket(PGStream.java:271) ~[postgresql-42.7.12.jar:42.7.12]
+	at org.postgresql.core.PGStream.<init>(PGStream.java:132) ~[postgresql-42.7.12.jar:42.7.12]
+	at org.postgresql.core.v3.ConnectionFactoryImpl.tryConnect(ConnectionFactoryImpl.java:219) ~[postgresql-42.7.12.jar:42.7.12]
+	at org.postgresql.core.v3.ConnectionFactoryImpl.openConnectionImpl(ConnectionFactoryImpl.java:365) ~[postgresql-42.7.12.jar:42.7.12]
+	... 14 common frames omitted
+
+2026-10-28T16:41:32.613+07:00  WARN 25372 --- [demo] [onnection-adder] com.zaxxer.hikari.pool.PoolBase          : HikariPool-1 - Pool is empty, failed to create/setup connection (e6490ce0-4635-4a24-b332-d06d94c01127)
+
+org.postgresql.util.PSQLException: Connection to 127.0.0.1:15434 refused. Check that the hostname and port are correct and that the postmaster is accepting TCP/IP connections.
+	at org.postgresql.core.v3.ConnectionFactoryImpl.openConnectionImpl(ConnectionFactoryImpl.java:425) ~[postgresql-42.7.12.jar:42.7.12]
+	at org.postgresql.core.ConnectionFactory.openConnection(ConnectionFactory.java:52) ~[postgresql-42.7.12.jar:42.7.12]
+	at org.postgresql.jdbc.PgConnection.<init>(PgConnection.java:290) ~[postgresql-42.7.12.jar:42.7.12]
+	at org.postgresql.Driver.makeConnection(Driver.java:448) ~[postgresql-42.7.12.jar:42.7.12]
+	at org.postgresql.Driver.connect(Driver.java:298) ~[postgresql-42.7.12.jar:42.7.12]
+	at com.zaxxer.hikari.util.DriverDataSource.getConnection(DriverDataSource.java:144) ~[HikariCP-6.3.3.jar:na]
+	at com.zaxxer.hikari.pool.PoolBase.newConnection(PoolBase.java:370) ~[HikariCP-6.3.3.jar:na]
+	at com.zaxxer.hikari.pool.PoolBase.newPoolEntry(PoolBase.java:207) ~[HikariCP-6.3.3.jar:na]
+	at com.zaxxer.hikari.pool.HikariPool.createPoolEntry(HikariPool.java:488) ~[HikariCP-6.3.3.jar:na]
+	at com.zaxxer.hikari.pool.HikariPool$PoolEntryCreator.call(HikariPool.java:752) ~[HikariCP-6.3.3.jar:na]
+	at com.zaxxer.hikari.pool.HikariPool$PoolEntryCreator.call(HikariPool.java:731) ~[HikariCP-6.3.3.jar:na]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:330) ~[na:na]
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090) ~[na:na]
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614) ~[na:na]
+	at java.base/java.lang.Thread.run(Thread.java:1516) ~[na:na]
+Caused by: java.net.ConnectException: Connection refused: getsockopt
+	at java.base/sun.nio.ch.Net.pollConnect(Native Method) ~[na:na]
+	at java.base/sun.nio.ch.Net.pollConnectNow(Net.java:642) ~[na:na]
+	at java.base/sun.nio.ch.NioSocketImpl.timedFinishConnect(NioSocketImpl.java:548) ~[na:na]
+	at java.base/sun.nio.ch.NioSocketImpl.connect(NioSocketImpl.java:599) ~[na:na]
+	at java.base/java.net.SocksSocketImpl.connect(SocksSocketImpl.java:284) ~[na:na]
+	at java.base/java.net.Socket.connect(Socket.java:668) ~[na:na]
+	at org.postgresql.core.PGStream.createSocket(PGStream.java:271) ~[postgresql-42.7.12.jar:42.7.12]
+	at org.postgresql.core.PGStream.<init>(PGStream.java:132) ~[postgresql-42.7.12.jar:42.7.12]
+	at org.postgresql.core.v3.ConnectionFactoryImpl.tryConnect(ConnectionFactoryImpl.java:219) ~[postgresql-42.7.12.jar:42.7.12]
+	at org.postgresql.core.v3.ConnectionFactoryImpl.openConnectionImpl(ConnectionFactoryImpl.java:365) ~[postgresql-42.7.12.jar:42.7.12]
+	... 14 common frames omitted
+
+2026-10-28T16:42:37.790+07:00  WARN 25372 --- [demo] [onnection-adder] com.zaxxer.hikari.pool.PoolBase          : HikariPool-1 - Pool is empty, failed to create/setup connection (dab66590-1f1c-45df-a792-0d21ea31f49d)
+
+org.postgresql.util.PSQLException: Connection to 127.0.0.1:15434 refused. Check that the hostname and port are correct and that the postmaster is accepting TCP/IP connections.
+	at org.postgresql.core.v3.ConnectionFactoryImpl.openConnectionImpl(ConnectionFactoryImpl.java:425) ~[postgresql-42.7.12.jar:42.7.12]
+	at org.postgresql.core.ConnectionFactory.openConnection(ConnectionFactory.java:52) ~[postgresql-42.7.12.jar:42.7.12]
+	at org.postgresql.jdbc.PgConnection.<init>(PgConnection.java:290) ~[postgresql-42.7.12.jar:42.7.12]
+	at org.postgresql.Driver.makeConnection(Driver.java:448) ~[postgresql-42.7.12.jar:42.7.12]
+	at org.postgresql.Driver.connect(Driver.java:298) ~[postgresql-42.7.12.jar:42.7.12]
+	at com.zaxxer.hikari.util.DriverDataSource.getConnection(DriverDataSource.java:144) ~[HikariCP-6.3.3.jar:na]
+	at com.zaxxer.hikari.pool.PoolBase.newConnection(PoolBase.java:370) ~[HikariCP-6.3.3.jar:na]
+	at com.zaxxer.hikari.pool.PoolBase.newPoolEntry(PoolBase.java:207) ~[HikariCP-6.3.3.jar:na]
+	at com.zaxxer.hikari.pool.HikariPool.createPoolEntry(HikariPool.java:488) ~[HikariCP-6.3.3.jar:na]
+	at com.zaxxer.hikari.pool.HikariPool$PoolEntryCreator.call(HikariPool.java:752) ~[HikariCP-6.3.3.jar:na]
+	at com.zaxxer.hikari.pool.HikariPool$PoolEntryCreator.call(HikariPool.java:731) ~[HikariCP-6.3.3.jar:na]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:330) ~[na:na]
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090) ~[na:na]
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614) ~[na:na]
+	at java.base/java.lang.Thread.run(Thread.java:1516) ~[na:na]
+Caused by: java.net.ConnectException: Connection refused: getsockopt
+	at java.base/sun.nio.ch.Net.pollConnect(Native Method) ~[na:na]
+	at java.base/sun.nio.ch.Net.pollConnectNow(Net.java:642) ~[na:na]
+	at java.base/sun.nio.ch.NioSocketImpl.timedFinishConnect(NioSocketImpl.java:548) ~[na:na]
+	at java.base/sun.nio.ch.NioSocketImpl.connect(NioSocketImpl.java:599) ~[na:na]
+	at java.base/java.net.SocksSocketImpl.connect(SocksSocketImpl.java:284) ~[na:na]
+	at java.base/java.net.Socket.connect(Socket.java:668) ~[na:na]
+	at org.postgresql.core.PGStream.createSocket(PGStream.java:271) ~[postgresql-42.7.12.jar:42.7.12]
+	at org.postgresql.core.PGStream.<init>(PGStream.java:132) ~[postgresql-42.7.12.jar:42.7.12]
+	at org.postgresql.core.v3.ConnectionFactoryImpl.tryConnect(ConnectionFactoryImpl.java:219) ~[postgresql-42.7.12.jar:42.7.12]
+	at org.postgresql.core.v3.ConnectionFactoryImpl.openConnectionImpl(ConnectionFactoryImpl.java:365) ~[postgresql-42.7.12.jar:42.7.12]
+	... 14 common frames omitted
+

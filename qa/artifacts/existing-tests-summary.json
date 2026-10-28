@@ -1,0 +1,74 @@
+﻿[
+    {
+        "suite":  "furniture.AcceptanceAndCornerCasesTest",
+        "tests":  "8",
+        "failures":  "0",
+        "errors":  "0"
+    },
+    {
+        "suite":  "furniture.AdminCategoryServiceTest",
+        "tests":  "9",
+        "failures":  "0",
+        "errors":  "0"
+    },
+    {
+        "suite":  "furniture.AdminCustomerServiceTest",
+        "tests":  "5",
+        "failures":  "0",
+        "errors":  "0"
+    },
+    {
+        "suite":  "furniture.AdminInvoiceServiceTest",
+        "tests":  "11",
+        "failures":  "0",
+        "errors":  "0"
+    },
+    {
+        "suite":  "furniture.AdminOrderServiceTest",
+        "tests":  "11",
+        "failures":  "1",
+        "errors":  "0"
+    },
+    {
+        "suite":  "furniture.AdminProductServiceTest",
+        "tests":  "8",
+        "failures":  "0",
+        "errors":  "0"
+    },
+    {
+        "suite":  "furniture.AdminPromotionServiceTest",
+        "tests":  "15",
+        "failures":  "0",
+        "errors":  "0"
+    },
+    {
+        "suite":  "furniture.AdminStaffServiceTest",
+        "tests":  "6",
+        "failures":  "0",
+        "errors":  "0"
+    },
+    {
+        "suite":  "furniture.AdminStatisticsServiceTest",
+        "tests":  "7",
+        "failures":  "0",
+        "errors":  "0"
+    },
+    {
+        "suite":  "furniture.AdminSupplierServiceTest",
+        "tests":  "12",
+        "failures":  "0",
+        "errors":  "0"
+    },
+    {
+        "suite":  "furniture.AdminUserServiceTest",
+        "tests":  "6",
+        "failures":  "0",
+        "errors":  "0"
+    },
+    {
+        "suite":  "furniture.ApplicationTests",
+        "tests":  "1",
+        "failures":  "0",
+        "errors":  "0"
+    }
+]

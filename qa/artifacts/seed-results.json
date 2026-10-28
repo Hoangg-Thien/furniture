@@ -1,0 +1,47 @@
+{
+  "strictImport": {
+    "message": "duplicate key value violates unique constraint \"users_pkey\"",
+    "code": "23505",
+    "detail": "Key (id)=(34) already exists."
+  },
+  "skipped": [
+    {
+      "sql": "INSERT INTO users (id, username, password_hash, role) VALUES (34, 'huyluu123', '4be1060d0223a3326c0984b286725e7e1c900ce1bf28539eb6442eb7df6b803d', 'CUSTOMER')",
+      "message": "duplicate key value violates unique constraint \"users_pkey\"",
+      "detail": "Key (id)=(34) already exists."
+    },
+    {
+      "sql": "INSERT INTO customers (id, user_id, full_name, email, phone, address) VALUES (21, 34, 'Luu Gia Huy', 'huyluu123@gmail.com', '0912345678', '12, lac long quan, quan 11')",
+      "message": "duplicate key value violates unique constraint \"customers_pkey\"",
+      "detail": "Key (id)=(21) already exists."
+    },
+    {
+      "sql": "INSERT INTO users (id, username, password_hash, role) VALUES (35, 'alert(\"hello\")', '03537fb7ca693e4435490c4793e978d31c74adab4743c4ea09038b3e50a00d4c', 'CUSTOMER')",
+      "message": "duplicate key value violates unique constraint \"users_pkey\"",
+      "detail": "Key (id)=(35) already exists."
+    },
+    {
+      "sql": "INSERT INTO customers (id, user_id, full_name, email, phone, address) VALUES (22, 35, 'Phùng Thanh Độ Nà Ná Na Na', 'conbodo@gmail.com', '0912091989', '120 An Liễng, Hà Lội')",
+      "message": "duplicate key value violates unique constraint \"customers_pkey\"",
+      "detail": "Key (id)=(22) already exists."
+    }
+  ],
+  "adjustments": [
+    "Reset sequence: users",
+    "Reset sequence: customers",
+    "Reset sequence: staff",
+    "Reset sequence: admins",
+    "Reset sequence: categories",
+    "Reset sequence: products",
+    "Reset sequence: carts",
+    "Reset sequence: orders",
+    "Reset sequence: suppliers",
+    "Reset sequence: purchase_receipts",
+    "Reset sequence: promotion_programs",
+    "Reset sequence: product_discounts",
+    "Reset sequence: order_discounts",
+    "Reset sequence: vouchers",
+    "Reset sequence: product_images",
+    "Reset sequence: invoices"
+  ]
+}

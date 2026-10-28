@@ -1,0 +1,88 @@
+{
+  "endpoints": [
+    {
+      "route": "/api/products",
+      "status": 200,
+      "response": "[]"
+    },
+    {
+      "route": "/api/admin/categories",
+      "status": 500,
+      "response": "{\"timestamp\":\"2026-10-28 16:35:39\",\"status\":500,\"error\":\"Internal Server Error\",\"path\":\"/api/admin/categories\"}"
+    },
+    {
+      "route": "/api/admin/products",
+      "status": 200,
+      "response": "{\"content\":[],\"page\":0,\"size\":10,\"totalElements\":0,\"totalPages\":1,\"first\":true,\"last\":true}"
+    },
+    {
+      "route": "/api/admin/invoices",
+      "status": 500,
+      "response": "{\"timestamp\":\"2026-10-28 16:35:39\",\"status\":500,\"error\":\"Internal Server Error\",\"path\":\"/api/admin/invoices\"}"
+    },
+    {
+      "route": "/api/auth/login",
+      "status": 401,
+      "response": "{\"error\":\"Tên đăng nhập hoặc mật khẩu không chính xác\"}"
+    }
+  ],
+  "schema": [
+    {
+      "table_name": "admins"
+    },
+    {
+      "table_name": "cart_items"
+    },
+    {
+      "table_name": "carts"
+    },
+    {
+      "table_name": "categories"
+    },
+    {
+      "table_name": "customers"
+    },
+    {
+      "table_name": "order_discounts"
+    },
+    {
+      "table_name": "order_items"
+    },
+    {
+      "table_name": "orders"
+    },
+    {
+      "table_name": "product_discounts"
+    },
+    {
+      "table_name": "products"
+    },
+    {
+      "table_name": "promotion_programs"
+    },
+    {
+      "table_name": "purchase_receipt_items"
+    },
+    {
+      "table_name": "purchase_receipts"
+    },
+    {
+      "table_name": "staff"
+    },
+    {
+      "table_name": "suppliers"
+    },
+    {
+      "table_name": "users"
+    },
+    {
+      "table_name": "vouchers"
+    }
+  ],
+  "counts": [
+    {
+      "users": 0,
+      "products": 0
+    }
+  ]
+}

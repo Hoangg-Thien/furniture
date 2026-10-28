@@ -1,0 +1,129 @@
+{
+  "user": {
+    "userId": 39,
+    "customerId": 24,
+    "username": "qa79850515",
+    "fullName": "QA Customer",
+    "email": "qa79850515@example.test",
+    "phone": "0901234567",
+    "address": "QA Address",
+    "role": "CUSTOMER",
+    "message": "Đăng ký tài khoản thành công!"
+  },
+  "password": "QaPass123!",
+  "category": {
+    "id": 12,
+    "name": "QA category 79850515",
+    "description": "QA",
+    "productCount": 0,
+    "isActive": true
+  },
+  "product": {
+    "id": 22,
+    "name": "QA chair 79850515",
+    "categoryId": 12,
+    "categoryName": "QA category 79850515",
+    "unit": "cai",
+    "sellingPrice": 100000,
+    "imageUrl": null,
+    "quantity": 10,
+    "isActive": true,
+    "description": null,
+    "images": []
+  },
+  "supplier": {
+    "id": 12,
+    "name": "QA supplier 79850515",
+    "phone": "0901234567",
+    "email": "qa@example.test",
+    "address": "QA",
+    "totalReceiptsCount": 0,
+    "totalReceiptValue": 0
+  },
+  "receipt": {
+    "receiptId": 17,
+    "message": "Tạo phiếu nhập kho thành công"
+  },
+  "staff": {
+    "id": 12,
+    "userId": 40,
+    "username": "qastaff79850515",
+    "fullName": "QA Staff",
+    "phone": "0901234567",
+    "email": "qastaff79850515@example.test",
+    "address": "QA",
+    "handledOrdersCount": 0,
+    "receiptsCount": 0,
+    "isActive": true,
+    "createdAt": "2026-10-28T16:30:51.2941992"
+  },
+  "program": {
+    "id": 14,
+    "name": "QA promo 79850515",
+    "description": null,
+    "startDate": "2026-01-01T00:00:00",
+    "endDate": "2027-12-31T23:59:59",
+    "status": "ACTIVE",
+    "productDiscountsCount": 0,
+    "orderDiscountsCount": 0,
+    "vouchersCount": 0,
+    "isCurrentlyRunning": true
+  },
+  "voucher": {
+    "id": 15,
+    "promotionProgramId": 14,
+    "programName": "QA promo 79850515",
+    "code": "QA79850515",
+    "discountPercent": 10,
+    "minimumAmount": 0,
+    "maximumDiscount": 50000,
+    "quantity": 10,
+    "usedQuantity": 0,
+    "remainingQuantity": 10,
+    "startDate": "2026-01-01T00:00:00",
+    "endDate": "2027-12-31T23:59:59",
+    "status": "ACTIVE",
+    "isExpired": false
+  },
+  "order": {
+    "orderId": 56,
+    "orderCode": "FUNI-2026-000056",
+    "status": "PENDING",
+    "totalAmount": 135000,
+    "message": "Đặt hàng thành công và đã lưu vào cơ sở dữ liệu!"
+  },
+  "invoice": {
+    "id": 6,
+    "invoiceCode": "HD-20261028-1256",
+    "orderId": 56,
+    "customerId": 24,
+    "customerName": "QA Updated",
+    "phone": "0901234567",
+    "address": "QA Shipping, QA City",
+    "email": "qa79850515@example.test",
+    "staffId": 1,
+    "staffName": "Nguyen Thanh Tung",
+    "paymentDate": "2026-10-28T09:30:51.252",
+    "paymentMethod": "CASH",
+    "paymentStatus": "PAID",
+    "subtotalAmount": 135000,
+    "discountAmount": 0,
+    "voucherCode": null,
+    "voucherDiscount": 0,
+    "taxAmount": 0,
+    "finalAmount": 135000,
+    "notes": null,
+    "items": [
+      {
+        "productId": 22,
+        "productName": "QA chair 79850515",
+        "imageUrl": null,
+        "unit": "cai",
+        "quantity": 1,
+        "unitPrice": 100000,
+        "amount": 100000
+      }
+    ],
+    "qrCodeUrl": "https://img.vietqr.io/image/MB-0312345678-compact.png?amount=135000&addInfo=HD-20261028-1256&accountName=SHOWROOM%20NOI%20THAT%20CAO%20CAP"
+  }
+}

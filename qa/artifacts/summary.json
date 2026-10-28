@@ -1,0 +1,24 @@
+{
+  "date": "2026-10-28",
+  "unit": {
+    "total": 99,
+    "failed": 1,
+    "passed": 98
+  },
+  "api": {
+    "total": 165,
+    "passed": 136,
+    "failed": 29
+  },
+  "browser": {
+    "total": 38,
+    "passed": 31,
+    "failed": 7
+  },
+  "uncaughtBrowserErrors": [],
+  "total": {
+    "total": 302,
+    "passed": 265,
+    "failed": 37
+  }
+}
