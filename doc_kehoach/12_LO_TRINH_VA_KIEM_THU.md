@@ -35,19 +35,19 @@ Tuần 1 - 2          Tuần 3              Tuần 4 - 5          Tuần 6
 Một module được coi là hoàn thành (Definition of Done) khi đáp ứng đủ các tiêu chí:
 
 ### 2.1. Tiêu chí Bảo mật & Phân quyền (Security & RBAC)
-- [ ] Không có bất kỳ endpoint `/api/admin/**` nào có thể truy cập ẩn danh (unauthenticated).
-- [ ] Người dùng mang Role `CUSTOMER` khi gửi request vào Admin API phải nhận về mã lỗi HTTP `403 Forbidden`.
-- [ ] Mật khẩu người dùng được băm an toàn với `BCrypt` (độ dài salt >= 10). Không để lộ chuỗi mật khẩu trong các Response DTO.
-- [ ] Không cho phép tài khoản Admin tự khóa chính mình.
+- [x] Không có bất kỳ endpoint `/api/admin/**` nào có thể truy cập ẩn danh (unauthenticated).
+- [x] Người dùng mang Role `CUSTOMER` khi gửi request vào Admin API phải nhận về mã lỗi HTTP `403 Forbidden`.
+- [x] Mật khẩu người dùng được băm an toàn với `BCrypt` (độ dài salt >= 10). Không để lộ chuỗi mật khẩu trong các Response DTO.
+- [x] Không cho phép tài khoản Admin tự khóa chính mình.
 
 ### 2.2. Tiêu chí Dữ liệu & Nghiệp vụ (Data Integrity)
-- [ ] **Sản phẩm & Ảnh**: Khi xóa một sản phẩm, toàn bộ các ảnh liên quan trong bảng `product_images` phải được xóa cascade sạch sẽ trong cơ sở dữ liệu.
-- [ ] **Loại nội thất**: Chặn hoàn toàn việc xóa danh mục nếu danh mục đó đang chứa ít nhất 1 sản phẩm.
-- [ ] **Đơn hàng & Tồn kho**:
+- [x] **Sản phẩm & Ảnh**: Khi xóa một sản phẩm, toàn bộ các ảnh liên quan trong bảng `product_images` phải được xóa cascade sạch sẽ trong cơ sở dữ liệu.
+- [x] **Loại nội thất**: Chặn hoàn toàn việc xóa danh mục nếu danh mục đó đang chứa ít nhất 1 sản phẩm.
+- [x] **Đơn hàng & Tồn kho**:
   - Khi đơn hàng được duyệt (`CONFIRMED`), bắt buộc phải có `staff_id` phụ trách.
   - Khi đơn bị hủy (`CANCELLED`), hệ thống tự động hoàn lại số lượng tồn kho và hoàn lại lượt dùng voucher.
   - Đơn ở trạng thái `COMPLETED` hoặc `CANCELLED` là bất biến.
-- [ ] **Khuyến mãi & Voucher**:
+- [x] **Khuyến mãi & Voucher**:
   - Voucher chỉ có thể áp dụng khi nằm trong khoảng thời gian hiệu lực (`start_date <= now <= end_date`).
   - Khi số lượt dùng đạt giới hạn (`used_quantity >= quantity`), hệ thống từ chối áp dụng và thông báo rõ ràng cho thu ngân.
   - Mức giảm giá của voucher không được vượt quá số tiền trần `maximum_discount`.
@@ -56,16 +56,28 @@ Một module được coi là hoàn thành (Definition of Done) khi đáp ứng 
 
 ## 3. BẢNG KỊCH BẢN KIỂM THỬ GÓC THEN CHỐT (CORNER TEST CASES)
 
-| ID | Module liên quan | Kịch bản kiểm thử (Test Scenario) | Kết quả kỳ vọng (Expected Output) |
-| :---: | :--- | :--- | :--- |
-| **TC01** | Module 01 (Users) | Admin thử vô hiệu hóa chính tài khoản của mình | Trả về lỗi `400 Bad Request` với thông báo: "Không được phép tự vô hiệu hóa tài khoản của chính mình!" |
-| **TC02** | Module 04 (Categories) | Xóa danh mục "Sofa" đang có 12 sản phẩm trong kho | Hệ thống chặn thao tác, thông báo lỗi: "Không thể xóa danh mục đang có 12 sản phẩm!" |
-| **TC03** | Module 05 (Products) | Tải lên 5 ảnh cho sản phẩm và đặt ảnh số 3 làm ảnh chính | Bảng `product_images` cập nhật ảnh 3 có `is_primary = true`, 4 ảnh còn lại là `false`; trường `products.image_url` cập nhật URL ảnh 3. |
-| **TC04** | Module 07 (Vouchers) | Áp dụng mã Voucher đã đạt số lượng tối đa (`used_quantity = quantity`) | Báo lỗi nghiệp vụ: "Mã voucher đã hết lượt sử dụng!" |
-| **TC05** | Module 07 (Vouchers) | Đơn hàng 5.000.000đ dùng voucher có điều kiện tối thiểu 10.000.000đ | Báo lỗi: "Giá trị đơn hàng chưa đạt mức tối thiểu 10.000.000 VNĐ để dùng voucher!" |
-| **TC06** | Module 08 (Orders) | Khách đặt 2 bộ bàn ghế (Kho còn 10 bộ). Nhân viên hủy đơn hàng sau đó. | Sau khi đặt, kho còn 8 bộ. Sau khi hủy đơn, kho tự động hoàn lại đủ 10 bộ. |
-| **TC07** | Module 09 (Invoices) | Xuất hóa đơn cho đơn hàng #100 lần thứ hai | Hệ thống từ chối với lỗi: "Đơn hàng này đã được xuất hóa đơn trước đó!" |
-| **TC08** | Module 09 (Invoices) | Tính chiết khấu hóa đơn có mức giảm vượt trần `maximum_discount` (VD: Giảm 20% đơn 50tr = 10tr, nhưng trần là 3tr) | Số tiền giảm thực tế được áp đúng bằng 3.000.000 VNĐ. |
+| ID | Module liên quan | Kịch bản kiểm thử (Test Scenario) | Kết quả kỳ vọng (Expected Output) | Trạng thái nghiệm thu |
+| :---: | :--- | :--- | :--- | :---: |
+| **TC01** | Module 01 (Users) | Admin thử vô hiệu hóa chính tài khoản của mình | Trả về lỗi `400 Bad Request` với thông báo: "Không được phép tự vô hiệu hóa tài khoản của chính mình!" | ✅ ĐẠT (Passed) |
+| **TC02** | Module 04 (Categories) | Xóa danh mục "Sofa" đang có 12 sản phẩm trong kho | Hệ thống chặn thao tác, thông báo lỗi: "Không thể xóa danh mục đang có 12 sản phẩm!" | ✅ ĐẠT (Passed) |
+| **TC03** | Module 05 (Products) | Tải lên 5 ảnh cho sản phẩm và đặt ảnh số 3 làm ảnh chính | Bảng `product_images` cập nhật ảnh 3 có `is_primary = true`, 4 ảnh còn lại là `false`; trường `products.image_url` cập nhật URL ảnh 3. | ✅ ĐẠT (Passed) |
+| **TC04** | Module 07 (Vouchers) | Áp dụng mã Voucher đã đạt số lượng tối đa (`used_quantity = quantity`) | Báo lỗi nghiệp vụ: "Mã voucher đã hết lượt sử dụng!" | ✅ ĐẠT (Passed) |
+| **TC05** | Module 07 (Vouchers) | Đơn hàng 5.000.000đ dùng voucher có điều kiện tối thiểu 10.000.000đ | Báo lỗi: "Giá trị đơn hàng chưa đạt mức tối thiểu 10.000.000 VNĐ để dùng voucher!" | ✅ ĐẠT (Passed) |
+| **TC06** | Module 08 (Orders) | Khách đặt 2 bộ bàn ghế (Kho còn 10 bộ). Nhân viên hủy đơn hàng sau đó. | Sau khi đặt, kho còn 8 bộ. Sau khi hủy đơn, kho tự động hoàn lại đủ 10 bộ. | ✅ ĐẠT (Passed) |
+| **TC07** | Module 09 (Invoices) | Xuất hóa đơn cho đơn hàng #100 lần thứ hai | Hệ thống từ chối với lỗi: "Đơn hàng này đã được xuất hóa đơn trước đó!" | ✅ ĐẠT (Passed) |
+| **TC08** | Module 09 (Invoices) | Tính chiết khấu hóa đơn có mức giảm vượt trần `maximum_discount` (VD: Giảm 20% đơn 50tr = 10tr, nhưng trần là 3tr) | Số tiền giảm thực tế được áp đúng bằng 3.000.000 VNĐ. | ✅ ĐẠT (Passed) |
+
+---
+
+## 4. KẾT QUẢ KIỂM THỬ TỔNG HỢP (AUTOMATED TEST SUITE EXECUTION)
+
+- **Đơn vị kiểm thử tự động (JUnit 5 + Mockito)**:
+  - File kiểm thử nghiệm thu chuyên biệt: [`AcceptanceAndCornerCasesTest.java`](../backend/src/test/java/furniture/AcceptanceAndCornerCasesTest.java)
+  - Số lượng Test Cases: **8/8 test cases nghiệm thu then chốt (TC01 - TC08) đạt 100% SUCCESS**.
+  - Toàn bộ Test Suite Backend: **99/99 test cases passed** (0 failures, 0 errors).
+- **Kiểm thử đóng gói Frontend (Vite Production Build)**:
+  - Lệnh kiểm tra: `npm run build`
+  - Kết quả: **Thành công 100% trong 437ms, không có lỗi runtime/syntax**.
 
 ---
 

@@ -107,7 +107,7 @@ public class AdminInvoiceController {
             byte[] pdfBytes = adminInvoiceService.generatePdfBytes(id);
             return ResponseEntity.ok()
                     .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=invoice_" + id + ".pdf")
-                    .contentType(MediaType.APPLICATION_PDF)
+                    .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_PDF_VALUE)
                     .body(pdfBytes);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", e.getMessage()));

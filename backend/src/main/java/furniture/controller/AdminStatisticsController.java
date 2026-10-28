@@ -9,7 +9,6 @@ import furniture.model.admin.statistics.VoucherReportDto;
 import furniture.service.AdminStatisticsService;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
