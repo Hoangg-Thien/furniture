@@ -314,8 +314,25 @@ public class AdminInvoiceController {
 | :---: | :--- | :---: | :--- |
 | `GET` | `/api/admin/invoices` | `ADMIN`, `STAFF` | Lấy danh sách hóa đơn bán hàng |
 | `POST` | `/api/admin/invoices` | `ADMIN`, `STAFF` | Lập hóa đơn chính thức, áp dụng voucher và ghi nhận thanh toán |
-| `GET` | `/api/admin/invoices/{id}` | `ADMIN`, `STAFF` | Xem chi tiết nội dung hóa đơn |
+| `POST` | `/api/admin/invoices/preview-calculation` | `ADMIN`, `STAFF` | Xem trước chiết khấu đa tầng, voucher & VAT trước khi xuất |
+| `GET` | `/api/admin/invoices/counts` | `ADMIN`, `STAFF` | Thống kê số lượng, doanh thu và phương thức thanh toán |
+| `GET` | `/api/admin/invoices/eligible-orders` | `ADMIN`, `STAFF` | Danh sách đơn hàng sẵn sàng để xuất hóa đơn |
+| `GET` | `/api/admin/invoices/{id}` | `ADMIN`, `STAFF` | Xem chi tiết nội dung hóa đơn kèm QR VietQR |
 | `GET` | `/api/admin/invoices/{id}/pdf` | `ADMIN`, `STAFF` | Xuất file PDF phục vụ in ấn hoặc gửi hóa đơn điện tử |
+
+---
+
+## 5. TIẾN ĐỘ TRIỂN KHAI & KẾT QUẢ KIỂM THỬ (HOÀN TẤT 100%)
+
+- **Backend:**
+  - DTOs: `CreateInvoiceRequest`, `PreviewInvoiceRequest`, `InvoiceCalculationDto`, `InvoiceItemDto`, `InvoiceSummaryDto`, `InvoiceDetailDto`, `InvoiceStatusCountDto`, `EligibleOrderDto`.
+  - Repository: `AdminInvoiceRepository` (tự động tạo bảng `invoices`, index, seed 3 hóa đơn mẫu, phân trang và truy vấn chi tiết).
+  - Service: `AdminInvoiceService` (thuật toán chiết khấu đa tầng, kiểm tra trần giảm giá `maximum_discount`, kiểm soát ràng buộc không xuất hóa đơn trùng lặp, chuyển trạng thái đơn hàng sang `COMPLETED`, bộ sinh file PDF 1.4 chuẩn mực).
+  - Controller: `AdminInvoiceController` (đầy đủ các RESTful endpoints).
+  - Unit Tests: `AdminInvoiceServiceTest` (11/11 tests đạt 100% pass, bao gồm TC07 & TC08).
+- **Frontend:**
+  - Component: `AdminInvoiceManagement.jsx` (thống kê doanh thu, bộ lọc, modal xuất hóa đơn có xem trước VietQR, modal in ấn showroom A4 & K80, in ấn chuẩn `@media print`).
+  - Layout & Navigation: Tích hợp tab `invoices` trong `AdminLayout.jsx` và CSS chuyên nghiệp trong `admin.css`.
 
 ---
 
