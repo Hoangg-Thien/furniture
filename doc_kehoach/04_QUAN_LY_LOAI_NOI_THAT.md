@@ -1,6 +1,14 @@
 # TÀI LIỆU MODULE 04: QUẢN LÝ LOẠI NỘI THẤT
 ## DANH MỤC SẢN PHẨM & CẤU TRÚC PHÂN LOẠI KHÔNG GIAN
 
+> **Trạng thái:** ✅ **ĐÃ TRIỂN KHAI HOÀN CHỈNH (FULLSTACK + UNIT TESTS 100% PASSED)**  
+> - **Backend Controller**: [`AdminCategoryController.java`](file:///d:/furniture/backend/src/main/java/furniture/controller/AdminCategoryController.java)  
+> - **Backend Service**: [`AdminCategoryService.java`](file:///d:/furniture/backend/src/main/java/furniture/service/AdminCategoryService.java)  
+> - **Backend Repository**: [`AdminCategoryRepository.java`](file:///d:/furniture/backend/src/main/java/furniture/repository/AdminCategoryRepository.java)  
+> - **DTOs**: [`CategoryRequest.java`](file:///d:/furniture/backend/src/main/java/furniture/model/admin/category/CategoryRequest.java), [`CategoryResponse.java`](file:///d:/furniture/backend/src/main/java/furniture/model/admin/category/CategoryResponse.java)  
+> - **Frontend UI**: [`AdminCategoryManagement.jsx`](file:///d:/furniture/frontend/src/admin/AdminCategoryManagement.jsx) (Tích hợp trong [`AdminLayout.jsx`](file:///d:/furniture/frontend/src/admin/AdminLayout.jsx))  
+> - **Unit Tests**: [`AdminCategoryServiceTest.java`](file:///d:/furniture/backend/src/test/java/furniture/AdminCategoryServiceTest.java) (9/9 tests passed, kiểm tra đầy đủ tạo, sửa, xóa ràng buộc và tính năng Ẩn/Hiện danh mục đồng bộ sản phẩm)
+
 [⬅️ Quay lại Trang Mục Lục](README.md) | [Tiếp theo: Module 05 - Quản lý Sản phẩm & Hình ảnh ➡️](05_QUAN_LY_SAN_PHAM_HINH_ANH.md)
 
 ---
@@ -14,8 +22,11 @@
   - **Nội thất Phòng làm việc**: Bàn làm việc công thái học, Ghế xoay văn phòng, Giá sách.
   - **Đồ trang trí**: Thảm trải sàn, Đèn trang trí, Tranh treo tường.
 - Thao tác: Thêm mới, Cập nhật thông tin và mô tả danh mục.
+- **Tính năng Ẩn / Hiện Loại nội thất & Sản phẩm (Mới bổ sung)**:
+  - Cho phép Admin chuyển trạng thái **Ẩn (`is_active = false`)** khi muốn tạm ngừng bán một nhóm nội thất mà không cần xóa danh mục.
+  - Hỗ trợ tùy chọn **Đồng bộ ẩn toàn bộ sản phẩm** thuộc loại nội thất đó (`UPDATE products SET is_active = false WHERE category_id = ?`) để khách hàng không thể tìm kiếm hay mua hàng.
 - **Ràng buộc an toàn dữ liệu**:
-  - Không cho phép xóa một loại nội thất nếu vẫn còn sản phẩm (`products`) đang liên kết với danh mục đó.
+  - Không cho phép xóa một loại nội thất nếu vẫn còn sản phẩm (`products`) đang liên kết với danh mục đó (hướng dẫn Admin sử dụng tính năng "Ẩn" thay vì xóa).
   - Tên danh mục là duy nhất (`unique`).
 
 ---

@@ -14,7 +14,7 @@ Chào mừng bạn đến với bộ tài liệu kế hoạch thiết kế giao 
 | 01 | [Module 01 - Quản lý Tài khoản & Phân quyền](01_QUAN_LY_TAI_KHOAN_ROLE.md) | Quản lý bảng `users`, phân quyền ADMIN/STAFF/CUSTOMER, kích hoạt/khóa tài khoản, đặt lại mật khẩu an toàn. | ✅ Đã triển khai |
 | 02 | [Module 02 - Quản lý Khách hàng](02_QUAN_LY_KHACH_HANG.md) | Hồ sơ khách hàng, phân hạng VIP, lịch sử mua hàng, tổng chi tiêu trọn đời (LTV), giỏ hàng quan tâm. | ✅ Đã triển khai |
 | 03 | [Module 03 - Quản lý Nhân viên](03_QUAN_LY_NHAN_VIEN.md) | Quản lý nhân viên kinh doanh/kho, phân công xử lý đơn hàng, cấp quyền đăng nhập hệ thống. | ✅ Đã triển khai |
-| 04 | [Module 04 - Quản lý Loại nội thất](04_QUAN_LY_LOAI_NOI_THAT.md) | Danh mục phòng khách, phòng ngủ, phòng ăn; kiểm tra ràng buộc chống xóa danh mục đang có sản phẩm. | Hoàn thiện |
+| 04 | [Module 04 - Quản lý Loại nội thất](04_QUAN_LY_LOAI_NOI_THAT.md) | Danh mục phòng khách, phòng ngủ, phòng ăn; kiểm tra ràng buộc chống xóa danh mục đang có sản phẩm. | ✅ Đã triển khai |
 | 05 | [Module 05 - Quản lý Sản phẩm & Hình ảnh](05_QUAN_LY_SAN_PHAM_HINH_ANH.md) | Quản lý kho hàng nội thất, đơn giá, số lượng tồn kho, cảnh báo hết hàng, thư viện album ảnh sản phẩm nhiều góc chụp. | Hoàn thiện |
 | 06 | [Module 06 - Quản lý Nhà cung cấp Nội thất](06_QUAN_LY_NHA_CUNG_CAP.md) | Hồ sơ xưởng/nhà cung cấp gỗ, vải, phụ kiện; quản lý lịch sử phiếu nhập hàng (`purchase_receipts`) cập nhật kho. | Hoàn thiện |
 | 07 | [Module 07 - Quản lý Khuyến mãi & Voucher](07_QUAN_LY_KHUYEN_MAI_VOUCHER.md) | Chiến dịch khuyến mãi với 3 nhánh: Giảm theo sản phẩm, Chiết khấu bậc đơn hàng, Phát hành mã Voucher. | Hoàn thiện |

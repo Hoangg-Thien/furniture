@@ -5,6 +5,7 @@ import AdminDashboard from './AdminDashboard'
 import AdminUserManagement from './AdminUserManagement'
 import AdminCustomerManagement from './AdminCustomerManagement'
 import AdminStaffManagement from './AdminStaffManagement'
+import AdminCategoryManagement from './AdminCategoryManagement'
 import AdminModulePlaceholder from './AdminModulePlaceholder'
 import './admin.css'
 
@@ -39,6 +40,8 @@ export default function AdminLayout({ currentUser, onLogout, onBackToStore }) {
             <AdminCustomerManagement currentUser={currentUser} />
           ) : activeModule === 'staff' ? (
             <AdminStaffManagement currentUser={currentUser} />
+          ) : activeModule === 'categories' ? (
+            <AdminCategoryManagement currentUser={currentUser} />
           ) : (
             <AdminModulePlaceholder moduleId={activeModule} />
           )}
