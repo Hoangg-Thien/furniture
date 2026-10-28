@@ -3,6 +3,11 @@
 
 [⬅️ Quay lại Trang Mục Lục](README.md) | [Tiếp theo: Module 02 - Quản lý Khách hàng ➡️](02_QUAN_LY_KHACH_HANG.md)
 
+> **Trạng thái thực tế**: ✅ **ĐÃ TRIỂN KHAI HOÀN THIỆN (FULLSTACK & TESTED)**
+> - Backend: `AdminUserController`, `AdminUserService`, `AdminUserRepository`, DTOs
+> - Frontend: `AdminUserManagement.jsx` (Tìm kiếm, Bộ lọc vai trò & trạng thái, Phân trang, Modal tạo tài khoản, Modal đổi mật khẩu, Khóa/Kích hoạt tài khoản)
+> - Unit Testing: `AdminUserServiceTest` (Pass 100% các kịch bản và ràng buộc an toàn TC01)
+
 ---
 
 ## 1. MỤC TIÊU & NGHIỆP VỤ CỐT LÕI
