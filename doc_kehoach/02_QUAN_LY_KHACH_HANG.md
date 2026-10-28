@@ -3,6 +3,11 @@
 
 [⬅️ Quay lại Trang Mục Lục](README.md) | [Tiếp theo: Module 03 - Quản lý Nhân viên ➡️](03_QUAN_LY_NHAN_VIEN.md)
 
+> **Trạng thái thực tế**: ✅ **ĐÃ TRIỂN KHAI HOÀN THIỆN (FULLSTACK & TESTED)**
+> - Backend: `AdminCustomerController`, `AdminCustomerService`, `AdminCustomerRepository`, DTOs
+> - Frontend: `AdminCustomerManagement.jsx` (Tìm kiếm nâng cao, Lọc phân hạng & Chi tiêu, Xuất CSV Excel, Drawer Hồ sơ 3 Tab: Liên lạc, Lịch sử đơn hàng, Giỏ hàng telesale)
+> - Unit Testing: `AdminCustomerServiceTest` (Pass 100% các kịch bản phân hạng và cập nhật dữ liệu)
+
 ---
 
 ## 1. MỤC TIÊU & NGHIỆP VỤ CỐT LÕI

@@ -93,20 +93,34 @@ public class AuthRepository {
     public List<Map<String, Object>> findUserWithCustomerByIdentifier(String identifier) {
         return jdbcTemplate.queryForList("""
                 SELECT u.id AS user_id, u.username, u.password_hash, u.role, u.is_active,
-                       c.id AS customer_id, c.full_name, c.email, c.phone, c.address
+                       COALESCE(c.id, s.id) AS customer_id,
+                       COALESCE(s.full_name, c.full_name) AS full_name,
+                       COALESCE(s.email, c.email) AS email,
+                       COALESCE(s.phone, c.phone) AS phone,
+                       COALESCE(s.address, c.address) AS address
                 FROM public.users u
                 LEFT JOIN public.customers c ON c.user_id = u.id
-                WHERE (LOWER(u.username) = LOWER(?) OR (c.email IS NOT NULL AND LOWER(c.email) = LOWER(?)))
+                LEFT JOIN public.staff s ON s.user_id = u.id
+                WHERE (
+                    LOWER(u.username) = LOWER(?)
+                    OR (c.email IS NOT NULL AND LOWER(c.email) = LOWER(?))
+                    OR (s.email IS NOT NULL AND LOWER(s.email) = LOWER(?))
+                )
                 LIMIT 1
-                """, identifier, identifier);
+                """, identifier, identifier, identifier);
     }
 
     public List<Map<String, Object>> findUserWithCustomerById(Long userId) {
         return jdbcTemplate.queryForList("""
                 SELECT u.id AS user_id, u.username, u.password_hash, u.role,
-                       c.id AS customer_id, c.full_name, c.email, c.phone, c.address
+                       COALESCE(c.id, s.id) AS customer_id,
+                       COALESCE(s.full_name, c.full_name) AS full_name,
+                       COALESCE(s.email, c.email) AS email,
+                       COALESCE(s.phone, c.phone) AS phone,
+                       COALESCE(s.address, c.address) AS address
                 FROM public.users u
                 LEFT JOIN public.customers c ON c.user_id = u.id
+                LEFT JOIN public.staff s ON s.user_id = u.id
                 WHERE u.id = ? AND u.is_active = true
                 LIMIT 1
                 """, userId);

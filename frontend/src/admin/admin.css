@@ -1607,3 +1607,463 @@
   to { transform: rotate(360deg); }
 }
 
+/* ====================================================================
+   MODULE 02: CUSTOMER MANAGEMENT & CRM STYLES
+   ==================================================================== */
+
+/* Customer Avatar Badge in Table */
+.customer-avatar-badge {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #475569, #1E293B);
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.82rem;
+  letter-spacing: 0.05em;
+  flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+}
+
+/* Customer Tier Badges */
+.customer-tier-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.customer-tier-badge.diamond {
+  background: linear-gradient(135deg, #EFF6FF, #E0E7FF);
+  color: #4338CA;
+  border: 1px solid #A5B4FC;
+  box-shadow: 0 0 10px rgba(99, 102, 241, 0.2);
+}
+
+.customer-tier-badge.gold {
+  background: linear-gradient(135deg, #FEF3C7, #FFFBEB);
+  color: #B45309;
+  border: 1px solid #FCD34D;
+}
+
+.customer-tier-badge.silver {
+  background: #F1F5F9;
+  color: #334155;
+  border: 1px solid #CBD5E1;
+}
+
+.customer-tier-badge.new {
+  background: #F8FAFC;
+  color: #64748B;
+  border: 1px solid #E2E8F0;
+}
+
+/* Money input in filter */
+.filter-money-input {
+  width: 120px;
+  padding: 8px 10px;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-sm);
+  background: #FFFFFF;
+  font-size: 0.84rem;
+  color: var(--admin-text-main);
+  outline: none;
+}
+
+.filter-money-input:focus {
+  border-color: var(--admin-accent);
+}
+
+/* Customer Drawer / Modal Card */
+.customer-drawer-card {
+  width: 100%;
+  max-width: 820px;
+  max-height: 90vh;
+  background: #FFFFFF;
+  border-radius: var(--admin-radius);
+  box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: scaleUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.customer-drawer-header {
+  padding: 22px 28px;
+  border-bottom: 1px solid var(--admin-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #FAFAFA;
+}
+
+.customer-drawer-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--admin-accent), #B45309);
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 1.25rem;
+  box-shadow: 0 4px 12px rgba(217, 119, 6, 0.3);
+}
+
+.customer-drawer-title {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: var(--admin-primary);
+  letter-spacing: -0.01em;
+}
+
+.customer-drawer-sub {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  color: var(--admin-text-muted);
+  margin-top: 4px;
+}
+
+/* Tab Navigation */
+.customer-tabs-nav {
+  display: flex;
+  border-bottom: 1px solid var(--admin-border);
+  background: #FFFFFF;
+  padding: 0 24px;
+  gap: 8px;
+}
+
+.customer-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 18px;
+  border: none;
+  background: none;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--admin-text-muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.18s ease;
+}
+
+.customer-tab-btn:hover {
+  color: var(--admin-primary);
+}
+
+.customer-tab-btn.active {
+  color: var(--admin-accent);
+  border-bottom-color: var(--admin-accent);
+}
+
+.customer-drawer-body {
+  padding: 24px 28px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* Form Grid 2 columns */
+.form-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.customer-meta-box {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding: 16px;
+  background: var(--admin-bg);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-sm);
+  margin-top: 10px;
+}
+
+.meta-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  color: var(--admin-text-muted);
+}
+
+.meta-item strong {
+  color: var(--admin-text-main);
+}
+
+/* Tab 2: Orders List in Drawer */
+.drawer-orders-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.order-history-card {
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-sm);
+  background: #FFFFFF;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.order-card-header {
+  padding: 12px 16px;
+  background: #F8FAFC;
+  border-bottom: 1px solid var(--admin-border-light);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.order-code {
+  font-weight: 700;
+  font-size: 0.92rem;
+  color: var(--admin-primary);
+  margin-right: 12px;
+}
+
+.order-date {
+  font-size: 0.78rem;
+  color: var(--admin-text-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.order-total {
+  font-size: 0.96rem;
+  color: var(--admin-accent);
+  font-weight: 700;
+}
+
+.order-voucher-tag {
+  padding: 6px 16px;
+  background: #FFFBEB;
+  border-bottom: 1px solid #FEF3C7;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: #B45309;
+}
+
+.order-items-sublist {
+  padding: 10px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.order-item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 0;
+  border-bottom: 1px dashed var(--admin-border-light);
+}
+
+.order-item-row:last-child {
+  border-bottom: none;
+}
+
+.item-thumb {
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  object-fit: cover;
+  border: 1px solid var(--admin-border);
+  flex-shrink: 0;
+}
+
+.item-thumb.placeholder {
+  background: var(--admin-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--admin-text-muted);
+}
+
+.item-name {
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--admin-text-main);
+}
+
+.item-qty {
+  font-size: 0.76rem;
+  color: var(--admin-text-muted);
+  margin-top: 1px;
+}
+
+.item-amount {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--admin-text-main);
+}
+
+/* Tab 3: Cart View */
+.cart-telesale-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 18px;
+  background: #FFFBEB;
+  border-left: 4px solid var(--admin-accent);
+  border-radius: var(--admin-radius-sm);
+  font-size: 0.84rem;
+  color: #92400E;
+  margin-bottom: 20px;
+  line-height: 1.45;
+}
+
+.cart-items-table-container {
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-sm);
+  overflow: hidden;
+}
+
+.cart-items-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.86rem;
+}
+
+.cart-items-table th {
+  background: #F8FAFC;
+  padding: 12px 14px;
+  font-weight: 700;
+  font-size: 0.78rem;
+  color: var(--admin-text-muted);
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--admin-border);
+}
+
+.cart-items-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--admin-border-light);
+  vertical-align: middle;
+}
+
+.cart-items-table tfoot td {
+  background: #F8FAFC;
+  border-top: 2px solid var(--admin-border);
+}
+
+.empty-tab-box {
+  text-align: center;
+  padding: 48px 16px;
+  color: var(--admin-text-muted);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.empty-tab-box p {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+/* ====================================================================
+   MODULE 03: STAFF MANAGEMENT & SALES ASSIGNMENT STYLES
+   ==================================================================== */
+
+/* Staff Avatar Badge */
+.staff-avatar-badge {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #0EA5E9, #0284C7);
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.82rem;
+  letter-spacing: 0.05em;
+  flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(14, 165, 233, 0.25);
+}
+
+/* Form Section Title */
+.form-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--admin-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 20px 0 12px 0;
+  padding-bottom: 6px;
+  border-bottom: 1px dashed var(--admin-border);
+}
+
+.form-section-title:first-of-type {
+  margin-top: 0;
+}
+
+/* Regenerate password button */
+.btn-regenerate {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  background: #F1F5F9;
+  border: 1px solid var(--admin-border);
+  border-radius: 6px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-regenerate:hover {
+  background: #E2E8F0;
+  color: var(--admin-primary);
+  border-color: #CBD5E1;
+}
+
+/* Staff KPI / Metric Pills */
+.staff-metric-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.staff-metric-pill.orders {
+  background: #ECFDF5;
+  color: #047857;
+  border: 1px solid #A7F3D0;
+}
+
+.staff-metric-pill.receipts {
+  background: #EFF6FF;
+  color: #1D4ED8;
+  border: 1px solid #BFDBFE;
+}
+
+.admin-modal-card.large {
+  max-width: 680px;
+}

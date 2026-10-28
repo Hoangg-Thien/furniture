@@ -1,6 +1,14 @@
 # TÀI LIỆU MODULE 03: QUẢN LÝ NHÂN VIÊN
 ## QUẢN TRỊ ĐỘI NGŨ NHÂN SỰ & PHÂN CÔNG BÁN HÀNG
 
+> **Trạng thái:** ✅ **ĐÃ TRIỂN KHAI HOÀN CHỈNH (FULLSTACK + UNIT TESTS 100% PASSED)**  
+> - **Backend Controller**: [`AdminStaffController.java`](file:///d:/furniture/backend/src/main/java/furniture/controller/AdminStaffController.java)  
+> - **Backend Service**: [`AdminStaffService.java`](file:///d:/furniture/backend/src/main/java/furniture/service/AdminStaffService.java)  
+> - **Backend Repository**: [`AdminStaffRepository.java`](file:///d:/furniture/backend/src/main/java/furniture/repository/AdminStaffRepository.java)  
+> - **DTOs**: [`CreateStaffRequest.java`](file:///d:/furniture/backend/src/main/java/furniture/model/admin/staff/CreateStaffRequest.java), [`UpdateStaffRequest.java`](file:///d:/furniture/backend/src/main/java/furniture/model/admin/staff/UpdateStaffRequest.java), [`StaffSummaryDto.java`](file:///d:/furniture/backend/src/main/java/furniture/model/admin/staff/StaffSummaryDto.java)  
+> - **Frontend UI**: [`AdminStaffManagement.jsx`](file:///d:/furniture/frontend/src/admin/AdminStaffManagement.jsx) (Tích hợp trong [`AdminLayout.jsx`](file:///d:/furniture/frontend/src/admin/AdminLayout.jsx))  
+> - **Unit Tests**: [`AdminStaffServiceTest.java`](file:///d:/furniture/backend/src/test/java/furniture/AdminStaffServiceTest.java) (6/6 tests passed)
+
 [⬅️ Quay lại Trang Mục Lục](README.md) | [Tiếp theo: Module 04 - Quản lý Loại nội thất ➡️](04_QUAN_LY_LOAI_NOI_THAT.md)
 
 ---

@@ -3,6 +3,8 @@ import AdminSidebar from './AdminSidebar'
 import AdminNavbar from './AdminNavbar'
 import AdminDashboard from './AdminDashboard'
 import AdminUserManagement from './AdminUserManagement'
+import AdminCustomerManagement from './AdminCustomerManagement'
+import AdminStaffManagement from './AdminStaffManagement'
 import AdminModulePlaceholder from './AdminModulePlaceholder'
 import './admin.css'
 
@@ -33,6 +35,10 @@ export default function AdminLayout({ currentUser, onLogout, onBackToStore }) {
             <AdminDashboard onNavigateModule={setActiveModule} />
           ) : activeModule === 'users' ? (
             <AdminUserManagement currentUser={currentUser} />
+          ) : activeModule === 'customers' ? (
+            <AdminCustomerManagement currentUser={currentUser} />
+          ) : activeModule === 'staff' ? (
+            <AdminStaffManagement currentUser={currentUser} />
           ) : (
             <AdminModulePlaceholder moduleId={activeModule} />
           )}
