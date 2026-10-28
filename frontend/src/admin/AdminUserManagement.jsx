@@ -31,7 +31,7 @@ export default function AdminUserManagement({ currentUser }) {
   const [selectedRole, setSelectedRole] = useState('ALL')
   const [selectedStatus, setSelectedStatus] = useState('ALL')
   const [page, setPage] = useState(0)
-  const [pageSize] = useState(10)
+  const [pageSize, setPageSize] = useState(5)
   const [totalPages, setTotalPages] = useState(1)
   const [totalElements, setTotalElements] = useState(0)
 
@@ -70,14 +70,14 @@ export default function AdminUserManagement({ currentUser }) {
   const currentLoggedInUserId = currentUser?.id || currentUser?.userId || currentUser?.user_id
 
   // Tải danh sách tài khoản từ Backend
-  const loadUsers = async (targetPage = page) => {
+  const loadUsers = async (targetPage = page, targetPageSize = pageSize) => {
     setLoading(true)
     setError(null)
     try {
       const baseUrl = getApiBaseUrl()
       const params = new URLSearchParams()
       params.append('page', targetPage)
-      params.append('size', pageSize)
+      params.append('size', targetPageSize)
 
       if (searchKeyword.trim()) {
         params.append('keyword', searchKeyword.trim())
@@ -118,14 +118,14 @@ export default function AdminUserManagement({ currentUser }) {
   // Load danh sách mỗi khi thay đổi bộ lọc hoặc trang
   useEffect(() => {
     const timer = setTimeout(() => {
-      loadUsers(0)
+      loadUsers(0, pageSize)
     }, 250)
     return () => clearTimeout(timer)
-  }, [searchKeyword, selectedRole, selectedStatus])
+  }, [searchKeyword, selectedRole, selectedStatus, pageSize])
 
   const handlePageChange = (newPage) => {
     if (newPage >= 0 && newPage < totalPages) {
-      loadUsers(newPage)
+      loadUsers(newPage, pageSize)
     }
   }
 
@@ -205,12 +205,14 @@ export default function AdminUserManagement({ currentUser }) {
     if (!activeUser) return
     try {
       const baseUrl = getApiBaseUrl()
-      const res = await fetch(`${baseUrl}/api/admin/users/${activeUser.id}/toggle-status?currentUserId=${currentLoggedInUserId || ''}`, {
+      const queryParam = currentLoggedInUserId ? `?currentUserId=${currentLoggedInUserId}` : ''
+      const customHeaders = { 'Content-Type': 'application/json' }
+      if (currentLoggedInUserId) {
+        customHeaders['X-Current-User-Id'] = String(currentLoggedInUserId)
+      }
+      const res = await fetch(`${baseUrl}/api/admin/users/${activeUser.id}/toggle-status${queryParam}`, {
         method: 'PUT',
-        headers: getApiHeaders({
-          'Content-Type': 'application/json',
-          'X-Current-User-Id': currentLoggedInUserId ? String(currentLoggedInUserId) : ''
-        })
+        headers: getApiHeaders(customHeaders)
       })
 
       const data = await res.json()
@@ -249,12 +251,13 @@ export default function AdminUserManagement({ currentUser }) {
     setResetSubmitting(true)
     try {
       const baseUrl = getApiBaseUrl()
+      const resetHeaders = { 'Content-Type': 'application/json' }
+      if (currentLoggedInUserId) {
+        resetHeaders['X-Current-User-Id'] = String(currentLoggedInUserId)
+      }
       const res = await fetch(`${baseUrl}/api/admin/users/${activeUser.id}/reset-password`, {
         method: 'PUT',
-        headers: getApiHeaders({
-          'Content-Type': 'application/json',
-          'X-Current-User-Id': currentLoggedInUserId ? String(currentLoggedInUserId) : ''
-        }),
+        headers: getApiHeaders(resetHeaders),
         body: JSON.stringify({
           newPassword: resetPasswordVal.trim()
         })
@@ -332,15 +335,6 @@ export default function AdminUserManagement({ currentUser }) {
         </div>
       </div>
 
-      {/* Banner thông tin kỹ thuật */}
-      <div className="admin-reference-banner">
-        <div>
-          <strong>Đặc tả kỹ thuật Module 01:</strong> Bảng <code>users</code>, phân quyền RBAC (<code>ADMIN</code>, <code>STAFF</code>, <code>CUSTOMER</code>), mã hóa BCrypt/SHA-256, tự động chặn vô hiệu hóa chính mình (TC01).
-        </div>
-        <span className="badge-active-api">
-          Kết nối Database Supabase Live
-        </span>
-      </div>
 
       {/* Toolbar Tìm kiếm & Bộ Lọc */}
       <div className="admin-card admin-filter-toolbar">
@@ -524,9 +518,28 @@ export default function AdminUserManagement({ currentUser }) {
 
         {/* Phân Trang */}
         <div className="admin-pagination-footer">
-          <div className="pagination-info">
-            Hiển thị <strong>{users.length}</strong> trên tổng số <strong>{totalElements}</strong> tài khoản
-            (Trang {page + 1} / {Math.max(1, totalPages)})
+          <div className="pagination-info" style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+            <span>
+              Hiển thị <strong>{users.length}</strong> trên tổng số <strong>{totalElements}</strong> tài khoản
+              (Trang {page + 1} / {Math.max(1, totalPages)})
+            </span>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ fontSize: '0.82rem', color: 'var(--admin-text-muted)' }}>Hiển thị:</span>
+              <select
+                className="admin-page-size-select"
+                value={pageSize}
+                onChange={(e) => {
+                  const newSize = Number(e.target.value)
+                  setPageSize(newSize)
+                  setPage(0)
+                  loadUsers(0, newSize)
+                }}
+              >
+                <option value={5}>5 / trang</option>
+                <option value={10}>10 / trang</option>
+                <option value={20}>20 / trang</option>
+              </select>
+            </div>
           </div>
 
           <div className="pagination-controls">
@@ -538,19 +551,26 @@ export default function AdminUserManagement({ currentUser }) {
               &lt; Trang trước
             </button>
 
-            {Array.from({ length: Math.min(5, totalPages) }, (_, idx) => {
-              let pageNum = page - 2 + idx
-              if (pageNum < 0) pageNum = idx
-              if (pageNum >= totalPages) return null
+            {Array.from({ length: totalPages }, (_, idx) => {
+              if (
+                totalPages > 6 &&
+                idx !== 0 &&
+                idx !== totalPages - 1 &&
+                Math.abs(idx - page) > 1
+              ) {
+                if (idx === 1 && page > 2) return <span key={idx} style={{ padding: '0 4px', color: '#94A3B8' }}>...</span>
+                if (idx === totalPages - 2 && page < totalPages - 3) return <span key={idx} style={{ padding: '0 4px', color: '#94A3B8' }}>...</span>
+                return null
+              }
 
               return (
                 <button
-                  key={pageNum}
-                  className={`page-num-btn ${pageNum === page ? 'active' : ''}`}
-                  onClick={() => handlePageChange(pageNum)}
+                  key={idx}
+                  className={`page-num-btn ${idx === page ? 'active' : ''}`}
+                  onClick={() => handlePageChange(idx)}
                   disabled={loading}
                 >
-                  {pageNum + 1}
+                  {idx + 1}
                 </button>
               )
             })}

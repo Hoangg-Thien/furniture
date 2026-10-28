@@ -36,7 +36,7 @@ export default function AdminCustomerManagement({ currentUser }) {
   const [minSpent, setMinSpent] = useState('')
   const [maxSpent, setMaxSpent] = useState('')
   const [page, setPage] = useState(0)
-  const [pageSize] = useState(10)
+  const [pageSize, setPageSize] = useState(5)
   const [totalPages, setTotalPages] = useState(1)
   const [totalElements, setTotalElements] = useState(0)
 
@@ -66,14 +66,14 @@ export default function AdminCustomerManagement({ currentUser }) {
   }
 
   // Tải danh sách khách hàng từ Backend
-  const loadCustomers = async (targetPage = page) => {
+  const loadCustomers = async (targetPage = page, targetPageSize = pageSize) => {
     setLoading(true)
     setError(null)
     try {
       const baseUrl = getApiBaseUrl()
       const params = new URLSearchParams()
       params.append('page', targetPage)
-      params.append('size', pageSize)
+      params.append('size', targetPageSize)
 
       if (searchKeyword.trim()) {
         params.append('keyword', searchKeyword.trim())
@@ -115,14 +115,14 @@ export default function AdminCustomerManagement({ currentUser }) {
   // Tự động load khi thay đổi filter
   useEffect(() => {
     const timer = setTimeout(() => {
-      loadCustomers(0)
+      loadCustomers(0, pageSize)
     }, 250)
     return () => clearTimeout(timer)
-  }, [searchKeyword, selectedTier, minSpent, maxSpent])
+  }, [searchKeyword, selectedTier, minSpent, maxSpent, pageSize])
 
   const handlePageChange = (newPage) => {
     if (newPage >= 0 && newPage < totalPages) {
-      loadCustomers(newPage)
+      loadCustomers(newPage, pageSize)
     }
   }
 
@@ -369,15 +369,6 @@ export default function AdminCustomerManagement({ currentUser }) {
         </div>
       </div>
 
-      {/* Banner thông tin kỹ thuật */}
-      <div className="admin-reference-banner">
-        <div>
-          <strong>Đặc tả kỹ thuật Module 02:</strong> Quản lý bảng <code>customers</code> liên kết <code>users</code>, tự động tính tổng chi tiêu trọn đời (LTV), phân hạng <code>VIP Diamond</code>, <code>Gold</code>, <code>Silver</code>, lịch sử mua hàng và giỏ hàng đang chờ chốt đơn.
-        </div>
-        <span className="badge-active-api">
-          Kết nối Database Supabase Live
-        </span>
-      </div>
 
       {/* Toolbar Tìm kiếm & Bộ Lọc Nâng Cao */}
       <div className="admin-card admin-filter-toolbar">
@@ -577,9 +568,28 @@ export default function AdminCustomerManagement({ currentUser }) {
 
         {/* Phân Trang */}
         <div className="admin-pagination-footer">
-          <div className="pagination-info">
-            Hiển thị <strong>{customers.length}</strong> trên tổng số <strong>{totalElements}</strong> khách hàng
-            (Trang {page + 1} / {Math.max(1, totalPages)})
+          <div className="pagination-info" style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+            <span>
+              Hiển thị <strong>{customers.length}</strong> trên tổng số <strong>{totalElements}</strong> khách hàng
+              (Trang {page + 1} / {Math.max(1, totalPages)})
+            </span>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ fontSize: '0.82rem', color: 'var(--admin-text-muted)' }}>Hiển thị:</span>
+              <select
+                className="admin-page-size-select"
+                value={pageSize}
+                onChange={(e) => {
+                  const newSize = Number(e.target.value)
+                  setPageSize(newSize)
+                  setPage(0)
+                  loadCustomers(0, newSize)
+                }}
+              >
+                <option value={5}>5 / trang</option>
+                <option value={10}>10 / trang</option>
+                <option value={20}>20 / trang</option>
+              </select>
+            </div>
           </div>
 
           <div className="pagination-controls">
@@ -591,19 +601,26 @@ export default function AdminCustomerManagement({ currentUser }) {
               &lt; Trước
             </button>
 
-            {Array.from({ length: Math.min(5, totalPages) }, (_, idx) => {
-              let pageNum = page - 2 + idx
-              if (pageNum < 0) pageNum = idx
-              if (pageNum >= totalPages) return null
+            {Array.from({ length: totalPages }, (_, idx) => {
+              if (
+                totalPages > 6 &&
+                idx !== 0 &&
+                idx !== totalPages - 1 &&
+                Math.abs(idx - page) > 1
+              ) {
+                if (idx === 1 && page > 2) return <span key={idx} style={{ padding: '0 4px', color: '#94A3B8' }}>...</span>
+                if (idx === totalPages - 2 && page < totalPages - 3) return <span key={idx} style={{ padding: '0 4px', color: '#94A3B8' }}>...</span>
+                return null
+              }
 
               return (
                 <button
-                  key={pageNum}
-                  className={`page-num-btn ${pageNum === page ? 'active' : ''}`}
-                  onClick={() => handlePageChange(pageNum)}
+                  key={idx}
+                  className={`page-num-btn ${idx === page ? 'active' : ''}`}
+                  onClick={() => handlePageChange(idx)}
                   disabled={loading}
                 >
-                  {pageNum + 1}
+                  {idx + 1}
                 </button>
               )
             })}

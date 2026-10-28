@@ -406,174 +406,394 @@ export default function AdminProductManagement({ currentUser }) {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount)
   }
 
+  // Computed KPI statistics
+  const productStats = useMemo(() => {
+    let lowStock = 0
+    let active = 0
+    let inactive = 0
+    products.forEach((p) => {
+      if (p.quantity !== undefined && p.quantity < 5) lowStock++
+      if (p.isActive !== false) active++
+      else inactive++
+    })
+    return {
+      total: totalElements || products.length,
+      lowStock,
+      active,
+      inactive,
+      categoryCount: categories.length
+    }
+  }, [products, totalElements, categories])
+
   return (
-    <div className="admin-page-container">
+    <div className="admin-module-view">
       {/* Toast Notification */}
       {toast && (
-        <div className={`admin-toast ${toast.type}`}>
+        <div className={`admin-toast-banner ${toast.type}`}>
           {toast.type === 'success' ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
           <span>{toast.message}</span>
+          <button className="toast-close" onClick={() => setToast(null)} type="button">
+            <X size={15} />
+          </button>
         </div>
       )}
 
       {/* Top Header */}
       <div className="admin-page-header">
         <div>
-          <div className="admin-breadcrumbs">
-            <span>Trang chủ</span>
-            <span className="crumb-sep">/</span>
-            <span>Kho & Chuỗi Cung Ứng</span>
-            <span className="crumb-sep">/</span>
-            <span className="current">Quản lý Sản phẩm & Album Ảnh</span>
+          <div className="admin-breadcrumb">
+            Trang chủ &gt; Kho &amp; Chuỗi Cung Ứng &gt; <span>Quản lý Sản phẩm &amp; Album Ảnh</span>
           </div>
-          <h1 className="admin-page-title">Sản Phẩm Nội Thất & Album Đa Góc</h1>
-          <p className="admin-page-desc">
-            Quản trị kho hàng nội thất cao cấp, đơn giá, kiểm soát tồn kho và thư viện ảnh phối cảnh đa góc
+          <h1 className="admin-page-title">Sản Phẩm Nội Thất &amp; Album Đa Góc</h1>
+          <p className="admin-page-subtitle" style={{ margin: '4px 0 0', color: 'var(--admin-text-muted)', fontSize: '0.88rem' }}>
+            Quản trị kho hàng nội thất cao cấp, đơn giá, kiểm soát tồn kho và thư viện ảnh phối cảnh đa góc.
           </p>
         </div>
 
         <div className="admin-header-actions">
-          <button className="admin-btn admin-btn-primary" onClick={openCreateModal}>
+          <button
+            type="button"
+            className="admin-btn admin-btn-outline"
+            onClick={() => fetchProducts(page)}
+            disabled={loading}
+            title="Làm mới danh sách sản phẩm"
+          >
+            <RefreshCw size={16} className={loading ? 'spin' : ''} />
+            <span>Làm Mới</span>
+          </button>
+          <button
+            type="button"
+            className="admin-btn admin-btn-accent"
+            onClick={openCreateModal}
+          >
             <Plus size={16} />
-            <span>Thêm sản phẩm mới</span>
+            <span>+ Thêm Sản Phẩm Mới</span>
           </button>
         </div>
       </div>
 
-      {/* Filter Bar */}
-      <div className="admin-filter-bar" style={{ flexWrap: 'wrap', gap: '12px' }}>
-        {/* Search */}
-        <form onSubmit={handleFilterSubmit} className="admin-search-wrap" style={{ minWidth: '280px', flex: 1 }}>
-          <Search size={16} className="search-icon" />
-          <input
-            type="text"
-            className="admin-search-input"
-            placeholder="Tìm theo tên sản phẩm, kích thước..."
-            value={searchKeyword}
-            onChange={(e) => setSearchKeyword(e.target.value)}
-          />
-          {searchKeyword && (
-            <button type="button" className="search-clear-btn" onClick={() => setSearchKeyword('')}>
-              <X size={14} />
+      {/* KPI Stats Cards */}
+      <div className="inv-stats-grid">
+        <div className="inv-stat-card card-total">
+          <div className="inv-stat-icon" style={{ background: '#EFF6FF', color: '#0284C7' }}>
+            <Armchair size={22} />
+          </div>
+          <div className="inv-stat-info">
+            <span className="inv-stat-label">Tổng sản phẩm</span>
+            <h3 className="inv-stat-value">{productStats.total} <span className="inv-stat-unit">mẫu</span></h3>
+            <span className="inv-stat-sub" style={{ color: '#0284C7', fontWeight: 600 }}>
+              <Layers size={13} /> {productStats.categoryCount} danh mục đang quản lý
+            </span>
+          </div>
+        </div>
+
+        <div
+          className="inv-stat-card card-pos"
+          style={{ cursor: 'pointer' }}
+          onClick={() => {
+            const nextStock = selectedLowStock === 'LOW_STOCK' ? 'ALL' : 'LOW_STOCK'
+            setSelectedLowStock(nextStock)
+            fetchProducts(0, selectedCategory, searchKeyword, nextStock, selectedStatus)
+          }}
+          title="Bấm để lọc nhanh sản phẩm sắp hết hàng"
+        >
+          <div className="inv-stat-icon" style={{ background: '#FEF2F2', color: '#DC2626' }}>
+            <AlertTriangle size={22} />
+          </div>
+          <div className="inv-stat-info">
+            <span className="inv-stat-label">Cảnh báo tồn kho thấp</span>
+            <h3 className="inv-stat-value" style={{ color: '#DC2626' }}>
+              {productStats.lowStock} <span className="inv-stat-unit">sản phẩm</span>
+            </h3>
+            <span className="inv-stat-sub" style={{ color: '#DC2626', fontWeight: 600 }}>
+              {selectedLowStock === 'LOW_STOCK' ? '✓ Đang lọc (< 5 chiếc)' : 'Tồn kho dưới 5 chiếc'}
+            </span>
+          </div>
+        </div>
+
+        <div className="inv-stat-card card-revenue">
+          <div className="inv-stat-icon" style={{ background: '#ECFDF5', color: '#059669' }}>
+            <CheckCircle2 size={22} />
+          </div>
+          <div className="inv-stat-info">
+            <span className="inv-stat-label">Đang mở bán</span>
+            <h3 className="inv-stat-value text-emerald">{productStats.active} <span className="inv-stat-unit">sản phẩm</span></h3>
+            <span className="inv-stat-sub" style={{ color: '#059669', fontWeight: 600 }}>
+              Hiển thị công khai trên website
+            </span>
+          </div>
+        </div>
+
+        <div className="inv-stat-card card-vietqr">
+          <div className="inv-stat-icon" style={{ background: '#FFFBEB', color: '#D97706' }}>
+            <EyeOff size={22} />
+          </div>
+          <div className="inv-stat-info">
+            <span className="inv-stat-label">Tạm ẩn showroom</span>
+            <h3 className="inv-stat-value">{productStats.inactive} <span className="inv-stat-unit">mẫu</span></h3>
+            <span className="inv-stat-sub" style={{ color: '#78716C' }}>
+              Tạm ngưng phân phối
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Toolbar Tìm Kiếm & Bộ Lọc Chuẩn */}
+      <div className="admin-card inv-filter-toolbar">
+        <div className="inv-filter-grid">
+          {/* Keyword Search */}
+          <div className="inv-filter-search">
+            <Search size={16} color="var(--admin-text-muted)" />
+            <input
+              type="text"
+              placeholder="Tìm theo tên sản phẩm nội thất, kích thước, vật liệu..."
+              value={searchKeyword}
+              onChange={(e) => setSearchKeyword(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  fetchProducts(0, selectedCategory, searchKeyword, selectedLowStock, selectedStatus)
+                }
+              }}
+            />
+            {searchKeyword && (
+              <button
+                type="button"
+                className="clear-btn"
+                onClick={() => {
+                  setSearchKeyword('')
+                  fetchProducts(0, selectedCategory, '', selectedLowStock, selectedStatus)
+                }}
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+
+          {/* Category Filter */}
+          <div className="inv-filter-select-group">
+            <label>Loại:</label>
+            <select
+              value={selectedCategory}
+              onChange={(e) => {
+                setSelectedCategory(e.target.value)
+                fetchProducts(0, e.target.value, searchKeyword, selectedLowStock, selectedStatus)
+              }}
+            >
+              <option value="">Tất cả loại ({categories.length})</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Low Stock Filter */}
+          <div className="inv-filter-select-group">
+            <label>Tồn kho:</label>
+            <select
+              value={selectedLowStock}
+              onChange={(e) => {
+                setSelectedLowStock(e.target.value)
+                fetchProducts(0, selectedCategory, searchKeyword, e.target.value, selectedStatus)
+              }}
+            >
+              <option value="ALL">Tất cả mức tồn</option>
+              <option value="LOW_STOCK">⚠️ Sắp hết hàng (&lt; 5)</option>
+            </select>
+          </div>
+
+          {/* Status Filter */}
+          <div className="inv-filter-select-group">
+            <label>Trạng thái:</label>
+            <select
+              value={selectedStatus}
+              onChange={(e) => {
+                setSelectedStatus(e.target.value)
+                fetchProducts(0, selectedCategory, searchKeyword, selectedLowStock, e.target.value)
+              }}
+            >
+              <option value="ALL">Tất cả trạng thái</option>
+              <option value="ACTIVE">Đang mở bán</option>
+              <option value="INACTIVE">Đã tạm ẩn</option>
+            </select>
+          </div>
+
+          {/* Action buttons */}
+          <button
+            type="button"
+            className="admin-btn admin-btn-primary"
+            style={{ height: '42px', padding: '0 18px', fontSize: '0.88rem', display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+            onClick={() => fetchProducts(0, selectedCategory, searchKeyword, selectedLowStock, selectedStatus)}
+            disabled={loading}
+          >
+            <Search size={15} />
+            <span>Lọc Dữ Liệu</span>
+          </button>
+
+          {(searchKeyword || selectedCategory || selectedLowStock !== 'ALL' || selectedStatus !== 'ALL') && (
+            <button
+              type="button"
+              className="admin-btn admin-btn-outline"
+              style={{ height: '42px', padding: '0 14px', fontSize: '0.84rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+              onClick={handleResetFilters}
+            >
+              <X size={15} />
+              <span>Đặt Lại</span>
             </button>
           )}
-        </form>
 
-        {/* Category Filter */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ fontSize: '0.84rem', color: 'var(--admin-text-muted)', fontWeight: 600 }}>Loại:</span>
-          <select
-            className="form-input"
-            style={{ width: 'auto', padding: '8px 12px', fontSize: '0.84rem', background: '#FFFFFF' }}
-            value={selectedCategory}
-            onChange={(e) => {
-              setSelectedCategory(e.target.value)
-              fetchProducts(0, e.target.value, searchKeyword, selectedLowStock, selectedStatus)
-            }}
+          <button
+            type="button"
+            className="admin-btn admin-btn-outline"
+            style={{ height: '42px', padding: '0 14px', fontSize: '0.84rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+            onClick={() => fetchProducts(page)}
+            disabled={loading}
+            title="Làm mới bảng"
           >
-            <option value="">Tất cả loại ({categories.length})</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+            <RefreshCw size={15} className={loading ? 'spin' : ''} />
+            <span>Làm Mới</span>
+          </button>
         </div>
 
-        {/* Low Stock Filter */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ fontSize: '0.84rem', color: 'var(--admin-text-muted)', fontWeight: 600 }}>Tồn kho:</span>
-          <select
-            className="form-input"
-            style={{ width: 'auto', padding: '8px 12px', fontSize: '0.84rem', background: '#FFFFFF' }}
-            value={selectedLowStock}
-            onChange={(e) => {
-              setSelectedLowStock(e.target.value)
-              fetchProducts(0, selectedCategory, searchKeyword, e.target.value, selectedStatus)
-            }}
-          >
-            <option value="ALL">Tất cả mức tồn</option>
-            <option value="LOW_STOCK">⚠️ Sắp hết hàng (&lt; 5)</option>
-          </select>
-        </div>
-
-        {/* Status Filter */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ fontSize: '0.84rem', color: 'var(--admin-text-muted)', fontWeight: 600 }}>Trạng thái:</span>
-          <select
-            className="form-input"
-            style={{ width: 'auto', padding: '8px 12px', fontSize: '0.84rem', background: '#FFFFFF' }}
-            value={selectedStatus}
-            onChange={(e) => {
-              setSelectedStatus(e.target.value)
-              fetchProducts(0, selectedCategory, searchKeyword, selectedLowStock, e.target.value)
-            }}
-          >
-            <option value="ALL">Tất cả</option>
-            <option value="ACTIVE">Đang mở bán</option>
-            <option value="INACTIVE">Đã tạm ẩn</option>
-          </select>
-        </div>
-
-        <button
-          type="button"
-          className="admin-btn admin-btn-secondary"
-          onClick={handleResetFilters}
-          title="Xóa toàn bộ bộ lọc"
-        >
-          <span>Đặt lại</span>
-        </button>
-
-        <button
-          type="button"
-          className="admin-btn admin-btn-secondary"
-          onClick={() => fetchProducts(page)}
-          disabled={loading}
-          title="Làm mới bảng"
-        >
-          <RefreshCw size={15} className={loading ? 'spin' : ''} />
-          <span>Làm mới</span>
-        </button>
+        {/* Active Filter Chips */}
+        {(searchKeyword || selectedCategory || selectedLowStock !== 'ALL' || selectedStatus !== 'ALL') && (
+          <div className="inv-active-chips-row">
+            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748B' }}>Đang áp dụng bộ lọc:</span>
+            {searchKeyword && (
+              <span className="inv-chip">
+                <span>Từ khóa: "{searchKeyword}"</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchKeyword('')
+                    fetchProducts(0, selectedCategory, '', selectedLowStock, selectedStatus)
+                  }}
+                >
+                  <X size={12} />
+                </button>
+              </span>
+            )}
+            {selectedCategory && (
+              <span className="inv-chip">
+                <span>Loại: {categories.find((c) => String(c.id) === String(selectedCategory))?.name || selectedCategory}</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedCategory('')
+                    fetchProducts(0, '', searchKeyword, selectedLowStock, selectedStatus)
+                  }}
+                >
+                  <X size={12} />
+                </button>
+              </span>
+            )}
+            {selectedLowStock === 'LOW_STOCK' && (
+              <span className="inv-chip" style={{ background: '#FEF2F2', borderColor: '#FECACA', color: '#DC2626' }}>
+                <span>⚠️ Sắp hết hàng (&lt; 5)</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedLowStock('ALL')
+                    fetchProducts(0, selectedCategory, searchKeyword, 'ALL', selectedStatus)
+                  }}
+                >
+                  <X size={12} />
+                </button>
+              </span>
+            )}
+            {selectedStatus !== 'ALL' && (
+              <span className="inv-chip">
+                <span>Trạng thái: {selectedStatus === 'ACTIVE' ? 'Đang mở bán' : 'Đã tạm ẩn'}</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedStatus('ALL')
+                    fetchProducts(0, selectedCategory, searchKeyword, selectedLowStock, 'ALL')
+                  }}
+                >
+                  <X size={12} />
+                </button>
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Main Table Card */}
-      <div className="admin-table-card">
+      <div className="admin-card" style={{ padding: 0, overflow: 'hidden' }}>
+        <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--admin-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+          <div>
+            <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: 'var(--admin-text-main)' }}>
+              Kho Hàng &amp; Danh Mục Sản Phẩm Nội Thất
+            </h3>
+            <span style={{ fontSize: '0.82rem', color: 'var(--admin-text-muted)' }}>
+              Hiển thị {products.length} trên tổng số {totalElements} mẫu nội thất
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.82rem', color: 'var(--admin-text-muted)' }}>
+            <span>Hiển thị:</span>
+            <select
+              className="admin-page-size-select"
+              value={pageSize}
+              onChange={(e) => {
+                const newSize = Number(e.target.value)
+                setPageSize(newSize)
+                setPage(0)
+              }}
+            >
+              <option value={5}>5 sản phẩm / trang</option>
+              <option value={10}>10 sản phẩm / trang</option>
+              <option value={20}>20 sản phẩm / trang</option>
+            </select>
+          </div>
+        </div>
+
         {error && (
-          <div className="admin-alert-banner error" style={{ margin: '16px 20px' }}>
+          <div style={{ margin: '16px', padding: '12px 16px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: '8px', color: '#B91C1C', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <AlertCircle size={18} />
             <span>{error}</span>
           </div>
         )}
 
-        <div className="table-responsive">
+        <div className="admin-table-container" style={{ border: 'none' }}>
           <table className="admin-table">
             <thead>
               <tr>
-                <th style={{ width: '60px' }}>ID</th>
+                <th style={{ width: '65px' }}>ID</th>
                 <th style={{ width: '70px', textAlign: 'center' }}>Ảnh</th>
-                <th style={{ minWidth: '240px' }}>Tên sản phẩm nội thất</th>
-                <th style={{ width: '150px' }}>Loại nội thất</th>
-                <th style={{ width: '80px', textAlign: 'center' }}>ĐVT</th>
-                <th style={{ width: '140px', textAlign: 'right' }}>Giá niêm yết</th>
-                <th style={{ width: '130px', textAlign: 'center' }}>Tồn kho</th>
-                <th style={{ width: '120px', textAlign: 'center' }}>Trạng thái</th>
-                <th style={{ width: '190px', textAlign: 'right', paddingRight: '20px' }}>Thao tác</th>
+                <th style={{ minWidth: '260px' }}>Tên Sản Phẩm Nội Thất</th>
+                <th style={{ width: '150px' }}>Loại Nội Thất</th>
+                <th style={{ width: '75px', textAlign: 'center' }}>ĐVT</th>
+                <th style={{ width: '150px', textAlign: 'right' }}>Giá Niêm Yết</th>
+                <th style={{ width: '135px', textAlign: 'center' }}>Tồn Kho</th>
+                <th style={{ width: '125px', textAlign: 'center' }}>Trạng Thái</th>
+                <th style={{ width: '195px', textAlign: 'center' }}>Thao Tác</th>
               </tr>
             </thead>
             <tbody>
               {loading && products.length === 0 ? (
                 <tr>
-                  <td colSpan="9" className="table-loading-cell">
-                    <RefreshCw size={24} className="spin" />
-                    <p>Đang tải danh sách sản phẩm nội thất...</p>
+                  <td colSpan="9" style={{ textAlign: 'center', padding: '48px 16px', color: 'var(--admin-text-muted)' }}>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '10px' }}>
+                      <RefreshCw size={20} className="spin" color="var(--admin-accent)" />
+                      <span>Đang nạp dữ liệu kho sản phẩm nội thất...</span>
+                    </div>
                   </td>
                 </tr>
               ) : products.length === 0 ? (
                 <tr>
-                  <td colSpan="9" className="table-empty-cell">
-                    <Armchair size={36} color="var(--admin-text-muted)" />
-                    <p>Không tìm thấy sản phẩm nội thất nào phù hợp</p>
-                    <button className="admin-btn admin-btn-secondary" onClick={handleResetFilters}>
+                  <td colSpan="9" style={{ textAlign: 'center', padding: '48px 16px', color: 'var(--admin-text-muted)' }}>
+                    <Armchair size={36} style={{ opacity: 0.35, marginBottom: '8px' }} />
+                    <p style={{ margin: 0, fontWeight: 500 }}>Không tìm thấy sản phẩm nội thất nào phù hợp.</p>
+                    <button
+                      type="button"
+                      className="admin-btn admin-btn-outline"
+                      style={{ marginTop: '12px' }}
+                      onClick={handleResetFilters}
+                    >
                       Xóa bộ lọc tìm kiếm
                     </button>
                   </td>
@@ -586,7 +806,7 @@ export default function AdminProductManagement({ currentUser }) {
                   return (
                     <tr key={p.id}>
                       {/* ID */}
-                      <td style={{ color: 'var(--admin-text-muted)', fontFamily: 'monospace', fontWeight: 600 }}>
+                      <td style={{ color: 'var(--admin-text-muted)', fontFamily: 'monospace', fontWeight: 700, fontSize: '0.86rem' }}>
                         #{p.id}
                       </td>
 
@@ -613,9 +833,11 @@ export default function AdminProductManagement({ currentUser }) {
 
                       {/* Name */}
                       <td>
-                        <span className="product-title-text">{p.name}</span>
+                        <span className="product-title-text" style={{ cursor: 'pointer' }} onClick={() => openEditModal(p)}>
+                          {p.name}
+                        </span>
                         {!isActive && (
-                          <span style={{ display: 'block', fontSize: '0.72rem', color: '#DC2626', fontWeight: 600 }}>
+                          <span style={{ display: 'block', fontSize: '0.72rem', color: '#DC2626', fontWeight: 600, marginTop: '2px' }}>
                             (Tạm ẩn khỏi showroom)
                           </span>
                         )}
@@ -634,26 +856,26 @@ export default function AdminProductManagement({ currentUser }) {
                       </td>
 
                       {/* Selling Price */}
-                      <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--admin-accent)', fontSize: '0.94rem' }}>
+                      <td style={{ textAlign: 'right', fontWeight: 800, color: '#047857', fontSize: '0.96rem', whiteSpace: 'nowrap' }}>
                         {formatVND(p.sellingPrice)}
                       </td>
 
                       {/* Stock Quantity */}
-                      <td style={{ textAlign: 'center' }}>
+                      <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
                         {isLow ? (
                           <span className="stock-pill low" title="Cảnh báo: Sản phẩm sắp hết hàng!">
                             <AlertTriangle size={12} />
-                            <strong>{p.quantity}</strong> (Sắp hết)
+                            <span>{p.quantity} (Sắp hết)</span>
                           </span>
                         ) : (
                           <span className="stock-pill normal">
-                            <strong>{p.quantity}</strong> {p.unit || 'chiếc'}
+                            <span>{p.quantity} {p.unit || 'chiếc'}</span>
                           </span>
                         )}
                       </td>
 
                       {/* Active Status */}
-                      <td style={{ textAlign: 'center' }}>
+                      <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
                         {isActive ? (
                           <span className="admin-status-pill active">
                             <span className="status-dot green"></span>
@@ -668,36 +890,38 @@ export default function AdminProductManagement({ currentUser }) {
                       </td>
 
                       {/* Actions */}
-                      <td style={{ textAlign: 'right', whiteSpace: 'nowrap', paddingRight: '20px' }}>
-                        <div style={{ display: 'inline-flex', gap: '6px', alignItems: 'center' }}>
+                      <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+                        <div style={{ display: 'inline-flex', gap: '6px', alignItems: 'center', justifyContent: 'center' }}>
                           {/* Album ảnh */}
                           <button
-                            className="table-action-btn edit"
-                            style={{ borderColor: '#60A5FA', color: '#2563EB', background: '#EFF6FF' }}
+                            type="button"
+                            className="btn-action-gallery"
                             onClick={() => openGalleryModal(p)}
                             title="Quản lý Album thư viện ảnh đa góc chụp"
                           >
-                            <ImageIcon size={14} />
+                            <ImageIcon size={13} />
                             <span>Ảnh</span>
                           </button>
 
                           {/* Sửa thông tin */}
                           <button
-                            className="table-action-btn edit"
+                            type="button"
+                            className="btn-action-edit"
                             onClick={() => openEditModal(p)}
                             title="Chỉnh sửa sản phẩm"
                           >
-                            <Edit2 size={14} />
+                            <Edit2 size={13} />
                             <span>Sửa</span>
                           </button>
 
                           {/* Ẩn / Hiện */}
                           <button
-                            className={`table-action-btn ${isActive ? 'lock' : 'unlock'}`}
+                            type="button"
+                            className={`btn-action-toggle ${isActive ? 'active' : ''}`}
                             onClick={() => handleToggleStatus(p)}
                             title={isActive ? 'Tạm ẩn sản phẩm' : 'Mở bán lại sản phẩm'}
                           >
-                            {isActive ? <EyeOff size={14} /> : <Eye size={14} />}
+                            {isActive ? <EyeOff size={13} /> : <Eye size={13} />}
                             <span>{isActive ? 'Ẩn' : 'Hiện'}</span>
                           </button>
                         </div>
@@ -712,51 +936,62 @@ export default function AdminProductManagement({ currentUser }) {
 
         {/* Pagination Footer */}
         <div className="admin-pagination-footer">
-          <span className="pagination-info">
+          <div className="pagination-info">
             Hiển thị <strong>{products.length}</strong> trên tổng số <strong>{totalElements}</strong> sản phẩm
-          </span>
+            (Trang {page + 1} / {Math.max(1, totalPages)})
+          </div>
 
           <div className="pagination-controls">
             <button
+              type="button"
               className="page-btn"
+              disabled={page <= 0 || loading}
               onClick={() => {
                 const prev = page - 1
                 setPage(prev)
                 fetchProducts(prev)
               }}
-              disabled={page <= 0 || loading}
             >
               &lt; Trước
             </button>
 
-            {Array.from({ length: Math.min(5, totalPages) }, (_, idx) => {
-              let pageNum = page - 2 + idx
-              if (pageNum < 0) pageNum = idx
-              if (pageNum >= totalPages) return null
+            {Array.from({ length: totalPages }, (_, idx) => {
+              if (
+                totalPages > 6 &&
+                idx !== 0 &&
+                idx !== totalPages - 1 &&
+                Math.abs(idx - page) > 1
+              ) {
+                if (idx === 1 && page > 2) return <span key={idx} style={{ padding: '0 4px', color: '#94A3B8' }}>...</span>
+                if (idx === totalPages - 2 && page < totalPages - 3) return <span key={idx} style={{ padding: '0 4px', color: '#94A3B8' }}>...</span>
+                return null
+              }
 
               return (
                 <button
-                  key={pageNum}
-                  className={`page-num-btn ${pageNum === page ? 'active' : ''}`}
+                  type="button"
+                  key={idx}
+                  className={`page-num-btn ${idx === page ? 'active' : ''}`}
                   onClick={() => {
-                    setPage(pageNum)
-                    fetchProducts(pageNum)
+                    setPage(idx)
+                    fetchProducts(idx)
                   }}
                   disabled={loading}
                 >
-                  {pageNum + 1}
+                  {idx + 1}
                 </button>
               )
             })}
 
             <button
+              type="button"
               className="page-btn"
+              disabled={page >= totalPages - 1 || loading}
               onClick={() => {
                 const next = page + 1
                 setPage(next)
                 fetchProducts(next)
               }}
-              disabled={page >= totalPages - 1 || loading}
             >
               Sau &gt;
             </button>

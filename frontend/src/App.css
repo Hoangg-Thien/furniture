@@ -493,6 +493,227 @@
 .category-chip:hover { border-color: var(--forest); color: var(--forest); }
 .category-chip.selected { border-color: var(--forest); color: #fff; background: var(--forest); }
 .result-count { color: #898d85; font-size: 10px; white-space: nowrap; }
+
+/* ========================================================
+   THANH LỌC GIÁ TIỀN & SẮP XẾP SẢN PHẨM KHÁCH HÀNG
+   ======================================================== */
+.price-filter-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 18px;
+  margin: -6px 0 26px 0;
+  background: #fdfbf7;
+  border: 1px solid #eae5dc;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(42, 30, 23, 0.03);
+}
+
+.price-filter-presets {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.filter-group-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #78716c;
+  margin-right: 4px;
+}
+
+.price-preset-chip {
+  min-height: 28px;
+  padding: 0 12px;
+  border: 1px solid #e7e3dc;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #57534e;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 180ms ease;
+  white-space: nowrap;
+}
+
+.price-preset-chip:hover {
+  border-color: var(--forest);
+  color: var(--forest);
+  background: #f4f6f5;
+}
+
+.price-preset-chip.active {
+  background: var(--forest);
+  color: #ffffff;
+  border-color: var(--forest);
+  box-shadow: 0 2px 8px rgba(25, 60, 53, 0.2);
+}
+
+.price-filter-custom-and-sort {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding-top: 10px;
+  border-top: 1px dashed #eae5dc;
+}
+
+.price-custom-form {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.custom-input-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: #8c857b;
+}
+
+.price-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.price-input-wrapper input {
+  width: 110px;
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid #dfded7;
+  border-radius: 4px;
+  background: #ffffff;
+  font-size: 11px;
+  color: #2a1e17;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 150ms ease;
+}
+
+.price-input-wrapper input:focus {
+  border-color: var(--forest);
+  box-shadow: 0 0 0 2px rgba(25, 60, 53, 0.1);
+}
+
+.price-dash {
+  color: #a8a29e;
+  font-size: 11px;
+}
+
+.price-apply-btn {
+  height: 30px;
+  padding: 0 14px;
+  background: var(--forest);
+  color: #ffffff;
+  border: none;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+
+.price-apply-btn:hover {
+  background: #13302a;
+}
+
+.price-clear-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 30px;
+  padding: 0 10px;
+  background: #fee2e2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.price-clear-btn:hover {
+  background: #fecaca;
+}
+
+.shop-sort-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sort-icon {
+  color: #8c857b;
+}
+
+.shop-sort-select {
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid #dfded7;
+  border-radius: 4px;
+  background: #ffffff;
+  font-size: 11px;
+  font-weight: 500;
+  color: #44403c;
+  cursor: pointer;
+  outline: none;
+}
+
+.shop-sort-select:focus {
+  border-color: var(--forest);
+}
+
+.footer-admin-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #f1ede5;
+  border: 1px solid #dfded7;
+  border-radius: 4px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #57534e;
+  cursor: pointer;
+  transition: all 180ms ease;
+}
+
+.footer-admin-link:hover {
+  background: #193c35;
+  color: #ffffff;
+  border-color: #193c35;
+}
+
+@media (max-width: 768px) {
+  .price-filter-bar {
+    padding: 12px;
+  }
+  .price-filter-custom-and-sort {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .price-custom-form {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .price-input-wrapper input {
+    width: 85px;
+  }
+  .shop-sort-control {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .shop-sort-select {
+    flex: 1;
+  }
+}
 .product-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 34px 18px; }
 .product-card { min-width: 0; animation: product-arrive 450ms both; animation-delay: calc(var(--item-index) * 45ms); }
 .product-image-wrap { position: relative; overflow: hidden; aspect-ratio: 4 / 4.65; background: #eae8df; }
@@ -2025,6 +2246,87 @@
   border: 1.5px solid rgba(36, 106, 72, 0.2);
   margin-bottom: 4px;
   animation: fade-in 300ms ease both;
+}
+
+.order-thankyou-icon-circle.circle-confirmed {
+  background: #ecfdf5;
+  color: #059669;
+  border-color: rgba(5, 150, 105, 0.25);
+  box-shadow: 0 8px 24px rgba(5, 150, 105, 0.18);
+}
+
+.order-thankyou-icon-circle.circle-pending {
+  background: #fffbeb;
+  color: #d97706;
+  border-color: rgba(217, 119, 6, 0.25);
+  box-shadow: 0 8px 24px rgba(217, 119, 6, 0.15);
+}
+
+.order-thankyou-icon-circle.circle-shipping {
+  background: #eff6ff;
+  color: #2563eb;
+  border-color: rgba(37, 99, 235, 0.25);
+  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.15);
+}
+
+.order-thankyou-icon-circle.circle-cancelled {
+  background: #fef2f2;
+  color: #dc2626;
+  border-color: rgba(220, 38, 38, 0.25);
+  box-shadow: 0 8px 24px rgba(220, 38, 38, 0.15);
+}
+
+.order-live-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  margin-top: 2px;
+  margin-bottom: 2px;
+}
+
+.order-live-status-pill.status-pill-confirmed {
+  background: #d1fae5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+
+.order-live-status-pill.status-pill-pending {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+}
+
+.order-live-status-pill.status-pill-shipping {
+  background: #dbeafe;
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
+}
+
+.order-live-status-pill.status-pill-completed {
+  background: #dcfce7;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+
+.order-live-status-pill.status-pill-cancelled {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+.spin-anim {
+  animation: spin-clockwise 0.8s linear infinite;
+}
+
+@keyframes spin-clockwise {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .order-thankyou-title {

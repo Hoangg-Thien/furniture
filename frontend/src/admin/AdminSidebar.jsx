@@ -18,27 +18,30 @@ import {
 } from 'lucide-react'
 
 export const ADMIN_MODULES = [
-  // Nhóm 1: Bảng điều khiển
-  { id: 'dashboard', name: 'Tổng quan Dashboard', icon: LayoutDashboard, group: 'Bảng Điều Khiển' },
+  // Nhóm 1: Bảng điều khiển (Chỉ Quản trị viên)
+  { id: 'dashboard', name: 'Tổng quan Dashboard', icon: LayoutDashboard, group: 'Bảng Điều Khiển', roles: ['ADMIN'] },
   
-  // Nhóm 2: Người dùng & Nhân sự
-  { id: 'users', name: 'Tài khoản & Phân quyền', icon: ShieldAlert, group: 'Nhân Sự & Khách Hàng', doc: '01' },
-  { id: 'customers', name: 'Khách hàng (CRM)', icon: Users, group: 'Nhân Sự & Khách Hàng', doc: '02' },
-  { id: 'staff', name: 'Đội ngũ Nhân viên', icon: UserCheck, group: 'Nhân Sự & Khách Hàng', doc: '03' },
+  // Nhóm 2: Bán Hàng & Đơn Hàng (Cả ADMIN và STAFF)
+  { id: 'orders', name: 'Đơn đặt hàng', icon: ShoppingCart, group: 'Bán Hàng & Đơn Hàng', doc: '08', badge: 'Mới', roles: ['ADMIN', 'STAFF'] },
+  { id: 'invoices', name: 'Hóa đơn bán hàng', icon: Receipt, group: 'Bán Hàng & Đơn Hàng', doc: '09', roles: ['ADMIN', 'STAFF'] },
+  { id: 'customers', name: 'Khách hàng (CRM)', icon: Users, group: 'Bán Hàng & Đơn Hàng', doc: '02', roles: ['ADMIN', 'STAFF'] },
 
-  // Nhóm 3: Kho & Chuỗi cung ứng
-  { id: 'categories', name: 'Loại nội thất', icon: FolderTree, group: 'Kho & Chuỗi Cung Ứng', doc: '04' },
-  { id: 'products', name: 'Sản phẩm & Album ảnh', icon: Armchair, group: 'Kho & Chuỗi Cung Ứng', doc: '05' },
-  { id: 'suppliers', name: 'Nhà cung cấp nội thất', icon: Truck, group: 'Kho & Chuỗi Cung Ứng', doc: '06' },
+  // Nhóm 3: Kho Hàng & Nhập Kho (Cả ADMIN và STAFF)
+  { id: 'products', name: 'Sản phẩm & Tồn kho', icon: Armchair, group: 'Kho Hàng & Sản Phẩm', doc: '05', roles: ['ADMIN', 'STAFF'] },
+  { id: 'suppliers', name: 'Nhà cung cấp & Nhập kho', icon: Truck, group: 'Kho Hàng & Sản Phẩm', doc: '06', roles: ['ADMIN', 'STAFF'] },
 
-  // Nhóm 4: Bán hàng & Dòng tiền
-  { id: 'promotions', name: 'Khuyến mãi & Voucher', icon: Percent, group: 'Bán Hàng & Dòng Tiền', doc: '07' },
-  { id: 'orders', name: 'Đơn đặt hàng', icon: ShoppingCart, group: 'Bán Hàng & Dòng Tiền', doc: '08', badge: 'Mới' },
-  { id: 'invoices', name: 'Hóa đơn bán hàng', icon: Receipt, group: 'Bán Hàng & Dòng Tiền', doc: '09' },
-  { id: 'reports', name: 'Thống kê & Báo cáo', icon: BarChart3, group: 'Bán Hàng & Dòng Tiền', doc: '10' }
+  // Nhóm 4: Quản Trị Hệ Thống (Chỉ ADMIN)
+  { id: 'users', name: 'Tài khoản & Phân quyền', icon: ShieldAlert, group: 'Quản Trị Hệ Thống', doc: '01', roles: ['ADMIN'] },
+  { id: 'staff', name: 'Đội ngũ Nhân viên', icon: UserCheck, group: 'Quản Trị Hệ Thống', doc: '03', roles: ['ADMIN'] },
+  { id: 'categories', name: 'Loại nội thất', icon: FolderTree, group: 'Quản Trị Hệ Thống', doc: '04', roles: ['ADMIN'] },
+
+  // Nhóm 5: Chiến Dịch & Tài Chính (Chỉ ADMIN)
+  { id: 'promotions', name: 'Khuyến mãi & Voucher', icon: Percent, group: 'Chiến Dịch & Tài Chính', doc: '07', roles: ['ADMIN'] },
+  { id: 'reports', name: 'Thống kê & Báo cáo', icon: BarChart3, group: 'Chiến Dịch & Tài Chính', doc: '10', roles: ['ADMIN'] }
 ]
 
 export default function AdminSidebar({
+  currentUser,
   activeModule,
   onSelectModule,
   onBackToStore,
@@ -46,8 +49,14 @@ export default function AdminSidebar({
   isMobileOpen = false,
   onCloseMobile
 }) {
-  // Gom nhóm các module
-  const groups = ['Bảng Điều Khiển', 'Nhân Sự & Khách Hàng', 'Kho & Chuỗi Cung Ứng', 'Bán Hàng & Dòng Tiền']
+  const role = currentUser?.role?.toUpperCase() || 'ADMIN'
+  const isStaff = role === 'STAFF'
+
+  // Lọc danh sách module theo quyền hạn người đăng nhập
+  const visibleModules = ADMIN_MODULES.filter((m) => !m.roles || m.roles.includes(role))
+
+  // Lấy danh sách các nhóm thực sự có module hiển thị
+  const groups = Array.from(new Set(visibleModules.map((m) => m.group)))
 
   const handleItemClick = (id) => {
     onSelectModule(id)
@@ -63,7 +72,7 @@ export default function AdminSidebar({
           className="admin-logo-badge"
           onClick={(e) => {
             e.preventDefault()
-            handleItemClick('dashboard')
+            handleItemClick(isStaff ? 'orders' : 'dashboard')
           }}
         >
           <div className="admin-logo-icon">
@@ -71,7 +80,7 @@ export default function AdminSidebar({
           </div>
           <div className="admin-logo-text">
             <h2>NỘI THẤT CAO CẤP</h2>
-            <span>HỆ THỐNG QUẢN TRỊ ADMIN</span>
+            <span>{isStaff ? 'PORTAL NHÂN VIÊN' : 'HỆ THỐNG QUẢN TRỊ ADMIN'}</span>
           </div>
         </a>
 
@@ -91,7 +100,8 @@ export default function AdminSidebar({
       {/* Nav Menu */}
       <nav className="admin-sidebar-nav">
         {groups.map((groupName) => {
-          const items = ADMIN_MODULES.filter((m) => m.group === groupName)
+          const items = visibleModules.filter((m) => m.group === groupName)
+          if (items.length === 0) return null
           return (
             <div key={groupName} className="admin-nav-group">
               <div className="admin-nav-group-title">{groupName}</div>

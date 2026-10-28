@@ -36,7 +36,7 @@ export default function AdminStaffManagement({ currentUser }) {
   const [searchKeyword, setSearchKeyword] = useState('')
   const [selectedStatus, setSelectedStatus] = useState('ALL')
   const [page, setPage] = useState(0)
-  const [pageSize] = useState(10)
+  const [pageSize, setPageSize] = useState(5)
   const [totalPages, setTotalPages] = useState(1)
   const [totalElements, setTotalElements] = useState(0)
 
@@ -81,14 +81,14 @@ export default function AdminStaffManagement({ currentUser }) {
   const currentLoggedInUserId = currentUser?.id || currentUser?.userId || currentUser?.user_id
 
   // Tải danh sách nhân viên từ Backend
-  const loadStaff = async (targetPage = page) => {
+  const loadStaff = async (targetPage = page, targetPageSize = pageSize) => {
     setLoading(true)
     setError(null)
     try {
       const baseUrl = getApiBaseUrl()
       const params = new URLSearchParams()
       params.append('page', targetPage)
-      params.append('size', pageSize)
+      params.append('size', targetPageSize)
 
       if (searchKeyword.trim()) {
         params.append('search', searchKeyword.trim())
@@ -126,14 +126,14 @@ export default function AdminStaffManagement({ currentUser }) {
   // Tự động load khi thay đổi bộ lọc
   useEffect(() => {
     const timer = setTimeout(() => {
-      loadStaff(0)
+      loadStaff(0, pageSize)
     }, 250)
     return () => clearTimeout(timer)
-  }, [searchKeyword, selectedStatus])
+  }, [searchKeyword, selectedStatus, pageSize])
 
   const handlePageChange = (newPage) => {
     if (newPage >= 0 && newPage < totalPages) {
-      loadStaff(newPage)
+      loadStaff(newPage, pageSize)
     }
   }
 
@@ -350,15 +350,6 @@ export default function AdminStaffManagement({ currentUser }) {
         </div>
       </div>
 
-      {/* Banner thông tin kỹ thuật */}
-      <div className="admin-reference-banner">
-        <div>
-          <strong>Đặc tả kỹ thuật Module 03:</strong> Quản lý bảng <code>staff</code> liên kết <code>users</code> (Role <code>STAFF</code>), tự động cấp tài khoản đăng nhập khi tạo hồ sơ, thống kê số lượng đơn xử lý (`orders.staff_id`) và phiếu nhập kho (`purchase_receipts.staff_id`).
-        </div>
-        <span className="badge-active-api">
-          Kết nối Database Supabase Live
-        </span>
-      </div>
 
       {/* Toolbar Tìm kiếm & Bộ Lọc */}
       <div className="admin-card admin-filter-toolbar">
@@ -410,14 +401,14 @@ export default function AdminStaffManagement({ currentUser }) {
           <table className="admin-table">
             <thead>
               <tr>
-                <th style={{ width: '80px' }}>Mã NV</th>
-                <th>Họ và Tên Nhân Viên</th>
-                <th>Số Điện Thoại</th>
-                <th>Email Công Vụ</th>
-                <th style={{ textAlign: 'center' }}>Đơn Đã Xử Lý</th>
-                <th style={{ textAlign: 'center' }}>Phiếu Nhập Kho</th>
-                <th>Trạng Thái</th>
-                <th style={{ textAlign: 'right', paddingRight: '24px' }}>Thao Tác</th>
+                <th style={{ width: '70px', whiteSpace: 'nowrap' }}>Mã NV</th>
+                <th style={{ minWidth: '180px' }}>Họ và Tên Nhân Viên</th>
+                <th style={{ whiteSpace: 'nowrap' }}>Số Điện Thoại</th>
+                <th style={{ whiteSpace: 'nowrap' }}>Email Công Vụ</th>
+                <th style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>Đơn Đã Xử Lý</th>
+                <th style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>Phiếu Nhập Kho</th>
+                <th style={{ whiteSpace: 'nowrap' }}>Trạng Thái</th>
+                <th style={{ textAlign: 'right', paddingRight: '24px', whiteSpace: 'nowrap' }}>Thao Tác</th>
               </tr>
             </thead>
             <tbody>
@@ -476,7 +467,7 @@ export default function AdminStaffManagement({ currentUser }) {
                           </div>
                         </div>
                       </td>
-                      <td style={{ fontWeight: 500 }}>
+                      <td style={{ fontWeight: 500, whiteSpace: 'nowrap' }}>
                         {s.phone ? (
                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
                             <Phone size={13} color="var(--admin-text-muted)" />
@@ -486,7 +477,7 @@ export default function AdminStaffManagement({ currentUser }) {
                           <span style={{ color: 'var(--admin-text-muted)' }}>-</span>
                         )}
                       </td>
-                      <td style={{ color: 'var(--admin-text-main)', fontSize: '0.86rem' }}>
+                      <td style={{ color: 'var(--admin-text-main)', fontSize: '0.86rem', whiteSpace: 'nowrap' }}>
                         {s.email ? (
                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
                             <Mail size={13} color="var(--admin-text-muted)" />
@@ -496,19 +487,19 @@ export default function AdminStaffManagement({ currentUser }) {
                           <span style={{ color: 'var(--admin-text-muted)' }}>-</span>
                         )}
                       </td>
-                      <td style={{ textAlign: 'center', fontWeight: 700 }}>
+                      <td style={{ textAlign: 'center', fontWeight: 700, whiteSpace: 'nowrap' }}>
                         <span className="staff-metric-pill orders" title="Số đơn hàng nội thất nhân viên này đã duyệt / xử lý">
                           <Package size={13} />
                           {s.handledOrdersCount} đơn
                         </span>
                       </td>
-                      <td style={{ textAlign: 'center', fontWeight: 700 }}>
+                      <td style={{ textAlign: 'center', fontWeight: 700, whiteSpace: 'nowrap' }}>
                         <span className="staff-metric-pill receipts" title="Số phiếu nhập kho từ nhà cung cấp nhân viên này đã lập">
                           <Truck size={13} />
                           {s.receiptsCount} phiếu
                         </span>
                       </td>
-                      <td>
+                      <td style={{ whiteSpace: 'nowrap' }}>
                         {s.isActive ? (
                           <span className="admin-status-pill active">
                             <span className="status-dot green"></span>
@@ -564,9 +555,28 @@ export default function AdminStaffManagement({ currentUser }) {
 
         {/* Phân Trang */}
         <div className="admin-pagination-footer">
-          <div className="pagination-info">
-            Hiển thị <strong>{staffList.length}</strong> trên tổng số <strong>{totalElements}</strong> nhân viên
-            (Trang {page + 1} / {Math.max(1, totalPages)})
+          <div className="pagination-info" style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+            <span>
+              Hiển thị <strong>{staffList.length}</strong> trên tổng số <strong>{totalElements}</strong> nhân viên
+              (Trang {page + 1} / {Math.max(1, totalPages)})
+            </span>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ fontSize: '0.82rem', color: 'var(--admin-text-muted)' }}>Hiển thị:</span>
+              <select
+                className="admin-page-size-select"
+                value={pageSize}
+                onChange={(e) => {
+                  const newSize = Number(e.target.value)
+                  setPageSize(newSize)
+                  setPage(0)
+                  loadStaff(0, newSize)
+                }}
+              >
+                <option value={5}>5 / trang</option>
+                <option value={10}>10 / trang</option>
+                <option value={20}>20 / trang</option>
+              </select>
+            </div>
           </div>
 
           <div className="pagination-controls">
@@ -578,19 +588,26 @@ export default function AdminStaffManagement({ currentUser }) {
               &lt; Trang trước
             </button>
 
-            {Array.from({ length: Math.min(5, totalPages) }, (_, idx) => {
-              let pageNum = page - 2 + idx
-              if (pageNum < 0) pageNum = idx
-              if (pageNum >= totalPages) return null
+            {Array.from({ length: totalPages }, (_, idx) => {
+              if (
+                totalPages > 6 &&
+                idx !== 0 &&
+                idx !== totalPages - 1 &&
+                Math.abs(idx - page) > 1
+              ) {
+                if (idx === 1 && page > 2) return <span key={idx} style={{ padding: '0 4px', color: '#94A3B8' }}>...</span>
+                if (idx === totalPages - 2 && page < totalPages - 3) return <span key={idx} style={{ padding: '0 4px', color: '#94A3B8' }}>...</span>
+                return null
+              }
 
               return (
                 <button
-                  key={pageNum}
-                  className={`page-num-btn ${pageNum === page ? 'active' : ''}`}
-                  onClick={() => handlePageChange(pageNum)}
+                  key={idx}
+                  className={`page-num-btn ${idx === page ? 'active' : ''}`}
+                  onClick={() => handlePageChange(idx)}
                   disabled={loading}
                 >
-                  {pageNum + 1}
+                  {idx + 1}
                 </button>
               )
             })}

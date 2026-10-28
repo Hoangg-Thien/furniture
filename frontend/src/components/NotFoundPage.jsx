@@ -1,6 +1,15 @@
-import { Armchair } from 'lucide-react'
+import { Armchair, Home } from 'lucide-react'
 
-export default function NotFoundPage() {
+export default function NotFoundPage({ onBackToStore }) {
+  const handleGoHome = () => {
+    if (onBackToStore) {
+      onBackToStore()
+    } else {
+      window.history.pushState(null, '', '/')
+      window.dispatchEvent(new PopStateEvent('popstate'))
+    }
+  }
+
   return (
     <div style={{
       minHeight: '100vh',
@@ -72,6 +81,31 @@ export default function NotFoundPage() {
         }}>
           Có vẻ như đường dẫn bạn nhập không tồn tại hoặc món đồ nội thất bạn đang tìm đã được di dời sang danh mục khác.
         </p>
+
+        <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginTop: '16px' }}>
+          <button
+            type="button"
+            onClick={handleGoHome}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '12px 24px',
+              background: '#193C35',
+              color: '#FFFFFF',
+              border: 'none',
+              borderRadius: '999px',
+              fontWeight: 600,
+              fontSize: '0.95rem',
+              cursor: 'pointer',
+              boxShadow: '0 4px 14px rgba(25, 60, 53, 0.25)',
+              transition: 'all 0.2s ease',
+            }}
+          >
+            <Home size={18} />
+            <span>Quay về trang chủ</span>
+          </button>
+        </div>
 
         {/* Footer info */}
         <div style={{

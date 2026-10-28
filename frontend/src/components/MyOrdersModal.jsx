@@ -249,9 +249,12 @@ export default function MyOrdersModal({
   }
 
   useEffect(() => {
-    if (isOpen) {
+    if (!isOpen) return
+    loadOrders()
+    const interval = setInterval(() => {
       loadOrders()
-    }
+    }, 4000)
+    return () => clearInterval(interval)
   }, [isOpen, currentUser, catalogProducts])
 
   // Lọc đơn hàng theo tab và từ khóa

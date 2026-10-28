@@ -54,15 +54,16 @@ public class AdminOrderService {
             throw new IllegalStateException("Chỉ đơn hàng ở trạng thái PENDING (Chờ xác nhận) mới có thể duyệt đơn!");
         }
 
-        if (req.staffId() == null) {
-            throw new IllegalArgumentException("Vui lòng chọn nhân viên phụ trách điều phối & lắp đặt");
+        Long targetStaffId = req != null ? req.staffId() : null;
+        if (targetStaffId == null || !adminOrderRepository.existsStaffById(targetStaffId)) {
+            targetStaffId = adminOrderRepository.findFirstStaffId();
         }
 
-        if (!adminOrderRepository.existsStaffById(req.staffId())) {
-            throw new IllegalArgumentException("Nhân viên phụ trách với ID " + req.staffId() + " không tồn tại trong hệ thống");
+        if (targetStaffId == null || !adminOrderRepository.existsStaffById(targetStaffId)) {
+            throw new IllegalArgumentException("Không tìm thấy nhân viên phụ trách hợp lệ trong hệ thống. Vui lòng tạo nhân viên trong Quản lý Nhân Viên.");
         }
 
-        adminOrderRepository.updateStatusAndStaff(orderId, "CONFIRMED", req.staffId());
+        adminOrderRepository.updateStatusAndStaff(orderId, "CONFIRMED", targetStaffId);
     }
 
     @Transactional

@@ -49,7 +49,7 @@ export default function AdminOrderManagement({ currentUser }) {
   const [fromDate, setFromDate] = useState('')
   const [toDate, setToDate] = useState('')
   const [page, setPage] = useState(0)
-  const [pageSize] = useState(10)
+  const [pageSize, setPageSize] = useState(5)
   const [totalPages, setTotalPages] = useState(1)
   const [totalElements, setTotalElements] = useState(0)
 
@@ -125,12 +125,14 @@ export default function AdminOrderManagement({ currentUser }) {
   const fetchStaff = async () => {
     try {
       const baseUrl = getApiBaseUrl()
-      const res = await fetch(`${baseUrl}/api/admin/staff?pageSize=100`, { headers: getApiHeaders() })
+      const res = await fetch(`${baseUrl}/api/admin/staff?size=100`, { headers: getApiHeaders() })
       if (res.ok) {
         const data = await res.json()
-        setStaffList(data?.content || [])
-        if (data?.content?.length > 0) {
-          setSelectedStaffId(data.content[0].id)
+        const list = data?.content || []
+        setStaffList(list)
+        if (list.length > 0) {
+          const myStaff = list.find(s => s.userId === currentUser?.id || s.username === currentUser?.username)
+          setSelectedStaffId(myStaff ? myStaff.id : list[0].id)
         }
       }
     } catch (err) {
@@ -139,14 +141,14 @@ export default function AdminOrderManagement({ currentUser }) {
   }
 
   // Fetch orders with pagination & filters
-  const fetchOrders = async (targetPage = page) => {
+  const fetchOrders = async (targetPage = page, targetSize = pageSize) => {
     setLoading(true)
     setError(null)
     try {
       const baseUrl = getApiBaseUrl()
       const params = new URLSearchParams()
       params.append('page', targetPage)
-      params.append('size', pageSize)
+      params.append('size', targetSize)
 
       if (selectedStatus && selectedStatus !== 'ALL') {
         params.append('status', selectedStatus)
@@ -184,8 +186,19 @@ export default function AdminOrderManagement({ currentUser }) {
   }, [])
 
   useEffect(() => {
-    fetchOrders(0)
+    fetchOrders(0, pageSize)
   }, [selectedStatus])
+
+  // Tự động cập nhật liên tục (polling 5s) để hiển thị ngay các đơn hàng mới từ người dùng
+  useEffect(() => {
+    const timer = setInterval(() => {
+      if (!showConfirmModal && !showCancelModal) {
+        fetchStatusCounts()
+        fetchOrders(page, pageSize)
+      }
+    }, 5000)
+    return () => clearInterval(timer)
+  }, [page, pageSize, selectedStatus, searchKeyword, fromDate, toDate, showConfirmModal, showCancelModal])
 
   // Open Detail Modal
   const handleOpenDetail = async (orderId) => {
@@ -210,7 +223,8 @@ export default function AdminOrderManagement({ currentUser }) {
     setOrderToConfirm(order)
     setConfirmNotes('')
     if (staffList.length > 0) {
-      setSelectedStaffId(staffList[0].id)
+      const myStaff = staffList.find(s => s.userId === currentUser?.id || s.username === currentUser?.username)
+      setSelectedStaffId(myStaff ? myStaff.id : staffList[0].id)
     }
     setShowConfirmModal(true)
   }
@@ -233,12 +247,12 @@ export default function AdminOrderManagement({ currentUser }) {
           notes: confirmNotes
         })
       })
-      const data = await res.json()
+      const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.error || 'Duyệt đơn hàng thất bại.')
       showToast(data.message || 'Đã duyệt đơn hàng thành công!')
       setShowConfirmModal(false)
       fetchStatusCounts()
-      fetchOrders(page)
+      fetchOrders(page, pageSize)
       if (showDetailModal && activeOrderDetail?.id === orderToConfirm.id) {
         handleOpenDetail(orderToConfirm.id)
       }
@@ -271,12 +285,12 @@ export default function AdminOrderManagement({ currentUser }) {
         headers: getApiHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ reason: cancelReason })
       })
-      const data = await res.json()
+      const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.error || 'Hủy đơn hàng thất bại.')
       showToast(data.message || 'Đã hủy đơn hàng và hoàn trả tồn kho thành công!')
       setShowCancelModal(false)
       fetchStatusCounts()
-      fetchOrders(page)
+      fetchOrders(page, pageSize)
       if (showDetailModal && activeOrderDetail?.id === orderToCancel.id) {
         handleOpenDetail(orderToCancel.id)
       }
@@ -299,11 +313,11 @@ export default function AdminOrderManagement({ currentUser }) {
         method: 'PUT',
         headers: getApiHeaders()
       })
-      const data = await res.json()
+      const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.error || 'Hoàn tất đơn hàng thất bại.')
       showToast(data.message || 'Đã hoàn tất đơn hàng thành công!')
       fetchStatusCounts()
-      fetchOrders(page)
+      fetchOrders(page, pageSize)
       if (showDetailModal && activeOrderDetail?.id === orderId) {
         handleOpenDetail(orderId)
       }
@@ -319,42 +333,87 @@ export default function AdminOrderManagement({ currentUser }) {
     window.print()
   }
 
+  // Helper: Status badge
+  const renderStatusBadge = (status) => {
+    switch (status) {
+      case 'PENDING':
+        return (
+          <span className="admin-badge admin-badge-warning" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+            <Clock size={12} />
+            <span>Chờ tiếp nhận</span>
+          </span>
+        )
+      case 'CONFIRMED':
+        return (
+          <span className="admin-badge admin-badge-info" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+            <UserCheck size={12} />
+            <span>Đã duyệt &amp; Gán NV</span>
+          </span>
+        )
+      case 'COMPLETED':
+        return (
+          <span className="admin-badge admin-badge-success" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+            <CheckCircle2 size={12} />
+            <span>Giao thành công</span>
+          </span>
+        )
+      case 'CANCELLED':
+        return (
+          <span className="admin-badge admin-badge-danger" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+            <Ban size={12} />
+            <span>Đã hủy đơn</span>
+          </span>
+        )
+      default:
+        return <span className="admin-badge">{status}</span>
+    }
+  }
+
   return (
-    <div className="admin-order-management">
+    <div className="admin-module-view">
       {/* Toast Feedback */}
       {toast && (
-        <div className={`admin-toast admin-toast-${toast.type}`}>
+        <div className={`admin-toast-banner ${toast.type}`}>
           {toast.type === 'success' ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
           <span>{toast.message}</span>
+          <button className="toast-close" onClick={() => setToast(null)}>
+            <X size={15} />
+          </button>
         </div>
       )}
 
       {/* Page Header */}
       <div className="admin-page-header">
-        <div className="admin-page-title-group">
-          <div className="admin-page-icon-wrapper" style={{ background: 'linear-gradient(135deg, #0284c7, #0369a1)' }}>
-            <ShoppingCart size={24} className="text-white" />
+        <div>
+          <div className="admin-breadcrumb">
+            Trang chủ &gt; Quản lý đơn hàng &gt; <span>Module 08</span>
           </div>
-          <div>
-            <div className="admin-breadcrumb">Trang chủ &gt; Quản lý đơn hàng (Module 08)</div>
-            <h1 className="admin-page-title">Quy Trình Xử Lý &amp; Điều Phối Đơn Hàng</h1>
-            <p className="admin-page-subtitle">
-              Theo dõi vòng đời đơn đặt hàng nội thất: Chờ xác nhận, Gán nhân viên điều phối, Nghiệm thu bàn giao và Hoàn trả kho khi hủy đơn.
-            </p>
-          </div>
+          <h1 className="admin-page-title">Quy Trình Xử Lý &amp; Điều Phối Đơn Hàng</h1>
+          <p className="admin-page-subtitle" style={{ margin: '4px 0 0', color: 'var(--admin-text-muted)', fontSize: '0.88rem' }}>
+            Theo dõi vòng đời đơn đặt hàng nội thất: Chờ tiếp nhận, Gán nhân viên điều phối, Nghiệm thu giao lắp và Quản lý hoàn trả kho.
+          </p>
         </div>
         <div className="admin-header-actions">
-          <button className="btn-admin btn-admin-secondary" onClick={() => fetchOrders(page)} disabled={loading}>
-            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+          <button
+            className="admin-btn admin-btn-outline"
+            onClick={() => {
+              fetchStatusCounts()
+              fetchOrders(page)
+            }}
+            disabled={loading}
+            title="Làm mới danh sách và số liệu"
+          >
+            <RefreshCw size={16} className={loading ? 'spin' : ''} />
             <span>Làm Mới</span>
           </button>
         </div>
       </div>
 
       {/* Status Tab Bar */}
-      <div className="admin-card" style={{ padding: '0.5rem', marginBottom: '1.25rem', overflowX: 'auto' }}>
-        <div style={{ display: 'flex', gap: '0.5rem', minWidth: '600px' }}>
+      <div className="admin-card order-status-tabs-card" style={{ padding: '8px 12px', marginBottom: '20px' }}>
+        <div className="order-status-tabs-wrapper">
           <button
+            type="button"
             className={`admin-status-tab ${selectedStatus === 'ALL' ? 'active' : ''}`}
             onClick={() => setSelectedStatus('ALL')}
           >
@@ -363,98 +422,108 @@ export default function AdminOrderManagement({ currentUser }) {
           </button>
 
           <button
-            className={`admin-status-tab ${selectedStatus === 'PENDING' ? 'active' : ''}`}
+            type="button"
+            className={`admin-status-tab tab-pending ${selectedStatus === 'PENDING' ? 'active' : ''}`}
             onClick={() => setSelectedStatus('PENDING')}
-            style={selectedStatus === 'PENDING' ? { borderColor: '#f59e0b', color: '#b45309' } : {}}
           >
-            <span>Chờ Xác Nhận</span>
-            <span className="tab-count" style={{ background: '#fef3c7', color: '#b45309' }}>
-              {statusCounts.pending}
-            </span>
+            <Clock size={14} />
+            <span>Chờ Tiếp Nhận</span>
+            <span className="tab-count">{statusCounts.pending}</span>
           </button>
 
           <button
-            className={`admin-status-tab ${selectedStatus === 'CONFIRMED' ? 'active' : ''}`}
+            type="button"
+            className={`admin-status-tab tab-confirmed ${selectedStatus === 'CONFIRMED' ? 'active' : ''}`}
             onClick={() => setSelectedStatus('CONFIRMED')}
           >
-            <span>Đã Duyệt &amp; Điều Phối</span>
-            <span className="tab-count" style={{ background: '#e0f2fe', color: '#0284c7' }}>
-              {statusCounts.confirmed}
-            </span>
+            <UserCheck size={14} />
+            <span>Đã Duyệt &amp; Gán NV</span>
+            <span className="tab-count">{statusCounts.confirmed}</span>
           </button>
 
           <button
-            className={`admin-status-tab ${selectedStatus === 'COMPLETED' ? 'active' : ''}`}
+            type="button"
+            className={`admin-status-tab tab-completed ${selectedStatus === 'COMPLETED' ? 'active' : ''}`}
             onClick={() => setSelectedStatus('COMPLETED')}
           >
-            <span>Hoàn Tất Giao Lắp</span>
-            <span className="tab-count" style={{ background: '#ecfdf5', color: '#059669' }}>
-              {statusCounts.completed}
-            </span>
+            <CheckCircle2 size={14} />
+            <span>Giao Thành Công</span>
+            <span className="tab-count">{statusCounts.completed}</span>
           </button>
 
           <button
-            className={`admin-status-tab ${selectedStatus === 'CANCELLED' ? 'active' : ''}`}
+            type="button"
+            className={`admin-status-tab tab-cancelled ${selectedStatus === 'CANCELLED' ? 'active' : ''}`}
             onClick={() => setSelectedStatus('CANCELLED')}
           >
+            <Ban size={14} />
             <span>Đã Hủy Đơn</span>
-            <span className="tab-count" style={{ background: '#fee2e2', color: '#dc2626' }}>
-              {statusCounts.cancelled}
-            </span>
+            <span className="tab-count">{statusCounts.cancelled}</span>
           </button>
         </div>
       </div>
 
-      {/* Filter Toolbar */}
-      <div className="admin-card" style={{ marginBottom: '1.5rem', padding: '1rem 1.25rem' }}>
-        <div style={{ display: 'flex', gap: '0.85rem', alignItems: 'center', flexWrap: 'wrap' }}>
-          <div style={{ flex: '1', minWidth: '280px', position: 'relative' }}>
-            <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+      {/* Toolbar Tìm kiếm & Bộ Lọc */}
+      <div className="admin-card admin-filter-toolbar">
+        <div className="filter-grid" style={{ alignItems: 'flex-end' }}>
+          {/* Keyword Search */}
+          <div className="filter-search-box" style={{ flex: 1.5, minWidth: '280px' }}>
+            <Search size={16} color="var(--admin-text-muted)" />
             <input
               type="text"
-              placeholder="Tìm mã đơn (#101), Tên khách hàng, SĐT, Địa chỉ, Mã Voucher..."
-              className="admin-form-input"
-              style={{ paddingLeft: '38px', width: '100%' }}
+              placeholder="Tìm theo Mã đơn (#101), Tên khách hàng, SĐT, Địa chỉ, Mã Voucher..."
               value={searchKeyword}
               onChange={(e) => setSearchKeyword(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') fetchOrders(0)
               }}
             />
+            {searchKeyword && (
+              <button className="clear-btn" onClick={() => setSearchKeyword('')} type="button">
+                <X size={14} />
+              </button>
+            )}
           </div>
 
-          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.82rem', color: '#64748b' }}>
-              <span>Từ:</span>
-              <input
-                type="date"
-                className="admin-form-input"
-                style={{ width: '135px', padding: '0.4rem 0.5rem' }}
-                value={fromDate}
-                onChange={(e) => setFromDate(e.target.value)}
-              />
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.82rem', color: '#64748b' }}>
-              <span>Đến:</span>
-              <input
-                type="date"
-                className="admin-form-input"
-                style={{ width: '135px', padding: '0.4rem 0.5rem' }}
-                value={toDate}
-                onChange={(e) => setToDate(e.target.value)}
-              />
-            </div>
+          {/* Date from */}
+          <div className="filter-select-group">
+            <label>Từ ngày:</label>
+            <input
+              type="date"
+              className="filter-date-input"
+              value={fromDate}
+              onChange={(e) => setFromDate(e.target.value)}
+            />
           </div>
 
-          <button className="btn-admin btn-admin-primary" onClick={() => fetchOrders(0)} disabled={loading}>
-            <Search size={16} />
+          {/* Date to */}
+          <div className="filter-select-group">
+            <label>Đến ngày:</label>
+            <input
+              type="date"
+              className="filter-date-input"
+              value={toDate}
+              onChange={(e) => setToDate(e.target.value)}
+            />
+          </div>
+
+          {/* Buttons */}
+          <button
+            type="button"
+            className="admin-btn admin-btn-primary"
+            style={{ padding: '8px 16px', fontSize: '0.86rem' }}
+            onClick={() => fetchOrders(0)}
+            disabled={loading}
+          >
+            <Search size={15} />
             <span>Lọc Đơn</span>
           </button>
 
           {(searchKeyword || fromDate || toDate) && (
             <button
-              className="btn-admin btn-admin-secondary"
+              type="button"
+              className="admin-btn admin-btn-outline"
+              style={{ padding: '8px 12px', fontSize: '0.8rem' }}
               onClick={() => {
                 setSearchKeyword('')
                 setFromDate('')
@@ -462,7 +531,8 @@ export default function AdminOrderManagement({ currentUser }) {
                 fetchOrders(0)
               }}
             >
-              <X size={15} /> Xóa Lọc
+              <X size={14} />
+              <span>Xóa Lọc</span>
             </button>
           )}
         </div>
@@ -470,86 +540,95 @@ export default function AdminOrderManagement({ currentUser }) {
 
       {/* Main Orders Table */}
       <div className="admin-card" style={{ padding: 0, overflow: 'hidden' }}>
-        <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--admin-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
           <div>
-            <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 600, color: '#1e293b' }}>
+            <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: 'var(--admin-text-main)' }}>
               Danh Sách Đơn Đặt Hàng Nội Thất
             </h3>
-            <span style={{ fontSize: '0.85rem', color: '#64748b' }}>
+            <span style={{ fontSize: '0.82rem', color: 'var(--admin-text-muted)' }}>
               Hiển thị {orders.length} trên tổng số {totalElements} đơn đặt hàng
             </span>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.82rem', color: 'var(--admin-text-muted)' }}>
+            <span>Hiển thị:</span>
+            <select
+              className="admin-page-size-select"
+              value={pageSize}
+              onChange={(e) => {
+                const newSize = Number(e.target.value)
+                setPageSize(newSize)
+                fetchOrders(0, newSize)
+              }}
+            >
+              <option value={5}>5 đơn / trang</option>
+              <option value={10}>10 đơn / trang</option>
+              <option value={20}>20 đơn / trang</option>
+            </select>
           </div>
         </div>
 
         {error && (
-          <div style={{ margin: '1rem', padding: '1rem', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', color: '#b91c1c', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <AlertCircle size={20} />
+          <div style={{ margin: '16px', padding: '12px 16px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: '8px', color: '#B91C1C', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <AlertCircle size={18} />
             <span>{error}</span>
           </div>
         )}
 
-        <div className="table-responsive">
+        <div className="admin-table-container" style={{ border: 'none' }}>
           <table className="admin-table">
             <thead>
               <tr>
-                <th style={{ width: '80px', textAlign: 'center' }}>Mã Đơn</th>
+                <th style={{ width: '85px', textAlign: 'center', whiteSpace: 'nowrap' }}>Mã Đơn</th>
                 <th>Khách Hàng</th>
-                <th>Ngày Đặt</th>
-                <th>Nhân Viên Phụ Trách</th>
+                <th style={{ whiteSpace: 'nowrap' }}>Ngày Đặt</th>
+                <th style={{ whiteSpace: 'nowrap' }}>Nhân Viên Phụ Trách</th>
                 <th>Sản Phẩm &amp; Voucher</th>
-                <th style={{ textAlign: 'right' }}>Tổng Thanh Toán</th>
-                <th style={{ textAlign: 'center' }}>Trạng Thái</th>
-                <th style={{ width: '180px', textAlign: 'center' }}>Thao Tác</th>
+                <th style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>Tổng Thanh Toán</th>
+                <th style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>Trạng Thái</th>
+                <th style={{ width: '180px', textAlign: 'center', whiteSpace: 'nowrap' }}>Thao Tác</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="8" style={{ textAlign: 'center', padding: '3rem' }}>
-                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.75rem', color: '#64748b' }}>
-                      <RefreshCw size={20} className="animate-spin text-blue-600" />
+                  <td colSpan="8" style={{ textAlign: 'center', padding: '48px 16px', color: 'var(--admin-text-muted)' }}>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '10px' }}>
+                      <RefreshCw size={20} className="spin" color="var(--admin-accent)" />
                       <span>Đang nạp dữ liệu đơn hàng nội thất...</span>
                     </div>
                   </td>
                 </tr>
               ) : orders.length === 0 ? (
                 <tr>
-                  <td colSpan="8" style={{ textAlign: 'center', padding: '3rem', color: '#94a3b8' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
-                      <ShoppingCart size={40} style={{ opacity: 0.3 }} />
-                      <p style={{ margin: 0, fontWeight: 500 }}>Không tìm thấy đơn đặt hàng nào phù hợp với bộ lọc</p>
-                    </div>
+                  <td colSpan="8" style={{ textAlign: 'center', padding: '48px 16px', color: 'var(--admin-text-muted)' }}>
+                    <ShoppingCart size={36} style={{ opacity: 0.35, marginBottom: '8px' }} />
+                    <p style={{ margin: 0, fontWeight: 500 }}>Không tìm thấy đơn đặt hàng nào phù hợp với bộ lọc hiện tại.</p>
                   </td>
                 </tr>
               ) : (
                 orders.map((o) => {
-                  let badgeStyle = { background: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1' }
-                  let badgeText = o.status
-                  if (o.status === 'PENDING') {
-                    badgeStyle = { background: '#fffbeb', color: '#b45309', border: '1px solid #fde68a' }
-                    badgeText = 'Chờ tiếp nhận'
-                  } else if (o.status === 'CONFIRMED') {
-                    badgeStyle = { background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe' }
-                    badgeText = 'Đã duyệt & Gán NV'
-                  } else if (o.status === 'COMPLETED') {
-                    badgeStyle = { background: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0' }
-                    badgeText = 'Giao thành công'
-                  } else if (o.status === 'CANCELLED') {
-                    badgeStyle = { background: '#fef2f2', color: '#b91c1c', border: '1px solid #fecaca' }
-                    badgeText = 'Đã hủy đơn'
-                  }
+                  const initials = (o.customerName || 'K')
+                    .split(' ')
+                    .map((n) => n[0])
+                    .join('')
+                    .slice(0, 2)
+                    .toUpperCase()
 
                   return (
-                    <tr key={o.id} className="hover:bg-slate-50 transition-colors">
-                      <td style={{ textAlign: 'center' }}>
+                    <tr key={o.id}>
+                      <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
                         <button
+                          type="button"
                           style={{
-                            background: 'transparent',
-                            border: 'none',
-                            color: '#0284c7',
+                            background: '#EFF6FF',
+                            border: '1px solid #BFDBFE',
+                            color: '#0284C7',
                             fontWeight: 700,
+                            padding: '3px 8px',
+                            borderRadius: '6px',
                             cursor: 'pointer',
-                            fontSize: '0.95rem'
+                            fontSize: '0.85rem'
                           }}
                           onClick={() => handleOpenDetail(o.id)}
                           title="Xem chi tiết đơn hàng"
@@ -558,114 +637,112 @@ export default function AdminOrderManagement({ currentUser }) {
                         </button>
                       </td>
                       <td>
-                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                          <span style={{ fontWeight: 600, color: '#1e293b', fontSize: '0.9rem' }}>
-                            {o.customerName}
-                          </span>
-                          {o.phone ? (
-                            <a
-                              href={`tel:${o.phone}`}
-                              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.78rem', color: '#0284c7', textDecoration: 'none' }}
-                            >
-                              <Phone size={11} /> {o.phone}
-                            </a>
-                          ) : (
-                            <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Chưa cập nhật SĐT</span>
-                          )}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <div className="customer-avatar-badge">{initials}</div>
+                          <div>
+                            <div style={{ fontWeight: 600, color: 'var(--admin-text-main)', fontSize: '0.9rem' }}>
+                              {o.customerName}
+                            </div>
+                            {o.phone ? (
+                              <a
+                                href={`tel:${o.phone}`}
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.78rem', color: 'var(--admin-accent)', textDecoration: 'none' }}
+                              >
+                                <Phone size={11} />
+                                <span>{o.phone}</span>
+                              </a>
+                            ) : (
+                              <span style={{ fontSize: '0.75rem', color: 'var(--admin-text-muted)' }}>Chưa có SĐT</span>
+                            )}
+                          </div>
                         </div>
                       </td>
-                      <td>
-                        <div style={{ fontSize: '0.82rem', color: '#334155', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                          <Clock size={13} className="text-slate-400" />
+                      <td style={{ whiteSpace: 'nowrap' }}>
+                        <div style={{ fontSize: '0.82rem', color: 'var(--admin-text-main)', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                          <Clock size={13} color="var(--admin-text-muted)" />
                           <span>{formatDateTime(o.orderDate)}</span>
                         </div>
                       </td>
-                      <td>
+                      <td style={{ whiteSpace: 'nowrap' }}>
                         {o.staffName ? (
-                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.85rem', color: '#1e293b' }}>
-                            <UserCheck size={14} className="text-emerald-600" />
-                            <span style={{ fontWeight: 500 }}>{o.staffName}</span>
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '0.84rem', color: '#1E293B' }}>
+                            <UserCheck size={14} color="#059669" />
+                            <span style={{ fontWeight: 600 }}>{o.staffName}</span>
                           </div>
                         ) : (
-                          <span style={{ fontSize: '0.8rem', color: '#f59e0b', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
-                            <Clock size={12} /> Chưa gán NV
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '2px 8px', borderRadius: '4px', background: '#FEF3C7', color: '#B45309', fontSize: '0.76rem', fontWeight: 600 }}>
+                            <Clock size={11} /> Chưa gán NV
                           </span>
                         )}
                       </td>
                       <td>
-                        <div style={{ fontSize: '0.82rem', color: '#475569' }}>
+                        <div style={{ fontSize: '0.82rem', color: 'var(--admin-text-main)' }}>
                           <div>{o.totalItemsCount} món nội thất</div>
                           {o.voucherCode && (
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.1rem 0.4rem', background: '#ffedd5', color: '#c2410c', borderRadius: '4px', fontSize: '0.74rem', fontWeight: 600 }}>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', padding: '2px 6px', background: '#FFEDD5', color: '#C2410C', border: '1px solid #FED7AA', borderRadius: '4px', fontSize: '0.72rem', fontWeight: 600, marginTop: '2px' }}>
                               <Tag size={10} /> {o.voucherCode} (-{formatCurrency(o.discountAmount)})
                             </span>
                           )}
                         </div>
                       </td>
-                      <td style={{ textAlign: 'right' }}>
-                        <div style={{ fontWeight: 700, color: '#047857', fontSize: '0.95rem' }}>
+                      <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                        <div style={{ fontWeight: 700, color: 'var(--admin-primary)', fontSize: '0.96rem' }}>
                           {formatCurrency(o.totalAmount)}
                         </div>
                       </td>
-                      <td style={{ textAlign: 'center' }}>
-                        <span
-                          style={{
-                            padding: '0.25rem 0.6rem',
-                            borderRadius: '999px',
-                            fontSize: '0.78rem',
-                            fontWeight: 600,
-                            display: 'inline-block',
-                            ...badgeStyle
-                          }}
-                        >
-                          {badgeText}
-                        </span>
+                      <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+                        {renderStatusBadge(o.status)}
                       </td>
-                      <td style={{ textAlign: 'center' }}>
-                        <div style={{ display: 'flex', gap: '0.35rem', justifyContent: 'center' }}>
+                      <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+                        <div style={{ display: 'inline-flex', gap: '6px', alignItems: 'center' }}>
                           {/* Duyệt đơn hàng nếu PENDING */}
                           {o.status === 'PENDING' && (
                             <button
-                              className="btn-action"
-                              style={{ background: '#ecfdf5', color: '#059669', border: '1px solid #a7f3d0' }}
+                              type="button"
+                              className="table-action-btn unlock"
                               title="Duyệt đơn & Gán nhân viên phụ trách"
                               onClick={() => handleOpenConfirmModal(o)}
                             >
-                              <CheckCircle2 size={15} />
+                              <CheckCircle2 size={13} />
+                              <span>Duyệt</span>
                             </button>
                           )}
 
                           {/* Hoàn tất nếu CONFIRMED */}
                           {o.status === 'CONFIRMED' && (
                             <button
-                              className="btn-action"
-                              style={{ background: '#eff6ff', color: '#0284c7', border: '1px solid #bfdbfe' }}
+                              type="button"
+                              className="table-action-btn edit"
                               title="Xác nhận hoàn tất giao lắp nội thất"
                               onClick={() => handleCompleteOrder(o.id)}
                             >
-                              <Truck size={15} />
+                              <Truck size={13} />
+                              <span>Giao lắp</span>
                             </button>
                           )}
 
                           {/* Hủy đơn nếu chưa ở trạng thái cuối */}
                           {o.status !== 'COMPLETED' && o.status !== 'CANCELLED' && (
                             <button
-                              className="btn-action btn-action-danger"
+                              type="button"
+                              className="table-action-btn lock"
                               title="Hủy đơn hàng (Hoàn kho & voucher)"
                               onClick={() => handleOpenCancelModal(o)}
                             >
-                              <Ban size={15} />
+                              <Ban size={13} />
+                              <span>Hủy</span>
                             </button>
                           )}
 
                           {/* Xem chi tiết */}
                           <button
-                            className="btn-action"
-                            style={{ background: '#f8fafc', color: '#475569', border: '1px solid #e2e8f0' }}
+                            type="button"
+                            className="table-action-btn"
                             title="Xem chi tiết đơn hàng"
                             onClick={() => handleOpenDetail(o.id)}
                           >
-                            <Eye size={15} />
+                            <Eye size={13} />
+                            <span>Xem</span>
                           </button>
                         </div>
                       </td>
@@ -677,143 +754,153 @@ export default function AdminOrderManagement({ currentUser }) {
           </table>
         </div>
 
-        {/* Pagination footer */}
-        {totalPages > 1 && (
-          <div style={{ padding: '0.85rem 1.25rem', borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.82rem', color: '#64748b' }}>
-              Trang {page + 1} / {totalPages}
-            </span>
-            <div style={{ display: 'flex', gap: '0.4rem' }}>
-              <button
-                className="btn-admin btn-admin-secondary btn-sm"
-                disabled={page <= 0}
-                onClick={() => fetchOrders(page - 1)}
-              >
-                <ChevronLeft size={14} /> Trước
-              </button>
-              <button
-                className="btn-admin btn-admin-secondary btn-sm"
-                disabled={page >= totalPages - 1}
-                onClick={() => fetchOrders(page + 1)}
-              >
-                Sau <ChevronRight size={14} />
-              </button>
-            </div>
+        {/* Phân Trang Chuẩn */}
+        <div className="admin-pagination-footer">
+          <div className="pagination-info">
+            Hiển thị <strong>{orders.length}</strong> trên tổng số <strong>{totalElements}</strong> đơn đặt hàng
+            (Trang {page + 1} / {Math.max(1, totalPages)})
           </div>
-        )}
+
+          <div className="pagination-controls">
+            <button
+              type="button"
+              className="page-btn"
+              disabled={page <= 0 || loading}
+              onClick={() => fetchOrders(page - 1, pageSize)}
+            >
+              &lt; Trước
+            </button>
+
+            {Array.from({ length: totalPages }, (_, idx) => {
+              if (
+                totalPages > 6 &&
+                idx !== 0 &&
+                idx !== totalPages - 1 &&
+                Math.abs(idx - page) > 1
+              ) {
+                if (idx === 1 && page > 2) return <span key={idx} style={{ padding: '0 4px', color: '#94A3B8' }}>...</span>
+                if (idx === totalPages - 2 && page < totalPages - 3) return <span key={idx} style={{ padding: '0 4px', color: '#94A3B8' }}>...</span>
+                return null
+              }
+
+              return (
+                <button
+                  type="button"
+                  key={idx}
+                  className={`page-num-btn ${idx === page ? 'active' : ''}`}
+                  onClick={() => fetchOrders(idx, pageSize)}
+                  disabled={loading}
+                >
+                  {idx + 1}
+                </button>
+              )
+            })}
+
+            <button
+              type="button"
+              className="page-btn"
+              disabled={page >= totalPages - 1 || loading}
+              onClick={() => fetchOrders(page + 1, pageSize)}
+            >
+              Sau &gt;
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* MODAL 1: Chi Tiết Đơn Hàng (Order Detail Drawer) */}
       {showDetailModal && (
-        <div className="admin-modal-overlay">
-          <div className="admin-modal-card" style={{ maxWidth: '820px' }}>
+        <div className="admin-modal-backdrop" onClick={() => setShowDetailModal(false)}>
+          <div className="admin-modal-card" style={{ maxWidth: '820px' }} onClick={(e) => e.stopPropagation()}>
             {loadingDetail ? (
-              <div style={{ padding: '3rem', textAlign: 'center', color: '#64748b' }}>
-                <RefreshCw size={24} className="animate-spin text-blue-600 mb-2" />
-                <p>Đang tải chi tiết đơn hàng...</p>
+              <div style={{ padding: '48px', textAlign: 'center', color: 'var(--admin-text-muted)' }}>
+                <RefreshCw size={24} className="spin" color="var(--admin-accent)" />
+                <p style={{ marginTop: '12px' }}>Đang tải chi tiết đơn hàng...</p>
               </div>
             ) : activeOrderDetail ? (
               <div>
                 <div className="admin-modal-header">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <div style={{ width: '38px', height: '38px', borderRadius: '8px', background: '#eff6ff', color: '#0284c7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div className="modal-icon-badge success" style={{ background: '#EFF6FF', color: '#0284C7' }}>
                       <ShoppingCart size={20} />
                     </div>
                     <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                        <h3 className="admin-modal-title" style={{ fontSize: '1.15rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <h3 className="modal-title" style={{ margin: 0, fontSize: '1.15rem' }}>
                           Đơn Đặt Hàng #{activeOrderDetail.id}
                         </h3>
-                        <span
-                          style={{
-                            padding: '0.15rem 0.55rem',
-                            borderRadius: '999px',
-                            fontSize: '0.75rem',
-                            fontWeight: 600,
-                            background:
-                              activeOrderDetail.status === 'COMPLETED'
-                                ? '#ecfdf5'
-                                : activeOrderDetail.status === 'CONFIRMED'
-                                ? '#eff6ff'
-                                : activeOrderDetail.status === 'PENDING'
-                                ? '#fffbeb'
-                                : '#fef2f2',
-                            color:
-                              activeOrderDetail.status === 'COMPLETED'
-                                ? '#047857'
-                                : activeOrderDetail.status === 'CONFIRMED'
-                                ? '#1d4ed8'
-                                : activeOrderDetail.status === 'PENDING'
-                                ? '#b45309'
-                                : '#b91c1c'
-                          }}
-                        >
-                          {activeOrderDetail.status}
-                        </span>
+                        {renderStatusBadge(activeOrderDetail.status)}
                       </div>
-                      <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>
+                      <p className="modal-subtitle" style={{ margin: '4px 0 0' }}>
                         Ngày đặt: {formatDateTime(activeOrderDetail.orderDate)}
                       </p>
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <button
-                      className="btn-admin btn-admin-secondary btn-sm"
+                      type="button"
+                      className="admin-btn admin-btn-outline"
+                      style={{ padding: '6px 12px', fontSize: '0.82rem' }}
                       onClick={handlePrintSlip}
                       title="In phiếu giao hàng và lắp đặt A4"
                     >
-                      <Printer size={14} /> In Phiếu Giao
+                      <Printer size={14} />
+                      <span>In Phiếu Giao</span>
                     </button>
-                    <button className="admin-modal-close" onClick={() => setShowDetailModal(false)}>
-                      <X size={18} />
+                    <button type="button" className="modal-close-btn" onClick={() => setShowDetailModal(false)}>
+                      <X size={20} />
                     </button>
                   </div>
                 </div>
 
-                <div className="admin-modal-body" style={{ maxHeight: '65vh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                <div className="admin-modal-body" style={{ maxHeight: '65vh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
                   {/* Customer and Delivery Info */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', background: '#f8fafc', padding: '1rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px', background: '#F8FAFC', padding: '16px', borderRadius: '10px', border: '1px solid #E2E8F0' }}>
                     <div>
-                      <h4 style={{ margin: '0 0 0.5rem', fontSize: '0.88rem', color: '#334155', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                        <User size={15} /> Thông Tin Khách Hàng
+                      <h4 style={{ margin: '0 0 8px', fontSize: '0.88rem', color: '#334155', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <User size={15} color="var(--admin-accent)" />
+                        <span>Thông Tin Khách Hàng</span>
                       </h4>
-                      <div style={{ fontSize: '0.85rem', color: '#1e293b', fontWeight: 600 }}>{activeOrderDetail.customerName}</div>
-                      <div style={{ fontSize: '0.82rem', color: '#0284c7', display: 'flex', alignItems: 'center', gap: '0.3rem', marginTop: '2px' }}>
-                        <Phone size={12} /> {activeOrderDetail.phone || 'Chưa có SĐT'}
+                      <div style={{ fontSize: '0.92rem', color: '#1E293B', fontWeight: 700 }}>{activeOrderDetail.customerName}</div>
+                      <div style={{ fontSize: '0.84rem', color: '#0284C7', display: 'flex', alignItems: 'center', gap: '5px', marginTop: '4px' }}>
+                        <Phone size={12} />
+                        <span>{activeOrderDetail.phone || 'Chưa có SĐT'}</span>
                       </div>
-                      <div style={{ fontSize: '0.82rem', color: '#475569', display: 'flex', alignItems: 'flex-start', gap: '0.3rem', marginTop: '4px' }}>
-                        <MapPin size={13} style={{ flexShrink: 0, marginTop: '2px', color: '#dc2626' }} />
-                        <span>{activeOrderDetail.address || 'Chưa cập nhật địa chỉ'}</span>
+                      <div style={{ fontSize: '0.82rem', color: '#475569', display: 'flex', alignItems: 'flex-start', gap: '5px', marginTop: '6px' }}>
+                        <MapPin size={13} style={{ flexShrink: 0, marginTop: '2px', color: '#EF4444' }} />
+                        <span>{activeOrderDetail.address || 'Chưa cập nhật địa chỉ giao hàng'}</span>
                       </div>
                     </div>
 
                     <div>
-                      <h4 style={{ margin: '0 0 0.5rem', fontSize: '0.88rem', color: '#334155', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                        <UserCheck size={15} /> Nhân Viên Phụ Trách Điều Phối
+                      <h4 style={{ margin: '0 0 8px', fontSize: '0.88rem', color: '#334155', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <UserCheck size={15} color="#059669" />
+                        <span>Nhân Viên Phụ Trách Điều Phối</span>
                       </h4>
                       {activeOrderDetail.staffName ? (
                         <div>
-                          <div style={{ fontSize: '0.85rem', color: '#1e293b', fontWeight: 600 }}>
+                          <div style={{ fontSize: '0.92rem', color: '#1E293B', fontWeight: 700 }}>
                             {activeOrderDetail.staffName}
                           </div>
-                          <div style={{ fontSize: '0.78rem', color: '#059669', marginTop: '2px' }}>
-                            ● Đang chịu trách nhiệm điều phối &amp; giám sát thi công
+                          <div style={{ fontSize: '0.78rem', color: '#059669', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <CheckCircle2 size={12} />
+                            <span>Đang chịu trách nhiệm điều phối &amp; giám sát thi công</span>
                           </div>
                         </div>
                       ) : (
                         <div>
-                          <div style={{ fontSize: '0.85rem', color: '#b45309', fontWeight: 500 }}>
+                          <div style={{ fontSize: '0.85rem', color: '#B45309', fontWeight: 600 }}>
                             Chưa có nhân viên phụ trách
                           </div>
                           <button
-                            className="btn-admin btn-admin-primary btn-sm"
-                            style={{ marginTop: '6px' }}
-                            onClick={() => {
-                              handleOpenConfirmModal(activeOrderDetail)
-                            }}
+                            type="button"
+                            className="admin-btn admin-btn-accent"
+                            style={{ marginTop: '8px', padding: '6px 12px', fontSize: '0.82rem' }}
+                            onClick={() => handleOpenConfirmModal(activeOrderDetail)}
                           >
-                            <UserCheck size={13} /> Gán Nhân Viên Ngay
+                            <UserCheck size={13} />
+                            <span>Gán Nhân Viên Ngay</span>
                           </button>
                         </div>
                       )}
@@ -822,7 +909,7 @@ export default function AdminOrderManagement({ currentUser }) {
 
                   {/* Order Items Table */}
                   <div>
-                    <h4 style={{ margin: '0 0 0.5rem', fontSize: '0.9rem', color: '#1e293b' }}>
+                    <h4 style={{ margin: '0 0 10px', fontSize: '0.9rem', color: '#1E293B', fontWeight: 700 }}>
                       Danh Mục Đồ Nội Thất Trong Đơn
                     </h4>
                     <table className="admin-table">
@@ -839,21 +926,21 @@ export default function AdminOrderManagement({ currentUser }) {
                         {activeOrderDetail.items?.map((item, idx) => (
                           <tr key={idx}>
                             <td>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                 <img
                                   src={item.imageUrl || 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=120&q=80'}
                                   alt=""
-                                  style={{ width: '38px', height: '38px', borderRadius: '6px', objectFit: 'cover' }}
+                                  style={{ width: '40px', height: '40px', borderRadius: '6px', objectFit: 'cover', border: '1px solid #E2E8F0' }}
                                 />
-                                <span style={{ fontWeight: 600, color: '#1e293b', fontSize: '0.88rem' }}>
+                                <span style={{ fontWeight: 600, color: '#1E293B', fontSize: '0.88rem' }}>
                                   {item.productName}
                                 </span>
                               </div>
                             </td>
-                            <td style={{ textAlign: 'center', color: '#64748b' }}>{item.unit || 'cái'}</td>
-                            <td style={{ textAlign: 'center', fontWeight: 600, color: '#0f172a' }}>{item.quantity}</td>
+                            <td style={{ textAlign: 'center', color: '#64748B' }}>{item.unit || 'cái'}</td>
+                            <td style={{ textAlign: 'center', fontWeight: 700, color: '#0F172A' }}>{item.quantity}</td>
                             <td style={{ textAlign: 'right', color: '#475569' }}>{formatCurrency(item.unitPrice)}</td>
-                            <td style={{ textAlign: 'right', fontWeight: 600, color: '#047857' }}>
+                            <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--admin-primary)' }}>
                               {formatCurrency(item.amount)}
                             </td>
                           </tr>
@@ -863,20 +950,20 @@ export default function AdminOrderManagement({ currentUser }) {
                   </div>
 
                   {/* Financial Summary */}
-                  <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '8px', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '0.4rem', marginLeft: 'auto', width: '320px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#475569' }}>
+                  <div style={{ background: '#F8FAFC', padding: '16px', borderRadius: '10px', border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', gap: '8px', marginLeft: 'auto', width: '340px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.86rem', color: '#475569' }}>
                       <span>Tổng tiền hàng:</span>
                       <span style={{ fontWeight: 600 }}>{formatCurrency(activeOrderDetail.subtotal)}</span>
                     </div>
 
                     {activeOrderDetail.voucherCode && (
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#c2410c' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.86rem', color: '#C2410C' }}>
                         <span>Voucher ({activeOrderDetail.voucherCode}):</span>
                         <span style={{ fontWeight: 600 }}>-{formatCurrency(activeOrderDetail.discountAmount)}</span>
                       </div>
                     )}
 
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.05rem', fontWeight: 700, color: '#15803d', borderTop: '1px solid #cbd5e1', paddingTop: '0.5rem', marginTop: '0.2rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.05rem', fontWeight: 800, color: 'var(--admin-primary)', borderTop: '1px solid #CBD5E1', paddingTop: '10px', marginTop: '4px' }}>
                       <span>Khách cần trả:</span>
                       <span>{formatCurrency(activeOrderDetail.finalTotal)}</span>
                     </div>
@@ -886,33 +973,40 @@ export default function AdminOrderManagement({ currentUser }) {
                 <div className="admin-modal-footer">
                   {activeOrderDetail.status === 'PENDING' && (
                     <button
-                      className="btn-admin btn-admin-primary"
+                      type="button"
+                      className="admin-btn admin-btn-accent"
                       onClick={() => handleOpenConfirmModal(activeOrderDetail)}
                     >
-                      <CheckCircle2 size={16} /> Duyệt Đơn &amp; Gán Nhân Viên
+                      <CheckCircle2 size={16} />
+                      <span>Duyệt Đơn &amp; Gán Nhân Viên</span>
                     </button>
                   )}
 
                   {activeOrderDetail.status === 'CONFIRMED' && (
                     <button
-                      className="btn-admin btn-admin-primary"
+                      type="button"
+                      className="admin-btn admin-btn-primary"
                       onClick={() => handleCompleteOrder(activeOrderDetail.id)}
                       disabled={submittingComplete}
                     >
-                      <Truck size={16} /> Nghiệm Thu &amp; Hoàn Tất
+                      <Truck size={16} />
+                      <span>Nghiệm Thu &amp; Hoàn Tất</span>
                     </button>
                   )}
 
                   {activeOrderDetail.status !== 'COMPLETED' && activeOrderDetail.status !== 'CANCELLED' && (
                     <button
-                      className="btn-admin btn-admin-danger"
+                      type="button"
+                      className="admin-btn admin-btn-outline"
+                      style={{ color: '#EF4444', borderColor: '#FCA5A5' }}
                       onClick={() => handleOpenCancelModal(activeOrderDetail)}
                     >
-                      <Ban size={16} /> Hủy Đơn Hàng
+                      <Ban size={16} />
+                      <span>Hủy Đơn Hàng</span>
                     </button>
                   )}
 
-                  <button className="btn-admin btn-admin-secondary" onClick={() => setShowDetailModal(false)}>
+                  <button type="button" className="admin-btn admin-btn-outline" onClick={() => setShowDetailModal(false)}>
                     Đóng
                   </button>
                 </div>
@@ -924,31 +1018,54 @@ export default function AdminOrderManagement({ currentUser }) {
 
       {/* MODAL 2: Duyệt Đơn & Gán Nhân Viên */}
       {showConfirmModal && orderToConfirm && (
-        <div className="admin-modal-overlay">
-          <div className="admin-modal-card" style={{ maxWidth: '480px' }}>
+        <div className="admin-modal-backdrop" onClick={() => setShowConfirmModal(false)}>
+          <div className="admin-modal-card" style={{ maxWidth: '500px' }} onClick={(e) => e.stopPropagation()}>
             <div className="admin-modal-header">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                <div style={{ width: '32px', height: '32px', borderRadius: '6px', background: '#ecfdf5', color: '#059669', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <UserCheck size={18} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div className="modal-icon-badge success">
+                  <UserCheck size={20} />
                 </div>
                 <div>
-                  <h3 className="admin-modal-title">Duyệt Đơn Hàng #{orderToConfirm.id}</h3>
-                  <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>Phân công nhân viên phụ trách điều phối &amp; giao lắp</p>
+                  <h3 className="modal-title">Duyệt Đơn Hàng #{orderToConfirm.id}</h3>
+                  <p className="modal-subtitle">Phân công nhân viên phụ trách điều phối &amp; giao lắp</p>
                 </div>
               </div>
-              <button className="admin-modal-close" onClick={() => setShowConfirmModal(false)}>
-                <X size={18} />
+              <button type="button" className="modal-close-btn" onClick={() => setShowConfirmModal(false)}>
+                <X size={20} />
               </button>
             </div>
 
             <form onSubmit={handleSubmitConfirm}>
-              <div className="admin-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                <div className="admin-form-group">
-                  <label className="admin-form-label">
-                    Chọn Nhân Viên Phụ Trách <span style={{ color: '#ef4444' }}>*</span>
-                  </label>
+              <div className="admin-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div className="form-group">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                    <label className="form-label" style={{ margin: 0 }}>
+                      Chọn Nhân Viên Phụ Trách <span style={{ color: '#EF4444' }}>*</span>
+                    </label>
+                    {currentUser && staffList.length > 0 && (
+                      <button
+                        type="button"
+                        style={{
+                          background: '#F0FDF4',
+                          border: '1px solid #BBF7D0',
+                          color: '#16A34A',
+                          fontSize: '0.78rem',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          padding: '3px 8px',
+                          borderRadius: '4px'
+                        }}
+                        onClick={() => {
+                          const myStaff = staffList.find(s => s.userId === currentUser?.id || s.username === currentUser?.username)
+                          if (myStaff) setSelectedStaffId(myStaff.id)
+                        }}
+                      >
+                        ⚡ Tự nhận đơn này
+                      </button>
+                    )}
+                  </div>
                   <select
-                    className="admin-form-input"
+                    className="form-input"
                     value={selectedStaffId}
                     onChange={(e) => setSelectedStaffId(e.target.value)}
                     required
@@ -956,17 +1073,17 @@ export default function AdminOrderManagement({ currentUser }) {
                     <option value="">-- Chọn nhân viên --</option>
                     {staffList.map((st) => (
                       <option key={st.id} value={st.id}>
-                        #{st.id} - {st.fullName} ({st.role || 'Nhân viên kinh doanh/kho'})
+                        #{st.id} - {st.fullName} {st.phone ? `(${st.phone})` : ''}
                       </option>
                     ))}
                   </select>
                 </div>
 
-                <div className="admin-form-group">
-                  <label className="admin-form-label">Ghi Chú Điều Phối / Giao Lắp</label>
+                <div className="form-group">
+                  <label className="form-label">Ghi Chú Điều Phối / Giao Lắp</label>
                   <textarea
-                    rows="3"
-                    className="admin-form-input"
+                    rows={3}
+                    className="form-input"
                     placeholder="VD: Giao vào buổi sáng, căn hộ chung cư tầng 12 có thang hàng..."
                     value={confirmNotes}
                     onChange={(e) => setConfirmNotes(e.target.value)}
@@ -977,7 +1094,7 @@ export default function AdminOrderManagement({ currentUser }) {
               <div className="admin-modal-footer">
                 <button
                   type="button"
-                  className="btn-admin btn-admin-secondary"
+                  className="admin-btn admin-btn-outline"
                   onClick={() => setShowConfirmModal(false)}
                   disabled={submittingConfirm}
                 >
@@ -985,12 +1102,12 @@ export default function AdminOrderManagement({ currentUser }) {
                 </button>
                 <button
                   type="submit"
-                  className="btn-admin btn-admin-primary"
+                  className="admin-btn admin-btn-accent"
                   disabled={submittingConfirm}
                 >
                   {submittingConfirm ? (
                     <>
-                      <RefreshCw size={16} className="animate-spin" />
+                      <RefreshCw size={16} className="spin" />
                       <span>Đang duyệt...</span>
                     </>
                   ) : (
@@ -1005,38 +1122,38 @@ export default function AdminOrderManagement({ currentUser }) {
 
       {/* MODAL 3: Hủy Đơn Hàng (Hoàn kho & voucher) */}
       {showCancelModal && orderToCancel && (
-        <div className="admin-modal-overlay">
-          <div className="admin-modal-card" style={{ maxWidth: '460px' }}>
-            <div className="admin-modal-header" style={{ borderBottomColor: '#fecaca' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                <div style={{ width: '32px', height: '32px', borderRadius: '6px', background: '#fee2e2', color: '#dc2626', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <AlertTriangle size={18} />
+        <div className="admin-modal-backdrop" onClick={() => setShowCancelModal(false)}>
+          <div className="admin-modal-card" style={{ maxWidth: '480px' }} onClick={(e) => e.stopPropagation()}>
+            <div className="admin-modal-header" style={{ borderBottomColor: '#FECACA' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div className="modal-icon-badge danger">
+                  <AlertTriangle size={20} />
                 </div>
                 <div>
-                  <h3 className="admin-modal-title" style={{ color: '#991b1b' }}>Hủy Đơn Hàng #{orderToCancel.id}</h3>
-                  <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>Hệ thống sẽ hoàn trả số lượng hàng vào kho</p>
+                  <h3 className="modal-title" style={{ color: '#991B1B' }}>Hủy Đơn Hàng #{orderToCancel.id}</h3>
+                  <p className="modal-subtitle">Hệ thống sẽ hoàn trả số lượng hàng vào kho</p>
                 </div>
               </div>
-              <button className="admin-modal-close" onClick={() => setShowCancelModal(false)}>
-                <X size={18} />
+              <button type="button" className="modal-close-btn" onClick={() => setShowCancelModal(false)}>
+                <X size={20} />
               </button>
             </div>
 
             <form onSubmit={handleSubmitCancel}>
-              <div className="admin-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                <div style={{ padding: '0.75rem', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '6px', fontSize: '0.85rem', color: '#991b1b', lineHeight: 1.4 }}>
-                  <strong>Quy tắc hoàn trả:</strong>
-                  <br />• Tồn kho của các sản phẩm trong đơn sẽ được tự động cộng lại vào kho.
+              <div className="admin-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div className="modal-alert-error" style={{ lineHeight: 1.5 }}>
+                  <strong>Quy tắc hoàn trả tự động:</strong>
+                  <br />• Tồn kho của các sản phẩm trong đơn sẽ được tự động cộng hoàn lại vào kho.
                   <br />• Lượt sử dụng Voucher (nếu có) sẽ được khôi phục để khách dùng lần sau.
                 </div>
 
-                <div className="admin-form-group">
-                  <label className="admin-form-label">
-                    Lý Do Hủy Đơn Hàng <span style={{ color: '#ef4444' }}>*</span>
+                <div className="form-group">
+                  <label className="form-label">
+                    Lý Do Hủy Đơn Hàng <span style={{ color: '#EF4444' }}>*</span>
                   </label>
                   <textarea
-                    rows="3"
-                    className="admin-form-input"
+                    rows={3}
+                    className="form-input"
                     placeholder="VD: Khách hàng đổi ý mua mẫu khác, địa chỉ không liên hệ được..."
                     value={cancelReason}
                     onChange={(e) => setCancelReason(e.target.value)}
@@ -1048,7 +1165,7 @@ export default function AdminOrderManagement({ currentUser }) {
               <div className="admin-modal-footer">
                 <button
                   type="button"
-                  className="btn-admin btn-admin-secondary"
+                  className="admin-btn admin-btn-outline"
                   onClick={() => setShowCancelModal(false)}
                   disabled={submittingCancel}
                 >
@@ -1056,12 +1173,13 @@ export default function AdminOrderManagement({ currentUser }) {
                 </button>
                 <button
                   type="submit"
-                  className="btn-admin btn-admin-danger"
+                  className="admin-btn admin-btn-danger"
+                  style={{ background: '#DC2626', color: '#FFFFFF' }}
                   disabled={submittingCancel}
                 >
                   {submittingCancel ? (
                     <>
-                      <RefreshCw size={16} className="animate-spin" />
+                      <RefreshCw size={16} className="spin" />
                       <span>Đang hủy...</span>
                     </>
                   ) : (

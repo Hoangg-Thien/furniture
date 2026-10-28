@@ -1,21 +1,26 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useMemo } from 'react'
 import {
   ArrowRight,
+  ArrowUpDown,
   Bell,
   Check,
   ChevronDown,
+  Filter,
   Heart,
   LogOut,
   Minus,
   Plus,
+  RotateCcw,
   Search,
   ShoppingBag,
+  SlidersHorizontal,
   Tag,
   Upload,
   User,
   X,
 } from 'lucide-react'
 import { loadProducts } from './lib/products'
+import { fetchOrderById } from './lib/orders'
 import {
   getCurrentUser,
   logoutUser,
@@ -38,14 +43,14 @@ const formatPrice = (price) => `${new Intl.NumberFormat('vi-VN').format(price)}�
 
 function App() {
   // Hệ thống định tuyến:
-  // - '' hoặc '/' => 'store' (Trang chủ Storefront)
-  // - '/admin' => 'admin' (Trang quản trị Admin)
-  // - Bất kỳ đường dẫn nào khác (như /1321, /abc) => '404' (Trang Không tìm thấy)
+  // - '' hoặc '/' hoặc '/order-success' => 'store' (Trang chủ Storefront & Xem trạng thái đơn)
+  // - '/admin' hoặc bất kỳ trang con nào bắt đầu bằng '/admin' => 'admin' (Trang quản trị Admin)
+  // - Bất kỳ đường dẫn lạ nào khác (như /1321, /abc) => '404' (Trang Không tìm thấy)
   function getCurrentRoute() {
     if (typeof window === 'undefined') return 'store'
     const path = window.location.pathname.toLowerCase().replace(/\/+$/, '')
-    if (path === '' || path === '/') return 'store'
-    if (path === '/admin' || path === '/admin/login') return 'admin'
+    if (path === '' || path === '/' || path.startsWith('/order-success')) return 'store'
+    if (path === '/admin' || path.startsWith('/admin/')) return 'admin'
     return '404'
   }
 
@@ -80,6 +85,50 @@ function App() {
   const [activeCategory, setActiveCategory] = useState('Tất cả')
 
   const categories = ['Tất cả', ...Array.from(new Set(products.map((p) => p.category).filter(Boolean)))]
+
+  // Bộ lọc giá và sắp xếp sản phẩm
+  const PRICE_PRESETS = [
+    { id: 'ALL', label: 'Tất cả mức giá', min: null, max: null },
+    { id: 'UNDER_2M', label: 'Dưới 2 triệu', min: 0, max: 2000000 },
+    { id: '2M_5M', label: '2 - 5 triệu', min: 2000000, max: 5000000 },
+    { id: '5M_10M', label: '5 - 10 triệu', min: 5000000, max: 10000000 },
+    { id: 'OVER_10M', label: 'Trên 10 triệu', min: 10000000, max: null },
+  ]
+  const [pricePreset, setPricePreset] = useState('ALL')
+  const [customMin, setCustomMin] = useState('')
+  const [customMax, setCustomMax] = useState('')
+  const [appliedPriceRange, setAppliedPriceRange] = useState({ min: null, max: null })
+  const [sortOrder, setSortOrder] = useState('DEFAULT')
+
+  function handleSelectPricePreset(preset) {
+    setPricePreset(preset.id)
+    setAppliedPriceRange({ min: preset.min, max: preset.max })
+    if (preset.id !== 'CUSTOM') {
+      setCustomMin('')
+      setCustomMax('')
+    }
+  }
+
+  function handleApplyCustomPrice(e) {
+    if (e) e.preventDefault()
+    const minVal = customMin ? parseInt(String(customMin).replace(/\D/g, ''), 10) : null
+    const maxVal = customMax ? parseInt(String(customMax).replace(/\D/g, ''), 10) : null
+    if (minVal != null && maxVal != null && minVal > maxVal) {
+      setNotice('Giá tối thiểu không được lớn hơn giá tối đa.')
+      setTimeout(() => setNotice(''), 3000)
+      return
+    }
+    setPricePreset('CUSTOM')
+    setAppliedPriceRange({ min: minVal, max: maxVal })
+  }
+
+  function handleResetPriceFilter() {
+    setPricePreset('ALL')
+    setCustomMin('')
+    setCustomMax('')
+    setAppliedPriceRange({ min: null, max: null })
+  }
+
   const [searchTerm, setSearchTerm] = useState('')
   const [cart, setCart] = useState({})
   const [favorites, setFavorites] = useState([])
@@ -200,25 +249,76 @@ function App() {
   }, [productImagePreview])
 
   useEffect(() => {
-    if (window.location.pathname.includes('/order-success')) {
-      try {
-        const saved = localStorage.getItem('funi_last_order') || localStorage.getItem('nep_last_order')
-        if (saved) {
-          setCompletedOrder(JSON.parse(saved))
-          setOrderOpen(true)
+    async function restoreOrderFromUrlOrStorage() {
+      if (window.location.pathname.includes('/order-success')) {
+        const urlParams = new URLSearchParams(window.location.search)
+        const orderIdParam = urlParams.get('id')
+
+        if (orderIdParam) {
+          try {
+            const { order, items, error } = await fetchOrderById(orderIdParam)
+            if (order && !error) {
+              const liveOrder = {
+                orderNumber: order.orderCode || orderIdParam,
+                orderId: order.id,
+                id: order.id,
+                status: order.status || 'PENDING',
+                orderDate: order.order_date || new Date().toLocaleString('vi-VN'),
+                items: (items || []).map((it) => ({
+                  id: it.product_id,
+                  name: it.product_name,
+                  image: it.image_url,
+                  category: it.category_name,
+                  quantity: it.quantity,
+                  price: Number(it.unit_price || 0),
+                  lineTotal: Number(it.amount || 0),
+                })),
+                subtotal: (items || []).reduce((sum, it) => sum + Number(it.amount || 0), 0),
+                discount_amount: Number(order.discount_amount || 0),
+                discountAmount: Number(order.discount_amount || 0),
+                total_amount: Number(order.total_amount || 0),
+                total: Number(order.total_amount || 0),
+                shippingInfo: {
+                  fullName: order.full_name,
+                  phone: order.phone,
+                  address: order.address,
+                },
+                shippingFee: 0,
+                paymentMethod: {
+                  id: 'cod',
+                  label: 'Thanh toán khi nhận hàng (COD)',
+                },
+              }
+              setCompletedOrder(liveOrder)
+              setOrderOpen(true)
+              try {
+                localStorage.setItem('funi_last_order', JSON.stringify(liveOrder))
+              } catch (e) {}
+              return
+            }
+          } catch (err) {
+            console.warn('Cannot fetch live order by ID:', err)
+          }
         }
-      } catch (err) {
-        console.error('Cannot restore order:', err)
+
+        // Fallback từ localStorage nếu không tìm thấy id hoặc backend offline
+        try {
+          const saved = localStorage.getItem('funi_last_order') || localStorage.getItem('nep_last_order')
+          if (saved) {
+            setCompletedOrder(JSON.parse(saved))
+            setOrderOpen(true)
+          }
+        } catch (err) {
+          console.error('Cannot restore order:', err)
+        }
       }
     }
 
+    restoreOrderFromUrlOrStorage()
+
     function handlePopState() {
       if (window.location.pathname.includes('/order-success')) {
-        const saved = localStorage.getItem('funi_last_order') || localStorage.getItem('nep_last_order')
-        if (saved) {
-          setCompletedOrder(JSON.parse(saved))
-          setOrderOpen(true)
-        }
+        restoreOrderFromUrlOrStorage()
       } else {
         setOrderOpen(false)
         setCompletedOrder(null)
@@ -244,11 +344,21 @@ function App() {
     }
   }, [cartOpen])
 
-  const filteredProducts = products.filter((product) => {
-    const matchesCategory = activeCategory === 'Tất cả' || product.category === activeCategory
-    const matchesSearch = product.name.toLowerCase().includes(searchTerm.trim().toLowerCase())
-    return matchesCategory && matchesSearch && (!showFavorites || favorites.includes(product.id))
-  })
+  const filteredProducts = products
+    .filter((product) => {
+      const matchesCategory = activeCategory === 'Tất cả' || product.category === activeCategory
+      const matchesSearch = product.name.toLowerCase().includes(searchTerm.trim().toLowerCase())
+      const matchesFav = !showFavorites || favorites.includes(product.id)
+      const matchesMin = appliedPriceRange.min == null || product.price >= appliedPriceRange.min
+      const matchesMax = appliedPriceRange.max == null || product.price <= appliedPriceRange.max
+      return matchesCategory && matchesSearch && matchesFav && matchesMin && matchesMax
+    })
+    .sort((a, b) => {
+      if (sortOrder === 'PRICE_ASC') return a.price - b.price
+      if (sortOrder === 'PRICE_DESC') return b.price - a.price
+      if (sortOrder === 'NAME_ASC') return a.name.localeCompare(b.name, 'vi')
+      return 0
+    })
   const cartItems = products.filter((product) => cart[product.id])
   const cartCount = Object.values(cart).reduce((sum, quantity) => sum + quantity, 0)
   const subtotal = cartItems.reduce((sum, product) => sum + product.price * cart[product.id], 0)
@@ -385,7 +495,7 @@ function App() {
   }
 
   if (currentRoute === '404') {
-    return <NotFoundPage />
+    return <NotFoundPage onBackToStore={handleBackToStore} />
   }
 
   return (
@@ -641,6 +751,85 @@ function App() {
             </div>
             <span className="result-count">{filteredProducts.length} sản phẩm</span>
           </div>
+
+          {/* Thanh lọc giá và sắp xếp sản phẩm dành cho khách hàng */}
+          <div className="price-filter-bar" aria-label="Bộ lọc giá và sắp xếp">
+            <div className="price-filter-presets">
+              <span className="filter-group-label">
+                <Filter size={13} />
+                <span>Khoảng giá:</span>
+              </span>
+              {PRICE_PRESETS.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  className={`price-preset-chip ${pricePreset === p.id ? 'active' : ''}`}
+                  onClick={() => handleSelectPricePreset(p)}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="price-filter-custom-and-sort">
+              <form className="price-custom-form" onSubmit={handleApplyCustomPrice}>
+                <span className="custom-input-label">Tự nhập:</span>
+                <div className="price-input-wrapper">
+                  <input
+                    type="number"
+                    placeholder="Từ (₫)"
+                    value={customMin}
+                    onChange={(e) => setCustomMin(e.target.value)}
+                    min="0"
+                    step="100000"
+                    aria-label="Giá từ"
+                  />
+                </div>
+                <span className="price-dash">—</span>
+                <div className="price-input-wrapper">
+                  <input
+                    type="number"
+                    placeholder="Đến (₫)"
+                    value={customMax}
+                    onChange={(e) => setCustomMax(e.target.value)}
+                    min="0"
+                    step="100000"
+                    aria-label="Giá đến"
+                  />
+                </div>
+                <button type="submit" className="price-apply-btn" title="Áp dụng lọc giá">
+                  Lọc
+                </button>
+                {(appliedPriceRange.min != null || appliedPriceRange.max != null) && (
+                  <button
+                    type="button"
+                    className="price-clear-btn"
+                    onClick={handleResetPriceFilter}
+                    title="Xóa bộ lọc giá"
+                  >
+                    <X size={13} />
+                    <span>Xóa lọc</span>
+                  </button>
+                )}
+              </form>
+
+              <div className="shop-sort-control">
+                <ArrowUpDown size={13} className="sort-icon" />
+                <select
+                  className="shop-sort-select"
+                  value={sortOrder}
+                  onChange={(e) => setSortOrder(e.target.value)}
+                  aria-label="Sắp xếp sản phẩm"
+                >
+                  <option value="DEFAULT">Mặc định (Funi chọn)</option>
+                  <option value="PRICE_ASC">Giá: Thấp → Cao</option>
+                  <option value="PRICE_DESC">Giá: Cao → Thấp</option>
+                  <option value="NAME_ASC">Tên: A → Z</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
           {catalogError && (
             <p className="catalog-note" role="status">
               Chưa tải được sản phẩm từ backend; đang hiển thị dữ liệu mẫu.
@@ -708,9 +897,17 @@ function App() {
           ) : (
             <div className="empty-results">
               <Search size={24} />
-              <p>Chưa tìm thấy món đồ phù hợp.</p>
-              <button type="button" onClick={() => { setSearchTerm(''); setShowFavorites(false) }}>
-                Xóa bộ lọc
+              <p>Chưa tìm thấy món đồ phù hợp với mức giá hoặc danh mục đã chọn.</p>
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchTerm('')
+                  setShowFavorites(false)
+                  handleResetPriceFilter()
+                  setActiveCategory('Tất cả')
+                }}
+              >
+                Xóa tất cả bộ lọc
               </button>
             </div>
           )}
@@ -748,9 +945,17 @@ function App() {
           }}
         >
           <span className="wordmark-symbol">f.</span>
-        <span>FUNI <em>STORE</em></span>
+          <span>FUNI <em>STORE</em></span>
         </a>
         <span>Đồ đẹp cho những ngày bình thường.</span>
+        <button
+          type="button"
+          className="footer-admin-link"
+          onClick={handleGoToAdmin}
+          title="Chuyển sang Cổng Quản Trị Hệ Thống"
+        >
+          <span>🔐 Cổng Quản Trị</span>
+        </button>
         <span>© 2026 FuniStore</span>
       </footer>
 

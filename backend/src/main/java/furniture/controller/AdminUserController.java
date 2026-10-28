@@ -67,10 +67,20 @@ public class AdminUserController {
     @PutMapping("/{id}/toggle-status")
     public ResponseEntity<?> toggleStatus(
             @PathVariable Long id,
-            @RequestHeader(value = "X-Current-User-Id", required = false) Long headerUserId,
-            @RequestParam(value = "currentUserId", required = false) Long paramUserId) {
+            @RequestHeader(value = "X-Current-User-Id", required = false) String headerUserId,
+            @RequestParam(value = "currentUserId", required = false) String paramUserId) {
         try {
-            Long currentLoggedInId = headerUserId != null ? headerUserId : paramUserId;
+            Long currentLoggedInId = null;
+            if (headerUserId != null && !headerUserId.trim().isEmpty()) {
+                try {
+                    currentLoggedInId = Long.parseLong(headerUserId.trim());
+                } catch (NumberFormatException ignored) {}
+            }
+            if (currentLoggedInId == null && paramUserId != null && !paramUserId.trim().isEmpty()) {
+                try {
+                    currentLoggedInId = Long.parseLong(paramUserId.trim());
+                } catch (NumberFormatException ignored) {}
+            }
             boolean newStatus = adminUserService.toggleActiveStatus(id, currentLoggedInId);
             return ResponseEntity.ok(Map.of(
                     "message", newStatus ? "Đã kích hoạt tài khoản thành công" : "Đã tạm khóa tài khoản thành công",

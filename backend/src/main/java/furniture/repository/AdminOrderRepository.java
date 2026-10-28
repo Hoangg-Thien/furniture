@@ -43,6 +43,37 @@ public class AdminOrderRepository {
         return count != null && count > 0;
     }
 
+    public Long findFirstStaffId() {
+        List<Long> ids = jdbcTemplate.query(
+                "SELECT id FROM public.staff ORDER BY id ASC LIMIT 1",
+                (rs, rowNum) -> rs.getLong("id")
+        );
+        if (!ids.isEmpty()) {
+            return ids.get(0);
+        }
+        try {
+            Long defaultUserId = jdbcTemplate.query(
+                    "SELECT id FROM public.users WHERE role IN ('ADMIN', 'STAFF') ORDER BY id ASC LIMIT 1",
+                    (rs, rowNum) -> rs.getLong("id")
+            ).stream().findFirst().orElse(null);
+
+            if (defaultUserId != null) {
+                jdbcTemplate.update(
+                        "INSERT INTO public.staff (user_id, full_name, role) VALUES (?, 'Quản lý Showroom FuniStore', 'STAFF') ON CONFLICT DO NOTHING",
+                        defaultUserId
+                );
+                List<Long> newIds = jdbcTemplate.query(
+                        "SELECT id FROM public.staff ORDER BY id ASC LIMIT 1",
+                        (rs, rowNum) -> rs.getLong("id")
+                );
+                if (!newIds.isEmpty()) return newIds.get(0);
+            }
+        } catch (Exception ex) {
+            System.err.println("Notice: could not auto create default staff: " + ex.getMessage());
+        }
+        return null;
+    }
+
     @SuppressWarnings("null")
     public PageResponse<OrderSummaryDto> findOrders(
             String search,
@@ -222,11 +253,13 @@ public class AdminOrderRepository {
 
     public List<OrderItemDto> findItemsByOrderId(Long orderId) {
         String sql = """
-                SELECT oi.product_id, p.name AS product_name, p.image_url,
+                SELECT oi.product_id,
+                       COALESCE(p.name, 'Sản phẩm #' || oi.product_id) AS product_name,
+                       p.image_url,
                        COALESCE(p.unit, 'cái') AS unit,
                        oi.quantity, oi.unit_price, oi.amount
                 FROM public.order_items oi
-                JOIN public.products p ON p.id = oi.product_id
+                LEFT JOIN public.products p ON p.id = oi.product_id
                 WHERE oi.order_id = ?
                 ORDER BY oi.product_id ASC
                 """;

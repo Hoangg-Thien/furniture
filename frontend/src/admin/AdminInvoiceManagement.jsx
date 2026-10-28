@@ -370,44 +370,47 @@ export default function AdminInvoiceManagement({ currentUser }) {
   }
 
   return (
-    <div className="admin-page-container invoice-module-wrapper">
+    <div className="admin-module-view">
       {/* Toast Alert */}
       {toast && (
-        <div className={`admin-toast admin-toast-${toast.type}`}>
+        <div className={`admin-toast-banner ${toast.type}`}>
           {toast.type === 'success' ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
           <span>{toast.message}</span>
+          <button className="toast-close" onClick={() => setToast(null)} type="button">
+            <X size={15} />
+          </button>
         </div>
       )}
 
       {/* Page Header */}
       <div className="admin-page-header">
-        <div className="admin-page-title-group">
-          <div className="admin-page-icon-wrapper" style={{ background: 'linear-gradient(135deg, #0d9488 0%, #0f766e 100%)' }}>
-            <Receipt size={24} color="#fff" />
+        <div>
+          <div className="admin-breadcrumb">
+            Trang chủ &gt; Quản lý hóa đơn &gt; <span>Module 09</span>
           </div>
-          <div>
-            <h1 className="admin-page-title">Quản Lý Hóa Đơn & Thanh Toán</h1>
-            <p className="admin-page-subtitle">
-              Xuất chứng từ thanh toán chính thức, áp dụng chiết khấu voucher & VAT, quét VietQR động và in hóa đơn bán lẻ
-            </p>
-          </div>
+          <h1 className="admin-page-title">Quản Lý Hóa Đơn &amp; Thanh Toán</h1>
+          <p className="admin-page-subtitle" style={{ margin: '4px 0 0', color: 'var(--admin-text-muted)', fontSize: '0.88rem' }}>
+            Xuất chứng từ thanh toán chính thức, áp dụng chiết khấu voucher &amp; VAT, quét VietQR động và in hóa đơn bán lẻ.
+          </p>
         </div>
 
         <div className="admin-header-actions">
           <button
-            className="admin-btn admin-btn-secondary"
+            type="button"
+            className="admin-btn admin-btn-outline"
             onClick={() => {
               fetchInvoices()
               fetchStats()
             }}
             disabled={loading}
+            title="Làm mới danh sách và số liệu"
           >
-            <RefreshCw size={16} className={loading ? 'admin-spin' : ''} />
-            <span>Làm mới</span>
+            <RefreshCw size={16} className={loading ? 'spin' : ''} />
+            <span>Làm Mới</span>
           </button>
           <button
-            className="admin-btn admin-btn-primary"
-            style={{ background: 'linear-gradient(135deg, #0d9488 0%, #0f766e 100%)', borderColor: '#0f766e' }}
+            type="button"
+            className="admin-btn admin-btn-accent"
             onClick={() => {
               fetchEligibleOrders()
               setShowCreateModal(true)
@@ -419,100 +422,158 @@ export default function AdminInvoiceManagement({ currentUser }) {
         </div>
       </div>
 
-      {/* Stats Cards */}
+      {/* KPI Stats Cards */}
       <div className="inv-stats-grid">
-        <div className="inv-stat-card">
-          <div className="inv-stat-icon" style={{ background: 'rgba(13, 148, 136, 0.12)', color: '#0d9488' }}>
+        <div className="inv-stat-card card-total">
+          <div className="inv-stat-icon" style={{ background: '#EFF6FF', color: '#0284C7' }}>
             <Receipt size={22} />
           </div>
           <div className="inv-stat-info">
             <span className="inv-stat-label">Tổng hóa đơn</span>
             <h3 className="inv-stat-value">{stats.total} <span className="inv-stat-unit">chứng từ</span></h3>
-            <span className="inv-stat-sub text-success">
-              <CheckCircle2 size={12} /> {stats.paidCount} đã thanh toán
+            <span className="inv-stat-sub" style={{ color: '#059669', fontWeight: 600 }}>
+              <CheckCircle2 size={13} /> {stats.paidCount} đã thanh toán
             </span>
           </div>
         </div>
 
-        <div className="inv-stat-card">
-          <div className="inv-stat-icon" style={{ background: 'rgba(16, 185, 129, 0.12)', color: '#10b981' }}>
+        <div className="inv-stat-card card-revenue">
+          <div className="inv-stat-icon" style={{ background: '#ECFDF5', color: '#059669' }}>
             <DollarSign size={22} />
           </div>
           <div className="inv-stat-info">
-            <span className="inv-stat-label">Tổng doanh thu thực tế</span>
+            <span className="inv-stat-label">Doanh thu thực tế</span>
             <h3 className="inv-stat-value text-emerald">{formatVnd(stats.totalRevenue)}</h3>
-            <span className="inv-stat-sub text-muted">
-              Đã bao gồm VAT & khấu trừ Voucher
+            <span className="inv-stat-sub" style={{ color: '#78716C' }}>
+              Đã gồm VAT &amp; trừ Voucher
             </span>
           </div>
         </div>
 
-        <div className="inv-stat-card">
-          <div className="inv-stat-icon" style={{ background: 'rgba(59, 130, 246, 0.12)', color: '#3b82f6' }}>
+        <div className="inv-stat-card card-vietqr">
+          <div className="inv-stat-icon" style={{ background: '#F0FDFA', color: '#0D9488' }}>
             <QrCode size={22} />
           </div>
           <div className="inv-stat-info">
             <span className="inv-stat-label">Chuyển khoản VietQR</span>
             <h3 className="inv-stat-value">{stats.bankTransferCount} <span className="inv-stat-unit">giao dịch</span></h3>
-            <span className="inv-stat-sub text-info">
+            <span className="inv-stat-sub" style={{ color: '#0F766E', fontWeight: 600 }}>
               {stats.total > 0 ? Math.round((stats.bankTransferCount / stats.total) * 100) : 0}% tỷ trọng thanh toán
             </span>
           </div>
         </div>
 
-        <div className="inv-stat-card">
-          <div className="inv-stat-icon" style={{ background: 'rgba(245, 158, 11, 0.12)', color: '#f59e0b' }}>
+        <div className="inv-stat-card card-pos">
+          <div className="inv-stat-icon" style={{ background: '#FFFBEB', color: '#D97706' }}>
             <CreditCard size={22} />
           </div>
           <div className="inv-stat-info">
-            <span className="inv-stat-label">Tiền mặt & Thẻ POS</span>
+            <span className="inv-stat-label">Tiền mặt &amp; Quẹt thẻ POS</span>
             <h3 className="inv-stat-value">{stats.cashCount + stats.posCardCount} <span className="inv-stat-unit">hóa đơn</span></h3>
-            <span className="inv-stat-sub text-muted">
-              Tiền mặt: {stats.cashCount} | POS: {stats.posCardCount}
+            <span className="inv-stat-sub" style={{ color: '#78716C' }}>
+              Tiền mặt: {stats.cashCount} | Quẹt POS: {stats.posCardCount}
             </span>
           </div>
         </div>
       </div>
 
-      {/* Filter Bar */}
-      <div className="admin-filter-card">
-        <div className="admin-filter-row">
-          <div className="admin-search-box">
-            <Search size={16} className="admin-search-icon" />
+      {/* Quick Method Tab Bar */}
+      <div className="inv-method-tabs-card">
+        <div className="inv-method-tabs-wrapper">
+          <button
+            type="button"
+            className={`inv-method-tab ${selectedMethod === 'ALL' ? 'active' : ''}`}
+            onClick={() => {
+              setSelectedMethod('ALL')
+              setPage(0)
+            }}
+          >
+            <span>Tất Cả Phương Thức</span>
+            <span className="tab-badge">{stats.total}</span>
+          </button>
+
+          <button
+            type="button"
+            className={`inv-method-tab ${selectedMethod === 'BANK_TRANSFER' ? 'active' : ''}`}
+            onClick={() => {
+              setSelectedMethod('BANK_TRANSFER')
+              setPage(0)
+            }}
+          >
+            <QrCode size={14} />
+            <span>Chuyển Khoản VietQR</span>
+            <span className="tab-badge">{stats.bankTransferCount}</span>
+          </button>
+
+          <button
+            type="button"
+            className={`inv-method-tab ${selectedMethod === 'CASH' ? 'active' : ''}`}
+            onClick={() => {
+              setSelectedMethod('CASH')
+              setPage(0)
+            }}
+          >
+            <Banknote size={14} />
+            <span>Tiền Mặt Tại Quầy</span>
+            <span className="tab-badge">{stats.cashCount}</span>
+          </button>
+
+          <button
+            type="button"
+            className={`inv-method-tab ${selectedMethod === 'CREDIT_CARD' ? 'active' : ''}`}
+            onClick={() => {
+              setSelectedMethod('CREDIT_CARD')
+              setPage(0)
+            }}
+          >
+            <CreditCard size={14} />
+            <span>Quẹt Thẻ POS</span>
+            <span className="tab-badge">{stats.posCardCount}</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Toolbar Tìm Kiếm & Bộ Lọc Nâng Cao */}
+      <div className="inv-filter-toolbar">
+        <div className="inv-filter-grid">
+          {/* Keyword Search */}
+          <div className="inv-filter-search">
+            <Search size={16} color="var(--admin-text-muted)" />
             <input
               type="text"
-              placeholder="Tìm mã hóa đơn, tên khách, số điện thoại..."
+              placeholder="Tìm theo Mã hóa đơn (HD-...), Mã đơn (#41), Tên khách, SĐT..."
               value={searchKeyword}
               onChange={(e) => setSearchKeyword(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && fetchInvoices()}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  setPage(0)
+                  fetchInvoices()
+                }
+              }}
             />
             {searchKeyword && (
-              <button className="admin-search-clear" onClick={() => { setSearchKeyword(''); fetchInvoices() }}>
+              <button
+                type="button"
+                className="clear-btn"
+                onClick={() => {
+                  setSearchKeyword('')
+                  setPage(0)
+                }}
+              >
                 <X size={14} />
               </button>
             )}
           </div>
 
-          <div className="admin-filter-group">
-            <label>Phương thức:</label>
-            <select
-              value={selectedMethod}
-              onChange={(e) => { setSelectedMethod(e.target.value); setPage(0) }}
-            >
-              <option value="ALL">Tất cả phương thức</option>
-              <option value="BANK_TRANSFER">Chuyển khoản VietQR</option>
-              <option value="CASH">Tiền mặt (Cash)</option>
-              <option value="CREDIT_CARD">Quẹt thẻ POS</option>
-              <option value="VNPAY">Ví điện tử VNPay</option>
-              <option value="MOMO">Ví MoMo</option>
-            </select>
-          </div>
-
-          <div className="admin-filter-group">
+          {/* Trạng thái thanh toán */}
+          <div className="inv-filter-select-group filter-select-group">
             <label>Trạng thái:</label>
             <select
               value={selectedStatus}
-              onChange={(e) => { setSelectedStatus(e.target.value); setPage(0) }}
+              onChange={(e) => {
+                setSelectedStatus(e.target.value)
+                setPage(0)
+              }}
             >
               <option value="ALL">Tất cả trạng thái</option>
               <option value="PAID">Đã thanh toán (PAID)</option>
@@ -520,174 +581,349 @@ export default function AdminInvoiceManagement({ currentUser }) {
             </select>
           </div>
 
-          <div className="admin-filter-group">
-            <label>Từ ngày:</label>
+          {/* Grouped Date Range */}
+          <div className="inv-date-group-box">
+            <Calendar size={15} color="#64748B" />
+            <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#64748B' }}>Từ:</span>
             <input
               type="date"
               value={fromDate}
-              onChange={(e) => { setFromDate(e.target.value); setPage(0) }}
+              onChange={(e) => {
+                setFromDate(e.target.value)
+                setPage(0)
+              }}
             />
-          </div>
-
-          <div className="admin-filter-group">
-            <label>Đến ngày:</label>
+            <span style={{ color: '#CBD5E1', fontWeight: 700 }}>—</span>
+            <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#64748B' }}>Đến:</span>
             <input
               type="date"
               value={toDate}
-              onChange={(e) => { setToDate(e.target.value); setPage(0) }}
+              onChange={(e) => {
+                setToDate(e.target.value)
+                setPage(0)
+              }}
             />
           </div>
 
-          <button className="admin-btn admin-btn-primary" onClick={() => { setPage(0); fetchInvoices() }}>
-            <Search size={14} /> Lọc
+          {/* Action buttons */}
+          <button
+            type="button"
+            className="admin-btn admin-btn-primary"
+            style={{ height: '42px', padding: '0 18px', fontSize: '0.88rem', display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+            onClick={() => {
+              setPage(0)
+              fetchInvoices()
+            }}
+            disabled={loading}
+          >
+            <Search size={15} />
+            <span>Lọc Dữ Liệu</span>
           </button>
+
+          {(searchKeyword || selectedMethod !== 'ALL' || selectedStatus !== 'ALL' || fromDate || toDate) && (
+            <button
+              type="button"
+              className="admin-btn admin-btn-outline"
+              style={{ height: '42px', padding: '0 14px', fontSize: '0.84rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+              onClick={() => {
+                setSearchKeyword('')
+                setSelectedMethod('ALL')
+                setSelectedStatus('ALL')
+                setFromDate('')
+                setToDate('')
+                setPage(0)
+              }}
+            >
+              <X size={15} />
+              <span>Xóa Lọc</span>
+            </button>
+          )}
         </div>
+
+        {/* Active Filter Chips */}
+        {(searchKeyword || selectedMethod !== 'ALL' || selectedStatus !== 'ALL' || fromDate || toDate) && (
+          <div className="inv-active-chips-row">
+            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748B' }}>Đang áp dụng bộ lọc:</span>
+            {searchKeyword && (
+              <span className="inv-chip">
+                <span>Từ khóa: "{searchKeyword}"</span>
+                <button type="button" onClick={() => setSearchKeyword('')}><X size={12} /></button>
+              </span>
+            )}
+            {selectedMethod !== 'ALL' && (
+              <span className="inv-chip">
+                <span>Phương thức: {selectedMethod === 'BANK_TRANSFER' ? 'VietQR' : selectedMethod === 'CASH' ? 'Tiền mặt' : 'Quẹt thẻ POS'}</span>
+                <button type="button" onClick={() => setSelectedMethod('ALL')}><X size={12} /></button>
+              </span>
+            )}
+            {selectedStatus !== 'ALL' && (
+              <span className="inv-chip">
+                <span>Trạng thái: {selectedStatus === 'PAID' ? 'Đã thanh toán' : 'Hoàn tiền'}</span>
+                <button type="button" onClick={() => setSelectedStatus('ALL')}><X size={12} /></button>
+              </span>
+            )}
+            {fromDate && (
+              <span className="inv-chip">
+                <span>Từ ngày: {fromDate}</span>
+                <button type="button" onClick={() => setFromDate('')}><X size={12} /></button>
+              </span>
+            )}
+            {toDate && (
+              <span className="inv-chip">
+                <span>Đến ngày: {toDate}</span>
+                <button type="button" onClick={() => setToDate('')}><X size={12} /></button>
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Invoices Table */}
-      <div className="admin-table-wrapper">
-        {loading ? (
-          <div className="admin-table-loading">
-            <RefreshCw size={28} className="admin-spin" />
-            <p>Đang tải danh sách hóa đơn bán lẻ...</p>
+      {/* Invoices Table Card */}
+      <div className="admin-card" style={{ padding: 0, overflow: 'hidden' }}>
+        <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--admin-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+          <div>
+            <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: 'var(--admin-text-main)' }}>
+              Danh Sách Hóa Đơn &amp; Chứng Từ Bán Lẻ
+            </h3>
+            <span style={{ fontSize: '0.82rem', color: 'var(--admin-text-muted)' }}>
+              Hiển thị {invoices.length} trên tổng số {totalElements} hóa đơn
+            </span>
           </div>
-        ) : error ? (
-          <div className="admin-table-empty text-danger">
-            <AlertCircle size={32} />
-            <p>{error}</p>
-            <button className="admin-btn admin-btn-secondary" onClick={fetchInvoices}>Thử lại</button>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.82rem', color: 'var(--admin-text-muted)' }}>
+            <span>Hiển thị:</span>
+            <select
+              className="admin-page-size-select"
+              value={pageSize}
+              onChange={(e) => {
+                const newSize = Number(e.target.value)
+                setPageSize(newSize)
+                setPage(0)
+              }}
+            >
+              <option value={5}>5 hóa đơn / trang</option>
+              <option value={10}>10 hóa đơn / trang</option>
+              <option value={20}>20 hóa đơn / trang</option>
+            </select>
           </div>
-        ) : invoices.length === 0 ? (
-          <div className="admin-table-empty">
-            <Receipt size={40} style={{ opacity: 0.3 }} />
-            <p>Chưa có hóa đơn bán hàng nào phù hợp với bộ lọc</p>
+        </div>
+
+        {error && (
+          <div style={{ margin: '16px', padding: '12px 16px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: '8px', color: '#B91C1C', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <AlertCircle size={18} />
+            <span>{error}</span>
           </div>
-        ) : (
+        )}
+
+        <div className="admin-table-container" style={{ border: 'none' }}>
           <table className="admin-table">
             <thead>
               <tr>
-                <th style={{ width: 140 }}>Mã hóa đơn</th>
-                <th style={{ width: 100 }}>Mã đơn</th>
-                <th>Khách hàng</th>
-                <th style={{ width: 150 }}>Ngày xuất</th>
-                <th style={{ width: 150 }}>Hình thức</th>
-                <th style={{ width: 130 }}>Chiết khấu</th>
-                <th style={{ width: 140, textAlign: 'right' }}>Tổng thanh toán</th>
-                <th style={{ width: 120 }}>Thu ngân</th>
-                <th style={{ width: 160, textAlign: 'center' }}>Thao tác</th>
+                <th style={{ width: '170px' }}>Mã Hóa Đơn</th>
+                <th style={{ width: '85px' }}>Mã Đơn</th>
+                <th>Khách Hàng</th>
+                <th style={{ width: '155px' }}>Ngày Xuất</th>
+                <th style={{ width: '150px' }}>Hình Thức</th>
+                <th style={{ width: '125px' }}>Chiết Khấu</th>
+                <th style={{ width: '155px', textAlign: 'right' }}>Tổng Thanh Toán</th>
+                <th style={{ width: '145px' }}>Thu Ngân</th>
+                <th style={{ width: '170px', textAlign: 'center' }}>Thao Tác</th>
               </tr>
             </thead>
             <tbody>
-              {invoices.map((inv) => (
-                <tr key={inv.id} className="inv-table-row">
-                  <td>
-                    <span className="inv-code-badge">{inv.invoiceCode}</span>
-                  </td>
-                  <td>
-                    <span className="inv-order-tag">#{inv.orderId}</span>
-                  </td>
-                  <td>
-                    <div className="inv-customer-cell">
-                      <span className="inv-cust-name">{inv.customerName}</span>
-                      <span className="inv-cust-phone"><Phone size={11} /> {inv.phone || 'Chưa có SĐT'}</span>
-                    </div>
-                  </td>
-                  <td>
-                    <div className="inv-date-cell">
-                      <Calendar size={12} /> {formatDate(inv.paymentDate)}
-                    </div>
-                  </td>
-                  <td>{getMethodBadge(inv.paymentMethod)}</td>
-                  <td>
-                    {inv.voucherDiscount && Number(inv.voucherDiscount) > 0 ? (
-                      <span className="inv-discount-pill text-emerald">
-                        <Tag size={11} /> -{formatVnd(inv.voucherDiscount)}
-                      </span>
-                    ) : (
-                      <span className="text-muted" style={{ fontSize: '0.82rem' }}>0 đ</span>
-                    )}
-                  </td>
-                  <td style={{ textAlign: 'right' }}>
-                    <span className="inv-final-price">{formatVnd(inv.finalAmount)}</span>
-                    {inv.taxAmount && Number(inv.taxAmount) > 0 && (
-                      <span className="inv-tax-sub">Đã gồm VAT</span>
-                    )}
-                  </td>
-                  <td>
-                    <span className="inv-staff-badge">
-                      <User size={11} /> {inv.staffName || 'Admin'}
-                    </span>
-                  </td>
-                  <td>
-                    <div className="admin-table-actions" style={{ justifyContent: 'center' }}>
-                      <button
-                        className="admin-action-btn admin-btn-view"
-                        title="Xem & In hóa đơn bán lẻ"
-                        onClick={() => handleViewDetail(inv.id)}
-                      >
-                        <Eye size={15} />
-                        <span>Xem & In</span>
-                      </button>
-                      <button
-                        className="admin-action-btn admin-btn-pdf"
-                        title="Tải file PDF"
-                        onClick={() => handleDownloadPdf(inv.id, inv.invoiceCode)}
-                      >
-                        <Download size={15} />
-                      </button>
+              {loading ? (
+                <tr>
+                  <td colSpan="9" style={{ textAlign: 'center', padding: '48px 16px', color: 'var(--admin-text-muted)' }}>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '10px' }}>
+                      <RefreshCw size={20} className="spin" color="var(--admin-accent)" />
+                      <span>Đang nạp dữ liệu hóa đơn...</span>
                     </div>
                   </td>
                 </tr>
-              ))}
+              ) : invoices.length === 0 ? (
+                <tr>
+                  <td colSpan="9" style={{ textAlign: 'center', padding: '48px 16px', color: 'var(--admin-text-muted)' }}>
+                    <Receipt size={36} style={{ opacity: 0.35, marginBottom: '8px' }} />
+                    <p style={{ margin: 0, fontWeight: 500 }}>Không tìm thấy hóa đơn nào phù hợp với bộ lọc hiện tại.</p>
+                  </td>
+                </tr>
+              ) : (
+                invoices.map((inv) => {
+                  const initials = (inv.customerName || 'K')
+                    .split(' ')
+                    .map((n) => n[0])
+                    .join('')
+                    .slice(0, 2)
+                    .toUpperCase()
+
+                  return (
+                    <tr key={inv.id}>
+                      <td>
+                        <span
+                          className="inv-code-badge"
+                          style={{ cursor: 'pointer' }}
+                          onClick={() => handleViewDetail(inv.id)}
+                          title="Bấm để xem & in chi tiết hóa đơn"
+                        >
+                          <Receipt size={13} color="#0D9488" />
+                          <span>{inv.invoiceCode}</span>
+                        </span>
+                      </td>
+                      <td>
+                        <span className="inv-order-tag">
+                          #{inv.orderId}
+                        </span>
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <div className="customer-avatar-badge">{initials}</div>
+                          <div>
+                            <div style={{ fontWeight: 700, color: 'var(--admin-text-main)', fontSize: '0.88rem' }}>
+                              {inv.customerName}
+                            </div>
+                            {inv.phone ? (
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.78rem', color: 'var(--admin-text-muted)' }}>
+                                <Phone size={11} />
+                                <span>{inv.phone}</span>
+                              </span>
+                            ) : (
+                              <span style={{ fontSize: '0.75rem', color: 'var(--admin-text-muted)' }}>Chưa có SĐT</span>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                      <td style={{ whiteSpace: 'nowrap' }}>
+                        <div style={{ fontSize: '0.82rem', color: 'var(--admin-text-main)', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                          <Clock size={13} color="var(--admin-text-muted)" />
+                          <span>{formatDate(inv.paymentDate)}</span>
+                        </div>
+                      </td>
+                      <td>{getMethodBadge(inv.paymentMethod)}</td>
+                      <td>
+                        {inv.voucherDiscount && Number(inv.voucherDiscount) > 0 ? (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', padding: '2px 6px', background: '#FFEDD5', color: '#C2410C', border: '1px solid #FED7AA', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600 }}>
+                            <Tag size={10} /> -{formatVnd(inv.voucherDiscount)}
+                          </span>
+                        ) : (
+                          <span style={{ color: 'var(--admin-text-muted)', fontSize: '0.82rem' }}>0 đ</span>
+                        )}
+                      </td>
+                      <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                        <div className="inv-final-price">
+                          {formatVnd(inv.finalAmount)}
+                        </div>
+                        {inv.taxAmount && Number(inv.taxAmount) > 0 && (
+                          <div className="inv-tax-sub">Đã gồm VAT 8%</div>
+                        )}
+                      </td>
+                      <td>
+                        <div className="inv-staff-badge">
+                          <User size={12} color="var(--admin-text-muted)" />
+                          <span>{inv.staffName || 'Admin Showroom'}</span>
+                        </div>
+                      </td>
+                      <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+                        <div style={{ display: 'inline-flex', gap: '6px', alignItems: 'center', justifyContent: 'center' }}>
+                          <button
+                            type="button"
+                            className="btn-action-view"
+                            title="Xem chi tiết & In hóa đơn bán lẻ"
+                            onClick={() => handleViewDetail(inv.id)}
+                          >
+                            <Eye size={13} />
+                            <span>Xem &amp; In</span>
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-action-pdf"
+                            title="Tải chứng từ PDF"
+                            onClick={() => handleDownloadPdf(inv.id, inv.invoiceCode)}
+                          >
+                            <Download size={13} />
+                            <span>PDF</span>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })
+              )}
             </tbody>
           </table>
-        )}
+        </div>
 
-        {/* Pagination */}
-        {!loading && totalPages > 1 && (
-          <div className="admin-pagination">
-            <span className="admin-pagination-info">
-              Hiển thị {invoices.length} trên tổng số {totalElements} hóa đơn
-            </span>
-            <div className="admin-pagination-controls">
-              <button
-                className="admin-pagination-btn"
-                disabled={page === 0}
-                onClick={() => setPage(p => Math.max(0, p - 1))}
-              >
-                <ChevronLeft size={16} /> Trước
-              </button>
-              <span className="admin-pagination-current">
-                Trang {page + 1} / {totalPages}
-              </span>
-              <button
-                className="admin-pagination-btn"
-                disabled={page >= totalPages - 1}
-                onClick={() => setPage(p => p + 1)}
-              >
-                Sau <ChevronRight size={16} />
-              </button>
-            </div>
+        {/* Phân Trang Chuẩn */}
+        <div className="admin-pagination-footer">
+          <div className="pagination-info">
+            Hiển thị <strong>{invoices.length}</strong> trên tổng số <strong>{totalElements}</strong> hóa đơn
+            (Trang {page + 1} / {Math.max(1, totalPages)})
           </div>
-        )}
+
+          <div className="pagination-controls">
+            <button
+              type="button"
+              className="page-btn"
+              disabled={page <= 0 || loading}
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+            >
+              &lt; Trước
+            </button>
+
+            {Array.from({ length: totalPages }, (_, idx) => {
+              if (
+                totalPages > 6 &&
+                idx !== 0 &&
+                idx !== totalPages - 1 &&
+                Math.abs(idx - page) > 1
+              ) {
+                if (idx === 1 && page > 2) return <span key={idx} style={{ padding: '0 4px', color: '#94A3B8' }}>...</span>
+                if (idx === totalPages - 2 && page < totalPages - 3) return <span key={idx} style={{ padding: '0 4px', color: '#94A3B8' }}>...</span>
+                return null
+              }
+
+              return (
+                <button
+                  type="button"
+                  key={idx}
+                  className={`page-num-btn ${idx === page ? 'active' : ''}`}
+                  onClick={() => setPage(idx)}
+                  disabled={loading}
+                >
+                  {idx + 1}
+                </button>
+              )
+            })}
+
+            <button
+              type="button"
+              className="page-btn"
+              disabled={page >= totalPages - 1 || loading}
+              onClick={() => setPage((p) => p + 1)}
+            >
+              Sau &gt;
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* ========================================================================= */}
       {/* MODAL 1: LẬP HÓA ĐƠN MỚI TỪ ĐƠN HÀNG */}
       {/* ========================================================================= */}
       {showCreateModal && (
-        <div className="admin-modal-backdrop">
-          <div className="admin-modal-card inv-create-modal">
-            <div className="admin-modal-header" style={{ borderBottom: '1px solid rgba(13, 148, 136, 0.2)' }}>
-              <div className="inv-modal-title">
-                <Receipt size={20} className="text-teal" />
+        <div className="admin-modal-backdrop" onClick={() => setShowCreateModal(false)}>
+          <div className="admin-modal-card inv-create-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="admin-modal-header" style={{ borderBottom: '1px solid var(--admin-border)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div className="modal-icon-badge success" style={{ background: '#ECFDF5', color: '#059669' }}>
+                  <Receipt size={20} />
+                </div>
                 <div>
-                  <h3>Lập Hóa Đơn Bán Hàng Mới</h3>
-                  <p>Chọn đơn hàng chưa xuất hóa đơn, áp voucher & xác nhận phương thức thanh toán</p>
+                  <h3 className="modal-title">Lập Hóa Đơn Bán Hàng Mới</h3>
+                  <p className="modal-subtitle">Chọn đơn hàng chưa xuất hóa đơn, áp voucher &amp; xác nhận phương thức thanh toán</p>
                 </div>
               </div>
-              <button className="admin-modal-close" onClick={() => setShowCreateModal(false)}>
-                <X size={18} />
+              <button type="button" className="modal-close-btn" onClick={() => setShowCreateModal(false)}>
+                <X size={20} />
               </button>
             </div>
 
@@ -699,16 +935,18 @@ export default function AdminInvoiceManagement({ currentUser }) {
                     <span className="inv-step-badge">1</span> Chọn đơn đặt hàng cần xuất hóa đơn
                   </h4>
                   {eligibleLoading ? (
-                    <div className="inv-loading-box"><RefreshCw size={16} className="admin-spin" /> Đang tải danh sách đơn hàng chưa lập hóa đơn...</div>
+                    <div className="inv-loading-box">
+                      <RefreshCw size={16} className="spin" /> Đang tải danh sách đơn hàng chưa lập hóa đơn...
+                    </div>
                   ) : eligibleOrders.length === 0 ? (
                     <div className="inv-empty-orders">
-                      <CheckCircle2 size={24} className="text-success" />
+                      <CheckCircle2 size={24} color="#059669" />
                       <span>Tất cả các đơn hàng hợp lệ hiện đều đã được xuất hóa đơn đầy đủ!</span>
                     </div>
                   ) : (
                     <div className="inv-order-select-grid">
                       <select
-                        className="admin-form-input inv-order-select"
+                        className="form-input"
                         value={selectedOrderId}
                         onChange={(e) => handleSelectOrder(e.target.value)}
                         required
@@ -731,7 +969,9 @@ export default function AdminInvoiceManagement({ currentUser }) {
                           <strong>Đơn hàng #{selectedOrderInfo.id}</strong>
                           <span className="inv-order-status-tag">{selectedOrderInfo.status}</span>
                         </div>
-                        <span className="text-muted"><Calendar size={13} /> {formatDate(selectedOrderInfo.orderDate)}</span>
+                        <span style={{ fontSize: '0.82rem', color: 'var(--admin-text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <Calendar size={13} /> {formatDate(selectedOrderInfo.orderDate)}
+                        </span>
                       </div>
                       <div className="inv-order-preview-customer">
                         <div><User size={13} /> Khách hàng: <strong>{selectedOrderInfo.customerName}</strong></div>
@@ -744,7 +984,7 @@ export default function AdminInvoiceManagement({ currentUser }) {
                         <table className="inv-mini-table">
                           <thead>
                             <tr>
-                              <th>Sản phẩm</th>
+                              <th>Sản phẩm nội thất</th>
                               <th style={{ width: 70, textAlign: 'center' }}>SL</th>
                               <th style={{ width: 110, textAlign: 'right' }}>Đơn giá</th>
                               <th style={{ width: 120, textAlign: 'right' }}>Thành tiền</th>
@@ -761,7 +1001,7 @@ export default function AdminInvoiceManagement({ currentUser }) {
                                 </td>
                                 <td style={{ textAlign: 'center' }}>{it.quantity} {it.unit}</td>
                                 <td style={{ textAlign: 'right' }}>{formatVnd(it.unitPrice)}</td>
-                                <td style={{ textAlign: 'right' }} className="fw-600">{formatVnd(it.amount)}</td>
+                                <td style={{ textAlign: 'right', fontWeight: 600 }}>{formatVnd(it.amount)}</td>
                               </tr>
                             ))}
                           </tbody>
@@ -775,7 +1015,7 @@ export default function AdminInvoiceManagement({ currentUser }) {
                 {selectedOrderId && (
                   <div className="inv-form-section">
                     <h4 className="inv-section-title">
-                      <span className="inv-step-badge">2</span> Khuyến mãi, Voucher & Thuế VAT
+                      <span className="inv-step-badge">2</span> Khuyến mãi, Voucher &amp; Thuế VAT
                     </h4>
 
                     <div className="inv-calc-controls-row">
@@ -785,17 +1025,17 @@ export default function AdminInvoiceManagement({ currentUser }) {
                           <Tag size={15} className="inv-field-icon" />
                           <input
                             type="text"
-                            placeholder="Nhập mã voucher (vd: VIP10, KHAITRUONG...)"
+                            placeholder="Nhập mã voucher (vd: TET2026, VIP10...)"
                             value={voucherCodeInput}
                             onChange={(e) => setVoucherCodeInput(e.target.value.toUpperCase())}
                           />
                           <button
                             type="button"
-                            className="admin-btn admin-btn-secondary inv-apply-btn"
+                            className="admin-btn admin-btn-outline inv-apply-btn"
                             onClick={() => calculatePreview(selectedOrderId, voucherCodeInput, includeVat)}
                             disabled={calculating}
                           >
-                            {calculating ? <RefreshCw size={13} className="admin-spin" /> : 'Áp dụng'}
+                            {calculating ? <RefreshCw size={13} className="spin" /> : 'Áp dụng'}
                           </button>
                         </div>
                       </div>
@@ -866,7 +1106,7 @@ export default function AdminInvoiceManagement({ currentUser }) {
                 {selectedOrderId && (
                   <div className="inv-form-section">
                     <h4 className="inv-section-title">
-                      <span className="inv-step-badge">3</span> Phương thức thanh toán & Ghi chú
+                      <span className="inv-step-badge">3</span> Phương thức thanh toán &amp; Ghi chú
                     </h4>
 
                     <div className="inv-payment-methods-grid">
@@ -879,7 +1119,7 @@ export default function AdminInvoiceManagement({ currentUser }) {
                           onChange={() => setPaymentMethod('BANK_TRANSFER')}
                         />
                         <div className="inv-method-content">
-                          <QrCode size={20} className="text-teal" />
+                          <QrCode size={20} color="#0284C7" />
                           <div>
                             <strong>Chuyển khoản VietQR</strong>
                             <span>Quét mã QR ngân hàng tự động</span>
@@ -896,7 +1136,7 @@ export default function AdminInvoiceManagement({ currentUser }) {
                           onChange={() => setPaymentMethod('CASH')}
                         />
                         <div className="inv-method-content">
-                          <Banknote size={20} className="text-emerald" />
+                          <Banknote size={20} color="#059669" />
                           <div>
                             <strong>Tiền mặt tại quầy</strong>
                             <span>Thanh toán trực tiếp khi nhận hàng</span>
@@ -913,7 +1153,7 @@ export default function AdminInvoiceManagement({ currentUser }) {
                           onChange={() => setPaymentMethod('CREDIT_CARD')}
                         />
                         <div className="inv-method-content">
-                          <CreditCard size={20} className="text-amber" />
+                          <CreditCard size={20} color="#D97706" />
                           <div>
                             <strong>Quẹt thẻ qua POS</strong>
                             <span>Thẻ ATM nội địa / Visa / Master</span>
@@ -930,7 +1170,7 @@ export default function AdminInvoiceManagement({ currentUser }) {
                           onChange={() => setPaymentMethod('MOMO')}
                         />
                         <div className="inv-method-content">
-                          <Wallet size={20} className="text-purple" />
+                          <Wallet size={20} color="#7E22CE" />
                           <div>
                             <strong>Ví MoMo / VNPay</strong>
                             <span>Cổng thanh toán điện tử</span>
@@ -943,25 +1183,25 @@ export default function AdminInvoiceManagement({ currentUser }) {
                     {paymentMethod === 'BANK_TRANSFER' && previewCalculation && (
                       <div className="inv-vietqr-box">
                         <div className="inv-vietqr-info">
-                          <h5><Sparkles size={14} className="text-teal" /> Thanh toán VietQR động theo đơn</h5>
+                          <h5><Sparkles size={14} color="var(--admin-accent)" /> Thanh toán VietQR động theo đơn</h5>
                           <p>Số tài khoản: <strong>0312345678</strong> - MB Bank</p>
-                          <p>Chủ tài khoản: <strong>SHOWROOM NOI THAT CAO CAP</strong></p>
-                          <p>Số tiền: <strong className="text-emerald">{formatVnd(previewCalculation.finalAmount)}</strong></p>
+                          <p>Chủ tài khoản: <strong>SHOWROOM NOI THAT FUNISTORE</strong></p>
+                          <p>Số tiền: <strong style={{ color: '#059669' }}>{formatVnd(previewCalculation.finalAmount)}</strong></p>
                           <p>Nội dung: <strong>HD-{selectedOrderId}</strong></p>
                         </div>
                         <img
-                          src={`https://img.vietqr.io/image/MB-0312345678-compact.png?amount=${previewCalculation.finalAmount}&addInfo=HD-${selectedOrderId}&accountName=SHOWROOM%20NOI%20THAT%20CAO%20CAP`}
+                          src={`https://img.vietqr.io/image/MB-0312345678-compact.png?amount=${previewCalculation.finalAmount}&addInfo=HD-${selectedOrderId}&accountName=SHOWROOM%20NOI%20THAT%20FUNISTORE`}
                           alt="VietQR"
                           className="inv-vietqr-img"
                         />
                       </div>
                     )}
 
-                    <div className="inv-notes-field">
-                      <label>Ghi chú trên hóa đơn (tùy chọn):</label>
+                    <div className="form-group" style={{ marginTop: '16px' }}>
+                      <label className="form-label">Ghi chú trên hóa đơn (tùy chọn):</label>
                       <textarea
                         rows={2}
-                        className="admin-form-input"
+                        className="form-input"
                         placeholder="Ghi chú giao hàng, chính sách thỏa thuận riêng..."
                         value={notes}
                         onChange={(e) => setNotes(e.target.value)}
@@ -974,27 +1214,26 @@ export default function AdminInvoiceManagement({ currentUser }) {
               <div className="admin-modal-footer">
                 <button
                   type="button"
-                  className="admin-btn admin-btn-secondary"
+                  className="admin-btn admin-btn-outline"
                   onClick={() => setShowCreateModal(false)}
                   disabled={createSubmitting}
                 >
-                  Hủy bỏ
+                  Hủy Bỏ
                 </button>
                 <button
                   type="submit"
-                  className="admin-btn admin-btn-primary"
-                  style={{ background: 'linear-gradient(135deg, #0d9488 0%, #0f766e 100%)', borderColor: '#0f766e' }}
+                  className="admin-btn admin-btn-accent"
                   disabled={!selectedOrderId || createSubmitting}
                 >
                   {createSubmitting ? (
                     <>
-                      <RefreshCw size={15} className="admin-spin" />
+                      <RefreshCw size={15} className="spin" />
                       <span>Đang xuất hóa đơn...</span>
                     </>
                   ) : (
                     <>
                       <Check size={16} />
-                      <span>Xuất Hóa Đơn & Ghi Nhận Thanh Toán</span>
+                      <span>Xuất Hóa Đơn &amp; Ghi Nhận Thanh Toán</span>
                     </>
                   )}
                 </button>
@@ -1008,22 +1247,25 @@ export default function AdminInvoiceManagement({ currentUser }) {
       {/* MODAL 2: CHI TIẾT & MẪU IN HÓA ĐƠN BÁN LẺ SHOWROOM (A4 / K80) */}
       {/* ========================================================================= */}
       {showDetailModal && (
-        <div className="admin-modal-backdrop">
-          <div className="admin-modal-card inv-printable-modal">
+        <div className="admin-modal-backdrop" onClick={() => setShowDetailModal(false)}>
+          <div className="admin-modal-card inv-printable-modal" onClick={(e) => e.stopPropagation()}>
             {/* Top Toolbar (Hidden on print) */}
             <div className="inv-modal-toolbar print-hide">
               <div className="inv-toolbar-left">
                 <span className="inv-toolbar-title">
-                  <Receipt size={18} className="text-teal" /> Mẫu In Hóa Đơn Bán Lẻ
+                  <Receipt size={18} color="var(--admin-accent)" />
+                  <span>Mẫu In Hóa Đơn Bán Lẻ</span>
                 </span>
                 <div className="inv-format-toggle">
                   <button
+                    type="button"
                     className={`inv-format-btn ${printFormat === 'A4' ? 'active' : ''}`}
                     onClick={() => setPrintFormat('A4')}
                   >
                     Khổ A4 Showroom
                   </button>
                   <button
+                    type="button"
                     className={`inv-format-btn ${printFormat === 'K80' ? 'active' : ''}`}
                     onClick={() => setPrintFormat('K80')}
                   >
@@ -1034,21 +1276,27 @@ export default function AdminInvoiceManagement({ currentUser }) {
 
               <div className="inv-toolbar-right">
                 <button
+                  type="button"
                   className="admin-btn admin-btn-primary inv-print-btn"
                   onClick={handlePrint}
                 >
-                  <Printer size={15} /> In hóa đơn
+                  <Printer size={15} />
+                  <span>In Hóa Đơn</span>
                 </button>
                 {selectedInvoice && (
                   <button
-                    className="admin-btn admin-btn-secondary"
+                    type="button"
+                    className="admin-btn admin-btn-outline"
                     onClick={() => handleDownloadPdf(selectedInvoice.id, selectedInvoice.invoiceCode)}
                   >
-                    <Download size={15} /> Tải PDF
+                    <Download size={15} />
+                    <span>Tải PDF</span>
                   </button>
                 )}
                 <button
-                  className="admin-modal-close"
+                  type="button"
+                  className="modal-close-btn"
+                  style={{ width: '34px', height: '34px', background: '#F1F5F9', border: '1px solid #E2E8F0', borderRadius: '8px' }}
                   onClick={() => setShowDetailModal(false)}
                 >
                   <X size={18} />
@@ -1059,24 +1307,29 @@ export default function AdminInvoiceManagement({ currentUser }) {
             {/* Modal Body / Paper Container */}
             <div className="inv-paper-wrapper">
               {detailLoading ? (
-                <div className="admin-table-loading" style={{ minHeight: 350 }}>
-                  <RefreshCw size={28} className="admin-spin" />
-                  <p>Đang tải chi tiết hóa đơn...</p>
+                <div style={{ padding: '60px', textAlign: 'center', color: 'var(--admin-text-muted)' }}>
+                  <RefreshCw size={28} className="spin" color="var(--admin-accent)" />
+                  <p style={{ marginTop: '12px' }}>Đang tải chi tiết hóa đơn...</p>
                 </div>
               ) : selectedInvoice ? (
                 <div id="printable-invoice-paper" className={`inv-paper ${printFormat === 'K80' ? 'inv-paper-k80' : 'inv-paper-a4'}`}>
+                  {/* Luxury Watermark Stamp */}
+                  <div className="inv-watermark-stamp">
+                    ★ ĐÃ THANH TOÁN ★
+                  </div>
+
                   {/* Showroom Brand Header */}
                   <div className="inv-showroom-header">
                     <div className="inv-showroom-logo">
-                      <Building size={24} className="inv-logo-icon" />
+                      <Building size={26} className="inv-logo-icon" />
                       <div>
-                        <h2>SHOWROOM NỘI THẤT CAO CẤP</h2>
-                        <p>Kiến tạo không gian sống thượng lưu & đẳng cấp</p>
+                        <h2>SHOWROOM NỘI THẤT CAO CẤP FUNISTORE</h2>
+                        <p>Thương hiệu nội thất gỗ óc chó &amp; da thật cao cấp - Kiến tạo không gian sống thượng lưu</p>
                       </div>
                     </div>
                     <div className="inv-showroom-meta">
-                      <p><strong>Địa chỉ:</strong> 123 Đường Nội Thất, TP. Hồ Chí Minh</p>
-                      <p><strong>Hotline:</strong> 1900 6868  -  <strong>MST:</strong> 0312345678</p>
+                      <p><strong>Địa chỉ:</strong> 123 Đường Nội Thất, Phường Bến Nghé, Quận 1, TP. HCM</p>
+                      <p><strong>Hotline:</strong> 1900 6868 - <strong>MST:</strong> 0312345678</p>
                     </div>
                   </div>
 
@@ -1086,8 +1339,8 @@ export default function AdminInvoiceManagement({ currentUser }) {
                   <div className="inv-doc-title-block">
                     <h1>{printFormat === 'K80' ? 'PHIẾU BÁN LẺ NỘI THẤT' : 'HÓA ĐƠN BÁN HÀNG NỘI THẤT'}</h1>
                     <div className="inv-doc-code">
-                      <span>Số: <strong>{selectedInvoice.invoiceCode}</strong></span>
-                      <span>Mã đơn gốc: <strong>#{selectedInvoice.orderId}</strong></span>
+                      <span>Số chứng từ: <strong>{selectedInvoice.invoiceCode}</strong></span>
+                      <span>Mã đơn đặt hàng: <strong>#{selectedInvoice.orderId}</strong></span>
                     </div>
                   </div>
 
@@ -1100,8 +1353,8 @@ export default function AdminInvoiceManagement({ currentUser }) {
                     </div>
                     <div className="inv-info-col inv-info-right">
                       <p><strong>Ngày lập:</strong> {formatDate(selectedInvoice.paymentDate)}</p>
-                      <p><strong>Thu ngân:</strong> {selectedInvoice.staffName || 'Admin Showroom'}</p>
-                      <p><strong>Phương thức:</strong> {selectedInvoice.paymentMethod}</p>
+                      <p><strong>Thu ngân phụ trách:</strong> {selectedInvoice.staffName || 'Admin Showroom'}</p>
+                      <p><strong>Hình thức thanh toán:</strong> {selectedInvoice.paymentMethod}</p>
                     </div>
                   </div>
 
@@ -1170,7 +1423,7 @@ export default function AdminInvoiceManagement({ currentUser }) {
                       )}
                       <div className="inv-sum-divider"></div>
                       <div className="inv-sum-final">
-                        <span>TỔNG CỘNG:</span>
+                        <span>TỔNG CỘNG THANH TOÁN:</span>
                         <span className="inv-sum-final-num">{formatVnd(selectedInvoice.finalAmount)}</span>
                       </div>
                     </div>
@@ -1179,28 +1432,34 @@ export default function AdminInvoiceManagement({ currentUser }) {
                   {/* Warranty & Footer */}
                   <div className="inv-footer-policy">
                     <p className="inv-policy-title">
-                      <ShieldCheck size={14} /> CHÍNH SÁCH BẢO HÀNH CHÍNH HÃNG:
+                      <ShieldCheck size={14} /> CHÍNH SÁCH BẢO HÀNH CHÍNH HÃNG FUNISTORE:
                     </p>
                     <p className="inv-policy-content">
-                      Đồ nội thất gỗ tự nhiên được bảo hành khung gỗ <strong>05 năm</strong>, bảo hành nệm mút & phụ kiện <strong>02 năm</strong>.
-                      Vui lòng giữ hóa đơn bán hàng này để được hưởng trọn vẹn quyền lợi hậu mãi.
+                      Đồ nội thất gỗ óc chó tự nhiên được bảo hành khung kết cấu <strong>05 năm</strong>, bảo hành đệm mút &amp; phụ kiện ray trượt <strong>02 năm</strong>.
+                      Vui lòng giữ hóa đơn bán hàng này để được hưởng trọn vẹn dịch vụ bảo hành và bảo dưỡng định kỳ.
                     </p>
                     <p className="inv-policy-thanks">
-                      ✨ Cảm ơn Quý khách đã tin tưởng và đồng hành cùng Showroom Nội Thất Cao Cấp! ✨
+                      ✨ Cảm ơn Quý khách đã tin tưởng và đồng hành cùng Showroom FuniStore! ✨
                     </p>
                   </div>
 
-                  {/* Signature line for A4 */}
+                  {/* 3-Column Signatures for A4 */}
                   {printFormat === 'A4' && (
                     <div className="inv-signatures-row">
                       <div className="inv-sig-box">
                         <p><strong>Người mua hàng</strong></p>
                         <span>(Ký, ghi rõ họ tên)</span>
+                        <div style={{ marginTop: 45, fontWeight: 600 }}>{selectedInvoice.customerName}</div>
                       </div>
                       <div className="inv-sig-box">
                         <p><strong>Nhân viên thu ngân</strong></p>
                         <span>(Ký, ghi rõ họ tên)</span>
-                        <div style={{ marginTop: 40, fontWeight: 600 }}>{selectedInvoice.staffName || 'Admin'}</div>
+                        <div style={{ marginTop: 45, fontWeight: 600 }}>{selectedInvoice.staffName || 'Admin Showroom'}</div>
+                      </div>
+                      <div className="inv-sig-box">
+                        <p><strong>Đại diện Showroom</strong></p>
+                        <span>(Ký, đóng dấu)</span>
+                        <div style={{ marginTop: 45, fontWeight: 600, color: '#D97706' }}>FUNISTORE SHOWROOM</div>
                       </div>
                     </div>
                   )}

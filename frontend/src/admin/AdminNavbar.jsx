@@ -89,7 +89,11 @@ export default function AdminNavbar({
     )
     setShowNotifications(false)
     if (onNavigateModule && item.module) {
-      onNavigateModule(item.module)
+      if (role === 'STAFF' && ['promotions', 'users', 'staff', 'reports', 'dashboard', 'categories'].includes(item.module)) {
+        onNavigateModule('orders')
+      } else {
+        onNavigateModule(item.module)
+      }
     }
   }
 
@@ -112,13 +116,16 @@ export default function AdminNavbar({
           onClick={onOpenGlobalSearch}
           title="Nhấn để tìm kiếm toàn hệ thống (Ctrl + K)"
         >
-          <Search size={16} color="var(--admin-text-muted)" />
+          <Search size={16} className="admin-search-icon" />
           <input
             type="text"
             readOnly
-            placeholder="Tìm nhanh đơn hàng (#101), SĐT khách, tên sản phẩm..."
+            placeholder="Tìm nhanh đơn hàng, khách hàng, sản phẩm..."
           />
-          <kbd className="admin-search-kbd">Ctrl K</kbd>
+          <div className="admin-search-kbd-group">
+            <kbd className="admin-search-kbd">Ctrl</kbd>
+            <kbd className="admin-search-kbd">K</kbd>
+          </div>
         </div>
       </div>
 
@@ -206,12 +213,25 @@ export default function AdminNavbar({
 
         {/* Profile Pill */}
         <div className="admin-profile-pill">
-          <div className="admin-profile-avatar">
+          <div
+            className="admin-profile-avatar"
+            style={{
+              background: role === 'ADMIN' ? 'linear-gradient(135deg, #D97706, #B45309)' : 'linear-gradient(135deg, #0EA5E9, #0284C7)'
+            }}
+          >
             {username.charAt(0).toUpperCase()}
           </div>
           <div className="admin-profile-info">
             <span className="admin-profile-name">{username}</span>
-            <span className="admin-profile-role">{role}</span>
+            <span
+              className="admin-profile-role"
+              style={{
+                color: role === 'ADMIN' ? '#D97706' : '#0284C7',
+                fontWeight: 700
+              }}
+            >
+              {role === 'ADMIN' ? '👑 Quản Trị Viên' : '👔 Nhân Viên'}
+            </span>
           </div>
         </div>
 

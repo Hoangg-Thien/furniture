@@ -25,8 +25,10 @@ import {
   ExternalLink,
   Tag,
   Sparkles,
+  UserCheck,
+  RefreshCw,
 } from 'lucide-react'
-import { createOrder, saveOrderToLocalHistory, cancelOrderApi } from '../lib/orders'
+import { createOrder, saveOrderToLocalHistory, cancelOrderApi, fetchOrderById } from '../lib/orders'
 import { validateVoucherApi, fetchActiveVouchers } from '../lib/vouchers'
 import { getAllProvinces, getDistricts, getWards } from '../lib/vietnamLocations'
 
@@ -276,6 +278,64 @@ export default function OrderReviewPage({
 
   const [step, setStep] = useState(() => (initialOrder ? 3 : 1))
   const [orderSnapshot, setOrderSnapshot] = useState(initialOrder)
+  const [liveStatus, setLiveStatus] = useState(initialOrder?.status || 'PENDING')
+  const [isRefreshingStatus, setIsRefreshingStatus] = useState(false)
+
+  // Đồng bộ khi initialOrder thay đổi từ component cha (App.jsx fetch live order)
+  useEffect(() => {
+    if (initialOrder) {
+      setOrderSnapshot(initialOrder)
+      setStep(3)
+      if (initialOrder.status) setLiveStatus(initialOrder.status)
+    }
+  }, [initialOrder])
+
+  // Cập nhật liveStatus khi orderSnapshot thay đổi
+  useEffect(() => {
+    if (orderSnapshot?.status) {
+      setLiveStatus(orderSnapshot.status)
+    }
+  }, [orderSnapshot?.status])
+
+  // Hàm tự động gọi backend lấy trạng thái duyệt đơn mới nhất
+  const handleRefreshStatus = async () => {
+    const orderKey = orderSnapshot?.orderNumber || orderSnapshot?.id || initialOrder?.orderNumber || initialOrder?.id
+    if (!orderKey) return
+    setIsRefreshingStatus(true)
+    try {
+      const { order, error } = await fetchOrderById(orderKey)
+      if (order && !error && order.status) {
+        setLiveStatus(order.status)
+        setOrderSnapshot((prev) => ({
+          ...(prev || {}),
+          status: order.status,
+          total_amount: order.total_amount ?? prev?.total_amount,
+        }))
+      }
+    } catch (e) {
+      console.warn('Lỗi làm mới trạng thái đơn hàng:', e)
+    } finally {
+      setIsRefreshingStatus(false)
+    }
+  }
+
+  // Tự động kiểm tra và cập nhật trạng thái liên tục theo thời gian thực (Polling mỗi 3.5s)
+  useEffect(() => {
+    if (step !== 3) return
+    const orderKey = orderSnapshot?.orderNumber || orderSnapshot?.id || initialOrder?.orderNumber || initialOrder?.id
+    if (!orderKey) return
+
+    // Kiểm tra ngay lập tức
+    handleRefreshStatus()
+
+    // Cập nhật liên tục mỗi 3.5 giây để nhận ngay trạng thái Duyệt từ Admin mà không cần tải lại trang
+    const interval = setInterval(() => {
+      handleRefreshStatus()
+    }, 3500)
+
+    return () => clearInterval(interval)
+  }, [step, orderSnapshot?.orderNumber, orderSnapshot?.id, initialOrder?.orderNumber, initialOrder?.id])
+
   const [orderNumber] = useState(
     () =>
       initialOrder?.orderNumber ||
@@ -757,12 +817,67 @@ export default function OrderReviewPage({
 
     const totalQty = items.reduce((sum, item) => sum + (item.quantity || 1), 0)
 
+    const activeStatus = (liveStatus || rawStatus || 'PENDING').toUpperCase()
+
+    const statusConfig = {
+      CONFIRMED: {
+        badgeClass: 'status-pill-confirmed',
+        icon: <UserCheck size={15} strokeWidth={2.2} />,
+        label: 'ĐÃ ĐƯỢC DUYỆT • ĐANG CHUẨN BỊ HÀNG',
+        title: 'Đơn hàng của bạn đã được duyệt!',
+        subtitle: 'FuniStore đã duyệt đơn hàng thành công. Bộ phận kho đang đóng gói cẩn thận và chuẩn bị bàn giao cho đơn vị vận chuyển.',
+        circleClass: 'circle-confirmed',
+      },
+      SHIPPING: {
+        badgeClass: 'status-pill-shipping',
+        icon: <Truck size={15} strokeWidth={2.2} />,
+        label: 'ĐANG VẬN CHUYỂN',
+        title: 'Đơn hàng đang trên đường giao!',
+        subtitle: 'Kiện hàng của bạn đang được vận chuyển. Vui lòng giữ liên lạc điện thoại để nhận hàng nhanh nhất.',
+        circleClass: 'circle-shipping',
+      },
+      COMPLETED: {
+        badgeClass: 'status-pill-completed',
+        icon: <CheckCircle2 size={15} strokeWidth={2.2} />,
+        label: 'GIAO HÀNG THÀNH CÔNG',
+        title: 'Đơn hàng hoàn tất thành công!',
+        subtitle: 'Cảm ơn bạn đã lựa chọn FuniStore. Chúc bạn có không gian sống ấm cúng và an yên cùng sản phẩm mới!',
+        circleClass: 'circle-completed',
+      },
+      CANCELLED: {
+        badgeClass: 'status-pill-cancelled',
+        icon: <XCircle size={15} strokeWidth={2.2} />,
+        label: 'ĐƠN HÀNG ĐÃ BỊ HỦY',
+        title: 'Đơn hàng đã được hủy',
+        subtitle: 'Đơn hàng này hiện ở trạng thái Đã Hủy. Nếu bạn cần hỗ trợ thêm, vui lòng liên hệ hotline 1900 6868.',
+        circleClass: 'circle-cancelled',
+      },
+      PENDING: {
+        badgeClass: 'status-pill-pending',
+        icon: <Clock size={15} strokeWidth={2.2} />,
+        label: 'CHỜ TIẾP NHẬN & DUYỆT ĐƠN',
+        title: 'Cảm ơn bạn đã mua hàng!',
+        subtitle: 'Đơn hàng của bạn đã được ghi nhận thành công. FuniStore sẽ sớm liên hệ xác nhận và duyệt đơn hàng.',
+        circleClass: 'circle-pending',
+      },
+    }
+
+    const currentStatusConfig = statusConfig[activeStatus] || statusConfig.PENDING
+
     return (
       <div className="order-page-layer" role="dialog" aria-modal="true" aria-label="Xác nhận đơn hàng thành công">
         <div className="order-page-container order-success-modern-container">
           {/* Header thanh thoát */}
           <header className="order-success-top-header">
-            <a className="wordmark order-wordmark" href="#top" aria-label="FuniStore - Trang chủ">
+            <a
+              className="wordmark order-wordmark"
+              href="#top"
+              aria-label="FuniStore - Trang chủ"
+              onClick={(e) => {
+                e.preventDefault()
+                handleClose()
+              }}
+            >
               <span className="wordmark-symbol" aria-hidden="true">f.</span>
             <span>FUNI <em>STORE</em></span>
             </a>
@@ -772,14 +887,29 @@ export default function OrderReviewPage({
           </header>
 
           <div className="order-success-scroll-content">
-            {/* Hero Cảm Ơn Nếp Living */}
+            {/* Hero Cảm Ơn FuniStore */}
             <div className="order-thankyou-hero">
-              <div className="order-thankyou-icon-circle">
-                <CheckCircle2 size={46} strokeWidth={2.2} />
+              <div className={`order-thankyou-icon-circle ${currentStatusConfig.circleClass}`}>
+                {activeStatus === 'CANCELLED' ? (
+                  <XCircle size={46} strokeWidth={2.2} />
+                ) : activeStatus === 'CONFIRMED' ? (
+                  <UserCheck size={44} strokeWidth={2.2} />
+                ) : activeStatus === 'SHIPPING' ? (
+                  <Truck size={42} strokeWidth={2.2} />
+                ) : (
+                  <CheckCircle2 size={46} strokeWidth={2.2} />
+                )}
               </div>
-              <h1 className="order-thankyou-title">Cảm ơn bạn đã mua hàng!</h1>
+
+              {/* Status Badge */}
+              <div className={`order-live-status-pill ${currentStatusConfig.badgeClass}`}>
+                {currentStatusConfig.icon}
+                <span>{currentStatusConfig.label}</span>
+              </div>
+
+              <h1 className="order-thankyou-title">{currentStatusConfig.title}</h1>
               <p className="order-thankyou-subtitle">
-                Đơn hàng của bạn đã được ghi nhận thành công. FuniStore sẽ sớm liên hệ xác nhận và giao những món đồ ấm cúng đến tổ ấm của bạn.
+                {currentStatusConfig.subtitle}
               </p>
 
               <div className="order-thankyou-code-pill">
@@ -793,6 +923,16 @@ export default function OrderReviewPage({
                 >
                   {copied ? <Check size={13} color="#2b8a3e" /> : <Copy size={13} />}
                   <span>{copied ? 'Đã sao chép' : 'Sao chép'}</span>
+                </button>
+                <button
+                  type="button"
+                  className="code-copy-btn"
+                  onClick={handleRefreshStatus}
+                  disabled={isRefreshingStatus}
+                  title="Kiểm tra trạng thái duyệt đơn mới nhất từ máy chủ"
+                >
+                  <RefreshCw size={13} className={isRefreshingStatus ? 'spin-anim' : ''} />
+                  <span>{isRefreshingStatus ? 'Đang kiểm tra...' : 'Cập nhật trạng thái'}</span>
                 </button>
               </div>
             </div>
@@ -986,7 +1126,15 @@ export default function OrderReviewPage({
     >
       <div className="order-page-container">
         <header className="order-page-header">
-          <a className="wordmark order-wordmark" href="#top" aria-label="FuniStore - Trang chủ">
+          <a
+            className="wordmark order-wordmark"
+            href="#top"
+            aria-label="FuniStore - Trang chủ"
+            onClick={(e) => {
+              e.preventDefault()
+              handleClose()
+            }}
+          >
             <span className="wordmark-symbol" aria-hidden="true">f.</span>
             <span>FUNI <em>STORE</em></span>
           </a>
