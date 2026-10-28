@@ -243,10 +243,35 @@ public class AdminPromotionController {
 
 | Method | Endpoint | Quyền hạn | Mô tả chức năng |
 | :---: | :--- | :---: | :--- |
-| `GET` | `/api/admin/promotions` | `ADMIN`, `STAFF` | Danh sách các chương trình khuyến mãi |
+| `GET` | `/api/admin/promotions` | `ADMIN`, `STAFF` | Danh sách các chương trình khuyến mãi (kèm lọc tìm kiếm & trạng thái) |
+| `GET` | `/api/admin/promotions/{id}` | `ADMIN`, `STAFF` | Chi tiết thông tin chung của chiến dịch |
+| `GET` | `/api/admin/promotions/{id}/detail` | `ADMIN`, `STAFF` | Chi tiết đầy đủ chiến dịch (SP giảm giá, Bậc đơn hàng, Kho voucher) |
 | `POST` | `/api/admin/promotions` | `ADMIN` | Tạo chiến dịch khuyến mãi mới |
-| `PUT` | `/api/admin/promotions/{id}/status` | `ADMIN` | Bật/Tắt trạng thái chiến dịch (`ACTIVE`/`INACTIVE`) |
+| `PUT` | `/api/admin/promotions/{id}` | `ADMIN` | Cập nhật thông tin chiến dịch |
+| `PUT` | `/api/admin/promotions/{id}/status` | `ADMIN` | Bật/Tắt trạng thái chiến dịch (`ACTIVE`/`INACTIVE`/`DRAFT`) |
+| `DELETE` | `/api/admin/promotions/{id}` | `ADMIN` | Xóa chiến dịch (chặn xóa nếu có voucher đã dùng trong đơn hàng) |
+| `POST` | `/api/admin/promotions/{id}/product-discounts` | `ADMIN` | Thêm sản phẩm giảm giá vào chiến dịch |
+| `DELETE` | `/api/admin/promotions/{id}/product-discounts/{discountId}` | `ADMIN` | Gỡ bỏ giảm giá sản phẩm |
+| `POST` | `/api/admin/promotions/{id}/order-discounts` | `ADMIN` | Thêm chiết khấu theo bậc giá trị đơn hàng |
+| `DELETE` | `/api/admin/promotions/{id}/order-discounts/{discountId}` | `ADMIN` | Gỡ bỏ chiết khấu bậc đơn hàng |
+| `GET` | `/api/admin/promotions/vouchers` | `ADMIN`, `STAFF` | Xem toàn bộ danh sách kho Voucher |
 | `POST` | `/api/admin/promotions/{id}/vouchers` | `ADMIN` | Phát hành mã Voucher mới gắn vào chiến dịch |
+| `PUT` | `/api/admin/promotions/vouchers/{voucherId}/status` | `ADMIN` | Bật/Tắt trạng thái voucher (`ACTIVE`/`INACTIVE`) |
+| `DELETE` | `/api/admin/promotions/vouchers/{voucherId}` | `ADMIN` | Xóa voucher (chặn xóa nếu đã có khách dùng) |
+
+---
+
+## 5. TÌNH TRẠNG TRIỂN KHAI THỰC TẾ (STATUS: ✅ ĐÃ HOÀN THIỆN 100%)
+
+- **Backend (Spring Boot JDBC Direct):**
+  - Model DTOs: `CreateProgramRequest`, `ProgramResponse`, `ProgramDetailResponse`, `ProductDiscountDto`, `CreateProductDiscountRequest`, `OrderDiscountDto`, `CreateOrderDiscountRequest`, `VoucherDto`, `CreateVoucherRequest`.
+  - Repository: `AdminPromotionRepository.java` (đồng bộ sequence, truy vấn 3 cơ chế chiết khấu: sản phẩm, bậc đơn hàng, voucher, tính giá sau giảm, kiểm tra ràng buộc đơn hàng).
+  - Service: `AdminPromotionService.java` (kiểm tra tính hợp lệ ngày bắt đầu/kết thúc, chống trùng lặp mã voucher và tên chiến dịch, chặn xóa dữ liệu kế toán đã phát sinh đơn).
+  - Controller: `AdminPromotionController.java` (15 RESTful endpoints chuyên sâu).
+  - Unit Tests: `AdminPromotionServiceTest.java` (15/15 unit tests đạt chuẩn 100%).
+- **Frontend (React Vite Admin UI):**
+  - Component: `AdminPromotionManagement.jsx` (4 Thẻ KPI thống kê, lọc tìm kiếm đa năng theo trạng thái & thời gian, bảng chiến dịch trực quan, modal cấu hình 4 Tab: Tổng quan, SP giảm giá, Bậc đơn hàng và Phát hành Kho Voucher với thanh tiến trình lượt dùng).
+  - Điều hướng: Tích hợp hoàn tất vào `AdminLayout.jsx` và `AdminSidebar.jsx` (Module `promotions`).
 
 ---
 
