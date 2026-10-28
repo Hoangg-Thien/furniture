@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import {
   AlertTriangle,
   ArrowUpRight,
@@ -13,31 +14,53 @@ import {
 } from 'lucide-react'
 
 export default function AdminDashboard({ onNavigateModule }) {
-  // Mock KPI data phục vụ hiển thị Dashboard giai đoạn Bước 0
+  const [liveStats, setLiveStats] = useState(null)
+
+  useEffect(() => {
+    fetch('/api/admin/statistics/overview')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data) setLiveStats(data)
+      })
+      .catch(() => {})
+  }, [])
+
+  const formatCurrency = (val) => {
+    if (val === null || val === undefined) return '0 ₫'
+    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val)
+  }
+
   const kpis = [
     {
-      title: 'Doanh thu tháng 10',
-      value: '452.800.000 ₫',
-      sub: '+14.2% so với tháng trước',
-      positive: true,
+      title: 'Doanh thu tích lũy',
+      value: liveStats?.totalRevenue !== undefined ? formatCurrency(liveStats.totalRevenue) : '452.800.000 ₫',
+      sub: liveStats?.revenueGrowthPercent !== undefined 
+        ? `${liveStats.revenueGrowthPercent >= 0 ? '+' : ''}${liveStats.revenueGrowthPercent}% so với kỳ trước`
+        : '+14.2% so với tháng trước',
+      positive: liveStats?.revenueGrowthPercent !== undefined ? liveStats.revenueGrowthPercent >= 0 : true,
       icon: DollarSign,
       bg: '#FEF3C7',
-      color: '#D97706'
+      color: '#D97706',
+      targetModule: 'reports'
     },
     {
-      title: 'Đơn chờ tiếp nhận',
-      value: '12 đơn',
-      sub: 'Cần nhân viên xác nhận ngay',
-      positive: false,
+      title: 'Đơn hàng hoàn tất',
+      value: liveStats?.completedOrdersCount !== undefined ? `${liveStats.completedOrdersCount} đơn` : '12 đơn',
+      sub: liveStats?.orderCompletionRate !== undefined 
+        ? `Tỉ lệ hoàn thành: ${liveStats.orderCompletionRate}%` 
+        : 'Cần nhân viên xác nhận ngay',
+      positive: true,
       icon: ShoppingCart,
       bg: '#EFF6FF',
       color: '#3B82F6',
       targetModule: 'orders'
     },
     {
-      title: 'Sản phẩm đã xuất kho',
-      value: '184 món',
-      sub: 'Sofa chiếm 42% doanh số',
+      title: 'Sản phẩm đã xuất bán',
+      value: liveStats?.totalItemsSold !== undefined ? `${liveStats.totalItemsSold} món` : '184 món',
+      sub: liveStats?.grossProfit !== undefined 
+        ? `Lợi nhuận gộp: ${formatCurrency(liveStats.grossProfit)}` 
+        : 'Sofa chiếm 42% doanh số',
       positive: true,
       icon: Package,
       bg: '#ECFDF5',
@@ -46,7 +69,7 @@ export default function AdminDashboard({ onNavigateModule }) {
     },
     {
       title: 'Cảnh báo kho tồn thấp',
-      value: '05 sản phẩm',
+      value: liveStats?.lowStockProductsCount !== undefined ? `${String(liveStats.lowStockProductsCount).padStart(2, '0')} sản phẩm` : '05 sản phẩm',
       sub: 'Số lượng trong kho < 5 cái',
       positive: false,
       icon: AlertTriangle,

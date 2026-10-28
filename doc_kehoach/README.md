@@ -20,7 +20,7 @@ Chào mừng bạn đến với bộ tài liệu kế hoạch thiết kế giao 
 | 07 | [Module 07 - Quản lý Khuyến mãi & Voucher](07_QUAN_LY_KHUYEN_MAI_VOUCHER.md) | Chiến dịch khuyến mãi với 3 nhánh: Giảm theo sản phẩm, Chiết khấu bậc đơn hàng, Phát hành mã Voucher. | ✅ Đã triển khai |
 | 08 | [Module 08 - Quản lý Đơn đặt hàng (Orders)](08_QUAN_LY_DON_DAT_HANG.md) | Quy trình vòng đời đơn hàng (`PENDING` ➔ `CONFIRMED` ➔ `COMPLETED` / `CANCELLED`), hoàn kho & voucher khi hủy đơn. | ✅ Đã triển khai |
 | 09 | [Module 09 - Quản lý Hóa đơn (Invoices)](09_QUAN_LY_HOA_DON.md) | Lập hóa đơn bán hàng, thuật toán áp dụng voucher & chiết khấu, phương thức thanh toán QR/POS/Cash, in hóa đơn A4/K80. | ✅ Đã triển khai |
-| 10 | [Module 10 - Thống kê & Báo cáo](10_THONG_KE_BAO_CAO.md) | Dashboard chỉ số KPI thời gian thực, biểu đồ doanh thu theo ngày/tháng, Top 5 sản phẩm bán chạy, xuất báo cáo Excel/PDF. | Hoàn thiện |
+| 10 | [Module 10 - Thống kê & Báo cáo](10_THONG_KE_BAO_CAO.md) | Dashboard chỉ số KPI thời gian thực, biểu đồ doanh thu theo ngày/tháng, Top 5 sản phẩm bán chạy, xuất báo cáo Excel/PDF. | ✅ Đã triển khai |
 | 🚀 | [Lộ trình Triển khai & Kiểm thử](12_LO_TRINH_VA_KIEM_THU.md) | Kế hoạch 4 Sprint (6 tuần), phân bổ nhân sự, tiêu chí nghiệm thu (Acceptance Criteria) và kịch bản Test Case then chốt. | Hoàn thiện |
 
 ---

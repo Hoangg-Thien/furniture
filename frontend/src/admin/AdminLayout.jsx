@@ -11,6 +11,7 @@ import AdminSupplierManagement from './AdminSupplierManagement'
 import AdminPromotionManagement from './AdminPromotionManagement'
 import AdminOrderManagement from './AdminOrderManagement'
 import AdminInvoiceManagement from './AdminInvoiceManagement'
+import AdminReportsManagement from './AdminReportsManagement'
 import AdminModulePlaceholder from './AdminModulePlaceholder'
 import './admin.css'
 
@@ -57,6 +58,8 @@ export default function AdminLayout({ currentUser, onLogout, onBackToStore }) {
             <AdminOrderManagement currentUser={currentUser} />
           ) : activeModule === 'invoices' ? (
             <AdminInvoiceManagement currentUser={currentUser} />
+          ) : activeModule === 'reports' ? (
+            <AdminReportsManagement currentUser={currentUser} />
           ) : (
             <AdminModulePlaceholder moduleId={activeModule} />
           )}

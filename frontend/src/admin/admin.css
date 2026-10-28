@@ -3459,3 +3459,464 @@
   }
 }
 
+/* ==========================================================================
+   MODULE 10: THỐNG KÊ VÀ BÁO CÁO (ANALYTICS & REPORTING) STYLES
+   ========================================================================== */
+
+.admin-reports-view {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.admin-reports-filter-bar {
+  background: var(--admin-card-bg, #ffffff);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-md, 10px);
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.admin-filter-presets {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.admin-preset-btn {
+  padding: 6px 14px;
+  border: 1px solid var(--admin-border);
+  border-radius: 6px;
+  background: var(--admin-bg, #F8FAFC);
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--admin-text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.admin-preset-btn:hover {
+  background: #E2E8F0;
+  color: var(--admin-text-main);
+}
+
+.admin-preset-btn.active {
+  background: var(--admin-primary, #0F766E);
+  color: #FFFFFF;
+  border-color: var(--admin-primary, #0F766E);
+  box-shadow: 0 2px 6px rgba(15, 118, 110, 0.25);
+}
+
+.admin-custom-dates {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.admin-date-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-date-label {
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--admin-text-muted);
+}
+
+.admin-input-date {
+  padding: 6px 12px;
+  border: 1px solid var(--admin-border);
+  border-radius: 6px;
+  font-size: 0.84rem;
+  color: var(--admin-text-main);
+  background: var(--admin-card-bg, #ffffff);
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.admin-input-date:focus {
+  border-color: var(--admin-accent);
+}
+
+.admin-kpi-trend {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-weight: 700;
+  font-size: 0.82rem;
+}
+
+.admin-kpi-trend.positive {
+  color: #10B981;
+}
+
+.admin-kpi-trend.negative {
+  color: #EF4444;
+}
+
+.admin-reports-charts-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 20px;
+}
+
+.admin-chart-box {
+  background: var(--admin-card-bg, #ffffff);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-md, 12px);
+  padding: 20px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 18px;
+}
+
+.admin-chart-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--admin-primary, #0F766E);
+}
+
+.admin-chart-desc {
+  margin: 4px 0 0 0;
+  font-size: 0.8rem;
+  color: var(--admin-text-muted);
+}
+
+.admin-chart-legend {
+  display: flex;
+  gap: 16px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--admin-text-muted);
+}
+
+.admin-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.admin-legend-bullet {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.admin-trend-chart-container {
+  position: relative;
+  min-height: 230px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  border-bottom: 2px solid #E2E8F0;
+  padding-top: 24px;
+}
+
+.admin-chart-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 180px;
+  color: var(--admin-text-muted);
+  font-size: 0.9rem;
+  font-style: italic;
+}
+
+.admin-bars-wrapper {
+  display: flex;
+  gap: 16px;
+  align-items: flex-end;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  min-height: 190px;
+}
+
+.admin-trend-bar-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  min-width: 44px;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.admin-trend-bar-group:hover {
+  transform: translateY(-2px);
+}
+
+.admin-bars-pair {
+  display: flex;
+  gap: 4px;
+  align-items: flex-end;
+  height: 180px;
+}
+
+.admin-bar {
+  width: 14px;
+  border-radius: 4px 4px 0 0;
+  transition: height 0.3s ease, filter 0.2s;
+}
+
+.admin-bar:hover {
+  filter: brightness(1.15);
+}
+
+.admin-bar-revenue {
+  background: linear-gradient(180deg, #14B8A6 0%, #0F766E 100%);
+}
+
+.admin-bar-cost {
+  background: linear-gradient(180deg, #FB7185 0%, #E11D48 100%);
+}
+
+.admin-bar-label {
+  font-size: 0.72rem;
+  color: var(--admin-text-muted);
+  white-space: nowrap;
+}
+
+.admin-trend-tooltip {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  background: rgba(15, 23, 42, 0.92);
+  color: #FFFFFF;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+  z-index: 10;
+  backdrop-filter: blur(4px);
+  pointer-events: none;
+}
+
+.admin-tooltip-date {
+  font-weight: 700;
+  margin-bottom: 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  padding-bottom: 4px;
+  color: #F8FAFC;
+}
+
+.admin-tooltip-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 4px;
+}
+
+.admin-donut-progress-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 8px;
+}
+
+.admin-cat-share-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.admin-cat-share-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+}
+
+.admin-cat-share-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: var(--admin-text-main);
+}
+
+.admin-cat-share-vals {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-cat-share-pct {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--admin-text-muted);
+}
+
+.admin-cat-progress-track {
+  height: 7px;
+  background: #E2E8F0;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.admin-cat-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.4s ease;
+}
+
+.admin-reports-detail-section {
+  background: var(--admin-card-bg, #ffffff);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-md, 12px);
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
+.admin-reports-tab-nav {
+  display: flex;
+  border-bottom: 1px solid var(--admin-border);
+  background: var(--admin-bg, #F8FAFC);
+  overflow-x: auto;
+}
+
+.admin-report-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 20px;
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--admin-text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.admin-report-tab:hover {
+  color: var(--admin-primary, #0F766E);
+}
+
+.admin-report-tab.active {
+  color: var(--admin-primary, #0F766E);
+  border-bottom-color: var(--admin-accent, #D97706);
+  background: #FFFFFF;
+}
+
+.admin-report-tab-body {
+  padding: 20px;
+}
+
+.admin-rank-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  font-weight: 700;
+  font-size: 0.82rem;
+  background: #F1F5F9;
+  color: #475569;
+}
+
+.admin-rank-badge.rank-1 {
+  background: #FEF3C7;
+  color: #D97706;
+  border: 1px solid #FDE68A;
+}
+
+.admin-rank-badge.rank-2 {
+  background: #E0E7FF;
+  color: #4338CA;
+  border: 1px solid #C7D2FE;
+}
+
+.admin-rank-badge.rank-3 {
+  background: #FFEDD5;
+  color: #C2410C;
+  border: 1px solid #FED7AA;
+}
+
+.admin-product-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.admin-product-thumb {
+  width: 42px;
+  height: 42px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid var(--admin-border);
+}
+
+.admin-product-placeholder {
+  width: 42px;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #F1F5F9;
+  border-radius: 6px;
+  color: #94A3B8;
+}
+
+.admin-product-cell-name {
+  font-weight: 600;
+  font-size: 0.88rem;
+  color: var(--admin-text-main);
+}
+
+.admin-product-cell-id {
+  font-size: 0.75rem;
+  color: var(--admin-text-muted);
+}
+
+.admin-voucher-code-tag {
+  display: inline-block;
+  padding: 4px 10px;
+  background: #EEF2FF;
+  color: #4F46E5;
+  border: 1px dashed #A5B4FC;
+  border-radius: 6px;
+  font-family: monospace;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.admin-spin {
+  animation: adminSpin 1s linear infinite;
+}
+
+@keyframes adminSpin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 1024px) {
+  .admin-reports-charts-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+

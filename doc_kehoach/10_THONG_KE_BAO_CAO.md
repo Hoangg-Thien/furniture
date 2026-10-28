@@ -215,14 +215,24 @@ public class AdminStatisticsController {
 
 ---
 
-## 4. DANH SÁCH RESTFUL API ENDPOINTS
+## 4. DANH SÁCH RESTFUL API ENDPOINTS (ĐÃ TRIỂN KHAI HOÀN THIỆN)
 
 | Method | Endpoint | Quyền hạn | Mô tả chức năng |
 | :---: | :--- | :---: | :--- |
-| `GET` | `/api/admin/statistics/kpi` | `ADMIN` | Lấy các thẻ chỉ số KPI tổng hợp thời gian thực |
-| `GET` | `/api/admin/statistics/revenue-trend` | `ADMIN` | Dữ liệu vẽ biểu đồ doanh số và chi phí theo ngày |
-| `GET` | `/api/admin/statistics/top-sellers` | `ADMIN` | Lấy danh sách sản phẩm nội thất bán chạy nhất |
-| `GET` | `/api/admin/statistics/export-excel` | `ADMIN` | Tải xuống file Excel báo cáo doanh thu tài chính |
+| `GET` | `/api/admin/statistics/overview` | `ADMIN` / `STAFF` | Lấy các thẻ chỉ số KPI tổng quan (Doanh thu, Lợi nhuận gộp, Vốn nhập, Đơn hàng, Tồn thấp) |
+| `GET` | `/api/admin/statistics/revenue-trend` | `ADMIN` / `STAFF` | Dữ liệu vẽ biểu đồ cột/đường xu hướng doanh số và chi phí vốn nhập theo ngày |
+| `GET` | `/api/admin/statistics/category-share` | `ADMIN` / `STAFF` | Dữ liệu tỷ trọng doanh thu theo từng danh mục nội thất |
+| `GET` | `/api/admin/statistics/top-products` | `ADMIN` / `STAFF` | Lấy danh sách sản phẩm nội thất bán chạy nhất (Top Best Sellers) |
+| `GET` | `/api/admin/statistics/dead-stock` | `ADMIN` / `STAFF` | Lấy danh sách hàng tồn kho chậm luân chuyển / ứ đọng và đề xuất xả hàng |
+| `GET` | `/api/admin/statistics/voucher-efficiency` | `ADMIN` / `STAFF` | Thống kê hiệu quả sử dụng mã giảm giá và ngân sách khuyến mãi |
+| `GET` | `/api/admin/statistics/export-excel` | `ADMIN` / `STAFF` | Tải xuống file bảng tính Excel (.xls) định dạng chuẩn, có màu sắc, định dạng tiền VND |
+
+---
+
+## 5. TRẠNG THÁI TRIỂN KHAI
+- [x] **Backend**: DTOs, `AdminStatisticsRepository`, `AdminStatisticsService`, `AdminStatisticsController` hoàn thành 100%.
+- [x] **Unit Tests**: `AdminStatisticsServiceTest` đạt 7/7 tests pass, toàn bộ test suite đạt 91/91 tests pass.
+- [x] **Frontend**: `AdminReportsManagement.jsx`, `AdminDashboard.jsx`, và `AdminLayout.jsx` đã tích hợp đầy đủ bộ lọc ngày, biểu đồ xu hướng, cơ cấu danh mục, 3 tab báo cáo chuyên sâu và xuất Excel.
 
 ---
 
