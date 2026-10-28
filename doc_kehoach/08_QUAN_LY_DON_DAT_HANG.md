@@ -300,11 +300,26 @@ public class AdminOrderController {
 
 | Method | Endpoint | Quyền hạn | Mô tả chức năng |
 | :---: | :--- | :---: | :--- |
-| `GET` | `/api/admin/orders` | `ADMIN`, `STAFF` | Lấy danh sách đơn hàng có phân trang & lọc trạng thái |
-| `GET` | `/api/admin/orders/{id}` | `ADMIN`, `STAFF` | Xem chi tiết thông tin đơn hàng và danh sách sản phẩm |
+| `GET` | `/api/admin/orders` | `ADMIN`, `STAFF` | Lấy danh sách đơn hàng có phân trang & lọc trạng thái, ngày đặt, từ khóa |
+| `GET` | `/api/admin/orders/counts` | `ADMIN`, `STAFF` | Thống kê số lượng đơn hàng theo từng tab trạng thái |
+| `GET` | `/api/admin/orders/{id}` | `ADMIN`, `STAFF` | Xem chi tiết thông tin đơn hàng, khách hàng, nhân viên và danh sách sản phẩm |
 | `PUT` | `/api/admin/orders/{id}/confirm` | `ADMIN`, `STAFF` | Duyệt đơn và gán nhân viên phụ trách giao lắp |
-| `PUT` | `/api/admin/orders/{id}/cancel` | `ADMIN`, `STAFF` | Hủy đơn hàng, hoàn trả tồn kho và hoàn voucher |
+| `PUT` | `/api/admin/orders/{id}/cancel` | `ADMIN`, `STAFF` | Hủy đơn hàng, tự động hoàn trả số lượng vào kho và hoàn voucher |
 | `PUT` | `/api/admin/orders/{id}/complete` | `ADMIN`, `STAFF` | Hoàn tất đơn hàng khi khách đã nghiệm thu nội thất |
+
+---
+
+## 5. TÌNH TRẠNG TRIỂN KHAI THỰC TẾ (STATUS: ✅ ĐÃ HOÀN THIỆN 100%)
+
+- **Backend (Spring Boot JDBC Direct):**
+  - Model DTOs: `ConfirmOrderRequest`, `CancelOrderRequest`, `OrderItemDto`, `OrderDetailDto`, `OrderSummaryDto`, `OrderStatusCountDto`.
+  - Repository: `AdminOrderRepository.java` (truy vấn phân trang, tìm kiếm đa trường, đếm trạng thái, khôi phục tồn kho sản phẩm `products.quantity` và khôi phục lượt dùng `vouchers.used_quantity`).
+  - Service: `AdminOrderService.java` (ràng buộc trạng thái vòng đời PENDING ➔ CONFIRMED ➔ COMPLETED, bảo vệ trạng thái bất biến của đơn hoàn tất/đã hủy, kiểm tra nhân viên phụ trách).
+  - Controller: `AdminOrderController.java` (RESTful API đầy đủ).
+  - Unit Tests: `AdminOrderServiceTest.java` (11/11 unit tests đạt chuẩn 100%).
+- **Frontend (React Vite Admin UI):**
+  - Component: `AdminOrderManagement.jsx` (Thanh Tab phân loại 5 trạng thái kèm số lượng thời gian thực, bộ lọc ngày đặt & tìm kiếm, bảng đơn hàng chi tiết, Drawer chi tiết món đồ nội thất kèm nút In phiếu giao hàng A4, Modal duyệt & gán nhân viên điều phối, Modal xác nhận hủy đơn hoàn kho).
+  - Điều hướng: Tích hợp hoàn tất vào `AdminLayout.jsx` và `AdminSidebar.jsx` (Module `orders`).
 
 ---
 
