@@ -10,7 +10,7 @@ Chào mừng bạn đến với bộ tài liệu kế hoạch thiết kế giao 
 | STT | Tài liệu | Nội dung chính | Trạng thái |
 | :---: | :--- | :--- | :---: |
 | 🌐 | [00. Kiến trúc MVC & Thiết kế CSDL](00_KIEN_TRUC_VA_CO_SO_DU_LIEU.md) | Tổng quan kiến trúc 3 tầng, phân quyền RBAC, sơ đồ quan hệ ERD và script DDL PostgreSQL (`product_images`, `invoices`). | Hoàn thiện |
-| 🎨 | [Hệ thống Giao diện UI/UX Admin](11_HE_THONG_GIAO_DIEN_UI_UX.md) | Layout tổng thể (Sidebar, Header, Breadcrumbs), bảng màu Furniture sang trọng, các Component tái sử dụng (DataTable, Modal, Toast). | Hoàn thiện |
+| 🎨 | [Hệ thống Giao diện UI/UX Admin](11_HE_THONG_GIAO_DIEN_UI_UX.md) | Layout tổng thể (Sidebar, Header, Breadcrumbs), bảng màu Furniture sang trọng, các Component tái sử dụng (DataTable, Modal, Toast). | ✅ Đã triển khai |
 | 01 | [Module 01 - Quản lý Tài khoản & Phân quyền](01_QUAN_LY_TAI_KHOAN_ROLE.md) | Quản lý bảng `users`, phân quyền ADMIN/STAFF/CUSTOMER, kích hoạt/khóa tài khoản, đặt lại mật khẩu an toàn. | ✅ Đã triển khai |
 | 02 | [Module 02 - Quản lý Khách hàng](02_QUAN_LY_KHACH_HANG.md) | Hồ sơ khách hàng, phân hạng VIP, lịch sử mua hàng, tổng chi tiêu trọn đời (LTV), giỏ hàng quan tâm. | ✅ Đã triển khai |
 | 03 | [Module 03 - Quản lý Nhân viên](03_QUAN_LY_NHAN_VIEN.md) | Quản lý nhân viên kinh doanh/kho, phân công xử lý đơn hàng, cấp quyền đăng nhập hệ thống. | ✅ Đã triển khai |

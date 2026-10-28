@@ -13,7 +13,8 @@ import {
   Truck,
   UserCheck,
   Users,
-  ShieldAlert
+  ShieldAlert,
+  X
 } from 'lucide-react'
 
 export const ADMIN_MODULES = [
@@ -37,15 +38,34 @@ export const ADMIN_MODULES = [
   { id: 'reports', name: 'Thống kê & Báo cáo', icon: BarChart3, group: 'Bán Hàng & Dòng Tiền', doc: '10' }
 ]
 
-export default function AdminSidebar({ activeModule, onSelectModule, onBackToStore, pendingOrdersCount = 3 }) {
+export default function AdminSidebar({
+  activeModule,
+  onSelectModule,
+  onBackToStore,
+  pendingOrdersCount = 3,
+  isMobileOpen = false,
+  onCloseMobile
+}) {
   // Gom nhóm các module
   const groups = ['Bảng Điều Khiển', 'Nhân Sự & Khách Hàng', 'Kho & Chuỗi Cung Ứng', 'Bán Hàng & Dòng Tiền']
 
+  const handleItemClick = (id) => {
+    onSelectModule(id)
+    if (onCloseMobile) onCloseMobile()
+  }
+
   return (
-    <aside className="admin-sidebar">
+    <aside className={`admin-sidebar ${isMobileOpen ? 'mobile-open' : ''}`}>
       {/* Header Logo */}
       <div className="admin-sidebar-header">
-        <a href="/admin" className="admin-logo-badge" onClick={(e) => { e.preventDefault(); onSelectModule('dashboard') }}>
+        <a
+          href="/admin"
+          className="admin-logo-badge"
+          onClick={(e) => {
+            e.preventDefault()
+            handleItemClick('dashboard')
+          }}
+        >
           <div className="admin-logo-icon">
             <Armchair size={22} />
           </div>
@@ -54,6 +74,18 @@ export default function AdminSidebar({ activeModule, onSelectModule, onBackToSto
             <span>HỆ THỐNG QUẢN TRỊ ADMIN</span>
           </div>
         </a>
+
+        {/* Nút đóng Sidebar trên Mobile */}
+        {onCloseMobile && (
+          <button
+            type="button"
+            className="admin-sidebar-close-btn"
+            onClick={onCloseMobile}
+            aria-label="Đóng Menu"
+          >
+            <X size={20} />
+          </button>
+        )}
       </div>
 
       {/* Nav Menu */}
@@ -70,7 +102,7 @@ export default function AdminSidebar({ activeModule, onSelectModule, onBackToSto
                   <button
                     key={item.id}
                     className={`admin-nav-item ${isActive ? 'active' : ''}`}
-                    onClick={() => onSelectModule(item.id)}
+                    onClick={() => handleItemClick(item.id)}
                   >
                     <IconComponent size={18} />
                     <span>{item.name}</span>
@@ -87,7 +119,13 @@ export default function AdminSidebar({ activeModule, onSelectModule, onBackToSto
 
       {/* Footer link to Storefront */}
       <div className="admin-sidebar-footer">
-        <button className="admin-store-link-btn" onClick={onBackToStore}>
+        <button
+          className="admin-store-link-btn"
+          onClick={() => {
+            if (onCloseMobile) onCloseMobile()
+            onBackToStore()
+          }}
+        >
           <ExternalLink size={16} />
           <span>Về Cửa Hàng (Storefront)</span>
         </button>

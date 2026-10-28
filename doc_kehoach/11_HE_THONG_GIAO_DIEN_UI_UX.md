@@ -114,4 +114,16 @@ Hệ thống được tối ưu hóa cho 3 nhóm màn hình sử dụng thực t
 
 ---
 
+## 5. TRẠNG THÁI TRIỂN KHAI HỆ THỐNG GIAO DIỆN (UI/UX)
+- [x] **Design Tokens & Theme**: Bộ màu Walnut Wood (`#2A1E17`), Warm Amber (`#D97706`), Slate Surface (`#F8FAFC`) chuẩn kiến trúc nội thất cao cấp.
+- [x] **Sticky Shell Layout**: Header cố định tích hợp tìm kiếm toàn hệ thống, Sidebar gom 4 nhóm chức năng, Footer phiên bản 2.0.
+- [x] **Global Command Palette**: Phím tắt `Ctrl + K` / `⌘ + K` tra cứu nhanh đơn hàng, sản phẩm, khách hàng, hóa đơn với `AdminGlobalSearchModal.jsx`.
+- [x] **Chuông Thông Báo Thông Minh**: Dropdown thời gian thực hiển thị đơn mới, cảnh báo tồn kho thấp và tiến độ voucher.
+- [x] **Hệ Thống Toast Toàn Cục**: `AdminToastContainer.jsx` ở góc trên bên phải hỗ trợ 4 cấp độ (Success, Error, Warning, Info).
+- [x] **Hộp Thoại Xác Nhận Chuẩn**: `AdminConfirmModal.jsx` bảo vệ các thao tác nguy hiểm (Hủy đơn, khóa tài khoản, xóa danh mục).
+- [x] **Bảng Dữ Liệu Đa Năng**: `AdminDataTable.jsx` hỗ trợ sorting cột, phân trang linh hoạt, chọn dòng hàng loạt (Bulk Actions), empty states.
+- [x] **Responsive Mobile/Tablet Drawer**: Sidebar off-canvas với backdrop mờ và nút Hamburger khi màn hình `< 1024px`.
+
+---
+
 [⬅️ Quay lại Trang Mục Lục](README.md) | [Tiếp theo: Lộ trình & Kiểm thử ➡️](12_LO_TRINH_VA_KIEM_THU.md)
