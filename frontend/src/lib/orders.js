@@ -90,8 +90,13 @@ export async function fetchOrders(customerId) {
 
 export async function fetchOrderById(id) {
   const apiBaseUrl = getApiBaseUrl()
+  let queryId = id
+  if (typeof id === 'string' && id.startsWith('FUNI-')) {
+    const match = id.match(/(\d+)$/)
+    if (match) queryId = parseInt(match[1], 10)
+  }
   try {
-    const response = await fetch(`${apiBaseUrl}/api/orders/${id}`)
+    const response = await fetch(`${apiBaseUrl}/api/orders/${queryId}`)
     if (response.ok) {
       const data = await response.json()
       return { order: data.order, items: data.items, error: null }
@@ -104,8 +109,13 @@ export async function fetchOrderById(id) {
 
 export async function cancelOrderApi(id) {
   const apiBaseUrl = getApiBaseUrl()
+  let queryId = id
+  if (typeof id === 'string' && id.startsWith('FUNI-')) {
+    const match = id.match(/(\d+)$/)
+    if (match) queryId = parseInt(match[1], 10)
+  }
   try {
-    const response = await fetch(`${apiBaseUrl}/api/orders/${id}/cancel`, {
+    const response = await fetch(`${apiBaseUrl}/api/orders/${queryId}/cancel`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
     })

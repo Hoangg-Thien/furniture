@@ -56,9 +56,16 @@ public class OrderController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<?> getOrderById(@PathVariable Long id) {
+    public ResponseEntity<?> getOrderById(@PathVariable String id) {
         try {
-            return ResponseEntity.ok(orderService.getOrderById(id));
+            Long orderId;
+            if (id.startsWith("FUNI-")) {
+                String[] parts = id.split("-");
+                orderId = Long.parseLong(parts[parts.length - 1]);
+            } else {
+                orderId = Long.parseLong(id);
+            }
+            return ResponseEntity.ok(orderService.getOrderById(orderId));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", ex.getMessage()));
         } catch (Exception ex) {
@@ -67,9 +74,16 @@ public class OrderController {
     }
 
     @PostMapping("/{id}/cancel")
-    public ResponseEntity<?> cancelOrder(@PathVariable Long id) {
+    public ResponseEntity<?> cancelOrder(@PathVariable String id) {
         try {
-            boolean success = orderService.cancelOrder(id);
+            Long orderId;
+            if (id.startsWith("FUNI-")) {
+                String[] parts = id.split("-");
+                orderId = Long.parseLong(parts[parts.length - 1]);
+            } else {
+                orderId = Long.parseLong(id);
+            }
+            boolean success = orderService.cancelOrder(orderId);
             if (success) {
                 return ResponseEntity.ok(Map.of("message", "Đã hủy đơn hàng #" + id + " thành công.", "status", "CANCELLED"));
             } else {
