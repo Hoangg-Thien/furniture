@@ -1,19 +1,15 @@
-import React, { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   AlertTriangle,
   Bell,
   CheckCheck,
-  ExternalLink,
   Home,
   LogOut,
   Menu,
-  Package,
   Search,
-  ShoppingCart,
-  Tag,
-  User,
-  X
+  ShoppingCart
 } from 'lucide-react'
+import { getApiBaseUrl, getApiHeaders } from '../lib/apiConfig'
 
 export default function AdminNavbar({
   currentUser,
@@ -28,41 +24,46 @@ export default function AdminNavbar({
 
   // Trạng thái Dropdown Thông báo
   const [showNotifications, setShowNotifications] = useState(false)
-  const [notifications, setNotifications] = useState([
-    {
-      id: 1,
-      title: 'Đơn đặt hàng mới #101',
-      desc: 'Khách hàng Nguyễn Văn An vừa đặt Sofa Da Ý Chữ L + Bàn Trà',
-      time: '10 phút trước',
-      icon: ShoppingCart,
-      color: '#3B82F6',
-      bg: '#EFF6FF',
-      module: 'orders',
-      unread: true
-    },
-    {
-      id: 2,
-      title: 'Cảnh báo tồn kho thấp',
-      desc: 'Bàn Ăn Gỗ Sồi Bắc Âu 6 Ghế chỉ còn 2 bộ trong kho showroom',
-      time: '45 phút trước',
-      icon: AlertTriangle,
-      color: '#EF4444',
-      bg: '#FEF2F2',
-      module: 'products',
-      unread: true
-    },
-    {
-      id: 3,
-      title: 'Hiệu quả Voucher TET2026',
-      desc: 'Chiến dịch Tết 2026 đã đạt 85% hạn mức sử dụng (42/50 mã)',
-      time: '2 giờ trước',
-      icon: Tag,
-      color: '#D97706',
-      bg: '#FEF3C7',
-      module: 'promotions',
-      unread: true
+  const [notifications, setNotifications] = useState([])
+  const [notificationsLoading, setNotificationsLoading] = useState(false)
+  const [notificationsError, setNotificationsError] = useState(false)
+  const readNotificationIds = useRef(new Set())
+
+  useEffect(() => {
+    const controller = new AbortController()
+    const load = async () => {
+      setNotificationsLoading(true)
+      setNotificationsError(false)
+      try {
+        const baseUrl = getApiBaseUrl()
+        const responses = await Promise.all([
+          fetch(`${baseUrl}/api/admin/orders?status=PENDING&size=5`, { headers: getApiHeaders(), signal: controller.signal }),
+          fetch(`${baseUrl}/api/admin/products?lowStock=true&size=5`, { headers: getApiHeaders(), signal: controller.signal })
+        ])
+        if (responses.some(response => !response.ok)) throw new Error('Unavailable')
+        const [orders, products] = await Promise.all(responses.map(response => response.json()))
+        const items = [
+          ...(orders.content || []).map(order => ({
+            id: `order-${order.id}`, title: `Đơn hàng #${order.id} chờ xác nhận`,
+            desc: `${order.customerName || 'Khách hàng'} · ${new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(order.totalAmount || 0)}`,
+            time: order.orderDate ? new Date(order.orderDate).toLocaleDateString('vi-VN') : '',
+            icon: ShoppingCart, color: '#376757', bg: '#edf3ef', module: 'orders'
+          })),
+          ...(products.content || []).filter(product => Number.isFinite(product.quantity) && product.quantity <= 5).map(product => ({
+            id: `stock-${product.id}`, title: 'Sản phẩm sắp hết hàng', desc: `${product.name} · Còn ${product.quantity} sản phẩm`,
+            time: 'Cần kiểm tra tồn kho', icon: AlertTriangle, color: '#a28150', bg: '#faf5e9', module: 'products'
+          }))
+        ]
+        if (!controller.signal.aborted) setNotifications(items.map(item => ({ ...item, unread: !readNotificationIds.current.has(item.id) })))
+      } catch {
+        if (!controller.signal.aborted) setNotificationsError(true)
+      } finally {
+        if (!controller.signal.aborted) setNotificationsLoading(false)
+      }
     }
-  ])
+    load()
+    return () => controller.abort()
+  }, [showNotifications])
 
   const notifRef = useRef(null)
 
@@ -80,10 +81,12 @@ export default function AdminNavbar({
   const unreadCount = notifications.filter((n) => n.unread).length
 
   const handleMarkAllRead = () => {
+    notifications.forEach(item => readNotificationIds.current.add(item.id))
     setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })))
   }
 
   const handleNotificationClick = (item) => {
+    readNotificationIds.current.add(item.id)
     setNotifications((prev) =>
       prev.map((n) => (n.id === item.id ? { ...n, unread: false } : n))
     )
@@ -111,22 +114,19 @@ export default function AdminNavbar({
         </button>
 
         {/* Ô Tìm Kiếm Nhanh (Click hoặc Ctrl + K) */}
-        <div
+        <button
+          type="button"
           className="admin-search-box"
           onClick={onOpenGlobalSearch}
           title="Nhấn để tìm kiếm toàn hệ thống (Ctrl + K)"
         >
           <Search size={16} className="admin-search-icon" />
-          <input
-            type="text"
-            readOnly
-            placeholder="Tìm nhanh đơn hàng, khách hàng, sản phẩm..."
-          />
+          <span className="admin-search-placeholder">Tìm kiếm trong không gian làm việc...</span>
           <div className="admin-search-kbd-group">
             <kbd className="admin-search-kbd">Ctrl</kbd>
             <kbd className="admin-search-kbd">K</kbd>
           </div>
-        </div>
+        </button>
       </div>
 
       {/* Điều khiển bên phải */}
@@ -153,7 +153,7 @@ export default function AdminNavbar({
                 <div>
                   <h4 className="admin-notif-title">Thông Báo Hoạt Động</h4>
                   <span className="admin-notif-count">
-                    {unreadCount > 0 ? `${unreadCount} thông báo mới` : 'Đã đọc hết'}
+                    {notificationsLoading ? 'Đang cập nhật...' : unreadCount > 0 ? `${unreadCount} mục cần chú ý` : 'Đã cập nhật'}
                   </span>
                 </div>
                 {unreadCount > 0 && (
@@ -170,10 +170,13 @@ export default function AdminNavbar({
               </div>
 
               <div className="admin-notif-list">
+                {notificationsError && <p className="admin-search-status" role="status">Chưa tải được thông báo. Mở lại để thử cập nhật.</p>}
+                {!notificationsLoading && !notificationsError && notifications.length === 0 && <p className="admin-search-status">Không có hoạt động nào cần xử lý.</p>}
                 {notifications.map((item) => {
                   const IconComp = item.icon
                   return (
-                    <div
+                    <button
+                      type="button"
                       key={item.id}
                       className={`admin-notif-item ${item.unread ? 'unread' : ''}`}
                       onClick={() => handleNotificationClick(item)}
@@ -190,7 +193,7 @@ export default function AdminNavbar({
                         <div className="admin-notif-item-time">{item.time}</div>
                       </div>
                       {item.unread && <span className="admin-notif-dot"></span>}
-                    </div>
+                    </button>
                   )
                 })}
               </div>
@@ -213,24 +216,13 @@ export default function AdminNavbar({
 
         {/* Profile Pill */}
         <div className="admin-profile-pill">
-          <div
-            className="admin-profile-avatar"
-            style={{
-              background: role === 'ADMIN' ? 'linear-gradient(135deg, #D97706, #B45309)' : 'linear-gradient(135deg, #0EA5E9, #0284C7)'
-            }}
-          >
+          <div className="admin-profile-avatar">
             {username.charAt(0).toUpperCase()}
           </div>
           <div className="admin-profile-info">
             <span className="admin-profile-name">{username}</span>
-            <span
-              className="admin-profile-role"
-              style={{
-                color: role === 'ADMIN' ? '#D97706' : '#0284C7',
-                fontWeight: 700
-              }}
-            >
-              {role === 'ADMIN' ? '👑 Quản Trị Viên' : '👔 Nhân Viên'}
+            <span className="admin-profile-role">
+              {role === 'ADMIN' ? 'Quản trị viên' : 'Nhân viên'}
             </span>
           </div>
         </div>

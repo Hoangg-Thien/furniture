@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { LogIn, UserPlus, X, User, Lock, Mail, Phone, MapPin, AlertCircle, CheckCircle } from 'lucide-react'
-import { loginUser, registerUser } from '../lib/auth'
+import { loginUser, registerUser } from '../../lib/auth'
 
 export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
   const [mode, setMode] = useState('login') // 'login' | 'register'

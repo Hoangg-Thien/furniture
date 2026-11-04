@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { beforeEach, afterEach, test } from 'node:test'
-import { loadCart, saveCart } from '../src/lib/cart.js'
+import { loadCart, saveCart } from '../src/user/lib/cart.js'
 
 beforeEach(() => {
   const storage = new Map()

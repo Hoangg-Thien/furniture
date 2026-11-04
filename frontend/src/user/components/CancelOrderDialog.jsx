@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { AlertTriangle, LoaderCircle, X } from 'lucide-react'
-import { cancelOrderApi } from '../lib/orders'
+import { cancelOrderApi } from '../../lib/orders'
 
 export default function CancelOrderDialog({ order, onClose, onCancelled }) {
   const [loading, setLoading] = useState(false)

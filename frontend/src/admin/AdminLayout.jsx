@@ -16,6 +16,7 @@ import AdminModulePlaceholder from './AdminModulePlaceholder'
 import AdminToastContainer from './AdminToastContainer'
 import AdminGlobalSearchModal from './AdminGlobalSearchModal'
 import './admin.css'
+import './admin-modern.css'
 
 import { ShieldAlert } from 'lucide-react'
 
@@ -215,12 +216,10 @@ export default function AdminLayout({ currentUser, onLogout, onBackToStore }) {
         {/* Admin Footer */}
         <footer className="admin-system-footer">
           <div className="admin-footer-left">
-            <span>Hệ thống Quản trị Cửa hàng Nội thất Cao Cấp</span>
-            <span className="admin-footer-dot">•</span>
-            <span>Phiên bản 2.0 (Kiến trúc MVC Chuẩn)</span>
+            <span>FuniStore Workspace</span>
           </div>
           <div className="admin-footer-right">
-            <span>Bản quyền &copy; 2026 Showroom FuniStore. Mọi quyền được bảo lưu.</span>
+            <span>&copy; 2026 FuniStore</span>
           </div>
         </footer>
       </div>

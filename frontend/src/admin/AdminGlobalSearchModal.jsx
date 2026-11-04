@@ -11,6 +11,7 @@ import {
   Users,
   X
 } from 'lucide-react'
+import { getApiBaseUrl, getApiHeaders } from '../lib/apiConfig'
 
 export default function AdminGlobalSearchModal({ isOpen, onClose, onNavigateModule }) {
   const [searchTerm, setSearchTerm] = useState('')
@@ -43,7 +44,7 @@ export default function AdminGlobalSearchModal({ isOpen, onClose, onNavigateModu
 
       try {
         // Tìm nhanh qua products API
-        const prodRes = await fetch(`/api/admin/products?search=${encodeURIComponent(q)}&page=0&size=4`).then((r) =>
+        const prodRes = await fetch(`${getApiBaseUrl()}/api/admin/products?search=${encodeURIComponent(q)}&page=0&size=4`, { headers: getApiHeaders() }).then((r) =>
           r.ok ? r.json() : null
         )
         if (prodRes?.content) {
@@ -64,7 +65,7 @@ export default function AdminGlobalSearchModal({ isOpen, onClose, onNavigateModu
 
       try {
         // Tìm nhanh qua orders API
-        const ordRes = await fetch(`/api/admin/orders?search=${encodeURIComponent(q)}&page=0&size=4`).then((r) =>
+        const ordRes = await fetch(`${getApiBaseUrl()}/api/admin/orders?search=${encodeURIComponent(q)}&page=0&size=4`, { headers: getApiHeaders() }).then((r) =>
           r.ok ? r.json() : null
         )
         if (ordRes?.content) {
@@ -85,7 +86,7 @@ export default function AdminGlobalSearchModal({ isOpen, onClose, onNavigateModu
 
       try {
         // Tìm nhanh qua customers API
-        const custRes = await fetch(`/api/admin/customers?search=${encodeURIComponent(q)}&page=0&size=3`).then((r) =>
+        const custRes = await fetch(`${getApiBaseUrl()}/api/admin/customers?search=${encodeURIComponent(q)}&page=0&size=3`, { headers: getApiHeaders() }).then((r) =>
           r.ok ? r.json() : null
         )
         if (custRes?.content) {

@@ -24,7 +24,7 @@ import {
   approveVoucherApi,
   rejectVoucherApi,
   createVoucherApi,
-} from '../lib/vouchers'
+} from '../../lib/vouchers'
 
 const formatPrice = (price) => `${new Intl.NumberFormat('vi-VN').format(price || 0)}₫`
 

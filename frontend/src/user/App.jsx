@@ -19,25 +19,25 @@ import {
   User,
   X,
 } from 'lucide-react'
-import { loadProducts } from './lib/products'
+import { loadProducts } from '../lib/products'
 import { loadCart, saveCart } from './lib/cart'
 import { isCheckoutPath } from './lib/checkout'
-import { fetchOrderById, getLocalOrders } from './lib/orders'
+import { fetchOrderById, getLocalOrders } from '../lib/orders'
 import {
   getCurrentUser,
   logoutUser,
   updateProfile,
   getCurrentAdminUser,
   logoutAdminUser,
-} from './lib/auth'
+} from '../lib/auth'
 import AuthModal from './components/AuthModal'
 import ProfileModal from './components/ProfileModal'
 import AccountModal from './components/AccountModal'
 import OrderReviewPage from './components/OrderReviewPage'
 import MyOrdersModal from './components/MyOrdersModal'
 import VouchersModal from './components/VouchersModal'
-import AdminLayout from './admin/AdminLayout'
-import AdminLoginPage from './admin/AdminLoginPage'
+import AdminLayout from '../admin/AdminLayout'
+import AdminLoginPage from '../admin/AdminLoginPage'
 import NotFoundPage from './components/NotFoundPage'
 import './App.css'
 

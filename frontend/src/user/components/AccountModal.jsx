@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { X, User, Mail, Phone, MapPin, Lock, Check, AlertCircle, Pencil } from 'lucide-react'
-import { updateProfile } from '../lib/auth'
+import { updateProfile } from '../../lib/auth'
 import { getAllProvinces, getDistricts, getWards, splitSavedAddress } from '../lib/vietnamLocations'
 
 export default function AccountModal({ isOpen, user, onClose, onUserUpdate }) {

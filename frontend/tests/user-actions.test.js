@@ -3,7 +3,7 @@ import { beforeEach, afterEach, test } from 'node:test'
 import { fetchOrders, getLocalOrders, cancelOrderApi, saveOrderToLocalHistory } from '../src/lib/orders.js'
 import { getCurrentUser } from '../src/lib/auth.js'
 import { loadProducts } from '../src/lib/products.js'
-import { splitSavedAddress } from '../src/lib/vietnamLocations.js'
+import { splitSavedAddress } from '../src/user/lib/vietnamLocations.js'
 
 const originalFetch = globalThis.fetch
 beforeEach(() => {

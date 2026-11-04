@@ -1,10 +1,7 @@
 import {
   Armchair,
   BarChart3,
-  Boxes,
-  ChevronRight,
   ExternalLink,
-  FileSpreadsheet,
   FolderTree,
   LayoutDashboard,
   Percent,
@@ -19,25 +16,25 @@ import {
 
 export const ADMIN_MODULES = [
   // Nhóm 1: Bảng điều khiển (Chỉ Quản trị viên)
-  { id: 'dashboard', name: 'Tổng quan Dashboard', icon: LayoutDashboard, group: 'Bảng Điều Khiển', roles: ['ADMIN'] },
+  { id: 'dashboard', name: 'Tổng quan', icon: LayoutDashboard, group: 'Không gian làm việc', roles: ['ADMIN'] },
   
   // Nhóm 2: Bán Hàng & Đơn Hàng (Cả ADMIN và STAFF)
-  { id: 'orders', name: 'Đơn đặt hàng', icon: ShoppingCart, group: 'Bán Hàng & Đơn Hàng', doc: '08', badge: 'Mới', roles: ['ADMIN', 'STAFF'] },
-  { id: 'invoices', name: 'Hóa đơn bán hàng', icon: Receipt, group: 'Bán Hàng & Đơn Hàng', doc: '09', roles: ['ADMIN', 'STAFF'] },
-  { id: 'customers', name: 'Khách hàng (CRM)', icon: Users, group: 'Bán Hàng & Đơn Hàng', doc: '02', roles: ['ADMIN', 'STAFF'] },
+  { id: 'orders', name: 'Đơn hàng', icon: ShoppingCart, group: 'Bán hàng', doc: '08', roles: ['ADMIN', 'STAFF'] },
+  { id: 'invoices', name: 'Hóa đơn', icon: Receipt, group: 'Bán hàng', doc: '09', roles: ['ADMIN', 'STAFF'] },
+  { id: 'customers', name: 'Khách hàng', icon: Users, group: 'Bán hàng', doc: '02', roles: ['ADMIN', 'STAFF'] },
 
   // Nhóm 3: Kho Hàng & Nhập Kho (Cả ADMIN và STAFF)
-  { id: 'products', name: 'Sản phẩm & Tồn kho', icon: Armchair, group: 'Kho Hàng & Sản Phẩm', doc: '05', roles: ['ADMIN', 'STAFF'] },
-  { id: 'suppliers', name: 'Nhà cung cấp & Nhập kho', icon: Truck, group: 'Kho Hàng & Sản Phẩm', doc: '06', roles: ['ADMIN', 'STAFF'] },
+  { id: 'products', name: 'Sản phẩm & tồn kho', icon: Armchair, group: 'Sản phẩm', doc: '05', roles: ['ADMIN', 'STAFF'] },
+  { id: 'suppliers', name: 'Nhà cung cấp', icon: Truck, group: 'Sản phẩm', doc: '06', roles: ['ADMIN', 'STAFF'] },
 
   // Nhóm 4: Quản Trị Hệ Thống (Chỉ ADMIN)
-  { id: 'users', name: 'Tài khoản & Phân quyền', icon: ShieldAlert, group: 'Quản Trị Hệ Thống', doc: '01', roles: ['ADMIN'] },
-  { id: 'staff', name: 'Đội ngũ Nhân viên', icon: UserCheck, group: 'Quản Trị Hệ Thống', doc: '03', roles: ['ADMIN'] },
-  { id: 'categories', name: 'Loại nội thất', icon: FolderTree, group: 'Quản Trị Hệ Thống', doc: '04', roles: ['ADMIN'] },
+  { id: 'users', name: 'Tài khoản & phân quyền', icon: ShieldAlert, group: 'Quản lý', doc: '01', roles: ['ADMIN'] },
+  { id: 'staff', name: 'Nhân viên', icon: UserCheck, group: 'Quản lý', doc: '03', roles: ['ADMIN'] },
+  { id: 'categories', name: 'Danh mục nội thất', icon: FolderTree, group: 'Sản phẩm', doc: '04', roles: ['ADMIN'] },
 
   // Nhóm 5: Chiến Dịch & Tài Chính (Chỉ ADMIN)
-  { id: 'promotions', name: 'Khuyến mãi & Voucher', icon: Percent, group: 'Chiến Dịch & Tài Chính', doc: '07', roles: ['ADMIN'] },
-  { id: 'reports', name: 'Thống kê & Báo cáo', icon: BarChart3, group: 'Chiến Dịch & Tài Chính', doc: '10', roles: ['ADMIN'] }
+  { id: 'promotions', name: 'Khuyến mãi & voucher', icon: Percent, group: 'Tăng trưởng', doc: '07', roles: ['ADMIN'] },
+  { id: 'reports', name: 'Thống kê & báo cáo', icon: BarChart3, group: 'Tăng trưởng', doc: '10', roles: ['ADMIN'] }
 ]
 
 export default function AdminSidebar({
@@ -45,7 +42,7 @@ export default function AdminSidebar({
   activeModule,
   onSelectModule,
   onBackToStore,
-  pendingOrdersCount = 3,
+  pendingOrdersCount = 0,
   isMobileOpen = false,
   onCloseMobile
 }) {
@@ -79,8 +76,8 @@ export default function AdminSidebar({
             <Armchair size={22} />
           </div>
           <div className="admin-logo-text">
-            <h2>NỘI THẤT CAO CẤP</h2>
-            <span>{isStaff ? 'PORTAL NHÂN VIÊN' : 'HỆ THỐNG QUẢN TRỊ ADMIN'}</span>
+            <h2>funi<span className="admin-brand-dot">.</span></h2>
+            <span>{isStaff ? 'Không gian nhân viên' : 'Không gian quản trị'}</span>
           </div>
         </a>
 
@@ -112,6 +109,7 @@ export default function AdminSidebar({
                   <button
                     key={item.id}
                     className={`admin-nav-item ${isActive ? 'active' : ''}`}
+                    aria-current={isActive ? 'page' : undefined}
                     onClick={() => handleItemClick(item.id)}
                   >
                     <IconComponent size={18} />
@@ -137,7 +135,7 @@ export default function AdminSidebar({
           }}
         >
           <ExternalLink size={16} />
-          <span>Về Cửa Hàng (Storefront)</span>
+          <span>Xem cửa hàng</span>
         </button>
       </div>
     </aside>

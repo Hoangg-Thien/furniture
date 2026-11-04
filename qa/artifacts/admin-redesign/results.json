@@ -1,0 +1,22 @@
+{
+  "passed": 15,
+  "results": [
+    "Empty state and desktop layout",
+    "Notifications show real API activity and remember read items",
+    "Create form, keyboard dismissal, focus restoration",
+    "Create and save campaign",
+    "Populated table and pagination",
+    "Vietnamese accent-insensitive live search and reset",
+    "Status, time filters, KPI totals stay stable",
+    "Edit campaign and toggle status",
+    "Detail loading, all four tabs and discount writes",
+    "Delete requires explicit confirmation",
+    "Global search uses configured backend",
+    "Detail API failure shows recoverable dialog",
+    "Mobile navigation, forms and table scrolling",
+    "Empty mobile state and 320px minimum width",
+    "List API error and retry"
+  ],
+  "errors": [],
+  "api": "isolated browser route mocks"
+}

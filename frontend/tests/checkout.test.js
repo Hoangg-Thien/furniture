@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { beforeEach, afterEach, test } from 'node:test'
-import { isCheckoutPath, loadCheckoutDraft, saveCheckoutDraft, clearCheckoutDraft } from '../src/lib/checkout.js'
+import { isCheckoutPath, loadCheckoutDraft, saveCheckoutDraft, clearCheckoutDraft } from '../src/user/lib/checkout.js'
 
 beforeEach(() => {
   const values = new Map()

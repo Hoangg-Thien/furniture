@@ -1,6 +1,5 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import {
-  Percent,
   Plus,
   Search,
   RefreshCw,
@@ -11,21 +10,20 @@ import {
   X,
   Package,
   Layers,
-  Sparkles,
   Info,
   AlertTriangle,
   Calendar,
-  Check,
-  Building2,
   DollarSign,
   TrendingUp,
   Tag,
   Gift,
-  Clock,
-  Eye,
   Settings,
-  Flame,
-  ArrowRight
+  ArrowRight,
+  ChevronLeft,
+  ChevronRight,
+  SlidersHorizontal,
+  Ticket,
+  ShoppingBag
 } from 'lucide-react'
 import { getApiBaseUrl, getApiHeaders } from '../lib/apiConfig'
 
@@ -38,12 +36,17 @@ export default function AdminPromotionManagement({ currentUser }) {
   const [searchKeyword, setSearchKeyword] = useState('')
   const [statusFilter, setStatusFilter] = useState('ALL') // ALL | ACTIVE | DRAFT | INACTIVE
   const [timeFilter, setTimeFilter] = useState('ALL') // ALL | RUNNING | UPCOMING | EXPIRED
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
+  const toastTimer = useRef(null)
+  const requestId = useRef(0)
 
   // Toast feedback
   const [toast, setToast] = useState(null)
   const showToast = (message, type = 'success') => {
     setToast({ message, type })
-    setTimeout(() => setToast(null), 3500)
+    clearTimeout(toastTimer.current)
+    toastTimer.current = setTimeout(() => setToast(null), 3500)
   }
 
   // Program Modal (Create / Quick Edit)
@@ -64,6 +67,7 @@ export default function AdminPromotionManagement({ currentUser }) {
   const [activeProgramId, setActiveProgramId] = useState(null)
   const [detailData, setDetailData] = useState(null)
   const [loadingDetail, setLoadingDetail] = useState(false)
+  const [detailError, setDetailError] = useState('')
   const [activeTab, setActiveTab] = useState('overview') // overview | products | orders | vouchers
 
   // Products list for selecting in Product Discount tab
@@ -96,6 +100,41 @@ export default function AdminPromotionManagement({ currentUser }) {
   const [deletingProgram, setDeletingProgram] = useState(null)
   const [deleteError, setDeleteError] = useState('')
   const [submittingDelete, setSubmittingDelete] = useState(false)
+
+  const modalOpen = showProgramModal || showDetailModal || !!deletingProgram
+  const saving = submittingProgram || submittingDelete || submittingVoucher || submittingProductDiscount || submittingOrderDiscount
+  useEffect(() => () => clearTimeout(toastTimer.current), [])
+
+  useEffect(() => {
+    if (!modalOpen) return
+    const previousFocus = document.activeElement
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const dialog = document.querySelector('.admin-promotion-management [role="dialog"]')
+    const focusable = () => [...(dialog?.querySelectorAll('button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex="0"]') || [])].filter(el => el.getClientRects().length)
+    focusable()[0]?.focus()
+    const handleKey = (event) => {
+      if (event.key === 'Escape' && !saving) {
+        setShowProgramModal(false)
+        setShowDetailModal(false)
+        setDeletingProgram(null)
+      }
+      if (event.key === 'Tab') {
+        const items = focusable()
+        const first = items[0]
+        const last = items.at(-1)
+        if (!first) { event.preventDefault(); return }
+        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus() }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus() }
+      }
+    }
+    document.addEventListener('keydown', handleKey)
+    return () => {
+      document.body.style.overflow = previousOverflow
+      document.removeEventListener('keydown', handleKey)
+      previousFocus?.focus()
+    }
+  }, [modalOpen, saving, loadingDetail])
 
   // Format currency
   const formatCurrency = (val) => {
@@ -132,33 +171,23 @@ export default function AdminPromotionManagement({ currentUser }) {
 
   // Fetch all programs
   const fetchPrograms = async () => {
+    const id = ++requestId.current
     setLoading(true)
     setError(null)
     try {
       const baseUrl = getApiBaseUrl()
-      let url = `${baseUrl}/api/admin/promotions`
-      const params = []
-      if (searchKeyword.trim()) {
-        params.push(`search=${encodeURIComponent(searchKeyword.trim())}`)
-      }
-      if (statusFilter !== 'ALL') {
-        params.push(`status=${encodeURIComponent(statusFilter)}`)
-      }
-      if (params.length > 0) {
-        url += `?${params.join('&')}`
-      }
-
+      const url = `${baseUrl}/api/admin/promotions`
       const res = await fetch(url, { headers: getApiHeaders() })
       if (!res.ok) {
         throw new Error(`Lỗi tải danh sách khuyến mãi (HTTP ${res.status})`)
       }
       const data = await res.json()
-      setPrograms(data || [])
+      if (id === requestId.current) setPrograms(data || [])
     } catch (err) {
       console.error(err)
-      setError(err.message || 'Không thể kết nối đến máy chủ.')
+      if (id === requestId.current) setError(err.message || 'Không thể kết nối đến máy chủ.')
     } finally {
-      setLoading(false)
+      if (id === requestId.current) setLoading(false)
     }
   }
 
@@ -166,7 +195,7 @@ export default function AdminPromotionManagement({ currentUser }) {
   const fetchProducts = async () => {
     try {
       const baseUrl = getApiBaseUrl()
-      const res = await fetch(`${baseUrl}/api/admin/products?pageSize=100`, { headers: getApiHeaders() })
+      const res = await fetch(`${baseUrl}/api/admin/products?size=100`, { headers: getApiHeaders() })
       if (res.ok) {
         const data = await res.json()
         setAvailableProducts(data?.content || [])
@@ -179,12 +208,18 @@ export default function AdminPromotionManagement({ currentUser }) {
   useEffect(() => {
     fetchPrograms()
     fetchProducts()
-  }, [statusFilter])
+  }, [])
+
+  useEffect(() => { setPage(1) }, [searchKeyword, statusFilter, timeFilter, pageSize])
 
   // Filtered programs list by time filter
   const displayedPrograms = useMemo(() => {
     const now = new Date()
+    const normalize = (text) => String(text || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase()
+    const keyword = normalize(searchKeyword.trim())
     return programs.filter((p) => {
+      if (statusFilter !== 'ALL' && p.status !== statusFilter) return false
+      if (keyword && !normalize(`${p.name} ${p.description || ''}`).includes(keyword)) return false
       if (timeFilter === 'ALL') return true
       const start = new Date(p.startDate)
       const end = new Date(p.endDate)
@@ -199,7 +234,13 @@ export default function AdminPromotionManagement({ currentUser }) {
       }
       return true
     })
-  }, [programs, timeFilter])
+  }, [programs, timeFilter, searchKeyword, statusFilter])
+
+  const totalPages = Math.max(1, Math.ceil(displayedPrograms.length / pageSize))
+  const currentPage = Math.min(page, totalPages)
+  const pagedPrograms = displayedPrograms.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+  const hasFilters = !!searchKeyword.trim() || statusFilter !== 'ALL' || timeFilter !== 'ALL'
+  const resetFilters = () => { setSearchKeyword(''); setStatusFilter('ALL'); setTimeFilter('ALL'); setPage(1) }
 
   // KPI Calculations
   const kpiStats = useMemo(() => {
@@ -345,6 +386,8 @@ export default function AdminPromotionManagement({ currentUser }) {
     setActiveTab(tab)
     setShowDetailModal(true)
     setLoadingDetail(true)
+    setDetailData(null)
+    setDetailError('')
     try {
       const baseUrl = getApiBaseUrl()
       const res = await fetch(`${baseUrl}/api/admin/promotions/${programId}/detail`, {
@@ -369,7 +412,7 @@ export default function AdminPromotionManagement({ currentUser }) {
         status: 'ACTIVE'
       })
     } catch (err) {
-      showToast(err.message, 'error')
+      setDetailError(err.message)
     } finally {
       setLoadingDetail(false)
     }
@@ -555,416 +598,152 @@ export default function AdminPromotionManagement({ currentUser }) {
     <div className="admin-promotion-management">
       {/* Toast Feedback */}
       {toast && (
-        <div className={`admin-toast admin-toast-${toast.type}`}>
+        <div className={`admin-toast admin-toast-${toast.type}`} role="status">
           {toast.type === 'success' ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
           <span>{toast.message}</span>
         </div>
       )}
 
-      {/* Page Header */}
-      <div className="admin-page-header">
-        <div className="admin-page-title-group">
-          <div className="admin-page-icon-wrapper" style={{ background: 'linear-gradient(135deg, #ea580c, #c2410c)' }}>
-            <Percent size={24} className="text-white" />
-          </div>
-          <div>
-            <div className="admin-breadcrumb">Trang chủ &gt; Khuyến mãi &amp; Voucher (Module 07)</div>
-            <h1 className="admin-page-title">Chiến Dịch Khuyến Mãi &amp; Kho Voucher Nội Thất</h1>
-            <p className="admin-page-subtitle">
-              Cấu hình 3 cơ chế ưu đãi: Giảm giá trực tiếp theo sản phẩm, Chiết khấu bậc đơn hàng và Phát hành phiếu Voucher quà tặng.
-            </p>
-          </div>
+      <div className="admin-breadcrumb promotion-breadcrumb">
+        <span>Không gian làm việc</span><ChevronRight size={13} /><span>Khuyến mãi & voucher</span>
+      </div>
+      <div className="admin-page-header promotion-page-header">
+        <div>
+          <div className="promotion-eyebrow">TĂNG TRƯỞNG CỬA HÀNG</div>
+          <h1 className="admin-page-title">Khuyến mãi & voucher</h1>
+          <p className="admin-page-subtitle">Quản lý chiến dịch, thiết lập ưu đãi và chăm sóc khách hàng.</p>
         </div>
-        <div className="admin-header-actions">
-          <button className="btn-admin btn-admin-primary" onClick={handleOpenCreateProgram}>
-            <Plus size={16} />
-            <span>Tạo Chiến Dịch Mới</span>
+        <button className="btn-admin btn-admin-primary" onClick={handleOpenCreateProgram}>
+          <Plus size={17} /><span>Tạo chiến dịch</span>
+        </button>
+      </div>
+
+      <div className="admin-stats-grid" aria-label="Tổng quan khuyến mãi" aria-busy={loading}>
+        {[
+          { label: 'Tổng chiến dịch', value: kpiStats.total, icon: Layers, note: 'Tất cả chương trình ưu đãi' },
+          { label: 'Đang diễn ra', value: kpiStats.activeRunning, icon: TrendingUp, note: 'Đang áp dụng cho khách hàng', active: true },
+          { label: 'Mã voucher', value: kpiStats.totalVouchers, icon: Ticket, note: 'Tổng số mã đã phát hành' },
+          { label: 'Sản phẩm ưu đãi', value: kpiStats.totalProductDiscounts, icon: Package, note: 'Lượt sản phẩm được giảm giá' }
+        ].map(({ label, value, icon: Icon, note, active }) => (
+          <div key={label} className={`admin-stat-card ${active ? 'is-highlighted' : ''}`}>
+            <div className="stat-card-header"><span className="stat-card-title">{label}</span><Icon size={18} strokeWidth={1.6} /></div>
+            <div className="stat-card-value">{loading || error ? '—' : value.toLocaleString('vi-VN')}</div>
+            <div className="stat-card-footer">{active && <span className="promotion-live-dot" />}{note}</div>
+          </div>
+        ))}
+      </div>
+
+      <section className="promotion-list-panel" aria-label="Danh sách chiến dịch">
+        <div className="promotion-panel-heading">
+          <div className="promotion-panel-title"><h2>Chiến dịch của bạn</h2><span className="promotion-count">{programs.length}</span></div>
+          <button className="promotion-refresh" onClick={fetchPrograms} disabled={loading} title="Tải lại danh sách" aria-label="Tải lại danh sách">
+            <RefreshCw size={15} className={loading ? 'animate-spin' : ''} /><span>Làm mới</span>
           </button>
         </div>
-      </div>
-
-      {/* KPI Cards */}
-      <div className="admin-stats-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))' }}>
-        <div className="admin-stat-card">
-          <div className="stat-card-header">
-            <span className="stat-card-title">Tổng Chiến Dịch</span>
-            <div className="stat-card-icon" style={{ background: '#ffedd5', color: '#ea580c' }}>
-              <Tag size={20} />
-            </div>
-          </div>
-          <div className="stat-card-value">{kpiStats.total}</div>
-          <div className="stat-card-footer">
-            Chương trình tiếp thị trong hệ thống
-          </div>
+        <div className="promotion-status-tabs" role="group" aria-label="Lọc theo trạng thái">
+          {[
+            ['ALL', 'Tất cả'], ['ACTIVE', 'Đã kích hoạt'], ['DRAFT', 'Bản nháp'], ['INACTIVE', 'Tạm dừng']
+          ].map(([value, label]) => (
+            <button key={value} aria-pressed={statusFilter === value} className={statusFilter === value ? 'active' : ''} onClick={() => setStatusFilter(value)}>
+              {label}<span>{value === 'ALL' ? programs.length : programs.filter(p => p.status === value).length}</span>
+            </button>
+          ))}
         </div>
-
-        <div className="admin-stat-card">
-          <div className="stat-card-header">
-            <span className="stat-card-title">Đang Diễn Ra (ACTIVE)</span>
-            <div className="stat-card-icon" style={{ background: '#ecfdf5', color: '#059669' }}>
-              <Flame size={20} />
-            </div>
+        <div className="promotion-filter-bar">
+          <div className="promotion-search-field">
+            <Search size={17} />
+            <input type="search" placeholder="Tìm tên chiến dịch, mô tả..." aria-label="Tìm kiếm chiến dịch" value={searchKeyword} onChange={e => setSearchKeyword(e.target.value)} />
           </div>
-          <div className="stat-card-value text-emerald-600">{kpiStats.activeRunning}</div>
-          <div className="stat-card-footer">
-            Chiến dịch đang áp dụng trực tiếp cho khách mua
-          </div>
-        </div>
-
-        <div className="admin-stat-card">
-          <div className="stat-card-header">
-            <span className="stat-card-title">Mã Voucher Phát Hành</span>
-            <div className="stat-card-icon" style={{ background: '#e0f2fe', color: '#0284c7' }}>
-              <Gift size={20} />
-            </div>
-          </div>
-          <div className="stat-card-value text-blue-600">{kpiStats.totalVouchers}</div>
-          <div className="stat-card-footer">
-            Mã quà tặng sẵn sàng kích hoạt
-          </div>
-        </div>
-
-        <div className="admin-stat-card">
-          <div className="stat-card-header">
-            <span className="stat-card-title">Sản Phẩm Giảm Giá</span>
-            <div className="stat-card-icon" style={{ background: '#f5f3ff', color: '#7c3aed' }}>
-              <Package size={20} />
-            </div>
-          </div>
-          <div className="stat-card-value">{kpiStats.totalProductDiscounts}</div>
-          <div className="stat-card-footer">
-            Món nội thất đang có giá ưu đãi
-          </div>
-        </div>
-      </div>
-
-      {/* Filters Bar */}
-      <div className="admin-card" style={{ marginBottom: '1.5rem', padding: '1rem 1.25rem' }}>
-        <div style={{ display: 'flex', gap: '0.85rem', alignItems: 'center', flexWrap: 'wrap' }}>
-          <div style={{ flex: '1', minWidth: '260px', position: 'relative' }}>
-            <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
-            <input
-              type="text"
-              placeholder="Tìm kiếm theo tên chiến dịch, mô tả khuyến mãi..."
-              className="admin-form-input"
-              style={{ paddingLeft: '38px', width: '100%' }}
-              value={searchKeyword}
-              onChange={(e) => setSearchKeyword(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') fetchPrograms()
-              }}
-            />
-          </div>
-
-          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-            <select
-              className="admin-form-input"
-              style={{ minWidth: '150px' }}
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-            >
-              <option value="ALL">-- Tất cả trạng thái --</option>
-              <option value="ACTIVE">ACTIVE (Kích hoạt)</option>
-              <option value="DRAFT">DRAFT (Bản nháp)</option>
-              <option value="INACTIVE">INACTIVE (Tạm dừng)</option>
-            </select>
-
-            <select
-              className="admin-form-input"
-              style={{ minWidth: '150px' }}
-              value={timeFilter}
-              onChange={(e) => setTimeFilter(e.target.value)}
-            >
-              <option value="ALL">-- Tất cả thời gian --</option>
-              <option value="RUNNING">Đang diễn ra</option>
-              <option value="UPCOMING">Sắp diễn ra</option>
-              <option value="EXPIRED">Đã kết thúc</option>
+          <div className="promotion-time-filter"><SlidersHorizontal size={15} />
+            <select aria-label="Lọc theo thời gian" value={timeFilter} onChange={e => setTimeFilter(e.target.value)}>
+              <option value="ALL">Tất cả thời gian</option><option value="RUNNING">Đang diễn ra</option><option value="UPCOMING">Sắp diễn ra</option><option value="EXPIRED">Đã kết thúc</option>
             </select>
           </div>
-
-          <button className="btn-admin btn-admin-secondary" onClick={fetchPrograms} disabled={loading}>
-            <Search size={16} />
-            <span>Tìm</span>
-          </button>
-          <button
-            className="btn-admin btn-admin-secondary"
-            onClick={() => {
-              setSearchKeyword('')
-              setStatusFilter('ALL')
-              setTimeFilter('ALL')
-              fetchPrograms()
-            }}
-            disabled={loading}
-            title="Làm mới"
-          >
-            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
-          </button>
-        </div>
-      </div>
-
-      {/* Main Programs Table */}
-      <div className="admin-card" style={{ padding: 0, overflow: 'hidden' }}>
-        <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 600, color: '#1e293b' }}>
-              Danh Sách Chiến Dịch Khuyến Mãi
-            </h3>
-            <span style={{ fontSize: '0.85rem', color: '#64748b' }}>
-              Hiển thị {displayedPrograms.length} trên tổng số {programs.length} chiến dịch
-            </span>
-          </div>
+          {hasFilters && <button className="promotion-clear-filter" onClick={resetFilters}><X size={14} />Xóa bộ lọc</button>}
         </div>
 
-        {error && (
-          <div style={{ margin: '1rem', padding: '1rem', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', color: '#b91c1c', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <AlertCircle size={20} />
-            <span>{error}</span>
-          </div>
-        )}
-
-        <div className="table-responsive">
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th style={{ width: '70px', textAlign: 'center' }}>ID</th>
-                <th>Tên Chương Trình Khuyến Mãi</th>
-                <th>Thời Gian Diễn Ra</th>
-                <th style={{ textAlign: 'center' }}>Cơ Chế Chiết Khấu</th>
-                <th style={{ textAlign: 'center' }}>Trạng Thái</th>
-                <th style={{ width: '190px', textAlign: 'center' }}>Thao Tác</th>
-              </tr>
-            </thead>
+        {error && <div className="promotion-error" role="alert"><AlertCircle size={19} /><div><strong>Chưa tải được danh sách chiến dịch</strong><p>{error}</p></div><button className="btn-admin btn-admin-secondary" onClick={fetchPrograms}>Thử lại</button></div>}
+        <div className="table-responsive promotion-table-scroll">
+          <table className="admin-table promotion-table">
+            <thead><tr><th>Chiến dịch</th><th>Thời gian áp dụng</th><th>Ưu đãi đã thiết lập</th><th>Trạng thái</th><th className="promotion-actions-heading">Thao tác</th></tr></thead>
             <tbody>
               {loading ? (
-                <tr>
-                  <td colSpan="6" style={{ textAlign: 'center', padding: '3rem' }}>
-                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.75rem', color: '#64748b' }}>
-                      <RefreshCw size={20} className="animate-spin text-orange-600" />
-                      <span>Đang nạp danh sách chiến dịch khuyến mãi...</span>
-                    </div>
-                  </td>
-                </tr>
+                <tr><td colSpan="5"><div className="promotion-empty" role="status"><RefreshCw size={24} className="animate-spin" /><h3>Đang tải chiến dịch...</h3></div></td></tr>
+              ) : error && programs.length === 0 ? (
+                <tr><td colSpan="5"><div className="promotion-empty"><div className="promotion-empty-icon"><AlertCircle size={28} /></div><h3>Dữ liệu chưa sẵn sàng</h3><p>Vui lòng thử tải lại để xem các chiến dịch của bạn.</p></div></td></tr>
               ) : displayedPrograms.length === 0 ? (
-                <tr>
-                  <td colSpan="6" style={{ textAlign: 'center', padding: '3rem', color: '#94a3b8' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
-                      <Percent size={40} style={{ opacity: 0.3 }} />
-                      <p style={{ margin: 0, fontWeight: 500 }}>Không tìm thấy chương trình khuyến mãi nào phù hợp</p>
-                      <button className="btn-admin btn-admin-secondary btn-sm" onClick={handleOpenCreateProgram}>
-                        <Plus size={14} /> Tạo chiến dịch mới
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                displayedPrograms.map((p) => {
-                  const now = new Date()
-                  const isRunning = p.status === 'ACTIVE' && now >= new Date(p.startDate) && now <= new Date(p.endDate)
-                  const isExpired = now > new Date(p.endDate)
-                  const isUpcoming = now < new Date(p.startDate)
-
-                  return (
-                    <tr key={p.id} className="hover:bg-slate-50 transition-colors">
-                      <td style={{ textAlign: 'center', fontWeight: 600, color: '#64748b' }}>
-                        #{p.id < 10 ? `0${p.id}` : p.id}
-                      </td>
-                      <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                          <div
-                            style={{
-                              width: '38px',
-                              height: '38px',
-                              borderRadius: '8px',
-                              background: isRunning ? 'linear-gradient(135deg, #ffedd5, #fed7aa)' : '#f1f5f9',
-                              color: isRunning ? '#ea580c' : '#64748b',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              fontWeight: 700,
-                              flexShrink: 0
-                            }}
-                          >
-                            <Tag size={18} />
-                          </div>
-                          <div>
-                            <div style={{ fontWeight: 600, color: '#0f172a', fontSize: '0.95rem' }}>
-                              {p.name}
-                            </div>
-                            <div style={{ fontSize: '0.8rem', color: '#64748b', maxWidth: '280px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                              {p.description || 'Chưa có mô tả chi tiết'}
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                      <td>
-                        <div style={{ fontSize: '0.85rem', color: '#334155' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                            <Calendar size={13} className="text-slate-400" />
-                            <span>{formatDateTime(p.startDate)} ➔ {formatDateTime(p.endDate)}</span>
-                          </div>
-                          <div>
-                            {isRunning && (
-                              <span style={{ fontSize: '0.75rem', color: '#059669', fontWeight: 600 }}>
-                                ● Đang diễn ra
-                              </span>
-                            )}
-                            {isUpcoming && (
-                              <span style={{ fontSize: '0.75rem', color: '#0284c7', fontWeight: 600 }}>
-                                ○ Sắp diễn ra
-                              </span>
-                            )}
-                            {isExpired && (
-                              <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 500 }}>
-                                ✕ Đã hết hạn
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </td>
-                      <td style={{ textAlign: 'center' }}>
-                        <div style={{ display: 'inline-flex', gap: '0.4rem', flexWrap: 'wrap', justifyContent: 'center' }}>
-                          {p.productDiscountsCount > 0 && (
-                            <span
-                              style={{
-                                padding: '0.2rem 0.5rem',
-                                borderRadius: '6px',
-                                fontSize: '0.76rem',
-                                fontWeight: 600,
-                                background: '#eff6ff',
-                                color: '#1d4ed8',
-                                border: '1px solid #bfdbfe'
-                              }}
-                              title="Giảm giá sản phẩm"
-                            >
-                              {p.productDiscountsCount} SP giảm
-                            </span>
-                          )}
-                          {p.orderDiscountsCount > 0 && (
-                            <span
-                              style={{
-                                padding: '0.2rem 0.5rem',
-                                borderRadius: '6px',
-                                fontSize: '0.76rem',
-                                fontWeight: 600,
-                                background: '#f5f3ff',
-                                color: '#7c3aed',
-                                border: '1px solid #ddd6fe'
-                              }}
-                              title="Chiết khấu bậc đơn hàng"
-                            >
-                              {p.orderDiscountsCount} Bậc đơn
-                            </span>
-                          )}
-                          {p.vouchersCount > 0 && (
-                            <span
-                              style={{
-                                padding: '0.2rem 0.5rem',
-                                borderRadius: '6px',
-                                fontSize: '0.76rem',
-                                fontWeight: 600,
-                                background: '#ecfdf5',
-                                color: '#047857',
-                                border: '1px solid #a7f3d0'
-                              }}
-                              title="Kho Voucher"
-                            >
-                              {p.vouchersCount} Voucher
-                            </span>
-                          )}
-                          {p.productDiscountsCount === 0 && p.orderDiscountsCount === 0 && p.vouchersCount === 0 && (
-                            <span style={{ fontSize: '0.78rem', color: '#94a3b8' }}>Chưa cấu hình</span>
-                          )}
-                        </div>
-                      </td>
-                      <td style={{ textAlign: 'center' }}>
-                        <button
-                          style={{
-                            border: 'none',
-                            background: 'transparent',
-                            cursor: 'pointer',
-                            padding: 0
-                          }}
-                          onClick={() => handleToggleStatus(p)}
-                          title="Nhấp để Bật / Tắt trạng thái"
-                        >
-                          <span
-                            style={{
-                              padding: '0.25rem 0.65rem',
-                              borderRadius: '999px',
-                              fontSize: '0.8rem',
-                              fontWeight: 600,
-                              display: 'inline-block'
-                            }}
-                            className={
-                              p.status === 'ACTIVE'
-                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                : p.status === 'DRAFT'
-                                ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                                : 'bg-slate-100 text-slate-600 border border-slate-200'
-                            }
-                          >
-                            {p.status}
-                          </span>
-                        </button>
-                      </td>
-                      <td style={{ textAlign: 'center' }}>
-                        <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center' }}>
-                          <button
-                            className="btn-action"
-                            style={{ background: '#ffedd5', color: '#ea580c', border: '1px solid #fed7aa' }}
-                            title="Cấu hình chi tiết (Sản phẩm, Bậc đơn, Voucher)"
-                            onClick={() => handleOpenDetailModal(p.id, 'overview')}
-                          >
-                            <Settings size={15} />
-                          </button>
-                          <button
-                            className="btn-action"
-                            style={{ background: '#f8fafc', color: '#475569', border: '1px solid #e2e8f0' }}
-                            title="Chỉnh sửa thông tin chung"
-                            onClick={() => handleOpenEditProgram(p)}
-                          >
-                            <Edit2 size={15} />
-                          </button>
-                          <button
-                            className="btn-action btn-action-danger"
-                            title="Xóa chiến dịch"
-                            onClick={() => {
-                              setDeletingProgram(p)
-                              setDeleteError('')
-                            }}
-                          >
-                            <Trash2 size={15} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })
-              )}
+                <tr><td colSpan="5"><div className="promotion-empty">
+                  <div className="promotion-empty-icon"><Ticket size={29} strokeWidth={1.4} /><span><Plus size={12} /></span></div>
+                  <h3>{hasFilters ? 'Không tìm thấy chiến dịch' : 'Ưu đãi đầu tiên, khởi đầu mới'}</h3>
+                  <p>{hasFilters ? 'Thử một từ khóa khác hoặc điều chỉnh bộ lọc của bạn.' : 'Tạo chiến dịch để mang sản phẩm đến gần khách hàng hơn. Bạn có thể thiết lập giảm giá và voucher trong cùng một nơi.'}</p>
+                  <button className={hasFilters ? 'btn-admin btn-admin-secondary' : 'btn-admin btn-admin-primary'} onClick={hasFilters ? resetFilters : handleOpenCreateProgram}>
+                    {hasFilters ? <X size={15} /> : <Plus size={15} />}{hasFilters ? 'Xóa bộ lọc' : 'Tạo chiến dịch đầu tiên'}
+                  </button>
+                </div></td></tr>
+              ) : pagedPrograms.map(p => {
+                const now = new Date()
+                const isRunning = p.status === 'ACTIVE' && now >= new Date(p.startDate) && now <= new Date(p.endDate)
+                const isExpired = now > new Date(p.endDate)
+                const isUpcoming = now < new Date(p.startDate)
+                return (
+                  <tr key={p.id}>
+                    <td><div className="promotion-name-cell"><div className={`promotion-row-icon ${isRunning ? 'running' : ''}`}><Tag size={18} strokeWidth={1.6} /></div><div>
+                      <button className="promotion-name-button" onClick={() => handleOpenDetailModal(p.id)}>{p.name}</button>
+                      <div className="promotion-row-description" title={p.description || ''}>#{String(p.id).padStart(2, '0')} · {p.description || 'Chưa có mô tả'}</div>
+                    </div></div></td>
+                    <td><div className="promotion-date"><Calendar size={13} />{formatDateTime(p.startDate)} – {formatDateTime(p.endDate)}</div><span className={`promotion-schedule ${isRunning ? 'running' : ''}`}>{isRunning ? 'Đang diễn ra' : isExpired ? 'Đã kết thúc' : isUpcoming ? 'Sắp diễn ra' : 'Chưa kích hoạt'}</span></td>
+                    <td><div className="promotion-discount-tags">
+                      {p.productDiscountsCount > 0 && <button onClick={() => handleOpenDetailModal(p.id, 'products')}>{p.productDiscountsCount} sản phẩm</button>}
+                      {p.orderDiscountsCount > 0 && <button onClick={() => handleOpenDetailModal(p.id, 'orders')}>{p.orderDiscountsCount} bậc đơn</button>}
+                      {p.vouchersCount > 0 && <button onClick={() => handleOpenDetailModal(p.id, 'vouchers')}>{p.vouchersCount} voucher</button>}
+                      {!p.productDiscountsCount && !p.orderDiscountsCount && !p.vouchersCount && <button className="promotion-setup-link" onClick={() => handleOpenDetailModal(p.id)}>Thiết lập ưu đãi <ArrowRight size={12} /></button>}
+                    </div></td>
+                    <td><button className={`promotion-status-badge status-${p.status.toLowerCase()}`} onClick={() => handleToggleStatus(p)} title="Nhấn để bật hoặc tạm dừng chiến dịch"><span />{p.status === 'ACTIVE' ? 'Đã kích hoạt' : p.status === 'DRAFT' ? 'Bản nháp' : 'Tạm dừng'}</button></td>
+                    <td><div className="promotion-row-actions">
+                      <button className="btn-action" title="Thiết lập ưu đãi" aria-label={`Thiết lập ưu đãi: ${p.name}`} onClick={() => handleOpenDetailModal(p.id)}><Settings size={16} /></button>
+                      <button className="btn-action" title="Chỉnh sửa chiến dịch" aria-label={`Chỉnh sửa: ${p.name}`} onClick={() => handleOpenEditProgram(p)}><Edit2 size={15} /></button>
+                      <button className="btn-action btn-action-danger" title="Xóa chiến dịch" aria-label={`Xóa: ${p.name}`} onClick={() => { setDeletingProgram(p); setDeleteError('') }}><Trash2 size={15} /></button>
+                    </div></td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>
+        <div className="promotion-pagination">
+          <span aria-live="polite">{displayedPrograms.length ? `Hiển thị ${(currentPage - 1) * pageSize + 1}–${Math.min(currentPage * pageSize, displayedPrograms.length)} trong ${displayedPrograms.length} chiến dịch` : '0 chiến dịch'}</span>
+          <div className="promotion-pagination-controls"><label>Số dòng <select aria-label="Số dòng mỗi trang" value={pageSize} onChange={e => setPageSize(Number(e.target.value))}><option value="10">10</option><option value="20">20</option><option value="50">50</option></select></label><button className="btn-action" aria-label="Trang trước" disabled={currentPage <= 1} onClick={() => setPage(currentPage - 1)}><ChevronLeft size={16} /></button><span>{currentPage} / {totalPages}</span><button className="btn-action" aria-label="Trang sau" disabled={currentPage >= totalPages} onClick={() => setPage(currentPage + 1)}><ChevronRight size={16} /></button></div>
+        </div>
+      </section>
+
+      <div className="promotion-guide-heading"><span>MỘT CHIẾN DỊCH, NHIỀU CÁCH ƯU ĐÃI</span><span>Thiết lập sau khi tạo chiến dịch</span></div>
+      <div className="promotion-guides">
+        {[
+          { icon: Package, title: 'Giảm giá sản phẩm', text: 'Áp dụng phần trăm giảm giá trực tiếp cho từng sản phẩm nội thất.' },
+          { icon: ShoppingBag, title: 'Ưu đãi theo đơn hàng', text: 'Thiết lập các bậc chiết khấu theo giá trị đơn hàng của khách.' },
+          { icon: Ticket, title: 'Voucher dành riêng', text: 'Phát hành mã ưu đãi với hạn mức, số lượng và điều kiện sử dụng.' }
+        ].map(({ icon: Icon, title, text }, index) => <div className="promotion-guide" key={title}><div className="promotion-guide-top"><Icon size={21} strokeWidth={1.5} /><span>0{index + 1}</span></div><h3>{title}</h3><p>{text}</p></div>)}
       </div>
 
       {/* MODAL 1: Tạo / Sửa Nhanh Chiến Dịch */}
       {showProgramModal && (
         <div className="admin-modal-overlay">
-          <div className="admin-modal-card" style={{ maxWidth: '540px' }}>
+          <div className="admin-modal-card" role="dialog" aria-modal="true" aria-labelledby="promotion-program-title" style={{ maxWidth: '540px' }}>
             <div className="admin-modal-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                <div style={{ width: '32px', height: '32px', borderRadius: '6px', background: '#ffedd5', color: '#ea580c', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ width: '32px', height: '32px', borderRadius: '6px', background: '#edf3ef', color: '#376757', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <Tag size={18} />
                 </div>
                 <div>
-                  <h3 className="admin-modal-title">
-                    {editingProgram ? 'Chỉnh Sửa Chiến Dịch Khuyến Mãi' : 'Tạo Chiến Dịch Khuyến Mãi Mới'}
+                  <h3 className="admin-modal-title" id="promotion-program-title">
+                    {editingProgram ? 'Chỉnh sửa chiến dịch' : 'Tạo chiến dịch mới'}
                   </h3>
                   <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>
                     {editingProgram ? `Mã chiến dịch: #${editingProgram.id}` : 'Nhập thông tin chiến dịch tiếp thị & ưu đãi'}
                   </p>
                 </div>
               </div>
-              <button className="admin-modal-close" onClick={() => setShowProgramModal(false)}>
+              <button className="admin-modal-close" aria-label="Đóng" disabled={saving} onClick={() => setShowProgramModal(false)}>
                 <X size={18} />
               </button>
             </div>
@@ -979,10 +758,10 @@ export default function AdminPromotionManagement({ currentUser }) {
                 )}
 
                 <div className="admin-form-group">
-                  <label className="admin-form-label">
+                  <label htmlFor="promotion-field-1" className="admin-form-label">
                     Tên Chiến Dịch Khuyến Mãi <span style={{ color: '#ef4444' }}>*</span>
                   </label>
-                  <input
+                  <input id="promotion-field-1"
                     type="text"
                     className="admin-form-input"
                     placeholder="VD: Tri Ân Mùa Cưới 2026, Black Friday..."
@@ -992,12 +771,12 @@ export default function AdminPromotionManagement({ currentUser }) {
                   />
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                <div className="promotion-date-grid">
                   <div className="admin-form-group">
-                    <label className="admin-form-label">
+                    <label htmlFor="promotion-field-2" className="admin-form-label">
                       Ngày Bắt Đầu <span style={{ color: '#ef4444' }}>*</span>
                     </label>
-                    <input
+                    <input id="promotion-field-2"
                       type="datetime-local"
                       className="admin-form-input"
                       value={programForm.startDate}
@@ -1007,10 +786,10 @@ export default function AdminPromotionManagement({ currentUser }) {
                   </div>
 
                   <div className="admin-form-group">
-                    <label className="admin-form-label">
+                    <label htmlFor="promotion-field-3" className="admin-form-label">
                       Ngày Kết Thúc <span style={{ color: '#ef4444' }}>*</span>
                     </label>
-                    <input
+                    <input id="promotion-field-3"
                       type="datetime-local"
                       className="admin-form-input"
                       value={programForm.endDate}
@@ -1021,21 +800,21 @@ export default function AdminPromotionManagement({ currentUser }) {
                 </div>
 
                 <div className="admin-form-group">
-                  <label className="admin-form-label">Trạng Thái Vòng Đời</label>
-                  <select
+                  <label htmlFor="promotion-field-4" className="admin-form-label">Trạng thái chiến dịch</label>
+                  <select id="promotion-field-4"
                     className="admin-form-input"
                     value={programForm.status}
                     onChange={(e) => setProgramForm({ ...programForm, status: e.target.value })}
                   >
-                    <option value="ACTIVE">ACTIVE (Kích hoạt cho khách mua)</option>
-                    <option value="DRAFT">DRAFT (Bản nháp chờ phê duyệt)</option>
-                    <option value="INACTIVE">INACTIVE (Tạm dừng chiến dịch)</option>
+                    <option value="ACTIVE">Đã kích hoạt</option>
+                    <option value="DRAFT">Bản nháp</option>
+                    <option value="INACTIVE">Tạm dừng</option>
                   </select>
                 </div>
 
                 <div className="admin-form-group">
-                  <label className="admin-form-label">Mô Tả Chiến Dịch / Điều Kiện Áp Dụng</label>
-                  <textarea
+                  <label htmlFor="promotion-field-5" className="admin-form-label">Mô Tả Chiến Dịch / Điều Kiện Áp Dụng</label>
+                  <textarea id="promotion-field-5"
                     rows="3"
                     className="admin-form-input"
                     placeholder="VD: Giảm ngay 20% cho Sofa da Ý, tặng voucher 500k cho đơn từ 20 triệu..."
@@ -1052,7 +831,7 @@ export default function AdminPromotionManagement({ currentUser }) {
                   onClick={() => setShowProgramModal(false)}
                   disabled={submittingProgram}
                 >
-                  Hủy Bỏ
+                  Hủy bỏ
                 </button>
                 <button
                   type="submit"
@@ -1065,7 +844,7 @@ export default function AdminPromotionManagement({ currentUser }) {
                       <span>Đang lưu...</span>
                     </>
                   ) : (
-                    <span>{editingProgram ? 'Lưu Thay Đổi' : 'Tạo Chiến Dịch'}</span>
+                    <span>{editingProgram ? 'Lưu thay đổi' : 'Tạo chiến dịch'}</span>
                   )}
                 </button>
               </div>
@@ -1075,17 +854,27 @@ export default function AdminPromotionManagement({ currentUser }) {
       )}
 
       {/* MODAL 2: Cấu Hình Chi Tiết Chiến Dịch (4 Tabs Chuyên Sâu) */}
+      {showDetailModal && !detailData && (
+        <div className="admin-modal-overlay">
+          <div className="admin-modal-card" role="dialog" aria-modal="true" aria-label="Chi tiết chiến dịch" style={{ maxWidth: '540px' }}>
+            <div className="admin-modal-header"><h3 className="admin-modal-title">Chi tiết chiến dịch</h3><button className="admin-modal-close" aria-label="Đóng" onClick={() => setShowDetailModal(false)}><X size={18} /></button></div>
+            <div className="promotion-empty" role="status">
+              {loadingDetail ? <><RefreshCw size={24} className="animate-spin" /><p>Đang tải cấu hình chiến dịch...</p></> : <><AlertCircle size={24} /><p>{detailError || 'Không thể tải chi tiết chiến dịch.'}</p><button className="btn-admin btn-admin-secondary" onClick={() => handleOpenDetailModal(activeProgramId, activeTab)}>Thử lại</button></>}
+            </div>
+          </div>
+        </div>
+      )}
       {showDetailModal && detailData && (
         <div className="admin-modal-overlay">
-          <div className="admin-modal-card" style={{ maxWidth: '880px' }}>
+          <div className="admin-modal-card" role="dialog" aria-modal="true" aria-labelledby="promotion-detail-title" style={{ maxWidth: '880px' }}>
             <div className="admin-modal-header" style={{ paddingBottom: '0.75rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <div style={{ width: '38px', height: '38px', borderRadius: '8px', background: '#ffedd5', color: '#ea580c', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ width: '38px', height: '38px', borderRadius: '8px', background: '#edf3ef', color: '#376757', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <Settings size={20} />
                 </div>
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <h3 className="admin-modal-title" style={{ fontSize: '1.15rem' }}>
+                    <h3 className="admin-modal-title" id="promotion-detail-title" style={{ fontSize: '1.15rem' }}>
                       {detailData.program.name}
                     </h3>
                     <span
@@ -1111,22 +900,22 @@ export default function AdminPromotionManagement({ currentUser }) {
                   </p>
                 </div>
               </div>
-              <button className="admin-modal-close" onClick={() => setShowDetailModal(false)}>
+              <button className="admin-modal-close" aria-label="Đóng" disabled={saving} onClick={() => setShowDetailModal(false)}>
                 <X size={18} />
               </button>
             </div>
 
             {/* Tab navigation */}
-            <div style={{ display: 'flex', borderBottom: '1px solid #e2e8f0', background: '#f8fafc', padding: '0 1rem' }}>
+            <div className="promotion-detail-tabs">
               <button
                 className={`admin-tab-btn ${activeTab === 'overview' ? 'active' : ''}`}
                 style={{
                   padding: '0.75rem 1rem',
                   border: 'none',
                   background: 'transparent',
-                  borderBottom: activeTab === 'overview' ? '2px solid #ea580c' : '2px solid transparent',
+                  borderBottom: activeTab === 'overview' ? '2px solid #376757' : '2px solid transparent',
                   fontWeight: activeTab === 'overview' ? 600 : 500,
-                  color: activeTab === 'overview' ? '#ea580c' : '#64748b',
+                  color: activeTab === 'overview' ? '#376757' : '#84928a',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
@@ -1145,9 +934,9 @@ export default function AdminPromotionManagement({ currentUser }) {
                   padding: '0.75rem 1rem',
                   border: 'none',
                   background: 'transparent',
-                  borderBottom: activeTab === 'products' ? '2px solid #ea580c' : '2px solid transparent',
+                  borderBottom: activeTab === 'products' ? '2px solid #376757' : '2px solid transparent',
                   fontWeight: activeTab === 'products' ? 600 : 500,
-                  color: activeTab === 'products' ? '#ea580c' : '#64748b',
+                  color: activeTab === 'products' ? '#376757' : '#84928a',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
@@ -1166,9 +955,9 @@ export default function AdminPromotionManagement({ currentUser }) {
                   padding: '0.75rem 1rem',
                   border: 'none',
                   background: 'transparent',
-                  borderBottom: activeTab === 'orders' ? '2px solid #ea580c' : '2px solid transparent',
+                  borderBottom: activeTab === 'orders' ? '2px solid #376757' : '2px solid transparent',
                   fontWeight: activeTab === 'orders' ? 600 : 500,
-                  color: activeTab === 'orders' ? '#ea580c' : '#64748b',
+                  color: activeTab === 'orders' ? '#376757' : '#84928a',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
@@ -1187,9 +976,9 @@ export default function AdminPromotionManagement({ currentUser }) {
                   padding: '0.75rem 1rem',
                   border: 'none',
                   background: 'transparent',
-                  borderBottom: activeTab === 'vouchers' ? '2px solid #ea580c' : '2px solid transparent',
+                  borderBottom: activeTab === 'vouchers' ? '2px solid #376757' : '2px solid transparent',
                   fontWeight: activeTab === 'vouchers' ? 600 : 500,
-                  color: activeTab === 'vouchers' ? '#ea580c' : '#64748b',
+                  color: activeTab === 'vouchers' ? '#376757' : '#84928a',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
@@ -1207,7 +996,7 @@ export default function AdminPromotionManagement({ currentUser }) {
               {/* TAB 1: TỔNG QUAN */}
               {activeTab === 'overview' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
+                  <div className="promotion-overview-grid">
                     <div style={{ padding: '1rem', background: '#eff6ff', borderRadius: '8px', border: '1px solid #bfdbfe' }}>
                       <div style={{ fontSize: '0.8rem', color: '#1d4ed8', fontWeight: 600 }}>Cơ chế 1: SP Giảm Giá</div>
                       <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#1e3a8a', marginTop: '4px' }}>
@@ -1247,6 +1036,7 @@ export default function AdminPromotionManagement({ currentUser }) {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                   {/* Form thêm SP giảm giá */}
                   <form
+                    className="promotion-discount-form"
                     onSubmit={handleAddProductDiscount}
                     style={{
                       display: 'grid',
@@ -1260,10 +1050,10 @@ export default function AdminPromotionManagement({ currentUser }) {
                     }}
                   >
                     <div>
-                      <label className="admin-form-label" style={{ fontSize: '0.82rem' }}>
+                      <label htmlFor="promotion-field-6" className="admin-form-label" style={{ fontSize: '0.82rem' }}>
                         Chọn Sản Phẩm Nội Thất
                       </label>
-                      <select
+                      <select id="promotion-field-6"
                         className="admin-form-input"
                         style={{ fontSize: '0.85rem' }}
                         value={productDiscountForm.productId}
@@ -1280,10 +1070,10 @@ export default function AdminPromotionManagement({ currentUser }) {
                     </div>
 
                     <div>
-                      <label className="admin-form-label" style={{ fontSize: '0.82rem' }}>
+                      <label htmlFor="promotion-field-7" className="admin-form-label" style={{ fontSize: '0.82rem' }}>
                         % Giảm Giá (1% - 100%)
                       </label>
-                      <input
+                      <input id="promotion-field-7"
                         type="number"
                         min="1"
                         max="100"
@@ -1371,6 +1161,7 @@ export default function AdminPromotionManagement({ currentUser }) {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                   {/* Form thêm bậc đơn hàng */}
                   <form
+                    className="promotion-discount-form"
                     onSubmit={handleAddOrderDiscount}
                     style={{
                       display: 'grid',
@@ -1384,10 +1175,10 @@ export default function AdminPromotionManagement({ currentUser }) {
                     }}
                   >
                     <div>
-                      <label className="admin-form-label" style={{ fontSize: '0.82rem' }}>
+                      <label htmlFor="promotion-field-8" className="admin-form-label" style={{ fontSize: '0.82rem' }}>
                         Mức Đơn Hàng Tối Thiểu (VNĐ)
                       </label>
-                      <input
+                      <input id="promotion-field-8"
                         type="number"
                         min="0"
                         step="500000"
@@ -1401,10 +1192,10 @@ export default function AdminPromotionManagement({ currentUser }) {
                     </div>
 
                     <div>
-                      <label className="admin-form-label" style={{ fontSize: '0.82rem' }}>
+                      <label htmlFor="promotion-field-9" className="admin-form-label" style={{ fontSize: '0.82rem' }}>
                         % Chiết Khấu Đơn Hàng (1% - 100%)
                       </label>
-                      <input
+                      <input id="promotion-field-9"
                         type="number"
                         min="1"
                         max="100"
@@ -1493,10 +1284,10 @@ export default function AdminPromotionManagement({ currentUser }) {
                       Phát hành mã Voucher mới cho chiến dịch này
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.65rem' }}>
+                    <div className="promotion-voucher-grid">
                       <div>
-                        <label className="admin-form-label" style={{ fontSize: '0.78rem' }}>Mã Voucher</label>
-                        <input
+                        <label htmlFor="promotion-field-10" className="admin-form-label" style={{ fontSize: '0.78rem' }}>Mã Voucher</label>
+                        <input id="promotion-field-10"
                           type="text"
                           placeholder="VD: NOITHAT10"
                           className="admin-form-input"
@@ -1508,8 +1299,8 @@ export default function AdminPromotionManagement({ currentUser }) {
                       </div>
 
                       <div>
-                        <label className="admin-form-label" style={{ fontSize: '0.78rem' }}>% Giảm</label>
-                        <input
+                        <label htmlFor="promotion-field-11" className="admin-form-label" style={{ fontSize: '0.78rem' }}>% Giảm</label>
+                        <input id="promotion-field-11"
                           type="number"
                           min="1"
                           max="100"
@@ -1521,8 +1312,8 @@ export default function AdminPromotionManagement({ currentUser }) {
                       </div>
 
                       <div>
-                        <label className="admin-form-label" style={{ fontSize: '0.78rem' }}>Đơn tối thiểu (VNĐ)</label>
-                        <input
+                        <label htmlFor="promotion-field-12" className="admin-form-label" style={{ fontSize: '0.78rem' }}>Đơn tối thiểu (VNĐ)</label>
+                        <input id="promotion-field-12"
                           type="number"
                           min="0"
                           step="500000"
@@ -1533,8 +1324,8 @@ export default function AdminPromotionManagement({ currentUser }) {
                       </div>
 
                       <div>
-                        <label className="admin-form-label" style={{ fontSize: '0.78rem' }}>Giảm tối đa (VNĐ)</label>
-                        <input
+                        <label htmlFor="promotion-field-13" className="admin-form-label" style={{ fontSize: '0.78rem' }}>Giảm tối đa (VNĐ)</label>
+                        <input id="promotion-field-13"
                           type="number"
                           min="0"
                           step="100000"
@@ -1548,10 +1339,10 @@ export default function AdminPromotionManagement({ currentUser }) {
 
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                        <label className="admin-form-label" style={{ margin: 0, fontSize: '0.78rem' }}>
+                        <label htmlFor="promotion-field-14" className="admin-form-label" style={{ margin: 0, fontSize: '0.78rem' }}>
                           Số lượng phát hành:
                         </label>
-                        <input
+                        <input id="promotion-field-14"
                           type="number"
                           min="1"
                           className="admin-form-input"
@@ -1604,7 +1395,7 @@ export default function AdminPromotionManagement({ currentUser }) {
                                 </div>
                               </td>
                               <td style={{ textAlign: 'center' }}>
-                                <span style={{ padding: '0.2rem 0.5rem', background: '#ffedd5', color: '#ea580c', borderRadius: '4px', fontWeight: 700, fontSize: '0.85rem' }}>
+                                <span style={{ padding: '0.2rem 0.5rem', background: '#edf3ef', color: '#376757', borderRadius: '4px', fontWeight: 700, fontSize: '0.85rem' }}>
                                   Giảm {v.discountPercent}%
                                 </span>
                               </td>
@@ -1688,15 +1479,15 @@ export default function AdminPromotionManagement({ currentUser }) {
       {/* MODAL 3: Xóa Chiến Dịch */}
       {deletingProgram && (
         <div className="admin-modal-overlay">
-          <div className="admin-modal-card" style={{ maxWidth: '440px' }}>
+          <div className="admin-modal-card" role="dialog" aria-modal="true" aria-labelledby="promotion-delete-title" style={{ maxWidth: '440px' }}>
             <div className="admin-modal-header" style={{ borderBottomColor: '#fecaca' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                 <div style={{ width: '32px', height: '32px', borderRadius: '6px', background: '#fee2e2', color: '#dc2626', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <AlertTriangle size={18} />
                 </div>
-                <h3 className="admin-modal-title" style={{ color: '#991b1b' }}>Xóa Chiến Dịch Khuyến Mãi</h3>
+                <h3 className="admin-modal-title" id="promotion-delete-title" style={{ color: '#991b1b' }}>Xóa chiến dịch</h3>
               </div>
-              <button className="admin-modal-close" onClick={() => setDeletingProgram(null)}>
+              <button className="admin-modal-close" aria-label="Đóng" disabled={saving} onClick={() => setDeletingProgram(null)}>
                 <X size={18} />
               </button>
             </div>

@@ -17,7 +17,7 @@ import {
   AlertTriangle,
   Tag,
 } from 'lucide-react'
-import { fetchOrders, getLocalOrders } from '../lib/orders'
+import { fetchOrders, getLocalOrders } from '../../lib/orders'
 import CancelOrderDialog from './CancelOrderDialog'
 
 const formatPrice = (price) => `${new Intl.NumberFormat('vi-VN').format(price || 0)}₫`
