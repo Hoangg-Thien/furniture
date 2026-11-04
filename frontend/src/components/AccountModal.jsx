@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { X, User, Mail, Phone, MapPin, Lock, Check, AlertCircle, Pencil } from 'lucide-react'
 import { updateProfile } from '../lib/auth'
-import { getAllProvinces, getDistricts, getWards } from '../lib/vietnamLocations'
+import { getAllProvinces, getDistricts, getWards, splitSavedAddress } from '../lib/vietnamLocations'
 
 export default function AccountModal({ isOpen, user, onClose, onUserUpdate }) {
   const [editing, setEditing] = useState(false)
@@ -9,7 +9,7 @@ export default function AccountModal({ isOpen, user, onClose, onUserUpdate }) {
   const [successMsg, setSuccessMsg] = useState('')
   const [errorMsg, setErrorMsg] = useState('')
   const [showPasswordSection, setShowPasswordSection] = useState(false)
-  const [accCity, setAccCity] = useState('TP. Hồ Chí Minh')
+  const [accCity, setAccCity] = useState('')
   const [accDistrict, setAccDistrict] = useState('')
   const [accWard, setAccWard] = useState('')
   const [streetDetail, setStreetDetail] = useState('')
@@ -44,7 +44,11 @@ export default function AccountModal({ isOpen, user, onClose, onUserUpdate }) {
     setSuccessMsg('')
     setErrorMsg('')
     setShowPasswordSection(false)
-    setStreetDetail(user.address || '')
+    const savedAddress = splitSavedAddress(user.address)
+    setStreetDetail(savedAddress.address)
+    setAccCity(savedAddress.city)
+    setAccDistrict(savedAddress.district)
+    setAccWard(savedAddress.ward)
   }
 
 
@@ -86,6 +90,13 @@ export default function AccountModal({ isOpen, user, onClose, onUserUpdate }) {
   }
 
   function handleChange(e) {
+    if (e.target.name === 'address') {
+      const savedAddress = splitSavedAddress(e.target.value)
+      setStreetDetail(savedAddress.address)
+      setAccCity(savedAddress.city)
+      setAccDistrict(savedAddress.district)
+      setAccWard(savedAddress.ward)
+    }
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }))
   }
 

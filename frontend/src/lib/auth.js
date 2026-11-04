@@ -1,4 +1,4 @@
-import { getApiBaseUrl } from './apiConfig'
+import { getApiBaseUrl } from './apiConfig.js'
 
 const SESSION_CUSTOMER_KEY = 'furniture_customer_user'
 const SESSION_ADMIN_KEY = 'furniture_admin_user'
@@ -23,9 +23,6 @@ export function getCurrentUser() {
     // 2. Migration từ legacy key nếu có
     if (!raw) {
       raw = localStorage.getItem(LEGACY_SESSION_KEY)
-      if (raw) {
-        localStorage.removeItem(LEGACY_SESSION_KEY)
-      }
     }
 
     if (!raw) return null
@@ -39,6 +36,8 @@ export function getCurrentUser() {
       return null
     }
 
+    localStorage.setItem(SESSION_CUSTOMER_KEY, JSON.stringify(user))
+    localStorage.removeItem(LEGACY_SESSION_KEY)
     return user
   } catch {
     return null

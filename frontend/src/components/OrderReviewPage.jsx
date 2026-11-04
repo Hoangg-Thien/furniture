@@ -28,9 +28,11 @@ import {
   UserCheck,
   RefreshCw,
 } from 'lucide-react'
-import { createOrder, saveOrderToLocalHistory, cancelOrderApi, fetchOrderById } from '../lib/orders'
+import { createOrder, saveOrderToLocalHistory, fetchOrderById } from '../lib/orders'
+import CancelOrderDialog from './CancelOrderDialog'
 import { validateVoucherApi, fetchActiveVouchers } from '../lib/vouchers'
-import { getAllProvinces, getDistricts, getWards } from '../lib/vietnamLocations'
+import { loadCheckoutDraft, saveCheckoutDraft, clearCheckoutDraft } from '../lib/checkout'
+import { getAllProvinces, getDistricts, getWards, splitSavedAddress } from '../lib/vietnamLocations'
 
 const formatPrice = (price) => `${new Intl.NumberFormat('vi-VN').format(price)}₫`
 
@@ -276,7 +278,8 @@ export default function OrderReviewPage({
   const shippingFee = subtotal >= FREE_SHIP_THRESHOLD ? 0 : SHIPPING_FEE
   const total = subtotal + shippingFee
 
-  const [step, setStep] = useState(() => (initialOrder ? 3 : 1))
+  const [checkoutDraft] = useState(() => initialOrder ? null : loadCheckoutDraft(currentUser?.customerId))
+  const [step, setStep] = useState(() => (initialOrder ? 3 : checkoutDraft?.step || 1))
   const [orderSnapshot, setOrderSnapshot] = useState(initialOrder)
   const [liveStatus, setLiveStatus] = useState(initialOrder?.status || 'PENDING')
   const [isRefreshingStatus, setIsRefreshingStatus] = useState(false)
@@ -343,20 +346,30 @@ export default function OrderReviewPage({
   )
 
   const [useDefaultAccountInfo, setUseDefaultAccountInfo] = useState(() => {
+    if (checkoutDraft) return checkoutDraft.useDefaultAccountInfo
     return Boolean(currentUser && (currentUser.fullName || currentUser.phone || currentUser.address))
   })
 
   const [form, setForm] = useState(() => {
-    const defaultCity = initialOrder?.shippingInfo?.city || (currentUser?.address?.includes('Hà Nội') ? 'Hà Nội' : 'TP. Hồ Chí Minh')
+    const savedAddress = splitSavedAddress(currentUser?.address)
     return {
       fullName: initialOrder?.shippingInfo?.fullName || currentUser?.fullName || currentUser?.username || '',
       phone: initialOrder?.shippingInfo?.phone || currentUser?.phone || '',
-      address: initialOrder?.shippingInfo?.address || currentUser?.address || '',
-      ward: initialOrder?.shippingInfo?.ward || '',
-      district: initialOrder?.shippingInfo?.district || '',
-      city: defaultCity,
+      address: initialOrder?.shippingInfo?.address || savedAddress.address,
+      ward: initialOrder?.shippingInfo?.ward || savedAddress.ward,
+      district: initialOrder?.shippingInfo?.district || savedAddress.district,
+      city: initialOrder?.shippingInfo?.city || savedAddress.city,
+      ...checkoutDraft?.form,
     }
   })
+
+  useEffect(() => {
+    if (step === 3) {
+      clearCheckoutDraft(currentUser?.customerId)
+    } else {
+      saveCheckoutDraft(currentUser?.customerId, { form, step, useDefaultAccountInfo })
+    }
+  }, [currentUser?.customerId, form, step, useDefaultAccountInfo])
 
   const provinces = useMemo(() => getAllProvinces(), [])
   const districts = useMemo(() => getDistricts(form.city), [form.city])
@@ -394,11 +407,12 @@ export default function OrderReviewPage({
   function handleToggleDefaultInfo(checked) {
     setUseDefaultAccountInfo(checked)
     if (checked && currentUser) {
+      const savedAddress = splitSavedAddress(currentUser.address)
       setForm((prev) => ({
         ...prev,
         fullName: currentUser.fullName || currentUser.username || prev.fullName,
         phone: currentUser.phone || prev.phone,
-        address: currentUser.address || prev.address,
+        ...savedAddress,
       }))
     }
   }
@@ -408,7 +422,7 @@ export default function OrderReviewPage({
 
   // State hỗ trợ Shopee tracking & actions
   const [copied, setCopied] = useState(false)
-  const [isCancelling, setIsCancelling] = useState(false)
+  const [pendingCancelOrder, setPendingCancelOrder] = useState(null)
   const [cancelSuccessMsg, setCancelSuccessMsg] = useState('')
 
   // State quản lý Voucher áp dụng cho đơn hàng
@@ -496,39 +510,18 @@ export default function OrderReviewPage({
         setCopied(true)
         setTimeout(() => setCopied(false), 2200)
       }).catch(() => {
-        setCopied(true)
-        setTimeout(() => setCopied(false), 2200)
+        alert(`Không sao chép được tự động. Mã đơn hàng của bạn: ${code}`)
       })
     } else {
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2200)
+      alert(`Mã đơn hàng của bạn: ${code}`)
     }
   }
 
-  async function handleCancelOrderClick(targetOrder) {
-    const idToCancel = targetOrder.orderId || targetOrder.id || targetOrder.orderNumber
-    const confirmCancel = window.confirm(
-      `Bạn có chắc chắn muốn hủy đơn hàng ${targetOrder.orderNumber || ''} này không?`
-    )
-    if (!confirmCancel) return
-
-    setIsCancelling(true)
-    try {
-      const res = await cancelOrderApi(idToCancel)
-      if (res.success) {
-        setCancelSuccessMsg('Đã hủy đơn hàng thành công theo yêu cầu của bạn.')
-        setOrderSnapshot((prev) => ({
-          ...(prev || {}),
-          status: 'CANCELLED',
-        }))
-      } else {
-        alert(res.error || 'Không thể hủy đơn hàng này vào lúc này.')
-      }
-    } catch (e) {
-      alert('Đã xảy ra lỗi khi hủy đơn.')
-    } finally {
-      setIsCancelling(false)
-    }
+  function handleOrderCancelled() {
+    setPendingCancelOrder(null)
+    setCancelSuccessMsg('Đã hủy đơn hàng thành công theo yêu cầu của bạn.')
+    setOrderSnapshot((prev) => ({ ...prev, status: 'CANCELLED' }))
+    setLiveStatus('CANCELLED')
   }
 
   function handleReorderClick(itemsToReorder) {
@@ -578,6 +571,17 @@ export default function OrderReviewPage({
   }
 
   async function handlePlaceOrder() {
+    if (submitting) return
+    if (!currentUser?.customerId || cartItems.length === 0) {
+      setSubmitError('Vui lòng đăng nhập và thêm sản phẩm vào giỏ trước khi đặt hàng.')
+      return
+    }
+    const shippingErrors = validateShipping()
+    if (Object.keys(shippingErrors).length > 0) {
+      setErrors(shippingErrors)
+      setStep(1)
+      return
+    }
     setSubmitting(true)
     setSubmitError('')
 
@@ -618,6 +622,8 @@ export default function OrderReviewPage({
     const assignedOrderNumber = backendOrder?.orderCode || orderNumber
 
     const currentOrderSnapshot = {
+      customerId: currentUser.customerId,
+      userId: currentUser.userId,
       orderNumber: assignedOrderNumber,
       orderId: backendOrder?.orderId || null,
       id: backendOrder?.orderId || null,
@@ -650,14 +656,7 @@ export default function OrderReviewPage({
         city: form.city.trim(),
       },
       paymentMethod: PAYMENT_METHOD,
-      orderDate: new Date().toLocaleString('vi-VN', {
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-      }),
+      orderDate: new Date().toISOString(),
     }
 
     setOrderSnapshot(currentOrderSnapshot)
@@ -1086,7 +1085,13 @@ export default function OrderReviewPage({
             </div>
 
             {/* Các nút hành động chính ở chân trang */}
+            {cancelSuccessMsg && <p className="catalog-note" role="status">{cancelSuccessMsg}</p>}
             <div className="order-success-bottom-actions">
+              {activeStatus === 'PENDING' && (
+                <button type="button" className="order-btn-view-history" onClick={() => setPendingCancelOrder(currentOrder)}>
+                  <XCircle size={16} /> Hủy đơn hàng
+                </button>
+              )}
               {onOpenMyOrders && (
                 <button
                   type="button"
@@ -1111,6 +1116,9 @@ export default function OrderReviewPage({
             </div>
           </div>
         </div>
+        {pendingCancelOrder && (
+          <CancelOrderDialog order={pendingCancelOrder} onClose={() => setPendingCancelOrder(null)} onCancelled={handleOrderCancelled} />
+        )}
       </div>
     )
   }

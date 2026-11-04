@@ -756,4 +756,12 @@ INSERT INTO orders (id, customer_id, order_date, status, total_amount, discount_
 INSERT INTO order_items (order_id, product_id, quantity, unit_price, amount) VALUES (44, 1, 1, 14500000, 14500000);
 INSERT INTO orders (id, customer_id, order_date, status, total_amount, discount_amount) VALUES (45, 21, '2026-10-28 15:21:09', 'PENDING', 9800000, 0);
 INSERT INTO order_items (order_id, product_id, quantity, unit_price, amount) VALUES (45, 2, 1, 9800000, 9800000);
+INSERT INTO orders (id, customer_id, order_date, status, total_amount, discount_amount) VALUES (46, 21, '2026-10-29 11:12:08', 'PENDING', 111500000, 0);
+INSERT INTO order_items (order_id, product_id, quantity, unit_price, amount) VALUES (46, 1, 1, 14500000, 14500000);
+INSERT INTO order_items (order_id, product_id, quantity, unit_price, amount) VALUES (46, 2, 1, 9800000, 9800000);
+INSERT INTO order_items (order_id, product_id, quantity, unit_price, amount) VALUES (46, 3, 1, 4200000, 4200000);
+INSERT INTO order_items (order_id, product_id, quantity, unit_price, amount) VALUES (46, 4, 13, 6500000, 84500000);
+INSERT INTO orders (id, customer_id, order_date, status, total_amount, discount_amount) VALUES (47, 21, '2026-10-29 11:21:42', 'PENDING', 43400000, 0);
+INSERT INTO order_items (order_id, product_id, quantity, unit_price, amount) VALUES (47, 2, 4, 9800000, 39200000);
+INSERT INTO order_items (order_id, product_id, quantity, unit_price, amount) VALUES (47, 3, 1, 4200000, 4200000);
 COMMIT;

@@ -86,11 +86,16 @@ export default function VouchersModal({
   }, [isOpen, canManageVouchers])
 
   // Xử lý sao chép mã
-  const handleCopy = (code) => {
+  const handleCopy = async (code) => {
     if (!code) return
-    navigator.clipboard?.writeText(code)
-    setCopiedCode(code)
-    setTimeout(() => setCopiedCode(null), 2500)
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error('Clipboard unavailable')
+      await navigator.clipboard.writeText(code)
+      setCopiedCode(code)
+      setTimeout(() => setCopiedCode(null), 2500)
+    } catch {
+      setActionAlert({ type: 'error', message: `Không sao chép được tự động. Bạn có thể nhập mã ${code} khi đặt hàng.` })
+    }
   }
 
   // Xử lý áp dụng voucher ngay
