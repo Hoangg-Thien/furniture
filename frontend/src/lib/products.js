@@ -1,4 +1,4 @@
-import { getApiBaseUrl } from './apiConfig'
+import { getApiBaseUrl } from './apiConfig.js'
 
 const CACHE_KEY = 'furniture_cached_products'
 
@@ -12,7 +12,7 @@ export async function loadProducts() {
     if (!response.ok) throw new Error(`Product API returned ${response.status}`)
 
     const rows = await response.json()
-    if (Array.isArray(rows) && rows.length > 0) {
+    if (Array.isArray(rows)) {
       const mapped = rows.map((row) => ({
         id: row.id,
         name: row.name,

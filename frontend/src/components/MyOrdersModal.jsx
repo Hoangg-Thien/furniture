@@ -17,7 +17,8 @@ import {
   AlertTriangle,
   Tag,
 } from 'lucide-react'
-import { fetchOrders, cancelOrderApi } from '../lib/orders'
+import { fetchOrders, getLocalOrders } from '../lib/orders'
+import CancelOrderDialog from './CancelOrderDialog'
 
 const formatPrice = (price) => `${new Intl.NumberFormat('vi-VN').format(price || 0)}₫`
 
@@ -96,23 +97,6 @@ const resolveItemImage = (it, catalogProducts = []) => {
   return ''
 }
 
-function getLocalOrders() {
-  try {
-    const historyList = JSON.parse((localStorage.getItem('funi_orders_history') || localStorage.getItem('nep_orders_history')) || '[]')
-    const lastOrder = JSON.parse((localStorage.getItem('funi_last_order') || localStorage.getItem('nep_last_order')) || 'null')
-    const list = Array.isArray(historyList) ? [...historyList] : []
-    if (lastOrder) {
-      const lKey = lastOrder.orderNumber || lastOrder.orderId || lastOrder.id
-      if (!list.some((o) => (o.orderNumber || o.orderId || o.id) === lKey)) {
-        list.unshift(lastOrder)
-      }
-    }
-    return list
-  } catch {
-    return []
-  }
-}
-
 function normalizeOrders(rawList = [], currentUser = null, catalogProducts = []) {
   if (!Array.isArray(rawList)) return []
   return rawList
@@ -181,80 +165,43 @@ export default function MyOrdersModal({
   onOpenStore,
 }) {
   const [orders, setOrders] = useState(() =>
-    normalizeOrders(getLocalOrders(), currentUser, catalogProducts)
+    normalizeOrders(getLocalOrders(currentUser?.customerId), currentUser, catalogProducts)
   )
   const [loading, setLoading] = useState(false)
   const [activeTab, setActiveTab] = useState('ALL')
   const [searchTerm, setSearchTerm] = useState('')
-  const [cancellingId, setCancellingId] = useState(null)
+  const [pendingCancelOrder, setPendingCancelOrder] = useState(null)
   const [cancelMessage, setCancelMessage] = useState('')
-
-  // Tải danh sách đơn hàng từ Backend + LocalStorage
-  const loadOrders = async () => {
-    // 1. Hiển thị đơn từ localStorage trước để không bao giờ bị màn hình trắng
-    const local = getLocalOrders()
-    if (local.length > 0) {
-      setOrders(normalizeOrders(local, currentUser, catalogProducts))
-    }
-
-    setLoading(true)
-    try {
-      const customerId = currentUser?.customerId || null
-      let fetchedOrders = []
-
-      // 2. Tải đơn từ backend riêng của tài khoản này nếu có
-      if (customerId) {
-        const res = await fetchOrders(customerId)
-        if (Array.isArray(res.orders) && res.orders.length > 0) {
-          fetchedOrders = res.orders
-        }
-      }
-
-      // 3. Nếu tài khoản chưa có đơn riêng, tự động tải toàn bộ danh sách đơn hệ thống
-      if (!fetchedOrders || fetchedOrders.length === 0) {
-        const allRes = await fetchOrders(null)
-        fetchedOrders = allRes.orders || []
-      }
-
-      // 4. Gộp với các đơn mới đặt trong localStorage
-      const merged = [...(fetchedOrders || [])]
-      for (const loc of local) {
-        const idKey = loc.orderNumber || loc.orderId || loc.id
-        const exists = merged.some(
-          (o) => (o.orderCode || o.orderNumber || o.orderId || o.id) === idKey
-        )
-        if (!exists) {
-          merged.unshift(loc)
-        }
-      }
-
-      const normalized = normalizeOrders(merged, currentUser, catalogProducts)
-
-      // Sắp xếp đơn mới nhất lên đầu
-      normalized.sort((a, b) => {
-        const idA = Number(a.orderId || a.id || 0)
-        const idB = Number(b.orderId || b.id || 0)
-        if (idA && idB && idA !== idB) return idB - idA
-        const timeA = new Date(a.orderDate).getTime() || 0
-        const timeB = new Date(b.orderDate).getTime() || 0
-        return timeB - timeA
-      })
-
-      setOrders(normalized)
-    } catch (err) {
-      console.error('Lỗi khi tải đơn hàng:', err)
-    } finally {
-      setLoading(false)
-    }
-  }
+  const [loadError, setLoadError] = useState('')
 
   useEffect(() => {
     if (!isOpen) return
+    let cancelled = false
+    let fetching = false
+    async function loadOrders() {
+      if (fetching) return
+      fetching = true
+      setLoading(true)
+      try {
+        const result = await fetchOrders(currentUser?.customerId)
+        if (cancelled) return
+        const normalized = normalizeOrders(result.orders, currentUser, catalogProducts)
+        normalized.sort((a, b) => Number(b.orderId || 0) - Number(a.orderId || 0))
+        setOrders(normalized)
+        setLoadError(result.error || '')
+      } finally {
+        fetching = false
+        if (!cancelled) setLoading(false)
+      }
+    }
     loadOrders()
     const interval = setInterval(() => {
       loadOrders()
     }, 4000)
-    return () => clearInterval(interval)
+    return () => {
+      cancelled = true
+      clearInterval(interval)
+    }
   }, [isOpen, currentUser, catalogProducts])
 
   // Lọc đơn hàng theo tab và từ khóa
@@ -280,34 +227,15 @@ export default function MyOrdersModal({
   }, [orders, activeTab, searchTerm])
 
   // Xử lý hủy đơn
-  const handleCancelOrder = async (order) => {
-    const confirmCancel = window.confirm(
-      `Bạn có chắc chắn muốn hủy đơn hàng ${order.orderNumber} không?\nHành động này không thể hoàn tác.`
-    )
-    if (!confirmCancel) return
-
-    setCancellingId(order.id || order.orderNumber)
-    try {
-      const res = await cancelOrderApi(order.id)
-      if (res.success) {
-        setCancelMessage(`Đã hủy thành công đơn hàng ${order.orderNumber}.`)
-        setTimeout(() => setCancelMessage(''), 4000)
-        // Cập nhật trạng thái tại state
-        setOrders((prev) =>
-          prev.map((o) =>
-            (o.id === order.id || o.orderNumber === order.orderNumber)
-              ? { ...o, status: 'CANCELLED' }
-              : o
-          )
-        )
-      } else {
-        alert(res.error || 'Không thể hủy đơn hàng vào lúc này.')
-      }
-    } catch (e) {
-      alert('Đã xảy ra lỗi khi hủy đơn.')
-    } finally {
-      setCancellingId(null)
-    }
+  const handleOrderCancelled = (order) => {
+    setPendingCancelOrder(null)
+    setCancelMessage(`Đã hủy thành công đơn hàng ${order.orderNumber}.`)
+    setTimeout(() => setCancelMessage(''), 4000)
+    setOrders((prev) => prev.map((item) =>
+      (item.id === order.id || item.orderNumber === order.orderNumber)
+        ? { ...item, status: 'CANCELLED' }
+        : item
+    ))
   }
 
   // Xử lý mua lại (Re-order)
@@ -322,10 +250,12 @@ export default function MyOrdersModal({
   const renderStatusBadge = (status) => {
     switch (status) {
       case 'PENDING':
+      case 'CONFIRMED':
+      case 'WAITING':
         return (
           <span className="shopee-order-status-badge pending">
             <Clock size={13} />
-            CHỜ XÁC NHẬN
+            {status === 'CONFIRMED' ? 'ĐÃ XÁC NHẬN' : 'CHỜ XÁC NHẬN'}
           </span>
         )
       case 'SHIPPING':
@@ -360,7 +290,7 @@ export default function MyOrdersModal({
     }
   }
 
-  if (!isOpen) return null
+  if (!isOpen || !currentUser) return null
 
   return (
     <div className="shopee-orders-overlay" onClick={onClose} role="dialog" aria-modal="true">
@@ -383,6 +313,7 @@ export default function MyOrdersModal({
             <X size={20} />
           </button>
         </header>
+        {loadError && <p className="catalog-note" role="status">{loadError}</p>}
 
         {/* Thanh tìm kiếm & Tabs Shopee */}
         <div className="shopee-orders-toolbar">
@@ -473,7 +404,6 @@ export default function MyOrdersModal({
             filteredOrders.map((order) => {
               const totalItemsCount = order.items.reduce((s, it) => s + (it.quantity || 1), 0)
               const isPending = order.status === 'PENDING'
-              const isCancelling = cancellingId === (order.id || order.orderNumber)
 
               return (
                 <div className="shopee-order-card" key={order.orderNumber || order.id}>
@@ -572,11 +502,11 @@ export default function MyOrdersModal({
                       <button
                         type="button"
                         className="shopee-btn shopee-btn-cancel"
-                        disabled={isCancelling}
-                        onClick={() => handleCancelOrder(order)}
+                        disabled={Boolean(pendingCancelOrder)}
+                        onClick={() => setPendingCancelOrder(order)}
                       >
                         <X size={14} />
-                        {isCancelling ? 'Đang hủy...' : 'Hủy Đơn Hàng'}
+                        Hủy Đơn Hàng
                       </button>
                     )}
 
@@ -609,6 +539,9 @@ export default function MyOrdersModal({
           )}
         </div>
       </div>
+      {pendingCancelOrder && (
+        <CancelOrderDialog order={pendingCancelOrder} onClose={() => setPendingCancelOrder(null)} onCancelled={handleOrderCancelled} />
+      )}
     </div>
   )
 }

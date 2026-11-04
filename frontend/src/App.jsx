@@ -20,7 +20,9 @@ import {
   X,
 } from 'lucide-react'
 import { loadProducts } from './lib/products'
-import { fetchOrderById } from './lib/orders'
+import { loadCart, saveCart } from './lib/cart'
+import { isCheckoutPath } from './lib/checkout'
+import { fetchOrderById, getLocalOrders } from './lib/orders'
 import {
   getCurrentUser,
   logoutUser,
@@ -43,13 +45,13 @@ const formatPrice = (price) => `${new Intl.NumberFormat('vi-VN').format(price)}�
 
 function App() {
   // Hệ thống định tuyến:
-  // - '' hoặc '/' hoặc '/order-success' => 'store' (Trang chủ Storefront & Xem trạng thái đơn)
+  // - '/', '/checkout', '/order-success' => 'store' (Cửa hàng, đặt hàng và trạng thái đơn)
   // - '/admin' hoặc bất kỳ trang con nào bắt đầu bằng '/admin' => 'admin' (Trang quản trị Admin)
   // - Bất kỳ đường dẫn lạ nào khác (như /1321, /abc) => '404' (Trang Không tìm thấy)
   function getCurrentRoute() {
     if (typeof window === 'undefined') return 'store'
     const path = window.location.pathname.toLowerCase().replace(/\/+$/, '')
-    if (path === '' || path === '/' || path.startsWith('/order-success')) return 'store'
+    if (path === '' || path === '/' || isCheckoutPath(path) || path.startsWith('/order-success')) return 'store'
     if (path === '/admin' || path.startsWith('/admin/')) return 'admin'
     return '404'
   }
@@ -89,10 +91,13 @@ function App() {
   // Bộ lọc giá và sắp xếp sản phẩm
   const PRICE_PRESETS = [
     { id: 'ALL', label: 'Tất cả mức giá', min: null, max: null },
+    { id: 'OVER_1M', label: 'Trên 1 triệu', min: 1000000, max: null, minExclusive: true },
+    { id: 'OVER_2M', label: 'Trên 2 triệu', min: 2000000, max: null, minExclusive: true },
+    { id: 'OVER_5M', label: 'Trên 5 triệu', min: 5000000, max: null, minExclusive: true },
     { id: 'UNDER_2M', label: 'Dưới 2 triệu', min: 0, max: 2000000 },
     { id: '2M_5M', label: '2 - 5 triệu', min: 2000000, max: 5000000 },
     { id: '5M_10M', label: '5 - 10 triệu', min: 5000000, max: 10000000 },
-    { id: 'OVER_10M', label: 'Trên 10 triệu', min: 10000000, max: null },
+    { id: 'OVER_10M', label: 'Trên 10 triệu', min: 10000000, max: null, minExclusive: true },
   ]
   const [pricePreset, setPricePreset] = useState('ALL')
   const [customMin, setCustomMin] = useState('')
@@ -102,7 +107,7 @@ function App() {
 
   function handleSelectPricePreset(preset) {
     setPricePreset(preset.id)
-    setAppliedPriceRange({ min: preset.min, max: preset.max })
+    setAppliedPriceRange({ min: preset.min, max: preset.max, minExclusive: preset.minExclusive ?? false })
     if (preset.id !== 'CUSTOM') {
       setCustomMin('')
       setCustomMax('')
@@ -111,8 +116,13 @@ function App() {
 
   function handleApplyCustomPrice(e) {
     if (e) e.preventDefault()
-    const minVal = customMin ? parseInt(String(customMin).replace(/\D/g, ''), 10) : null
-    const maxVal = customMax ? parseInt(String(customMax).replace(/\D/g, ''), 10) : null
+    const minVal = customMin === '' ? null : Number(customMin)
+    const maxVal = customMax === '' ? null : Number(customMax)
+    if ([minVal, maxVal].some((value) => value != null && (!Number.isFinite(value) || value < 0))) {
+      setNotice('Vui lòng nhập mức giá hợp lệ, không âm.')
+      setTimeout(() => setNotice(''), 3000)
+      return
+    }
     if (minVal != null && maxVal != null && minVal > maxVal) {
       setNotice('Giá tối thiểu không được lớn hơn giá tối đa.')
       setTimeout(() => setNotice(''), 3000)
@@ -130,7 +140,7 @@ function App() {
   }
 
   const [searchTerm, setSearchTerm] = useState('')
-  const [cart, setCart] = useState({})
+  const [cart, setCart] = useState(loadCart)
   const [favorites, setFavorites] = useState([])
   const [showFavorites, setShowFavorites] = useState(false)
   const [cartOpen, setCartOpen] = useState(false)
@@ -152,6 +162,10 @@ function App() {
   const [cartBump, setCartBump] = useState(false)
   const [cartToast, setCartToast] = useState(null)
   const [activeSection, setActiveSection] = useState('home')
+
+  useEffect(() => {
+    saveCart(cart)
+  }, [cart])
 
   function scrollToSection(sectionId) {
     setActiveSection(sectionId)
@@ -203,8 +217,13 @@ function App() {
   }, [])
 
   function handleLogout() {
+    if (isCheckoutPath(window.location.pathname)) window.history.replaceState({}, '', '/')
     logoutUser()
     setCurrentUser(null)
+    setAccountOpen(false)
+    setMyOrdersOpen(false)
+    setOrderOpen(false)
+    setCompletedOrder(null)
     setUserMenuOpen(false)
     setNotice('Đã đăng xuất tài khoản thành công.')
     window.setTimeout(() => setNotice(''), 3000)
@@ -231,7 +250,7 @@ function App() {
 
     loadProducts().then(({ products: loadedProducts, error }) => {
       if (cancelled) return
-      if (loadedProducts && loadedProducts.length > 0) {
+      if (Array.isArray(loadedProducts)) {
         setProducts(loadedProducts)
       }
       setCatalogError(error?.message ?? '')
@@ -249,7 +268,20 @@ function App() {
   }, [productImagePreview])
 
   useEffect(() => {
+    let cancelled = false
     async function restoreOrderFromUrlOrStorage() {
+      if (isCheckoutPath(window.location.pathname)) {
+        setCompletedOrder(null)
+        if (Object.keys(loadCart()).length === 0) {
+          setOrderOpen(false)
+          setCartOpen(true)
+          window.history.replaceState({}, '', '/')
+          return
+        }
+        setOrderOpen(Boolean(currentUser?.customerId))
+        if (!currentUser?.customerId) setAuthOpen(true)
+        return
+      }
       if (window.location.pathname.includes('/order-success')) {
         const urlParams = new URLSearchParams(window.location.search)
         const orderIdParam = urlParams.get('id')
@@ -257,11 +289,13 @@ function App() {
         if (orderIdParam) {
           try {
             const { order, items, error } = await fetchOrderById(orderIdParam)
-            if (order && !error) {
+            if (cancelled) return
+            if (order && !error && currentUser?.customerId && String(order.customer_id) === String(currentUser.customerId)) {
               const liveOrder = {
                 orderNumber: order.orderCode || orderIdParam,
                 orderId: order.id,
                 id: order.id,
+                customerId: order.customer_id,
                 status: order.status || 'PENDING',
                 orderDate: order.order_date || new Date().toLocaleString('vi-VN'),
                 items: (items || []).map((it) => ({
@@ -283,7 +317,6 @@ function App() {
                   phone: order.phone,
                   address: order.address,
                 },
-                shippingFee: 0,
                 paymentMethod: {
                   id: 'cod',
                   label: 'Thanh toán khi nhận hàng (COD)',
@@ -303,9 +336,11 @@ function App() {
 
         // Fallback từ localStorage nếu không tìm thấy id hoặc backend offline
         try {
-          const saved = localStorage.getItem('funi_last_order') || localStorage.getItem('nep_last_order')
+          const saved = getLocalOrders(currentUser?.customerId).find((order) =>
+            !orderIdParam || [order.orderNumber, order.orderCode, String(order.orderId ?? order.id)].includes(orderIdParam)
+          )
           if (saved) {
-            setCompletedOrder(JSON.parse(saved))
+            setCompletedOrder(saved)
             setOrderOpen(true)
           }
         } catch (err) {
@@ -317,7 +352,7 @@ function App() {
     restoreOrderFromUrlOrStorage()
 
     function handlePopState() {
-      if (window.location.pathname.includes('/order-success')) {
+      if (isCheckoutPath(window.location.pathname) || window.location.pathname.includes('/order-success')) {
         restoreOrderFromUrlOrStorage()
       } else {
         setOrderOpen(false)
@@ -325,12 +360,15 @@ function App() {
       }
     }
     window.addEventListener('popstate', handlePopState)
-    return () => window.removeEventListener('popstate', handlePopState)
-  }, [])
+    return () => {
+      cancelled = true
+      window.removeEventListener('popstate', handlePopState)
+    }
+  }, [currentUser?.customerId])
 
-  // Khóa cuộn trang nền và hỗ trợ đóng giỏ hàng bằng phím Escape
+  // Khóa cuộn nền khi mở giỏ hoặc đặt hàng; Escape đóng giỏ hàng.
   useEffect(() => {
-    if (cartOpen) {
+    if (cartOpen || orderOpen) {
       const originalOverflow = document.body.style.overflow
       document.body.style.overflow = 'hidden'
       const handleKeyDown = (e) => {
@@ -342,14 +380,18 @@ function App() {
         window.removeEventListener('keydown', handleKeyDown)
       }
     }
-  }, [cartOpen])
+  }, [cartOpen, orderOpen])
 
   const filteredProducts = products
     .filter((product) => {
       const matchesCategory = activeCategory === 'Tất cả' || product.category === activeCategory
       const matchesSearch = product.name.toLowerCase().includes(searchTerm.trim().toLowerCase())
       const matchesFav = !showFavorites || favorites.includes(product.id)
-      const matchesMin = appliedPriceRange.min == null || product.price >= appliedPriceRange.min
+      const matchesMin = appliedPriceRange.min == null || (
+        appliedPriceRange.minExclusive
+          ? product.price > appliedPriceRange.min
+          : product.price >= appliedPriceRange.min
+      )
       const matchesMax = appliedPriceRange.max == null || product.price <= appliedPriceRange.max
       return matchesCategory && matchesSearch && matchesFav && matchesMin && matchesMax
     })
@@ -357,6 +399,7 @@ function App() {
       if (sortOrder === 'PRICE_ASC') return a.price - b.price
       if (sortOrder === 'PRICE_DESC') return b.price - a.price
       if (sortOrder === 'NAME_ASC') return a.name.localeCompare(b.name, 'vi')
+      if (sortOrder === 'NAME_DESC') return b.name.localeCompare(a.name, 'vi')
       return 0
     })
   const cartItems = products.filter((product) => cart[product.id])
@@ -414,6 +457,8 @@ function App() {
 
   function placeOrder() {
     if (currentUser) {
+      window.history.pushState({}, '', '/checkout')
+      setCompletedOrder(null)
       setCartOpen(false)
       setOrderOpen(true)
     } else {
@@ -433,17 +478,27 @@ function App() {
 
   function handleReorder(items) {
     if (!items || items.length === 0) return
+    const availableItems = items.filter((item) =>
+      products.some((product) => String(product.id) === String(item.productId || item.product_id || item.id))
+    )
+    if (availableItems.length === 0) {
+      setNotice('Các sản phẩm trong đơn này hiện không còn được bán.')
+      window.setTimeout(() => setNotice(''), 3000)
+      return
+    }
     setCart((prevCart) => {
       const nextCart = { ...prevCart }
-      for (const it of items) {
-        const pId = it.id || it.product_id || it.productId
+      for (const it of availableItems) {
+        const pId = it.productId || it.product_id || it.id
         if (pId) {
-          nextCart[pId] = (nextCart[pId] || 0) + (it.quantity || 1)
+          nextCart[pId] = (nextCart[pId] || 0) + Math.max(1, Number(it.quantity) || 1)
         }
       }
       return nextCart
     })
-    setNotice('Đã thêm sản phẩm từ đơn hàng vào giỏ!')
+    setNotice(availableItems.length < items.length
+      ? 'Đã thêm vào giỏ các sản phẩm còn bán; một số sản phẩm không còn trong danh mục.'
+      : 'Đã thêm sản phẩm từ đơn hàng vào giỏ!')
     window.setTimeout(() => setNotice(''), 3000)
     setCartOpen(true)
   }
@@ -764,6 +819,7 @@ function App() {
                   key={p.id}
                   type="button"
                   className={`price-preset-chip ${pricePreset === p.id ? 'active' : ''}`}
+                  aria-pressed={pricePreset === p.id}
                   onClick={() => handleSelectPricePreset(p)}
                 >
                   {p.label}
@@ -825,6 +881,7 @@ function App() {
                   <option value="PRICE_ASC">Giá: Thấp → Cao</option>
                   <option value="PRICE_DESC">Giá: Cao → Thấp</option>
                   <option value="NAME_ASC">Tên: A → Z</option>
+                  <option value="NAME_DESC">Tên: Z → A</option>
                 </select>
               </div>
             </div>
@@ -1169,6 +1226,7 @@ function App() {
         onOpenMyOrders={() => setMyOrdersOpen(true)}
       />
       <MyOrdersModal
+        key={currentUser?.customerId || 'guest'}
         isOpen={myOrdersOpen}
         onClose={() => setMyOrdersOpen(false)}
         currentUser={currentUser}
@@ -1185,7 +1243,7 @@ function App() {
         currentUser={currentUser}
         onUseVoucher={(code) => {
           setCartOpen(true)
-          setNotice(`Đã sao chép mã ${code}! Bạn có thể áp dụng mã này khi đặt hàng.`)
+          setNotice(`Nhập mã ${code} ở bước đặt hàng để áp dụng ưu đãi.`)
           setTimeout(() => setNotice(''), 4500)
         }}
         onOpenStore={() => {
@@ -1200,6 +1258,7 @@ function App() {
       />
       {orderOpen && (
         <OrderReviewPage
+          key={currentUser?.customerId || 'guest'}
           cartItems={cartItems}
           cart={cart}
           subtotal={subtotal}
@@ -1209,7 +1268,7 @@ function App() {
           onClose={() => {
             setOrderOpen(false)
             setCompletedOrder(null)
-            if (window.location.pathname.includes('/order-success')) {
+            if (isCheckoutPath(window.location.pathname) || window.location.pathname.includes('/order-success')) {
               window.history.pushState({}, '', window.location.origin + '/')
             }
           }}

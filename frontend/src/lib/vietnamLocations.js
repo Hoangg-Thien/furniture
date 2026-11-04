@@ -1012,6 +1012,19 @@ export function getAllProvinces() {
   return Array.from(new Set(names))
 }
 
+export function splitSavedAddress(address = '') {
+  const parts = String(address || '').split(',').map((part) => part.trim()).filter(Boolean)
+  const takeLast = (options) => {
+    const value = options.find((option) => option.toLowerCase() === parts.at(-1)?.toLowerCase())
+    if (value) parts.pop()
+    return value || ''
+  }
+  const city = takeLast(getAllProvinces())
+  const district = city ? takeLast(getDistricts(city)) : ''
+  const ward = district ? takeLast(getWards(city, district)) : ''
+  return { address: parts.join(', '), city, district, ward }
+}
+
 // Hàm lấy danh sách Quận / Huyện theo Tỉnh / Thành phố
 export function getDistricts(provinceName) {
   if (!provinceName) return []

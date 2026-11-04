@@ -1,24 +1,27 @@
 /**
  * Quản lý Base URL kết nối đến máy chủ Backend Spring Boot
  * - Tự động ưu tiên cấu hình do người dùng lưu trong localStorage (furniture_custom_api_url)
- * - Tiếp theo lấy từ VITE_API_BASE_URL (ngrok URL)
- * - Fallback mặc định: https://lionel-noisome-rurally.ngrok-free.dev
+ * - Tiếp theo lấy từ biến môi trường VITE_API_BASE_URL (.env)
+ * - Fallback mặc định: http://localhost:8080
  */
 export function getApiBaseUrl() {
   if (typeof window !== 'undefined') {
     const custom = localStorage.getItem('furniture_custom_api_url')
-    if (custom && custom.trim()) {
+    // Nếu trong localStorage lưu link ngrok cũ, tự động xóa để chuyển về localhost theo yêu cầu
+    if (custom && custom.includes('ngrok')) {
+      localStorage.removeItem('furniture_custom_api_url')
+    } else if (custom && custom.trim()) {
       return custom.trim().replace(/\/+$/, '')
     }
   }
 
-  const envUrl = import.meta.env.VITE_API_BASE_URL
+  const envUrl = import.meta.env?.VITE_API_BASE_URL
   if (envUrl && envUrl.trim()) {
     return envUrl.trim().replace(/\/+$/, '')
   }
 
-  // Fallback mặc định về ngrok link của bạn
-  return 'https://lionel-noisome-rurally.ngrok-free.dev'
+  // Mặc định kết nối trực tiếp Backend Localhost cổng 8080
+  return 'http://localhost:8080'
 }
 
 export function setCustomApiBaseUrl(url) {
@@ -32,7 +35,7 @@ export function setCustomApiBaseUrl(url) {
 }
 
 /**
- * Trả về headers tiêu chuẩn cho các API request (tự động đính kèm ngrok-skip-browser-warning để tránh trang cảnh báo của ngrok free)
+ * Trả về headers tiêu chuẩn cho các API request (tự động đính kèm ngrok-skip-browser-warning để tránh trang cảnh báo nếu dùng ngrok sau này)
  */
 export function getApiHeaders(extraHeaders = {}) {
   return {
@@ -41,7 +44,7 @@ export function getApiHeaders(extraHeaders = {}) {
   }
 }
 
-// Tự động can thiệp vào fetch toàn cục để đảm bảo mọi request tới ngrok luôn có header ngrok-skip-browser-warning
+// Tự động can thiệp vào fetch toàn cục để đảm bảo mọi request tới ngrok luôn có header ngrok-skip-browser-warning khi dùng ngrok
 if (typeof window !== 'undefined' && window.fetch) {
   const originalFetch = window.fetch.bind(window)
   window.fetch = async function (resource, init = {}) {

@@ -155,12 +155,14 @@ class AdminOrderServiceTest {
         );
         when(adminOrderRepository.findDetailById(101L)).thenReturn(pendingOrder);
         when(adminOrderRepository.existsStaffById(999L)).thenReturn(false);
+        when(adminOrderRepository.findFirstStaffId()).thenReturn(null);
 
         ConfirmOrderRequest req = new ConfirmOrderRequest(999L, "Ghi chú");
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
                 adminOrderService.confirmOrder(101L, req)
         );
-        assertTrue(ex.getMessage().contains("không tồn tại"));
+        assertTrue(ex.getMessage().contains("Không tìm thấy nhân viên phụ trách hợp lệ"));
+        verify(adminOrderRepository, never()).updateStatusAndStaff(anyLong(), any(), anyLong());
     }
 
     @Test

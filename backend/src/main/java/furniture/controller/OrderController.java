@@ -45,9 +45,11 @@ public class OrderController {
     }
 
     @GetMapping
-    public ResponseEntity<?> getOrders(@RequestParam(required = false) Long customerId) {
+    public ResponseEntity<?> getOrders(@RequestParam Long customerId) {
         try {
             return ResponseEntity.ok(orderService.getOrders(customerId));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
         } catch (Exception ex) {
             ex.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)

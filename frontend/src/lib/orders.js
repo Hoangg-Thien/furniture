@@ -1,4 +1,54 @@
-import { getApiBaseUrl } from './apiConfig'
+import { getApiBaseUrl } from './apiConfig.js'
+
+const HISTORY_KEYS = ['funi_orders_history', 'nep_orders_history']
+const LAST_ORDER_KEYS = ['funi_last_order', 'nep_last_order']
+
+function orderKey(order) {
+  const value = order.orderId ?? order.id ?? order.orderCode ?? order.orderNumber
+  return String(value ?? '').replace(/^FUNI-\d{4}-0*/, '')
+}
+
+function readStoredOrders() {
+  const orders = new Map()
+  for (const key of [...HISTORY_KEYS, ...LAST_ORDER_KEYS]) {
+    try {
+      const value = JSON.parse(localStorage.getItem(key) || 'null')
+      const list = HISTORY_KEYS.includes(key) ? value : [value]
+      if (!Array.isArray(list)) continue
+      for (const order of list) {
+        if (order && orderKey(order) && !orders.has(orderKey(order))) {
+          orders.set(orderKey(order), order)
+        }
+      }
+    } catch { /* Ignore an invalid cache entry. */ }
+  }
+  return [...orders.values()]
+}
+
+export function getLocalOrders(customerId) {
+  if (!customerId) return []
+  return readStoredOrders().filter((order) =>
+    String(order.customerId ?? order.customer_id ?? '') === String(customerId)
+  )
+}
+
+function cacheCancelledOrder(id) {
+  try {
+    const key = orderKey({ id })
+    const updated = readStoredOrders().map((order) =>
+      orderKey(order) === key ? { ...order, status: 'CANCELLED' } : order
+    )
+    for (const historyKey of HISTORY_KEYS) {
+      localStorage.setItem(historyKey, JSON.stringify(updated))
+    }
+    for (const lastKey of LAST_ORDER_KEYS) {
+      const last = JSON.parse(localStorage.getItem(lastKey) || 'null')
+      if (last && orderKey(last) === key) {
+        localStorage.setItem(lastKey, JSON.stringify({ ...last, status: 'CANCELLED' }))
+      }
+    }
+  } catch { /* A cache failure must not change a successful server response. */ }
+}
 
 /**
  * Gửi yêu cầu đặt hàng tới Backend API (/api/orders)
@@ -63,11 +113,10 @@ export async function createOrder({
 }
 
 export async function fetchOrders(customerId) {
+  if (!customerId) return { orders: [], error: 'Vui lòng đăng nhập để xem đơn hàng.' }
   const apiBaseUrl = getApiBaseUrl()
   try {
-    const url = customerId
-      ? `${apiBaseUrl}/api/orders?customerId=${customerId}`
-      : `${apiBaseUrl}/api/orders`
+    const url = `${apiBaseUrl}/api/orders?customerId=${encodeURIComponent(customerId)}`
     const response = await fetch(url)
     if (response.ok) {
       const data = await response.json()
@@ -79,13 +128,7 @@ export async function fetchOrders(customerId) {
     console.warn('Backend fetchOrders error, reading local fallback:', err)
   }
 
-  // Fallback từ localStorage nếu backend đang không truy cập được
-  try {
-    const local = JSON.parse(localStorage.getItem('funi_orders_history') || localStorage.getItem('nep_orders_history') || '[]')
-    return { orders: local, error: null }
-  } catch (e) {
-    return { orders: [], error: null }
-  }
+  return { orders: getLocalOrders(customerId), error: 'Không tải được đơn hàng mới nhất. Đang hiển thị dữ liệu đã lưu trên thiết bị.' }
 }
 
 export async function fetchOrderById(id) {
@@ -121,34 +164,22 @@ export async function cancelOrderApi(id) {
     })
     const data = await response.json()
     if (response.ok) {
+      cacheCancelledOrder(id)
       return { success: true, message: data.message || 'Đã hủy đơn thành công' }
     }
     return { success: false, error: data.error || 'Không thể hủy đơn' }
-  } catch (err) {
-    // Cập nhật tạm thời trong localStorage nếu offline
-    try {
-      const local = JSON.parse(localStorage.getItem('nep_orders_history') || '[]')
-      const updated = local.map((o) =>
-        (o.id === id || o.orderId === id || o.orderNumber === id)
-          ? { ...o, status: 'CANCELLED' }
-          : o
-      )
-      localStorage.setItem('funi_orders_history', JSON.stringify(updated)); localStorage.setItem('funi_orders_history', JSON.stringify(updated)); localStorage.setItem('nep_orders_history', JSON.stringify(updated))
-      return { success: true, message: 'Đã hủy đơn hàng thành công.' }
-    } catch (e) {}
-    return { success: false, error: 'Không thể kết nối đến máy chủ.' }
+  } catch {
+    return { success: false, error: 'Chưa xác nhận được việc hủy đơn. Vui lòng kiểm tra kết nối và tải lại trạng thái đơn hàng.' }
   }
 }
 
 export function saveOrderToLocalHistory(order) {
   if (!order) return
   try {
-    const current = JSON.parse(localStorage.getItem('funi_orders_history') || localStorage.getItem('nep_orders_history') || '[]')
-    const key = order.orderNumber || order.orderId || order.id
-    const exists = current.some((o) => (o.orderNumber || o.orderId || o.id) === key)
-    if (!exists) {
-      const updated = [order, ...current]
-      localStorage.setItem('nep_orders_history', JSON.stringify(updated))
+    const current = readStoredOrders()
+    const updated = [order, ...current.filter((item) => orderKey(item) !== orderKey(order))]
+    for (const key of HISTORY_KEYS) {
+      localStorage.setItem(key, JSON.stringify(updated))
     }
   } catch (err) {
     console.error('Cannot save order to local history:', err)

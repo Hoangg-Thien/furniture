@@ -39,10 +39,7 @@ public class OrderService {
         }
 
         if (resolvedCustomerId == null || resolvedCustomerId <= 0) {
-            resolvedCustomerId = orderRepository.findFirstCustomerId();
-            if (resolvedCustomerId == null) {
-                throw new IllegalStateException("Không tìm thấy khách hàng trong cơ sở dữ liệu.");
-            }
+            throw new IllegalArgumentException("Không xác định được khách hàng. Vui lòng đăng nhập lại trước khi đặt hàng.");
         }
 
         // 2. Cập nhật thông tin số điện thoại / địa chỉ vào bảng customers
@@ -119,6 +116,9 @@ public class OrderService {
     }
 
     public List<Map<String, Object>> getOrders(Long customerId) {
+        if (customerId == null || customerId <= 0) {
+            throw new IllegalArgumentException("Vui lòng cung cấp khách hàng để xem đơn hàng.");
+        }
         List<Map<String, Object>> orders = orderRepository.findOrders(customerId);
         if (orders.isEmpty()) {
             return orders;

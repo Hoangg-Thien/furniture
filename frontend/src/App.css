@@ -1778,13 +1778,100 @@
 }
 
 
+.cancel-order-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 13000;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  overflow-y: auto;
+  background: rgba(15, 23, 42, .65);
+  backdrop-filter: blur(3px);
+  overscroll-behavior: contain;
+}
+
+.cancel-order-dialog {
+  --ink: #172b25;
+  --muted: #475569;
+  --forest: #14532d;
+  --line: #cbd5e1;
+  position: relative;
+  width: min(100%, 440px);
+  max-height: calc(100dvh - 40px);
+  overflow-y: auto;
+  padding: 30px 26px 24px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: #ffffff;
+  color: var(--ink);
+  box-shadow: 0 24px 80px rgba(15, 23, 42, .4);
+  animation: fade-in 180ms ease both;
+}
+
+.cancel-order-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 50%;
+  color: var(--muted);
+  background: transparent;
+  cursor: pointer;
+}
+
+.cancel-order-icon {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  margin-bottom: 18px;
+  border-radius: 18px;
+  color: #b64132;
+  background: #fbece8;
+}
+
+.cancel-order-dialog h2 { margin: 0 28px 12px 0; color: var(--ink); font-size: 22px; }
+.cancel-order-dialog p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.7; }
+.cancel-order-dialog strong { color: var(--ink); overflow-wrap: anywhere; }
+.cancel-order-dialog .cancel-order-error { margin-top: 16px; padding: 12px; border-radius: 10px; color: #a52e24; background: #fbece8; }
+.cancel-order-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
+.cancel-order-actions button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1 1 150px;
+  gap: 8px;
+  min-height: 46px;
+  padding: 10px 16px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.cancel-order-actions .cancel-order-keep { color: #14532d; border-color: #86b99b; background: #ecfdf3; }
+.cancel-order-actions .cancel-order-confirm { color: #fff; border-color: #b91c1c; background: #b91c1c; }
+.cancel-order-actions .cancel-order-keep:hover { background: #d1fae5; }
+.cancel-order-actions .cancel-order-confirm:hover { background: #991b1b; }
+.cancel-order-dialog button:focus-visible { outline: 3px solid var(--forest); outline-offset: 3px; }
+.cancel-order-dialog button:disabled { cursor: wait; opacity: .65; }
+.cancel-order-spinner { animation: cancel-order-spin 900ms linear infinite; }
+@keyframes cancel-order-spin { to { transform: rotate(360deg); } }
+
 /* ==================== ORDER REVIEW PAGE ==================== */
 
 .order-page-layer {
   position: fixed;
-  z-index: 20;
+  z-index: 110;
   inset: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
   background: var(--paper);
   animation: fade-in 220ms ease both;
 }
