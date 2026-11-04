@@ -764,4 +764,13 @@ INSERT INTO order_items (order_id, product_id, quantity, unit_price, amount) VAL
 INSERT INTO orders (id, customer_id, order_date, status, total_amount, discount_amount) VALUES (47, 21, '2026-10-29 11:21:42', 'PENDING', 43400000, 0);
 INSERT INTO order_items (order_id, product_id, quantity, unit_price, amount) VALUES (47, 2, 4, 9800000, 39200000);
 INSERT INTO order_items (order_id, product_id, quantity, unit_price, amount) VALUES (47, 3, 1, 4200000, 4200000);
+INSERT INTO orders (id, customer_id, order_date, status, total_amount, discount_amount) VALUES (49, 21, '2026-11-04 19:42:25', 'PENDING', 16600000, 0);
+INSERT INTO order_items (order_id, product_id, quantity, unit_price, amount) VALUES (49, 2, 1, 9800000, 9800000);
+INSERT INTO order_items (order_id, product_id, quantity, unit_price, amount) VALUES (49, 10, 1, 6800000, 6800000);
+INSERT INTO users (id, username, password_hash, role) VALUES (39, 'khoiktvn1234', '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92', 'CUSTOMER');
+INSERT INTO customers (id, user_id, full_name, email, phone, address) VALUES (25, 39, 'Nguyễn Duy Khôi', 'khoikontum05@gmail.com', '0376391659', '38/8 đường số 21 Phường Hiệp Bình Chánh , Thành phố Thủ Đức');
+INSERT INTO orders (id, customer_id, order_date, status, total_amount, discount_amount) VALUES (50, 25, '2026-11-04 20:20:17', 'PENDING', 14000000, 0);
+INSERT INTO order_items (order_id, product_id, quantity, unit_price, amount) VALUES (50, 1, 1, 14500000, 14500000);
+INSERT INTO orders (id, customer_id, order_date, status, total_amount, discount_amount) VALUES (51, 25, '2026-11-04 20:26:58', 'PENDING', 14000000, 0);
+INSERT INTO order_items (order_id, product_id, quantity, unit_price, amount) VALUES (51, 1, 1, 14500000, 14500000);
 COMMIT;

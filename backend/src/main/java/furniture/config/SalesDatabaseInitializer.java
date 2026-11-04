@@ -13,6 +13,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
 
 @Component
 @Order(1)
@@ -63,6 +65,7 @@ public class SalesDatabaseInitializer implements CommandLineRunner {
             }
 
             if (alreadyPopulated) {
+                new ResourceDatabasePopulator(new ClassPathResource("order_shipping.sql")).populate(conn);
                 log.info("Supabase database đã có dữ liệu từ sales.sql. Bỏ qua khởi tạo.");
                 try (ResultSet rs = st.executeQuery("SELECT COUNT(*) FROM public.users")) {
                     if (rs.next()) log.info("users count: {}", rs.getInt(1));
@@ -122,6 +125,7 @@ public class SalesDatabaseInitializer implements CommandLineRunner {
                 }
             }
             log.info("Nạp sales.sql thành công: {} câu lệnh, bỏ qua: {}", successCount, warnCount);
+            new ResourceDatabasePopulator(new ClassPathResource("order_shipping.sql")).populate(conn);
 
             // Với PostgreSQL (Supabase): đồng bộ lại sequence sau khi INSERT thủ công có ID
             try {

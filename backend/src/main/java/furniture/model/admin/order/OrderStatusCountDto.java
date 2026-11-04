@@ -4,6 +4,7 @@ public record OrderStatusCountDto(
         long total,
         long pending,
         long confirmed,
+        long shipping,
         long completed,
         long cancelled
 ) {}

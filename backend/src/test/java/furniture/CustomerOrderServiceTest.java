@@ -41,6 +41,6 @@ class CustomerOrderServiceTest {
                 List.of(new OrderItemDto(1L, 1, BigDecimal.TEN)));
         assertThrows(IllegalArgumentException.class, () -> service.createOrder(request));
         verify(repository, never()).findFirstCustomerId();
-        verify(repository, never()).insertOrder(anyLong(), any(), isNull(), any());
+        verify(repository, never()).insertOrder(anyLong(), any(), isNull(), any(), any());
     }
 }

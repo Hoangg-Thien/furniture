@@ -101,14 +101,15 @@ class AdminOrderServiceTest {
     @Test
     @DisplayName("TC04 - Đếm số lượng đơn hàng theo từng trạng thái vòng đời")
     void getStatusCounts_Success() {
-        OrderStatusCountDto mockCounts = new OrderStatusCountDto(150, 12, 24, 110, 4);
+        OrderStatusCountDto mockCounts = new OrderStatusCountDto(150, 12, 20, 4, 110, 4);
         when(adminOrderRepository.countByStatus()).thenReturn(mockCounts);
 
         OrderStatusCountDto counts = adminOrderService.getStatusCounts();
 
         assertEquals(150, counts.total());
         assertEquals(12, counts.pending());
-        assertEquals(24, counts.confirmed());
+        assertEquals(20, counts.confirmed());
+        assertEquals(4, counts.shipping());
         assertEquals(110, counts.completed());
         assertEquals(4, counts.cancelled());
     }
@@ -209,10 +210,10 @@ class AdminOrderServiceTest {
     }
 
     @Test
-    @DisplayName("TC10 - Hoàn tất giao lắp đơn hàng CONFIRMED thành công")
+    @DisplayName("TC10 - Hoàn tất giao lắp đơn hàng SHIPPING thành công")
     void completeOrder_Success() {
         OrderDetailDto confirmedOrder = new OrderDetailDto(
-                105L, 1L, "Khách", "0901", "HCM", 2L, "Staff", now, "CONFIRMED",
+                105L, 1L, "Khách", "0901", "HCM", 2L, "Staff", now, "SHIPPING",
                 new BigDecimal("15000000"), null, BigDecimal.ZERO, new BigDecimal("15000000"), List.of()
         );
         when(adminOrderRepository.findDetailById(105L)).thenReturn(confirmedOrder);
@@ -234,7 +235,14 @@ class AdminOrderServiceTest {
         IllegalStateException ex = assertThrows(IllegalStateException.class, () ->
                 adminOrderService.completeOrder(106L)
         );
-        assertTrue(ex.getMessage().contains("Chỉ đơn hàng đã duyệt"));
+        assertTrue(ex.getMessage().contains("Chỉ đơn hàng đang vận chuyển"));
         verify(adminOrderRepository, never()).updateStatus(anyLong(), any());
+    }
+    @Test
+    void shipOrderOnlyAdvancesConfirmedOrders() {
+        when(adminOrderRepository.shipOrder(105L)).thenReturn(1);
+        adminOrderService.shipOrder(105L);
+        verify(adminOrderRepository).shipOrder(105L);
+        assertThrows(IllegalStateException.class, () -> adminOrderService.shipOrder(106L));
     }
 }

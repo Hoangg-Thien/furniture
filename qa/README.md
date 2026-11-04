@@ -33,6 +33,12 @@ Playwright được dùng từ runtime có sẵn tại `C:/Users/LENOVO/.cache/c
 
 `clean-start.mjs` chạy database trống và backend thứ hai tại port 15434/18081 để kiểm tra khởi tạo nguyên trạng. Nó không dùng database của `start.mjs`.
 
+Chạy riêng `node qa/harness/order-refresh-check.mjs` để kiểm tra cập nhật ngầm, API chậm/lỗi, tab ẩn, dọn timer và trang `/orders` (URL trực tiếp, reload, Back/Forward, mobile, trạng thái từ admin, hủy đơn, mua lại, khách chưa đăng nhập). Script tự mở Vite, giả lập API và timer trên Chrome, không cần backend hay fixtures.
+
+Sau khi chạy `start.mjs`, dùng `node qa/harness/shipping-api-check.mjs` để kiểm tra luồng `PENDING → CONFIRMED → SHIPPING → COMPLETED`, thời điểm duyệt và địa chỉ giao được giữ nguyên. Script chỉ ghi vào database QA local.
+
+Backend tự chạy migration `backend/src/main/resources/order_shipping.sql` khi khởi động để thêm trạng thái vận chuyển, thời điểm duyệt và địa chỉ giao lúc duyệt; không gán thời điểm giả cho đơn cũ. Client ước tính ngày lịch từ lúc duyệt: TP.HCM 1–2 ngày, miền Nam khác 2–3 ngày, miền Trung/Tây Nguyên 2–3 ngày, miền Bắc 4–5 ngày. Đây là quy tắc mô phỏng theo vùng, không phải theo dõi hãng vận chuyển.
+
 ## An toàn dữ liệu thử nghiệm
 
 - URL JDBC trong cả hai script bị ghi đè sang `127.0.0.1`; username/password là giá trị giả chỉ dùng local.

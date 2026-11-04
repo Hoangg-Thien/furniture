@@ -670,27 +670,6 @@
   border-color: var(--forest);
 }
 
-.footer-admin-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: #f1ede5;
-  border: 1px solid #dfded7;
-  border-radius: 4px;
-  padding: 4px 10px;
-  font-size: 11px;
-  font-weight: 600;
-  color: #57534e;
-  cursor: pointer;
-  transition: all 180ms ease;
-}
-
-.footer-admin-link:hover {
-  background: #193c35;
-  color: #ffffff;
-  border-color: #193c35;
-}
-
 @media (max-width: 768px) {
   .price-filter-bar {
     padding: 12px;
@@ -3106,48 +3085,44 @@
 }
 
 /* ΓöÇΓöÇ Shopee Orders Modal Overlay & Container ΓöÇΓöÇ */
-.shopee-orders-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 1200;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  background: rgba(15, 14, 12, 0.65);
-  backdrop-filter: blur(5px);
-  animation: shopeeFadeIn 0.2s ease;
+.orders-page {
+  width: min(1120px, calc(100% - 32px));
+  margin: 32px auto;
+  min-height: 60vh;
 }
 
-@keyframes shopeeFadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+.order-shipping-info {
+  margin: 16px;
+  padding: 16px;
+  border: 1px solid #d6e3dc;
+  border-radius: 10px;
+  background: #f3f8f5;
+  color: #244b3c;
+  font-size: 14px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
 }
+
+.order-shipping-info h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  font-size: 16px;
+}
+
+.order-shipping-info p { margin: 6px 0; }
+.order-shipping-info .order-shipping-note { color: #b42318; }
 
 .shopee-orders-container {
   display: flex;
   flex-direction: column;
-  width: 94vw;
-  max-width: 980px;
-  height: 85vh;
-  max-height: 90vh;
-  min-height: 520px;
+  width: 100%;
+  min-height: 60vh;
   background: #f8f7f4;
   border-radius: 16px;
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.24);
+  border: 1px solid #ebe7df;
   overflow: hidden;
-  animation: shopeeScaleUp 0.22s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-@keyframes shopeeScaleUp {
-  from {
-    opacity: 0;
-    transform: translateY(16px) scale(0.98);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
 }
 
 /* ΓöÇΓöÇ Modal Header ΓöÇΓöÇ */
@@ -3313,7 +3288,6 @@
 .shopee-orders-list {
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
   padding: 24px 32px 42px;
   display: flex;
   flex-direction: column;
@@ -4196,7 +4170,6 @@
 /* Mobile Responsiveness */
 @media (max-width: 680px) {
   .shopee-orders-container {
-    max-height: 94vh;
     border-radius: 8px;
   }
   .shopee-orders-header {

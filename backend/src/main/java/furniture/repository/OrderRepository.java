@@ -89,12 +89,12 @@ public class OrderRepository {
         }
     }
 
-    public Long insertOrder(Long customerId, BigDecimal finalTotal, Long voucherId, BigDecimal discount) {
+    public Long insertOrder(Long customerId, BigDecimal finalTotal, Long voucherId, BigDecimal discount, String shippingAddress) {
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
             PreparedStatement ps = connection.prepareStatement(
-                    "INSERT INTO public.orders (customer_id, order_date, status, total_amount, voucher_id, discount_amount) " +
-                            "VALUES (?, date_trunc('second', CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh'), 'PENDING', ?, ?, ?)",
+                    "INSERT INTO public.orders (customer_id, order_date, status, total_amount, voucher_id, discount_amount, shipping_address) " +
+                            "VALUES (?, date_trunc('second', CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh'), 'PENDING', ?, ?, ?, ?)",
                     new String[] { "id" });
             ps.setLong(1, customerId);
             ps.setBigDecimal(2, finalTotal);
@@ -104,6 +104,7 @@ public class OrderRepository {
                 ps.setNull(3, java.sql.Types.BIGINT);
             }
             ps.setBigDecimal(4, discount != null ? discount : BigDecimal.ZERO);
+            ps.setString(5, shippingAddress);
             return ps;
         }, keyHolder);
 
@@ -138,9 +139,10 @@ public class OrderRepository {
         String sql = """
                 SELECT o.id, o.customer_id, to_char(o.order_date, 'YYYY-MM-DD HH24:MI:SS') AS order_date,
                        o.status, o.total_amount, o.discount_amount, o.voucher_id, v.code AS voucher_code,
+                       to_char(o.approved_at, 'YYYY-MM-DD"T"HH24:MI:SS') || '+07:00' AS approved_at,
                        COALESCE(c.full_name, 'Khách hàng') AS full_name,
                        COALESCE(c.phone, '') AS phone,
-                       COALESCE(c.address, '') AS address
+                       COALESCE(o.shipping_address, c.address, '') AS address
                 FROM public.orders o
                 LEFT JOIN public.customers c ON c.id = o.customer_id
                 LEFT JOIN public.vouchers v ON v.id = o.voucher_id
@@ -170,9 +172,10 @@ public class OrderRepository {
         return jdbcTemplate.queryForList("""
                 SELECT o.id, o.customer_id, to_char(o.order_date, 'YYYY-MM-DD HH24:MI:SS') AS order_date,
                        o.status, o.total_amount, o.discount_amount,
+                       to_char(o.approved_at, 'YYYY-MM-DD"T"HH24:MI:SS') || '+07:00' AS approved_at,
                        COALESCE(c.full_name, 'Khách hàng') AS full_name,
                        COALESCE(c.phone, '') AS phone,
-                       COALESCE(c.address, '') AS address
+                       COALESCE(o.shipping_address, c.address, '') AS address
                 FROM public.orders o
                 LEFT JOIN public.customers c ON c.id = o.customer_id
                 WHERE o.id = ?

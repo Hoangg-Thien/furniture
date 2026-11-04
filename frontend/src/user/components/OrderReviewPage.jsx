@@ -30,6 +30,7 @@ import {
 } from 'lucide-react'
 import { createOrder, saveOrderToLocalHistory, fetchOrderById } from '../../lib/orders'
 import CancelOrderDialog from './CancelOrderDialog'
+import OrderShippingInfo from './OrderShippingInfo'
 import { validateVoucherApi, fetchActiveVouchers } from '../../lib/vouchers'
 import { loadCheckoutDraft, saveCheckoutDraft, clearCheckoutDraft } from '../lib/checkout'
 import { getAllProvinces, getDistricts, getWards, splitSavedAddress } from '../lib/vietnamLocations'
@@ -312,6 +313,8 @@ export default function OrderReviewPage({
         setOrderSnapshot((prev) => ({
           ...(prev || {}),
           status: order.status,
+          approved_at: order.approved_at,
+          shippingInfo: { ...prev?.shippingInfo, address: order.address ?? prev?.shippingInfo?.address },
           total_amount: order.total_amount ?? prev?.total_amount,
         }))
       }
@@ -822,9 +825,9 @@ export default function OrderReviewPage({
       CONFIRMED: {
         badgeClass: 'status-pill-confirmed',
         icon: <UserCheck size={15} strokeWidth={2.2} />,
-        label: 'ĐÃ ĐƯỢC DUYỆT • ĐANG CHUẨN BỊ HÀNG',
+        label: 'ĐÃ DUYỆT',
         title: 'Đơn hàng của bạn đã được duyệt!',
-        subtitle: 'FuniStore đã duyệt đơn hàng thành công. Bộ phận kho đang đóng gói cẩn thận và chuẩn bị bàn giao cho đơn vị vận chuyển.',
+        subtitle: 'FuniStore đã duyệt đơn và phân công nhân viên phụ trách. Nhân viên sẽ liên hệ để sắp xếp giao lắp.',
         circleClass: 'circle-confirmed',
       },
       SHIPPING: {
@@ -935,6 +938,8 @@ export default function OrderReviewPage({
                 </button>
               </div>
             </div>
+
+            <OrderShippingInfo order={{ ...currentOrder, status: activeStatus }} />
 
             {/* Layout 2 cột sang trọng */}
             <div className="order-success-grid-layout">

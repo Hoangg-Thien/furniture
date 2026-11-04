@@ -6,26 +6,27 @@ import {
   Clock,
   CheckCircle2,
   XCircle,
-  Truck,
   RotateCcw,
   Eye,
-  Store,
-  ChevronRight,
+  ArrowLeft,
   ShoppingBag,
-  ExternalLink,
   ShieldCheck,
-  AlertTriangle,
   Tag,
+  Truck,
 } from 'lucide-react'
 import { fetchOrders, getLocalOrders } from '../../lib/orders'
 import CancelOrderDialog from './CancelOrderDialog'
+import OrderShippingInfo from './OrderShippingInfo'
+
+const EMPTY_PRODUCTS = []
 
 const formatPrice = (price) => `${new Intl.NumberFormat('vi-VN').format(price || 0)}₫`
 
 const TABS = [
   { id: 'ALL', label: 'Tất cả' },
   { id: 'PENDING', label: 'Chờ xác nhận' },
-  { id: 'SHIPPING', label: 'Đang vận chuyển' },
+  { id: 'CONFIRMED', label: 'Đã duyệt' },
+  { id: 'SHIPPING', label: 'Vận chuyển' },
   { id: 'COMPLETED', label: 'Hoàn thành' },
   { id: 'CANCELLED', label: 'Đã hủy' },
 ]
@@ -155,14 +156,12 @@ function normalizeOrders(rawList = [], currentUser = null, catalogProducts = [])
     .filter(Boolean)
 }
 
-export default function MyOrdersModal({
-  isOpen,
+export default function MyOrdersPage({
   onClose,
   currentUser,
-  catalogProducts = [],
+  catalogProducts = EMPTY_PRODUCTS,
   onViewOrderDetail,
   onReorder,
-  onOpenStore,
 }) {
   const [orders, setOrders] = useState(() =>
     normalizeOrders(getLocalOrders(currentUser?.customerId), currentUser, catalogProducts)
@@ -173,36 +172,37 @@ export default function MyOrdersModal({
   const [pendingCancelOrder, setPendingCancelOrder] = useState(null)
   const [cancelMessage, setCancelMessage] = useState('')
   const [loadError, setLoadError] = useState('')
+  const [refreshVersion, setRefreshVersion] = useState(0)
 
   useEffect(() => {
-    if (!isOpen) return
+    if (!currentUser?.customerId) return
     let cancelled = false
     let fetching = false
-    async function loadOrders() {
+    async function loadOrders(initial = false) {
       if (fetching) return
       fetching = true
-      setLoading(true)
+      if (initial) setLoading(true)
       try {
         const result = await fetchOrders(currentUser?.customerId)
         if (cancelled) return
         const normalized = normalizeOrders(result.orders, currentUser, catalogProducts)
         normalized.sort((a, b) => Number(b.orderId || 0) - Number(a.orderId || 0))
-        setOrders(normalized)
-        setLoadError(result.error || '')
+        if (!result.error) setOrders(normalized)
+        setLoadError(result.error ? 'Không thể cập nhật đơn hàng mới nhất. Đang giữ dữ liệu đã tải; trạng thái có thể đã thay đổi.' : '')
       } finally {
         fetching = false
-        if (!cancelled) setLoading(false)
+        if (!cancelled && initial) setLoading(false)
       }
     }
-    loadOrders()
+    loadOrders(true)
     const interval = setInterval(() => {
-      loadOrders()
+      if (!document.hidden) loadOrders()
     }, 4000)
     return () => {
       cancelled = true
       clearInterval(interval)
     }
-  }, [isOpen, currentUser, catalogProducts])
+  }, [currentUser, catalogProducts, refreshVersion])
 
   // Lọc đơn hàng theo tab và từ khóa
   const filteredOrders = useMemo(() => {
@@ -210,10 +210,7 @@ export default function MyOrdersModal({
       const st = String(ord.status || 'PENDING').toUpperCase()
 
       // Lọc theo Tab
-      if (activeTab === 'PENDING' && st !== 'PENDING' && st !== 'CONFIRMED' && st !== 'WAITING') return false
-      if (activeTab === 'SHIPPING' && st !== 'SHIPPING' && st !== 'PROCESSING' && st !== 'DELIVERING') return false
-      if (activeTab === 'COMPLETED' && st !== 'COMPLETED' && st !== 'DELIVERED' && st !== 'SUCCESS') return false
-      if (activeTab === 'CANCELLED' && st !== 'CANCELLED' && st !== 'CANCELED') return false
+      if (activeTab !== 'ALL' && st !== activeTab) return false
 
       // Lọc theo từ khóa tìm kiếm (mã đơn hoặc tên sản phẩm)
       if (searchTerm.trim()) {
@@ -229,6 +226,7 @@ export default function MyOrdersModal({
   // Xử lý hủy đơn
   const handleOrderCancelled = (order) => {
     setPendingCancelOrder(null)
+    setRefreshVersion(version => version + 1)
     setCancelMessage(`Đã hủy thành công đơn hàng ${order.orderNumber}.`)
     setTimeout(() => setCancelMessage(''), 4000)
     setOrders((prev) => prev.map((item) =>
@@ -250,30 +248,28 @@ export default function MyOrdersModal({
   const renderStatusBadge = (status) => {
     switch (status) {
       case 'PENDING':
-      case 'CONFIRMED':
-      case 'WAITING':
         return (
           <span className="shopee-order-status-badge pending">
             <Clock size={13} />
-            {status === 'CONFIRMED' ? 'ĐÃ XÁC NHẬN' : 'CHỜ XÁC NHẬN'}
+            CHỜ XÁC NHẬN
           </span>
         )
-      case 'SHIPPING':
-      case 'PROCESSING':
+      case 'CONFIRMED':
         return (
           <span className="shopee-order-status-badge shipping">
-            <Truck size={13} />
-            ĐANG VẬN CHUYỂN
+            <CheckCircle2 size={13} />
+            ĐÃ DUYỆT
           </span>
         )
       case 'COMPLETED':
-      case 'DELIVERED':
         return (
           <span className="shopee-order-status-badge completed">
             <CheckCircle2 size={13} />
             HOÀN THÀNH
           </span>
         )
+      case 'SHIPPING':
+        return <span className="shopee-order-status-badge shipping"><Truck size={13} /> ĐANG VẬN CHUYỂN</span>
       case 'CANCELLED':
         return (
           <span className="shopee-order-status-badge cancelled">
@@ -290,17 +286,16 @@ export default function MyOrdersModal({
     }
   }
 
-  if (!isOpen || !currentUser) return null
+  if (!currentUser) return null
 
   return (
-    <div className="shopee-orders-overlay" onClick={onClose} role="dialog" aria-modal="true">
-      <div className="shopee-orders-container" onClick={(e) => e.stopPropagation()}>
-        {/* Header Modal */}
+    <main className="orders-page" id="top">
+      <div className="shopee-orders-container">
         <header className="shopee-orders-header">
           <div className="shopee-orders-title-group">
             <Package size={22} className="shopee-header-icon" />
             <div>
-              <h2 className="shopee-orders-title">Đơn Mua Của Tôi</h2>
+              <h1 className="shopee-orders-title">Lịch sử đơn hàng</h1>
               <p className="shopee-orders-subtitle">Quản lý và theo dõi tiến trình đơn hàng của bạn</p>
             </div>
           </div>
@@ -308,9 +303,9 @@ export default function MyOrdersModal({
             className="shopee-orders-close"
             type="button"
             onClick={onClose}
-            aria-label="Đóng cửa sổ"
+            aria-label="Về cửa hàng"
           >
-            <X size={20} />
+            <ArrowLeft size={20} />
           </button>
         </header>
         {loadError && <p className="catalog-note" role="status">{loadError}</p>}
@@ -350,14 +345,7 @@ export default function MyOrdersModal({
                 )}
                 {tab.id !== 'ALL' && (
                   <span className="shopee-tab-count">
-                    {orders.filter((o) => {
-                      const st = String(o.status || 'PENDING').toUpperCase()
-                      if (tab.id === 'PENDING') return st === 'PENDING' || st === 'CONFIRMED' || st === 'WAITING'
-                      if (tab.id === 'SHIPPING') return st === 'SHIPPING' || st === 'PROCESSING' || st === 'DELIVERING'
-                      if (tab.id === 'COMPLETED') return st === 'COMPLETED' || st === 'DELIVERED' || st === 'SUCCESS'
-                      if (tab.id === 'CANCELLED') return st === 'CANCELLED' || st === 'CANCELED'
-                      return false
-                    }).length}
+                    {orders.filter((o) => o.status === tab.id).length}
                   </span>
                 )}
               </button>
@@ -375,7 +363,7 @@ export default function MyOrdersModal({
 
         {/* Danh sách các đơn hàng phong cách Shopee */}
         <div className="shopee-orders-list">
-          {loading ? (
+          {loading && orders.length === 0 ? (
             <div className="shopee-orders-empty">
               <div className="shopee-spinner" />
               <p>Đang tải lịch sử đơn hàng...</p>
@@ -392,10 +380,7 @@ export default function MyOrdersModal({
               <button
                 type="button"
                 className="shopee-shop-now-btn"
-                onClick={() => {
-                  onClose()
-                  if (onOpenStore) onOpenStore()
-                }}
+                onClick={onClose}
               >
                 Mua sắm ngay
               </button>
@@ -465,6 +450,8 @@ export default function MyOrdersModal({
                     ))}
                   </div>
 
+                  <OrderShippingInfo order={order} />
+
                   {/* Thời gian và tổng kết đơn hàng */}
                   <div className="shopee-card-footer">
                     <div className="shopee-footer-meta">
@@ -517,7 +504,6 @@ export default function MyOrdersModal({
                         if (onViewOrderDetail) {
                           onViewOrderDetail(order)
                         }
-                        onClose()
                       }}
                     >
                       <Eye size={14} />
@@ -542,6 +528,6 @@ export default function MyOrdersModal({
       {pendingCancelOrder && (
         <CancelOrderDialog order={pendingCancelOrder} onClose={() => setPendingCancelOrder(null)} onCancelled={handleOrderCancelled} />
       )}
-    </div>
+    </main>
   )
 }

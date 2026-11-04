@@ -99,11 +99,18 @@ public class AdminOrderService {
     }
 
     @Transactional
+    public void shipOrder(Long orderId) {
+        if (adminOrderRepository.shipOrder(orderId) != 1) {
+            throw new IllegalStateException("Chỉ đơn hàng đã duyệt (CONFIRMED) mới có thể bắt đầu vận chuyển.");
+        }
+    }
+
+    @Transactional
     public void completeOrder(Long orderId) {
         OrderDetailDto order = getOrderDetail(orderId);
 
-        if (!"CONFIRMED".equalsIgnoreCase(order.status())) {
-            throw new IllegalStateException("Chỉ đơn hàng đã duyệt (CONFIRMED) mới có thể chuyển sang Hoàn thành (COMPLETED) sau khi giao lắp xong!");
+        if (!"SHIPPING".equalsIgnoreCase(order.status())) {
+            throw new IllegalStateException("Chỉ đơn hàng đang vận chuyển (SHIPPING) mới có thể hoàn tất sau khi giao lắp xong!");
         }
 
         adminOrderRepository.updateStatus(orderId, "COMPLETED");

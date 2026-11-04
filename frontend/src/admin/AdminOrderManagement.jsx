@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import {
   ShoppingCart,
   Search,
@@ -32,6 +32,7 @@ import { getApiBaseUrl, getApiHeaders } from '../lib/apiConfig'
 export default function AdminOrderManagement({ currentUser }) {
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(false)
+  const pendingRequests = useRef(0)
   const [error, setError] = useState(null)
 
   // Status counts for tab bar
@@ -39,12 +40,13 @@ export default function AdminOrderManagement({ currentUser }) {
     total: 0,
     pending: 0,
     confirmed: 0,
+    shipping: 0,
     completed: 0,
     cancelled: 0
   })
 
   // Filters & Pagination
-  const [selectedStatus, setSelectedStatus] = useState('ALL') // ALL | PENDING | CONFIRMED | COMPLETED | CANCELLED
+  const [selectedStatus, setSelectedStatus] = useState('ALL')
   const [searchKeyword, setSearchKeyword] = useState('')
   const [fromDate, setFromDate] = useState('')
   const [toDate, setToDate] = useState('')
@@ -141,8 +143,9 @@ export default function AdminOrderManagement({ currentUser }) {
   }
 
   // Fetch orders with pagination & filters
-  const fetchOrders = async (targetPage = page, targetSize = pageSize) => {
-    setLoading(true)
+  const fetchOrders = async (targetPage = page, targetSize = pageSize, background = false) => {
+    pendingRequests.current += 1
+    if (!background) setLoading(true)
     setError(null)
     try {
       const baseUrl = getApiBaseUrl()
@@ -176,7 +179,8 @@ export default function AdminOrderManagement({ currentUser }) {
       console.error(err)
       setError(err.message || 'Không thể kết nối đến máy chủ.')
     } finally {
-      setLoading(false)
+      pendingRequests.current -= 1
+      if (!background) setLoading(false)
     }
   }
 
@@ -192,9 +196,9 @@ export default function AdminOrderManagement({ currentUser }) {
   // Tự động cập nhật liên tục (polling 5s) để hiển thị ngay các đơn hàng mới từ người dùng
   useEffect(() => {
     const timer = setInterval(() => {
-      if (!showConfirmModal && !showCancelModal) {
+      if (!document.hidden && pendingRequests.current === 0 && !showConfirmModal && !showCancelModal) {
         fetchStatusCounts()
-        fetchOrders(page, pageSize)
+        fetchOrders(page, pageSize, true)
       }
     }, 5000)
     return () => clearInterval(timer)
@@ -302,20 +306,20 @@ export default function AdminOrderManagement({ currentUser }) {
   }
 
   // Complete Order
-  const handleCompleteOrder = async (orderId) => {
-    if (!window.confirm(`Xác nhận hoàn tất đơn hàng #${orderId} (Khách đã nghiệm thu nội thất thành công)?`)) {
+  const handleDeliveryAction = async (orderId, shipping = false) => {
+    if (!window.confirm(shipping ? `Bắt đầu vận chuyển đơn hàng #${orderId}?` : `Xác nhận hoàn tất đơn hàng #${orderId} (Khách đã nghiệm thu nội thất thành công)?`)) {
       return
     }
     setSubmittingComplete(true)
     try {
       const baseUrl = getApiBaseUrl()
-      const res = await fetch(`${baseUrl}/api/admin/orders/${orderId}/complete`, {
+      const res = await fetch(`${baseUrl}/api/admin/orders/${orderId}/${shipping ? 'ship' : 'complete'}`, {
         method: 'PUT',
         headers: getApiHeaders()
       })
       const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data.error || 'Hoàn tất đơn hàng thất bại.')
-      showToast(data.message || 'Đã hoàn tất đơn hàng thành công!')
+      if (!res.ok) throw new Error(data.error || 'Cập nhật giao hàng thất bại.')
+      showToast(data.message || 'Đã cập nhật giao hàng thành công!')
       fetchStatusCounts()
       fetchOrders(page, pageSize)
       if (showDetailModal && activeOrderDetail?.id === orderId) {
@@ -357,6 +361,8 @@ export default function AdminOrderManagement({ currentUser }) {
             <span>Giao thành công</span>
           </span>
         )
+      case 'SHIPPING':
+        return <span className="admin-badge admin-badge-info"><Truck size={12} /> Đang vận chuyển</span>
       case 'CANCELLED':
         return (
           <span className="admin-badge admin-badge-danger" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
@@ -439,6 +445,16 @@ export default function AdminOrderManagement({ currentUser }) {
             <UserCheck size={14} />
             <span>Đã Duyệt &amp; Gán NV</span>
             <span className="tab-count">{statusCounts.confirmed}</span>
+          </button>
+
+          <button
+            type="button"
+            className={`admin-status-tab tab-confirmed ${selectedStatus === 'SHIPPING' ? 'active' : ''}`}
+            onClick={() => setSelectedStatus('SHIPPING')}
+          >
+            <Truck size={14} />
+            <span>Vận Chuyển</span>
+            <span className="tab-count">{statusCounts.shipping || 0}</span>
           </button>
 
           <button
@@ -708,16 +724,17 @@ export default function AdminOrderManagement({ currentUser }) {
                             </button>
                           )}
 
-                          {/* Hoàn tất nếu CONFIRMED */}
-                          {o.status === 'CONFIRMED' && (
+                          {/* Bàn giao vận chuyển, sau đó xác nhận giao lắp */}
+                          {(o.status === 'CONFIRMED' || o.status === 'SHIPPING') && (
                             <button
                               type="button"
                               className="table-action-btn edit"
-                              title="Xác nhận hoàn tất giao lắp nội thất"
-                              onClick={() => handleCompleteOrder(o.id)}
+                              title={o.status === 'CONFIRMED' ? 'Bắt đầu vận chuyển' : 'Xác nhận hoàn tất giao lắp nội thất'}
+                              disabled={submittingComplete}
+                              onClick={() => handleDeliveryAction(o.id, o.status === 'CONFIRMED')}
                             >
                               <Truck size={13} />
-                              <span>Giao lắp</span>
+                              <span>{o.status === 'CONFIRMED' ? 'Vận chuyển' : 'Giao lắp'}</span>
                             </button>
                           )}
 
@@ -982,15 +999,15 @@ export default function AdminOrderManagement({ currentUser }) {
                     </button>
                   )}
 
-                  {activeOrderDetail.status === 'CONFIRMED' && (
+                  {(activeOrderDetail.status === 'CONFIRMED' || activeOrderDetail.status === 'SHIPPING') && (
                     <button
                       type="button"
                       className="admin-btn admin-btn-primary"
-                      onClick={() => handleCompleteOrder(activeOrderDetail.id)}
+                      onClick={() => handleDeliveryAction(activeOrderDetail.id, activeOrderDetail.status === 'CONFIRMED')}
                       disabled={submittingComplete}
                     >
                       <Truck size={16} />
-                      <span>Nghiệm Thu &amp; Hoàn Tất</span>
+                      <span>{activeOrderDetail.status === 'CONFIRMED' ? 'Bắt đầu vận chuyển' : 'Nghiệm Thu & Hoàn Tất'}</span>
                     </button>
                   )}
 

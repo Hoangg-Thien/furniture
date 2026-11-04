@@ -98,7 +98,7 @@ public class AdminOrderRepository {
                         CAST(o.id AS TEXT) LIKE ?
                         OR LOWER(COALESCE(c.full_name, '')) LIKE LOWER(?)
                         OR COALESCE(c.phone, '') LIKE ?
-                        OR LOWER(COALESCE(c.address, '')) LIKE LOWER(?)
+                        OR LOWER(COALESCE(o.shipping_address, c.address, '')) LIKE LOWER(?)
                         OR LOWER(COALESCE(st.full_name, '')) LIKE LOWER(?)
                         OR LOWER(COALESCE(v.code, '')) LIKE LOWER(?)
                      )
@@ -191,7 +191,7 @@ public class AdminOrderRepository {
                 SELECT o.id, o.customer_id,
                        COALESCE(c.full_name, 'Khách hàng #' || o.customer_id) AS customer_name,
                        COALESCE(c.phone, '') AS phone,
-                       COALESCE(c.address, '') AS address,
+                       COALESCE(o.shipping_address, c.address, '') AS address,
                        o.staff_id,
                        COALESCE(st.full_name, u.username, CASE WHEN o.staff_id IS NOT NULL THEN 'Nhân viên #' || o.staff_id ELSE NULL END) AS staff_name,
                        o.order_date, o.status,
@@ -281,6 +281,7 @@ public class AdminOrderRepository {
                     COUNT(*) AS total,
                     COUNT(*) FILTER (WHERE status = 'PENDING') AS pending,
                     COUNT(*) FILTER (WHERE status = 'CONFIRMED') AS confirmed,
+                    COUNT(*) FILTER (WHERE status = 'SHIPPING') AS shipping,
                     COUNT(*) FILTER (WHERE status = 'COMPLETED') AS completed,
                     COUNT(*) FILTER (WHERE status = 'CANCELLED') AS cancelled
                 FROM public.orders
@@ -290,6 +291,7 @@ public class AdminOrderRepository {
                 rs.getLong("total"),
                 rs.getLong("pending"),
                 rs.getLong("confirmed"),
+                rs.getLong("shipping"),
                 rs.getLong("completed"),
                 rs.getLong("cancelled")
         ));
@@ -297,7 +299,12 @@ public class AdminOrderRepository {
 
     public void updateStatusAndStaff(Long orderId, String status, Long staffId) {
         jdbcTemplate.update(
-                "UPDATE public.orders SET status = ?, staff_id = ? WHERE id = ?",
+                """
+                UPDATE public.orders o SET status = ?, staff_id = ?,
+                    approved_at = COALESCE(o.approved_at, date_trunc('second', CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh')),
+                    shipping_address = COALESCE(o.shipping_address, c.address)
+                FROM public.customers c WHERE o.id = ? AND c.id = o.customer_id AND o.status = 'PENDING'
+                """,
                 status,
                 staffId,
                 orderId
@@ -306,6 +313,10 @@ public class AdminOrderRepository {
 
     public void updateStatus(Long orderId, String status) {
         jdbcTemplate.update("UPDATE public.orders SET status = ? WHERE id = ?", status, orderId);
+    }
+
+    public int shipOrder(Long orderId) {
+        return jdbcTemplate.update("UPDATE public.orders SET status = 'SHIPPING' WHERE id = ? AND status = 'CONFIRMED'", orderId);
     }
 
     public void restoreProductStock(Long productId, int quantity) {

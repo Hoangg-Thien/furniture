@@ -84,7 +84,7 @@ public class OrderService {
         }
 
         // 4. Lưu đơn hàng
-        Long orderId = orderRepository.insertOrder(resolvedCustomerId, finalTotal, req.voucherId(), discount);
+        Long orderId = orderRepository.insertOrder(resolvedCustomerId, finalTotal, req.voucherId(), discount, fullAddress);
         if (orderId == null) {
             throw new IllegalStateException("Không thể tạo mã đơn hàng trong database.");
         }

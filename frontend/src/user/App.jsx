@@ -34,7 +34,7 @@ import AuthModal from './components/AuthModal'
 import ProfileModal from './components/ProfileModal'
 import AccountModal from './components/AccountModal'
 import OrderReviewPage from './components/OrderReviewPage'
-import MyOrdersModal from './components/MyOrdersModal'
+import MyOrdersPage from './components/MyOrdersPage'
 import VouchersModal from './components/VouchersModal'
 import AdminLayout from '../admin/AdminLayout'
 import AdminLoginPage from '../admin/AdminLoginPage'
@@ -45,23 +45,19 @@ const formatPrice = (price) => `${new Intl.NumberFormat('vi-VN').format(price)}�
 
 function App() {
   // Hệ thống định tuyến:
-  // - '/', '/checkout', '/order-success' => 'store' (Cửa hàng, đặt hàng và trạng thái đơn)
+  // - '/orders' => lịch sử đơn hàng; '/', '/checkout', '/order-success' => cửa hàng và đặt hàng
   // - '/admin' hoặc bất kỳ trang con nào bắt đầu bằng '/admin' => 'admin' (Trang quản trị Admin)
   // - Bất kỳ đường dẫn lạ nào khác (như /1321, /abc) => '404' (Trang Không tìm thấy)
   function getCurrentRoute() {
     if (typeof window === 'undefined') return 'store'
     const path = window.location.pathname.toLowerCase().replace(/\/+$/, '')
+    if (path === '/orders') return 'orders'
     if (path === '' || path === '/' || isCheckoutPath(path) || path.startsWith('/order-success')) return 'store'
     if (path === '/admin' || path.startsWith('/admin/')) return 'admin'
     return '404'
   }
 
   const [currentRoute, setCurrentRoute] = useState(() => getCurrentRoute())
-
-  function handleGoToAdmin() {
-    window.history.pushState(null, '', '/admin')
-    setCurrentRoute('admin')
-  }
 
   function handleBackToStore() {
     window.history.pushState(null, '', '/')
@@ -155,7 +151,6 @@ function App() {
   const [accountOpen, setAccountOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const userMenuRef = useRef(null)
-  const [myOrdersOpen, setMyOrdersOpen] = useState(false)
   const [vouchersOpen, setVouchersOpen] = useState(false)
   const [completedOrder, setCompletedOrder] = useState(null)
   const [justAddedId, setJustAddedId] = useState(null)
@@ -168,6 +163,11 @@ function App() {
   }, [cart])
 
   function scrollToSection(sectionId) {
+    if (currentRoute === 'orders') {
+      handleBackToStore()
+      window.requestAnimationFrame(() => document.getElementById(sectionId === 'home' ? 'top' : sectionId)?.scrollIntoView())
+      return
+    }
     setActiveSection(sectionId)
     if (sectionId === 'home') {
       window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -221,7 +221,6 @@ function App() {
     logoutUser()
     setCurrentUser(null)
     setAccountOpen(false)
-    setMyOrdersOpen(false)
     setOrderOpen(false)
     setCompletedOrder(null)
     setUserMenuOpen(false)
@@ -297,6 +296,7 @@ function App() {
                 id: order.id,
                 customerId: order.customer_id,
                 status: order.status || 'PENDING',
+                approved_at: order.approved_at,
                 orderDate: order.order_date || new Date().toLocaleString('vi-VN'),
                 items: (items || []).map((it) => ({
                   id: it.product_id,
@@ -508,6 +508,18 @@ function App() {
     setOrderOpen(true)
   }
 
+  function handleOpenMyOrders(event) {
+    if (event?.metaKey || event?.ctrlKey || event?.shiftKey || event?.altKey) return
+    event?.preventDefault()
+    if (currentRoute !== 'orders') window.history.pushState({}, '', '/orders')
+    setCurrentRoute('orders')
+    setUserMenuOpen(false)
+    setProfileOpen(false)
+    setOrderOpen(false)
+    setCompletedOrder(null)
+    window.scrollTo(0, 0)
+  }
+
   function previewProductImage(event) {
     const file = event.target.files?.[0]
     if (file) setProductImagePreview(URL.createObjectURL(file))
@@ -575,7 +587,7 @@ function App() {
         </a>
         <nav className="main-nav" aria-label="Điều hướng chính">
           <a
-            className={activeSection === 'home' ? 'nav-active' : ''}
+            className={currentRoute === 'store' && activeSection === 'home' ? 'nav-active' : ''}
             href="#top"
             onClick={(e) => {
               e.preventDefault()
@@ -585,7 +597,7 @@ function App() {
             Trang chủ
           </a>
           <a
-            className={activeSection === 'products' ? 'nav-active' : ''}
+            className={currentRoute === 'store' && activeSection === 'products' ? 'nav-active' : ''}
             href="#products"
             onClick={(e) => {
               e.preventDefault()
@@ -595,7 +607,7 @@ function App() {
             Sản phẩm
           </a>
           <a
-            className={activeSection === 'story' ? 'nav-active' : ''}
+            className={currentRoute === 'store' && activeSection === 'story' ? 'nav-active' : ''}
             href="#story"
             onClick={(e) => {
               e.preventDefault()
@@ -612,7 +624,10 @@ function App() {
               aria-label="Tìm sản phẩm"
               placeholder="Tìm món đồ bạn thích"
               value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
+              onChange={(event) => {
+                setSearchTerm(event.target.value)
+                if (currentRoute === 'orders') scrollToSection('products')
+              }}
             />
           </label>
           <button
@@ -622,7 +637,7 @@ function App() {
             aria-pressed={showFavorites}
             onClick={() => {
               setShowFavorites((current) => !current)
-              document.getElementById('products')?.scrollIntoView({ behavior: 'smooth' })
+              scrollToSection('products')
             }}
           >
             <Heart size={20} strokeWidth={1.7} />
@@ -671,14 +686,14 @@ function App() {
                   >
                     <User size={15} /> Tài khoản
                   </button>
-                  <button
+                  <a
                     className="user-dropdown-item"
                     role="menuitem"
-                    type="button"
-                    onClick={() => { setUserMenuOpen(false); setMyOrdersOpen(true) }}
+                    href="/orders"
+                    onClick={handleOpenMyOrders}
                   >
                     <ShoppingBag size={15} /> Lịch sử đơn hàng
-                  </button>
+                  </a>
                   <button
                     className="user-dropdown-item user-dropdown-item--soon"
                     role="menuitem"
@@ -727,27 +742,45 @@ function App() {
       <nav className="mobile-sub-nav" aria-label="Điều hướng nhanh trang">
         <button
           type="button"
-          className={`mobile-nav-chip ${activeSection === 'home' ? 'active' : ''}`}
+          className={`mobile-nav-chip ${currentRoute === 'store' && activeSection === 'home' ? 'active' : ''}`}
           onClick={() => scrollToSection('home')}
         >
           Trang chủ
         </button>
         <button
           type="button"
-          className={`mobile-nav-chip ${activeSection === 'products' ? 'active' : ''}`}
+          className={`mobile-nav-chip ${currentRoute === 'store' && activeSection === 'products' ? 'active' : ''}`}
           onClick={() => scrollToSection('products')}
         >
           Sản phẩm
         </button>
         <button
           type="button"
-          className={`mobile-nav-chip ${activeSection === 'story' ? 'active' : ''}`}
+          className={`mobile-nav-chip ${currentRoute === 'store' && activeSection === 'story' ? 'active' : ''}`}
           onClick={() => scrollToSection('story')}
         >
           Câu chuyện FuniStore
         </button>
       </nav>
 
+      {currentRoute === 'orders' ? (
+        currentUser?.customerId ? (
+          <MyOrdersPage
+            key={`orders-${currentUser.customerId}`}
+            onClose={handleBackToStore}
+            currentUser={currentUser}
+            catalogProducts={products}
+            onViewOrderDetail={handleViewOrderDetail}
+            onReorder={handleReorder}
+          />
+        ) : (
+          <main className="orders-page shopee-orders-empty" id="top">
+            <h1>Lịch sử đơn hàng</h1>
+            <p>Đăng nhập để xem và theo dõi đơn hàng của bạn.</p>
+            <button className="shopee-btn shopee-btn-detail" type="button" onClick={() => setAuthOpen(true)}>Đăng nhập</button>
+          </main>
+        )
+      ) : (
       <main id="top">
         <section className="hero" aria-label="Bộ sưu tập nội thất FuniStore">
           <div className="hero-copy">
@@ -991,6 +1024,7 @@ function App() {
           </a>
         </section>
       </main>
+      )}
 
       <footer className="site-footer">
         <a
@@ -1005,14 +1039,6 @@ function App() {
           <span>FUNI <em>STORE</em></span>
         </a>
         <span>Đồ đẹp cho những ngày bình thường.</span>
-        <button
-          type="button"
-          className="footer-admin-link"
-          onClick={handleGoToAdmin}
-          title="Chuyển sang Cổng Quản Trị Hệ Thống"
-        >
-          <span>🔐 Cổng Quản Trị</span>
-        </button>
         <span>© 2026 FuniStore</span>
       </footer>
 
@@ -1223,19 +1249,7 @@ function App() {
         user={currentUser}
         onClose={() => setProfileOpen(false)}
         onLogout={handleLogout}
-        onOpenMyOrders={() => setMyOrdersOpen(true)}
-      />
-      <MyOrdersModal
-        key={currentUser?.customerId || 'guest'}
-        isOpen={myOrdersOpen}
-        onClose={() => setMyOrdersOpen(false)}
-        currentUser={currentUser}
-        catalogProducts={products}
-        onViewOrderDetail={handleViewOrderDetail}
-        onReorder={handleReorder}
-        onOpenStore={() => {
-          document.getElementById('products')?.scrollIntoView({ behavior: 'smooth' })
-        }}
+        onOpenMyOrders={handleOpenMyOrders}
       />
       <VouchersModal
         isOpen={vouchersOpen}
@@ -1274,7 +1288,7 @@ function App() {
           }}
           onOrderSuccess={handleOrderSuccess}
           onReorder={handleReorder}
-          onOpenMyOrders={() => setMyOrdersOpen(true)}
+          onOpenMyOrders={handleOpenMyOrders}
         />
       )}
       {notice && <div className="toast" role="status">{notice}</div>}

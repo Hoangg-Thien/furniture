@@ -114,4 +114,17 @@ public class AdminOrderController {
                     .body(Map.of("error", "Lỗi hoàn tất đơn hàng: " + e.getMessage()));
         }
     }
+
+    @PutMapping("/{id}/ship")
+    public ResponseEntity<?> shipOrder(@PathVariable Long id) {
+        try {
+            adminOrderService.shipOrder(id);
+            return ResponseEntity.ok(Map.of("message", "Đơn hàng đã bắt đầu vận chuyển!"));
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Không thể cập nhật vận chuyển. Vui lòng thử lại."));
+        }
+    }
 }
