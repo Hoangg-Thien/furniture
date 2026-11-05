@@ -145,7 +145,7 @@ class AcceptanceAndCornerCasesTest {
         IllegalStateException ex = assertThrows(IllegalStateException.class, () ->
                 invoiceService.createInvoice(createReq, 1L)
         );
-        assertTrue(ex.getMessage().contains("Mã voucher đã hết lượt sử dụng!"));
+        assertTrue(ex.getMessage().contains("Chỉ lập hóa đơn sau khi giao hàng hoàn tất"));
     }
 
     @Test
@@ -179,7 +179,7 @@ class AcceptanceAndCornerCasesTest {
     @Test
     @DisplayName("TC06 - Hủy đơn đặt hàng -> Tự động hoàn tồn kho cho từng sản phẩm và hoàn lại lượt voucher")
     void testTC06_CancelOrderRestoresStockAndVoucher() {
-        AdminOrderService orderService = new AdminOrderService(adminOrderRepository);
+        AdminOrderService orderService = new AdminOrderService(adminOrderRepository, org.mockito.Mockito.mock(AdminInvoiceService.class));
         Long orderId = 200L;
 
         List<OrderItemDto> items = List.of(

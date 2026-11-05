@@ -30,6 +30,7 @@ import furniture.model.admin.order.OrderStatusCountDto;
 import furniture.model.admin.order.OrderSummaryDto;
 import furniture.repository.AdminOrderRepository;
 import furniture.service.AdminOrderService;
+import furniture.service.AdminInvoiceService;
 
 @ExtendWith(MockitoExtension.class)
 class AdminOrderServiceTest {
@@ -37,13 +38,15 @@ class AdminOrderServiceTest {
     @Mock
     private AdminOrderRepository adminOrderRepository;
 
+    @Mock private AdminInvoiceService adminInvoiceService;
+
     private AdminOrderService adminOrderService;
 
     private final LocalDateTime now = LocalDateTime.now();
 
     @BeforeEach
     void setUp() {
-        adminOrderService = new AdminOrderService(adminOrderRepository);
+        adminOrderService = new AdminOrderService(adminOrderRepository, adminInvoiceService);
     }
 
     @Test
@@ -216,11 +219,18 @@ class AdminOrderServiceTest {
                 105L, 1L, "Khách", "0901", "HCM", 2L, "Staff", now, "SHIPPING",
                 new BigDecimal("15000000"), null, BigDecimal.ZERO, new BigDecimal("15000000"), List.of()
         );
-        when(adminOrderRepository.findDetailById(105L)).thenReturn(confirmedOrder);
+        OrderDetailDto completedOrder = new OrderDetailDto(
+                105L, 1L, "Customer", "0901", "HCM", 2L, "Staff", now, "COMPLETED",
+                new BigDecimal("15000000"), null, BigDecimal.ZERO, new BigDecimal("15000000"), List.of());
+        when(adminOrderRepository.findDetailById(105L)).thenReturn(confirmedOrder, completedOrder);
 
         adminOrderService.completeOrder(105L);
 
+        verify(adminOrderRepository).lockOrder(105L);
         verify(adminOrderRepository).updateStatus(105L, "COMPLETED");
+        verify(adminInvoiceService).recordCompletedInvoice(org.mockito.ArgumentMatchers.argThat(o ->
+                o.status().equals("COMPLETED") && o.finalTotal().compareTo(new BigDecimal("15000000")) == 0),
+                org.mockito.ArgumentMatchers.eq("CASH"), org.mockito.ArgumentMatchers.eq(2L), any());
     }
 
     @Test

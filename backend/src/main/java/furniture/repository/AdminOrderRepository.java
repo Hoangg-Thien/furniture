@@ -186,6 +186,10 @@ public class AdminOrderRepository {
         return new PageResponse<>(content, page, limit, total, totalPages);
     }
 
+    public void lockOrder(Long id) {
+        jdbcTemplate.queryForList("SELECT id FROM public.orders WHERE id = ? FOR UPDATE", id);
+    }
+
     public OrderDetailDto findDetailById(Long id) {
         String sql = """
                 SELECT o.id, o.customer_id,

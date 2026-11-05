@@ -20,7 +20,10 @@ public class AdminOrderService {
 
     private final AdminOrderRepository adminOrderRepository;
 
-    public AdminOrderService(AdminOrderRepository adminOrderRepository) {
+    private final AdminInvoiceService adminInvoiceService;
+
+    public AdminOrderService(AdminOrderRepository adminOrderRepository, AdminInvoiceService adminInvoiceService) {
+        this.adminInvoiceService = adminInvoiceService;
         this.adminOrderRepository = adminOrderRepository;
     }
 
@@ -48,6 +51,7 @@ public class AdminOrderService {
 
     @Transactional
     public void confirmOrder(Long orderId, ConfirmOrderRequest req) {
+        adminOrderRepository.lockOrder(orderId);
         OrderDetailDto order = getOrderDetail(orderId);
 
         if (!"PENDING".equalsIgnoreCase(order.status())) {
@@ -68,6 +72,7 @@ public class AdminOrderService {
 
     @Transactional
     public void cancelOrder(Long orderId, CancelOrderRequest req) {
+        adminOrderRepository.lockOrder(orderId);
         OrderDetailDto order = getOrderDetail(orderId);
 
         if ("COMPLETED".equalsIgnoreCase(order.status()) || "CANCELLED".equalsIgnoreCase(order.status())) {
@@ -107,6 +112,7 @@ public class AdminOrderService {
 
     @Transactional
     public void completeOrder(Long orderId) {
+        adminOrderRepository.lockOrder(orderId);
         OrderDetailDto order = getOrderDetail(orderId);
 
         if (!"SHIPPING".equalsIgnoreCase(order.status())) {
@@ -114,5 +120,8 @@ public class AdminOrderService {
         }
 
         adminOrderRepository.updateStatus(orderId, "COMPLETED");
+        // shortcut: checkout only supports COD; use the stored payment method when adding other methods.
+        adminInvoiceService.recordCompletedInvoice(getOrderDetail(orderId), "CASH", order.staffId(),
+                "Đã xác nhận giao hàng thành công và thu đủ tiền COD.");
     }
 }

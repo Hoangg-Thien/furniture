@@ -34,20 +34,14 @@ public class AdminStatisticsRepository {
         LocalDateTime start = fromDate != null ? fromDate.atStartOfDay() : LocalDate.now().minusDays(30).atStartOfDay();
         LocalDateTime end = toDate != null ? toDate.atTime(23, 59, 59) : LocalDateTime.now();
 
-        // 1. Doanh thu trong kỳ (từ invoices, nếu chưa có thì lấy từ completed orders)
+        // Doanh thu chỉ ghi nhận từ hóa đơn đã thanh toán.
         BigDecimal invoiceRevenue = jdbcTemplate.queryForObject("""
                 SELECT COALESCE(SUM(final_amount), 0)
                 FROM public.invoices
                 WHERE payment_status = 'PAID' AND payment_date BETWEEN ? AND ?
                 """, BigDecimal.class, start, end);
 
-        BigDecimal totalRevenue = invoiceRevenue != null && invoiceRevenue.compareTo(BigDecimal.ZERO) > 0
-                ? invoiceRevenue
-                : jdbcTemplate.queryForObject("""
-                        SELECT COALESCE(SUM(total_amount), 0)
-                        FROM public.orders
-                        WHERE status = 'COMPLETED' AND order_date BETWEEN ? AND ?
-                        """, BigDecimal.class, start, end);
+        BigDecimal totalRevenue = invoiceRevenue;
 
         if (totalRevenue == null) totalRevenue = BigDecimal.ZERO;
 
@@ -62,14 +56,6 @@ public class AdminStatisticsRepository {
                 FROM public.invoices
                 WHERE payment_status = 'PAID' AND payment_date BETWEEN ? AND ?
                 """, BigDecimal.class, prevStart, prevEnd);
-
-        if (prevRevenue == null || prevRevenue.compareTo(BigDecimal.ZERO) == 0) {
-            prevRevenue = jdbcTemplate.queryForObject("""
-                    SELECT COALESCE(SUM(total_amount), 0)
-                    FROM public.orders
-                    WHERE status = 'COMPLETED' AND order_date BETWEEN ? AND ?
-                    """, BigDecimal.class, prevStart, prevEnd);
-        }
 
         Double growthPercent = 0.0;
         if (prevRevenue != null && prevRevenue.compareTo(BigDecimal.ZERO) > 0) {
@@ -164,25 +150,6 @@ public class AdminStatisticsRepository {
 
         if (!invoiceRows.isEmpty()) {
             for (Map<String, Object> r : invoiceRows) {
-                String day = (String) r.get("r_day");
-                BigDecimal rev = (BigDecimal) r.get("revenue");
-                long cnt = ((Number) r.get("cnt")).longValue();
-                salesMap.put(day, rev != null ? rev : BigDecimal.ZERO);
-                countMap.put(day, cnt);
-            }
-        } else {
-            // Fallback to orders
-            List<Map<String, Object>> orderRows = jdbcTemplate.queryForList("""
-                    SELECT TO_CHAR(order_date, 'YYYY-MM-DD') AS r_day,
-                           SUM(total_amount) AS revenue,
-                           COUNT(*) AS cnt
-                    FROM public.orders
-                    WHERE status = 'COMPLETED' AND order_date BETWEEN ? AND ?
-                    GROUP BY r_day
-                    ORDER BY r_day ASC
-                    """, start, end);
-
-            for (Map<String, Object> r : orderRows) {
                 String day = (String) r.get("r_day");
                 BigDecimal rev = (BigDecimal) r.get("revenue");
                 long cnt = ((Number) r.get("cnt")).longValue();
@@ -326,7 +293,7 @@ public class AdminStatisticsRepository {
         String sql = """
                 SELECT v.id, v.code, pp.name AS program_name, v.discount_percent,
                        v.used_quantity, v.quantity AS total_quantity,
-                       COALESCE(SUM(COALESCE(i.voucher_discount, o.discount_amount, 0)), 0) AS total_discount_given
+                       COALESCE(SUM(COALESCE(i.discount_amount + i.voucher_discount, o.discount_amount, 0)), 0) AS total_discount_given
                 FROM public.vouchers v
                 JOIN public.promotion_programs pp ON pp.id = v.promotion_program_id
                 LEFT JOIN public.orders o ON o.voucher_id = v.id
@@ -359,16 +326,16 @@ public class AdminStatisticsRepository {
                     COALESCE(i.payment_date, o.order_date) AS txn_date,
                     COALESCE(i.payment_method, 'CASH') AS payment_method,
                     COALESCE(i.subtotal_amount, o.total_amount + o.discount_amount) AS subtotal,
-                    COALESCE(i.voucher_discount, o.discount_amount) AS discount,
+                    i.discount_amount + i.voucher_discount AS discount,
                     COALESCE(i.tax_amount, 0) AS tax,
                     COALESCE(i.final_amount, o.total_amount) AS final_amount,
                     COALESCE(st.full_name, u.username, 'Admin') AS staff_name
                 FROM public.orders o
-                LEFT JOIN public.invoices i ON i.order_id = o.id
+                JOIN public.invoices i ON i.order_id = o.id
                 LEFT JOIN public.customers c ON c.id = o.customer_id
                 LEFT JOIN public.staff st ON st.id = COALESCE(i.staff_id, o.staff_id)
                 LEFT JOIN public.users u ON u.id = st.user_id
-                WHERE o.status = 'COMPLETED' AND o.order_date BETWEEN ? AND ?
+                WHERE i.payment_status = 'PAID' AND i.payment_date BETWEEN ? AND ?
                 ORDER BY txn_date DESC, o.id DESC
                 """;
 

@@ -104,7 +104,7 @@ public class AdminOrderController {
     public ResponseEntity<?> completeOrder(@PathVariable Long id) {
         try {
             adminOrderService.completeOrder(id);
-            return ResponseEntity.ok(Map.of("message", "Đã hoàn tất đơn hàng và nghiệm thu lắp đặt thành công!"));
+            return ResponseEntity.ok(Map.of("message", "Đã hoàn tất giao hàng, xác nhận thu tiền COD và ghi nhận hóa đơn!"));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         } catch (IllegalStateException e) {

@@ -202,50 +202,57 @@ class AdminInvoiceServiceTest {
     }
 
     @Test
-    @DisplayName("TC08 - Áp dụng mức trần giảm giá maximum_discount khi chiết khấu tính ra vượt trần")
-    void createInvoice_CapsDiscount_AtMaximumDiscount() {
-        when(adminInvoiceRepository.existsByOrderId(100L)).thenReturn(false);
-
-        OrderDetailDto order = new OrderDetailDto(
-                100L, 2L, "Lê Hoàng Nam", "0933112233", "Địa chỉ",
-                1L, "Thu ngân", now, "CONFIRMED",
-                new BigDecimal("50000000"), null, BigDecimal.ZERO, new BigDecimal("50000000"),
-                List.of()
-        );
+    void completedInvoiceKeepsCheckoutDiscountWithoutReusingVoucher() {
+        OrderDetailDto order = new OrderDetailDto(100L, 2L, "Customer", "0901", "Address",
+                1L, "Staff", now, "COMPLETED", new BigDecimal("50000000"), "OLDVOUCHER",
+                new BigDecimal("3000000"), new BigDecimal("47000000"), List.of());
         when(adminOrderRepository.findDetailById(100L)).thenReturn(order);
+        InvoiceCalculationDto preview = adminInvoiceService.previewCalculation(
+                new PreviewInvoiceRequest(100L, "OLDVOUCHER", false, null));
+        assertEquals(new BigDecimal("47000000"), preview.finalAmount());
+        assertEquals(new BigDecimal("3000000"), preview.orderDiscount());
+        adminInvoiceService.createInvoice(new CreateInvoiceRequest(100L, "CASH", "OLDVOUCHER", false, null, null, null), null);
+        verify(adminInvoiceRepository).insertInvoice(anyString(), eq(100L), eq(2L), eq(1L),
+                eq(new BigDecimal("50000000")), eq(new BigDecimal("3000000")), eq("OLDVOUCHER"),
+                eq(BigDecimal.ZERO), eq(BigDecimal.ZERO), eq(new BigDecimal("47000000")), eq("CASH"), eq("PAID"), eq(null));
+        verify(adminInvoiceRepository, org.mockito.Mockito.never()).findVoucherByCode(anyString());
+        verify(adminInvoiceRepository, org.mockito.Mockito.never()).incrementVoucherUsedQuantity(any());
+        verify(adminOrderRepository, org.mockito.Mockito.never()).updateStatusAndStaff(any(), any(), any());
+    }
 
-        // Voucher giảm 20% nhưng trần tối đa là 3,000,000
-        // Đơn 50,000,000 * 20% = 10,000,000 > 3,000,000 => Chỉ được giảm đúng 3,000,000
-        VoucherDto voucher = new VoucherDto(
-                10L, 1L, "KM Trần", "MAXCAP20",
-                new BigDecimal("20.00"), new BigDecimal("10000000"), new BigDecimal("3000000"),
-                100, 5, 95, now.minusDays(1), now.plusDays(10), "ACTIVE", false
-        );
-        when(adminInvoiceRepository.findVoucherByCode("MAXCAP20")).thenReturn(Optional.of(voucher));
+    @Test
+    void completedOrderRejectsAddedVatOrDifferentVoucher() {
+        OrderDetailDto order = new OrderDetailDto(100L, 2L, "Customer", "0901", "Address",
+                1L, "Staff", now, "COMPLETED", BigDecimal.TEN, null, BigDecimal.ZERO, BigDecimal.TEN, List.of());
+        when(adminOrderRepository.findDetailById(100L)).thenReturn(order);
+        assertThrows(IllegalArgumentException.class, () -> adminInvoiceService.createInvoice(
+                new CreateInvoiceRequest(100L, "CASH", null, true, BigDecimal.valueOf(8), null, null), null));
+        assertThrows(IllegalArgumentException.class, () -> adminInvoiceService.previewCalculation(
+                new PreviewInvoiceRequest(100L, "NEW", false, null)));
+    }
 
-        when(adminInvoiceRepository.insertInvoice(
-                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
-        )).thenReturn(10L);
+    @Test
+    void invoiceCannotMarkUndeliveredOrderAsCompleted() {
+        OrderDetailDto order = new OrderDetailDto(100L, 2L, "Customer", "0901", "Address",
+                1L, "Staff", now, "SHIPPING", BigDecimal.TEN, null, BigDecimal.ZERO, BigDecimal.TEN, List.of());
+        when(adminOrderRepository.findDetailById(100L)).thenReturn(order);
+        assertThrows(IllegalStateException.class, () -> adminInvoiceService.createInvoice(
+                new CreateInvoiceRequest(100L, "CASH", null, false, null, null, null), null));
+        verify(adminOrderRepository, org.mockito.Mockito.never()).updateStatusAndStaff(any(), any(), any());
+    }
 
-        InvoiceDetailDto createdDetail = new InvoiceDetailDto(
-                10L, "HD-20261028-0001", 100L, 2L, "Lê Hoàng Nam", "0933112233", "Địa chỉ", "",
-                1L, "Thu ngân", now, "BANK_TRANSFER", "PAID",
-                new BigDecimal("50000000"), BigDecimal.ZERO, "MAXCAP20", new BigDecimal("3000000"),
-                BigDecimal.ZERO, new BigDecimal("47000000"), null, List.of(), ""
-        );
-        when(adminInvoiceRepository.findDetailById(10L)).thenReturn(createdDetail);
-
-        CreateInvoiceRequest req = new CreateInvoiceRequest(
-                100L, "BANK_TRANSFER", "MAXCAP20", false, null, 1L, "Đã cọc trước"
-        );
-
-        InvoiceDetailDto result = adminInvoiceService.createInvoice(req, 1L);
-        assertNotNull(result);
-        assertEquals(new BigDecimal("3000000"), result.voucherDiscount());
-        assertEquals(new BigDecimal("47000000"), result.finalAmount());
-
-        verify(adminInvoiceRepository).incrementVoucherUsedQuantity(10L);
-        verify(adminOrderRepository).updateStatusAndStaff(100L, "COMPLETED", 1L);
+    @Test
+    void existingInvoiceIsNeverDuplicatedByCompletion() {
+        OrderDetailDto order = new OrderDetailDto(100L, 2L, "Customer", "0901", "Address",
+                1L, "Staff", now, "COMPLETED", BigDecimal.TEN, null, BigDecimal.ZERO, BigDecimal.TEN, List.of());
+        when(adminInvoiceRepository.findInvoiceIdByOrderId(100L)).thenReturn(Optional.of(22L));
+        InvoiceDetailDto existing = org.mockito.Mockito.mock(InvoiceDetailDto.class);
+        when(existing.paymentStatus()).thenReturn("PAID");
+        when(existing.finalAmount()).thenReturn(BigDecimal.TEN);
+        when(adminInvoiceRepository.findDetailById(22L)).thenReturn(existing);
+        adminInvoiceService.recordCompletedInvoice(order, "CASH", 1L, null);
+        verify(adminInvoiceRepository).findDetailById(22L);
+        verify(adminInvoiceRepository, org.mockito.Mockito.never()).insertInvoice(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any());
     }
 
     @Test
@@ -278,7 +285,7 @@ class AdminInvoiceServiceTest {
 
         OrderDetailDto order = new OrderDetailDto(
                 101L, 3L, "Phạm Minh Tuấn", "0911223344", "Hồ Chí Minh",
-                null, null, now, "PENDING",
+                null, null, now, "COMPLETED",
                 new BigDecimal("15000000"), null, BigDecimal.ZERO, new BigDecimal("15000000"),
                 List.of()
         );
@@ -307,7 +314,7 @@ class AdminInvoiceServiceTest {
         InvoiceDetailDto result = adminInvoiceService.createInvoice(req, null);
         assertNotNull(result);
         assertEquals(11L, result.id());
-        verify(adminOrderRepository).updateStatusAndStaff(101L, "COMPLETED", 1L);
+        verify(adminOrderRepository, org.mockito.Mockito.never()).updateStatusAndStaff(any(), any(), any());
     }
 
     @Test

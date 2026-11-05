@@ -316,7 +316,7 @@ export default function AdminOrderManagement({ currentUser, notificationTarget }
 
   // Complete Order
   const handleDeliveryAction = async (orderId, shipping = false) => {
-    if (!window.confirm(shipping ? `Bắt đầu vận chuyển đơn hàng #${orderId}?` : `Xác nhận hoàn tất đơn hàng #${orderId} (Khách đã nghiệm thu nội thất thành công)?`)) {
+    if (!window.confirm(shipping ? `Bắt đầu vận chuyển đơn hàng #${orderId}?` : `Xác nhận đơn #${orderId} đã giao thành công và đã thu đủ tiền COD? Hệ thống sẽ ghi nhận hóa đơn theo đúng tổng tiền đã đặt.`)) {
       return
     }
     setSubmittingComplete(true)

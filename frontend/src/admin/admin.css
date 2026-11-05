@@ -586,400 +586,15 @@
 }
 
 /* ====================================================================
-   ADMIN LOGIN PORTAL STYLING
+   SHARED ADMIN ANIMATIONS
    ==================================================================== */
-.admin-login-wrapper {
-  min-height: 100vh;
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  background: radial-gradient(circle at 10% 20%, #1c1511 0%, #0f172a 100%);
-  position: relative;
-  overflow: hidden;
-  box-sizing: border-box;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-}
-
-.admin-login-bg-glow {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(120px);
-  pointer-events: none;
-  opacity: 0.35;
-}
-
-.admin-login-bg-glow.glow-1 {
-  width: 480px;
-  height: 480px;
-  background: #d97706;
-  top: -100px;
-  right: -80px;
-}
-
-.admin-login-bg-glow.glow-2 {
-  width: 400px;
-  height: 400px;
-  background: #3b82f6;
-  bottom: -100px;
-  left: -80px;
-}
-
-.admin-login-card {
-  width: 100%;
-  max-width: 460px;
-  background: rgba(255, 255, 255, 0.98);
-  border-radius: 20px;
-  padding: 38px 34px;
-  box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.2);
-  position: relative;
-  z-index: 10;
-  backdrop-filter: blur(16px);
-  box-sizing: border-box;
-  animation: adminFadeIn 0.3s ease-out;
-}
-
 @keyframes adminFadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(16px) scale(0.98);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-.admin-login-header {
-  text-align: center;
-  margin-bottom: 26px;
-}
-
-.admin-login-badge-wrap {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 14px;
-}
-
-.admin-login-icon {
-  width: 58px;
-  height: 58px;
-  border-radius: 16px;
-  background: linear-gradient(135deg, #2a1e17 0%, #4a3427 100%);
-  color: #fbbf24;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 8px 20px -4px rgba(42, 30, 23, 0.35);
-  border: 1px solid rgba(251, 191, 36, 0.25);
-}
-
-.admin-security-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  color: #d97706;
-  background: #fef3c7;
-  padding: 4px 10px;
-  border-radius: 999px;
-  border: 1px solid rgba(217, 119, 6, 0.25);
-}
-
-.security-status-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #10b981;
-  box-shadow: 0 0 6px #10b981;
-  animation: pulseDot 2s infinite;
-}
-
-@keyframes pulseDot {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.4; transform: scale(0.85); }
-}
-
-.admin-login-header h1 {
-  font-size: 24px;
-  font-weight: 800;
-  color: #1e293b;
-  margin: 0 0 6px;
-  letter-spacing: -0.02em;
-}
-
-.admin-login-header p {
-  font-size: 13px;
-  color: #64748b;
-  margin: 0;
-  line-height: 1.5;
-}
-
-.admin-login-alert {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 12px 14px;
-  border-radius: 10px;
-  font-size: 12.5px;
-  line-height: 1.5;
-  margin-bottom: 20px;
-  box-sizing: border-box;
-}
-
-.admin-login-alert.error {
-  background: #fef2f2;
-  color: #b91c1c;
-  border: 1px solid #fecaca;
-}
-
-.admin-login-alert.success {
-  background: #ecfdf5;
-  color: #047857;
-  border: 1px solid #a7f3d0;
-}
-
-.admin-login-alert .alert-icon {
-  flex-shrink: 0;
-  margin-top: 1px;
-}
-
-.admin-login-form {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-}
-
-.admin-input-group {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.admin-input-group label {
-  font-size: 12.5px;
-  font-weight: 600;
-  color: #334155;
-}
-
-.admin-input-field {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.admin-input-field .field-icon {
-  position: absolute;
-  left: 14px;
-  color: #94a3b8;
-  pointer-events: none;
-}
-
-.admin-input-field input {
-  width: 100%;
-  height: 46px;
-  padding: 0 42px 0 40px;
-  border: 1.5px solid #e2e8f0;
-  border-radius: 10px;
-  font-size: 13.5px;
-  color: #1e293b;
-  background: #f8fafc;
-  outline: none;
-  transition: all 0.2s ease;
-  box-sizing: border-box;
-}
-
-.admin-input-field input:focus {
-  background: #ffffff;
-  border-color: #d97706;
-  box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.15);
-}
-
-.toggle-password-btn {
-  position: absolute;
-  right: 12px;
-  background: none;
-  border: none;
-  color: #94a3b8;
-  cursor: pointer;
-  padding: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: color 0.15s ease;
-}
-
-.toggle-password-btn:hover {
-  color: #475569;
-}
-
-.admin-form-meta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.admin-checkbox-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12.5px;
-  color: #475569;
-  cursor: pointer;
-}
-
-.admin-checkbox-label input {
-  width: 16px;
-  height: 16px;
-  accent-color: #d97706;
-  cursor: pointer;
-}
-
-.admin-login-submit-btn {
-  width: 100%;
-  height: 48px;
-  border: none;
-  border-radius: 10px;
-  background: linear-gradient(135deg, #2a1e17 0%, #3d2b20 100%);
-  color: #ffffff;
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  box-shadow: 0 6px 18px rgba(42, 30, 23, 0.25);
-  margin-top: 4px;
-}
-
-.admin-login-submit-btn:hover:not(:disabled) {
-  background: linear-gradient(135deg, #1c1511 0%, #2f2119 100%);
-  transform: translateY(-1.5px);
-  box-shadow: 0 8px 24px rgba(42, 30, 23, 0.35);
-}
-
-.admin-login-submit-btn:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-}
-
-.btn-loading-spinner {
-  width: 20px;
-  height: 20px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-top-color: #ffffff;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
+  from { opacity: 0; transform: translateY(16px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 @keyframes spin {
   to { transform: rotate(360deg); }
-}
-
-/* Quick Fill Demo */
-.admin-quick-fill-section {
-  margin-top: 24px;
-  padding-top: 20px;
-  border-top: 1px dashed #e2e8f0;
-}
-
-.quick-fill-divider {
-  text-align: center;
-  margin-bottom: 12px;
-}
-
-.quick-fill-divider span {
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: #94a3b8;
-  background: #ffffff;
-  padding: 0 8px;
-}
-
-.quick-fill-buttons {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-}
-
-.quick-fill-btn {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  background: #f8fafc;
-  cursor: pointer;
-  text-align: left;
-  transition: all 0.18s ease;
-}
-
-.quick-fill-btn:hover {
-  border-color: #d97706;
-  background: #fefce8;
-  transform: translateY(-1px);
-}
-
-.quick-fill-btn.admin-role {
-  color: #b45309;
-}
-
-.quick-fill-btn.staff-role {
-  color: #0369a1;
-}
-
-.quick-fill-btn div {
-  display: flex;
-  flex-direction: column;
-}
-
-.quick-fill-btn strong {
-  font-size: 12px;
-  font-weight: 700;
-  color: #1e293b;
-}
-
-.quick-fill-btn small {
-  font-size: 10px;
-  color: #64748b;
-  margin-top: 1px;
-}
-
-/* Footer link */
-.admin-login-footer {
-  margin-top: 24px;
-  text-align: center;
-}
-
-.admin-back-store-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  background: none;
-  border: none;
-  color: #64748b;
-  font-size: 12.5px;
-  font-weight: 500;
-  cursor: pointer;
-  padding: 6px 12px;
-  border-radius: 6px;
-  transition: all 0.18s ease;
-}
-
-.admin-back-store-btn:hover {
-  color: #1e293b;
-  background: #f1f5f9;
 }
 
 /* ====================================================================
@@ -3213,18 +2828,37 @@
    MODAL 1: LẬP HÓA ĐƠN
    ========================================================================= */
 
-.inv-create-modal {
-  max-width: 820px;
-  width: 95%;
-  max-height: 90vh;
-  display: flex;
-  flex-direction: column;
-}
+.inv-create-page { overflow: hidden; }
+.inv-create-page .admin-modal-header { gap: 16px; flex-wrap: wrap; }
+.inv-create-page .modal-title { outline-offset: 5px; }
 
 .inv-create-body {
-  overflow-y: auto;
-  max-height: calc(85vh - 130px);
   padding: 24px;
+}
+
+.inv-detail-page { border: 1px solid var(--admin-border); border-radius: 12px; overflow: hidden; }
+.inv-detail-page .inv-printable-modal { width: 100%; max-width: none; max-height: none; }
+.inv-detail-page .inv-paper-wrapper { overflow-y: visible; overflow-x: auto; }
+.inv-detail-page .inv-modal-toolbar, .inv-detail-page .inv-toolbar-left, .inv-detail-page .inv-toolbar-right { flex-wrap: wrap; gap: 12px; }
+.inv-create-page .inv-preview-items { overflow-x: auto; }
+.inv-create-page .inv-voucher-field input { min-width: 0; }
+.inv-create-page .inv-order-preview-customer > div { min-width: 0; overflow-wrap: anywhere; }
+.inv-create-page .admin-modal-footer { flex-wrap: wrap; }
+.inv-create-page .inv-method-card input { display: block; flex-shrink: 0; width: 16px; height: 16px; margin: 3px 0 0; accent-color: var(--admin-accent); }
+.inv-create-page .inv-method-card:focus-within { outline: 2px solid var(--admin-accent); outline-offset: 2px; }
+
+@media (max-width: 680px) {
+  .admin-shell .inv-create-page { padding: 0; }
+  .inv-create-page .admin-modal-header { padding: 18px; }
+  .inv-create-page .inv-breakdown-row > span:last-child,
+  .inv-create-page .inv-total-price { white-space: nowrap; }
+  .inv-create-body { padding: 12px; }
+  .inv-create-page .inv-form-section { padding: 16px 12px; }
+  .inv-create-page .inv-calc-controls-row, .inv-create-page .inv-payment-methods-grid { grid-template-columns: 1fr; }
+  .inv-create-page .inv-order-preview-card { padding: 12px; }
+  .inv-create-page .inv-order-preview-header { flex-wrap: wrap; gap: 8px; }
+  .inv-create-page .inv-vietqr-box { flex-direction: column; }
+  .inv-create-page .admin-modal-footer .admin-btn { white-space: normal; }
 }
 
 .inv-modal-title {
@@ -4041,6 +3675,8 @@
   .admin-content-body,
   .admin-modal-backdrop,
   .admin-modal-card,
+  .inv-detail-page,
+  .inv-printable-modal,
   .inv-paper-wrapper {
     position: static !important;
     background: transparent !important;

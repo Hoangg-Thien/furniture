@@ -86,6 +86,14 @@ public class AdminInvoiceService {
             throw new IllegalArgumentException("Không tìm thấy đơn hàng #" + req.orderId());
         }
 
+        if ("COMPLETED".equalsIgnoreCase(order.status())) {
+            validateLockedTotal(order, req.voucherCode(), req.includeVat());
+            return new InvoiceCalculationDto(order.id(), order.subtotal(), order.discountAmount(),
+                    BigDecimal.ZERO, order.voucherCode(), true,
+                    "Giữ nguyên số tiền và giảm giá đã chốt khi đặt hàng.", false,
+                    BigDecimal.ZERO, BigDecimal.ZERO, order.finalTotal());
+        }
+
         BigDecimal subtotal = order.subtotal() != null ? order.subtotal() : BigDecimal.ZERO;
         BigDecimal orderDiscount = order.discountAmount() != null ? order.discountAmount() : BigDecimal.ZERO;
         BigDecimal baseAmount = subtotal.subtract(orderDiscount).max(BigDecimal.ZERO);
@@ -146,114 +154,61 @@ public class AdminInvoiceService {
 
     @Transactional
     public InvoiceDetailDto createInvoice(CreateInvoiceRequest req, Long staffUserId) {
-        if (req.orderId() == null) {
-            throw new IllegalArgumentException("Mã đơn hàng không được để trống!");
-        }
-
+        if (req.orderId() == null) throw new IllegalArgumentException("Mã đơn hàng không được để trống!");
+        adminOrderRepository.lockOrder(req.orderId());
         if (adminInvoiceRepository.existsByOrderId(req.orderId())) {
             throw new IllegalStateException("Đơn hàng này đã được xuất hóa đơn trước đó!");
         }
-
         OrderDetailDto order = adminOrderRepository.findDetailById(req.orderId());
-        if (order == null) {
-            throw new IllegalArgumentException("Không tìm thấy đơn hàng #" + req.orderId());
+        if (order == null) throw new IllegalArgumentException("Không tìm thấy đơn hàng #" + req.orderId());
+        if (!"COMPLETED".equalsIgnoreCase(order.status())) {
+            throw new IllegalStateException("Chỉ lập hóa đơn sau khi giao hàng hoàn tất và xác nhận đã thu tiền; không thể lập cho đơn chưa giao hoặc đã hủy.");
         }
-
-        if ("CANCELLED".equalsIgnoreCase(order.status())) {
-            throw new IllegalStateException("Không thể xuất hóa đơn cho đơn hàng đã hủy!");
-        }
-
-        // Tìm nhân viên xuất hóa đơn
-        Long staffId = null;
+        validateLockedTotal(order, req.voucherCode(), req.includeVat());
+        Long staffId = order.staffId();
         if (staffUserId != null) {
-            Optional<Map<String, Object>> staffOpt = adminStaffRepository.findByUserId(staffUserId);
-            if (staffOpt.isPresent()) {
-                staffId = ((Number) staffOpt.get().get("id")).longValue();
+            Optional<Map<String, Object>> staff = adminStaffRepository.findByUserId(staffUserId);
+            if (staff.isPresent()) staffId = ((Number) staff.get().get("id")).longValue();
+        }
+        return recordCompletedInvoice(order, req.paymentMethod(), staffId, req.notes());
+    }
+
+    // Caller holds the order row lock; payment confirmation and invoice share one transaction.
+    public InvoiceDetailDto recordCompletedInvoice(OrderDetailDto order, String paymentMethod, Long staffId, String notes) {
+        if (!"COMPLETED".equalsIgnoreCase(order.status())) {
+            throw new IllegalStateException("Đơn hàng chưa hoàn tất giao hàng.");
+        }
+        Optional<Long> existingId = adminInvoiceRepository.findInvoiceIdByOrderId(order.id());
+        if (existingId.isPresent()) {
+            InvoiceDetailDto existing = adminInvoiceRepository.findDetailById(existingId.get());
+            if (existing == null || !"PAID".equals(existing.paymentStatus()) || existing.finalAmount() == null
+                    || order.finalTotal() == null || existing.finalAmount().compareTo(order.finalTotal()) != 0) {
+                throw new IllegalStateException("Hóa đơn có sẵn chưa thanh toán hoặc lệch tổng tiền đơn hàng; cần đối soát trước khi hoàn tất.");
             }
+            return existing;
         }
-        if (staffId == null && req.staffId() != null) {
-            staffId = req.staffId();
+        if (paymentMethod == null || !List.of("CASH", "BANK_TRANSFER", "CREDIT_CARD", "VNPAY", "MOMO").contains(paymentMethod)) {
+            throw new IllegalArgumentException("Phương thức thanh toán không hợp lệ.");
         }
-        if (staffId == null) {
-            staffId = order.staffId();
+        if (order.finalTotal() == null || order.finalTotal().signum() < 0
+                || order.discountAmount() == null || order.discountAmount().signum() < 0
+                || order.subtotal() == null
+                || order.subtotal().subtract(order.discountAmount()).compareTo(order.finalTotal()) != 0) {
+            throw new IllegalStateException("Số tiền đơn hàng không hợp lệ, cần kiểm tra trước khi ghi nhận thanh toán.");
         }
-        if (staffId == null) {
-            staffId = 1L; // Nhân viên thu ngân mặc định thỏa mãn ràng buộc ck_orders_staff
+        String code = "HD-" + order.id();
+        Long id = adminInvoiceRepository.insertInvoice(code, order.id(), order.customerId(), staffId,
+                order.subtotal(), order.discountAmount(), order.voucherCode(), BigDecimal.ZERO,
+                BigDecimal.ZERO, order.finalTotal(), paymentMethod, "PAID", notes);
+        return adminInvoiceRepository.findDetailById(id);
+    }
+
+    private void validateLockedTotal(OrderDetailDto order, String voucherCode, Boolean includeVat) {
+        String requested = voucherCode == null ? "" : voucherCode.trim();
+        String original = order.voucherCode() == null ? "" : order.voucherCode();
+        if (Boolean.TRUE.equals(includeVat) || !requested.equalsIgnoreCase(original)) {
+            throw new IllegalArgumentException("Hóa đơn phải giữ nguyên giảm giá và tổng tiền đã chốt; không thêm voucher hoặc VAT sau khi mua.");
         }
-
-        // Tính toán chiết khấu & voucher
-        BigDecimal subtotal = order.subtotal() != null ? order.subtotal() : BigDecimal.ZERO;
-        BigDecimal orderDiscount = order.discountAmount() != null ? order.discountAmount() : BigDecimal.ZERO;
-        BigDecimal baseAmount = subtotal.subtract(orderDiscount).max(BigDecimal.ZERO);
-
-        BigDecimal voucherDiscount = BigDecimal.ZERO;
-        String appliedVoucherCode = null;
-        Long voucherIdToIncrement = null;
-
-        if (req.voucherCode() != null && !req.voucherCode().trim().isEmpty()) {
-            appliedVoucherCode = req.voucherCode().trim().toUpperCase();
-            Optional<VoucherDto> voucherOpt = adminInvoiceRepository.findVoucherByCode(appliedVoucherCode);
-
-            if (voucherOpt.isEmpty()) {
-                throw new IllegalArgumentException("Mã voucher '" + appliedVoucherCode + "' không tồn tại!");
-            }
-
-            VoucherDto v = voucherOpt.get();
-            String errorMsg = checkVoucherValidity(v, baseAmount);
-            if (errorMsg != null) {
-                throw new IllegalStateException(errorMsg);
-            }
-
-            BigDecimal discount = baseAmount.multiply(v.discountPercent())
-                    .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
-            if (v.maximumDiscount() != null && discount.compareTo(v.maximumDiscount()) > 0) {
-                discount = v.maximumDiscount();
-            }
-            voucherDiscount = discount;
-            voucherIdToIncrement = v.id();
-        }
-
-        BigDecimal afterVoucher = baseAmount.subtract(voucherDiscount).max(BigDecimal.ZERO);
-        boolean includeVat = Boolean.TRUE.equals(req.includeVat());
-        BigDecimal vatPercent = req.vatPercent() != null ? req.vatPercent() : BigDecimal.valueOf(8.0);
-        BigDecimal vatAmount = BigDecimal.ZERO;
-
-        if (includeVat) {
-            vatAmount = afterVoucher.multiply(vatPercent).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
-        }
-
-        BigDecimal finalAmount = afterVoucher.add(vatAmount);
-
-        // Sinh mã hóa đơn chuẩn showroom
-        String dateStr = DateTimeFormatter.ofPattern("yyyyMMdd").format(LocalDate.now());
-        long randomSuffix = System.currentTimeMillis() % 10000;
-        String invoiceCode = String.format("HD-%s-%04d", dateStr, randomSuffix);
-
-        Long invoiceId = adminInvoiceRepository.insertInvoice(
-                invoiceCode,
-                order.id(),
-                order.customerId(),
-                staffId,
-                subtotal,
-                orderDiscount,
-                appliedVoucherCode,
-                voucherDiscount,
-                vatAmount,
-                finalAmount,
-                req.paymentMethod(),
-                "PAID",
-                req.notes()
-        );
-
-        // Cập nhật số lượt dùng của voucher
-        if (voucherIdToIncrement != null) {
-            adminInvoiceRepository.incrementVoucherUsedQuantity(voucherIdToIncrement);
-        }
-
-        // Chuyển đơn hàng sang trạng thái COMPLETED kèm gán nhân viên thu ngân
-        adminOrderRepository.updateStatusAndStaff(order.id(), "COMPLETED", staffId);
-
-        return adminInvoiceRepository.findDetailById(invoiceId);
     }
 
     private String checkVoucherValidity(VoucherDto v, BigDecimal orderAmount) {
@@ -352,6 +307,10 @@ public class AdminInvoiceService {
             streamContent.append("0 -18 Td\n");
             streamContent.append("(").append(escapePdf(String.format("%65s: %16s VND", "Tong tien hang", formatNumber(invoice.subtotalAmount())))).append(") Tj\n");
 
+            if (invoice.discountAmount() != null && invoice.discountAmount().signum() > 0) {
+                streamContent.append("0 -15 Td\n");
+                streamContent.append("(").append(escapePdf(String.format("%65s: -%15s VND", "Giam gia khi dat hang", formatNumber(invoice.discountAmount())))).append(") Tj\n");
+            }
             if (invoice.voucherDiscount() != null && invoice.voucherDiscount().compareTo(BigDecimal.ZERO) > 0) {
                 streamContent.append("0 -15 Td\n");
                 streamContent.append("(").append(escapePdf(String.format("%65s: -%15s VND", "Giam gia Voucher (" + (invoice.voucherCode() != null ? invoice.voucherCode() : "") + ")", formatNumber(invoice.voucherDiscount())))).append(") Tj\n");

@@ -77,59 +77,8 @@ public class AdminInvoiceRepository {
             } catch (Exception ignored) {
             }
 
-            // Seed sample invoices if empty
-            seedSampleInvoicesIfEmpty();
-
         } catch (Exception ex) {
             log.warn("Lưu ý khi kiểm tra bảng invoices: {}", ex.getMessage());
-        }
-    }
-
-    private void seedSampleInvoicesIfEmpty() {
-        try {
-            Integer count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM public.invoices", Integer.class);
-            if (count != null && count == 0) {
-                // Kiểm tra xem có đơn hàng COMPLETED để xuất hóa đơn mẫu không
-                List<Map<String, Object>> completedOrders = jdbcTemplate.queryForList("""
-                        SELECT o.id, o.customer_id, o.staff_id, o.total_amount, o.discount_amount, v.code AS voucher_code
-                        FROM public.orders o
-                        LEFT JOIN public.vouchers v ON v.id = o.voucher_id
-                        WHERE o.status = 'COMPLETED'
-                        ORDER BY o.id ASC
-                        LIMIT 3
-                        """);
-
-                if (!completedOrders.isEmpty()) {
-                    String[] methods = {"BANK_TRANSFER", "CASH", "CREDIT_CARD"};
-                    int idx = 0;
-                    for (Map<String, Object> ord : completedOrders) {
-                        Long orderId = ((Number) ord.get("id")).longValue();
-                        Long customerId = ((Number) ord.get("customer_id")).longValue();
-                        Long staffId = ord.get("staff_id") != null ? ((Number) ord.get("staff_id")).longValue() : null;
-                        BigDecimal totalAmount = ord.get("total_amount") != null ? (BigDecimal) ord.get("total_amount") : BigDecimal.ZERO;
-                        BigDecimal discountAmount = ord.get("discount_amount") != null ? (BigDecimal) ord.get("discount_amount") : BigDecimal.ZERO;
-                        String vCode = (String) ord.get("voucher_code");
-                        BigDecimal subtotal = totalAmount.add(discountAmount);
-                        BigDecimal tax = totalAmount.multiply(BigDecimal.valueOf(0.08)).setScale(2, java.math.RoundingMode.HALF_UP);
-                        BigDecimal finalTotal = totalAmount.add(tax);
-                        String method = methods[idx % methods.length];
-                        String code = String.format("HD-2026102%d-%03d", 7 - idx, 100 - idx);
-
-                        jdbcTemplate.update("""
-                                INSERT INTO public.invoices
-                                (invoice_code, order_id, customer_id, staff_id, subtotal_amount, discount_amount, voucher_code, voucher_discount, tax_amount, final_amount, payment_method, payment_status, payment_date, notes)
-                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PAID', CURRENT_TIMESTAMP - (INTERVAL '1 day' * ?), ?)
-                                """,
-                                code, orderId, customerId, staffId, subtotal, discountAmount, vCode, discountAmount, tax, finalTotal, method, idx,
-                                "Hóa đơn xuất tự động cho đơn hàng #" + orderId
-                        );
-                        idx++;
-                    }
-                    log.info("Đã tạo {} hóa đơn bán hàng mẫu cho đơn hàng COMPLETED", completedOrders.size());
-                }
-            }
-        } catch (Exception e) {
-            log.warn("Không thể tạo dữ liệu hóa đơn mẫu: {}", e.getMessage());
         }
     }
 
@@ -417,7 +366,7 @@ public class AdminInvoiceRepository {
         String sql = """
                 SELECT
                     COUNT(*) AS total,
-                    COALESCE(SUM(final_amount), 0) AS total_revenue,
+                    COALESCE(SUM(final_amount) FILTER (WHERE payment_status = 'PAID'), 0) AS total_revenue,
                     COUNT(*) FILTER (WHERE payment_method = 'CASH') AS cash_count,
                     COUNT(*) FILTER (WHERE payment_method = 'BANK_TRANSFER') AS bank_transfer_count,
                     COUNT(*) FILTER (WHERE payment_method = 'CREDIT_CARD') AS pos_card_count,
@@ -450,7 +399,7 @@ public class AdminInvoiceRepository {
                 LEFT JOIN public.customers c ON c.id = o.customer_id
                 LEFT JOIN public.order_items oi ON oi.order_id = o.id
                 WHERE o.id NOT IN (SELECT order_id FROM public.invoices)
-                  AND o.status != 'CANCELLED'
+                  AND o.status = 'COMPLETED'
                 GROUP BY o.id, c.full_name, c.phone, o.order_date, o.status, o.total_amount
                 ORDER BY o.order_date DESC, o.id DESC
                 LIMIT 50

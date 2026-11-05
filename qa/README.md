@@ -4,6 +4,10 @@ Bộ kiểm thử này không sửa mã nghiệp vụ. Các request ghi chạy t
 
 ## Chạy lại trên máy hiện tại
 
+Chạy `node qa/harness/invoice-ui-check.mjs` để kiểm tra lập/xem hóa đơn ngay trong trang, API lỗi/thử lại, phản hồi cũ khi đổi đơn, khóa tổng tiền đã chốt, xác nhận thu tiền, in A4/K80, tải PDF và bố cục mobile. Script dùng API giả lập, không ghi database; ảnh nằm trong `qa/artifacts/invoice-create-desktop.png` và `invoice-create-mobile.png`.
+
+Chạy riêng `node qa/harness/admin-login-check.mjs` để kiểm tra giao diện đăng nhập admin ở desktop, tablet và mobile (320–390px), hiện/ẩn mật khẩu, validation, loading/lỗi, tài khoản demo và đăng nhập ADMIN/STAFF. Script dùng API giả lập, không ghi database; ảnh xem trước nằm trong `qa/artifacts/admin-login-desktop.png` và `admin-login-mobile.png`.
+
 1. Chạy các lệnh sau trong PowerShell ở `D:\furniture` để biên dịch và tạo classpath. Maven Wrapper có lỗi `.Target[0]` trên môi trường hiện tại nên dùng bản Maven có sẵn:
 
 ```powershell
@@ -12,7 +16,7 @@ $qaMaven = Get-ChildItem C:/Users/LENOVO/.m2/wrapper/dists/apache-maven-3.9.14 -
 & $qaMaven -f backend/pom.xml -o '-Dmaven.repo.local=C:/Users/LENOVO/.m2/repository' dependency:build-classpath '-Dmdep.outputFile=D:/furniture/qa/artifacts/classpath.txt'
 ```
 
-Lệnh test hiện có một assertion không khớp thông báo; Maven trả lỗi sau khi chạy đủ 99 ca. Không coi exit code thành công của các script tổng hợp là mọi ca đều đạt: xem trường `pass` trong JSON.
+Kiểm tra kết quả từng bộ test và trường `pass` trong JSON của các script tổng hợp.
 
 2. Phụ thuộc PGlite đã cài tại `qa/harness/node_modules`. Nếu thiếu, chạy `npm.cmd install --prefix qa/harness`. Frontend cũng cần dependencies riêng trong `frontend/node_modules`.
 
@@ -43,7 +47,9 @@ Chuông admin mở đúng chi tiết đơn chờ duyệt hoặc biểu mẫu s�
 
 Admin cũng nhận thông báo cho tối đa 5 đơn có trạng thái `CANCELLED` từ API hiện tại; bấm để mở chi tiết. Thông báo hủy có dấu đã đọc riêng, nên vẫn báo mới nếu thông báo chờ duyệt của đơn đó đã được đọc. API chưa lưu người hủy hoặc thời điểm hủy riêng nên giao diện không gán người hủy hay thời gian sự kiện.
 
-Sau khi chạy `start.mjs`, dùng `node qa/harness/shipping-api-check.mjs` để kiểm tra luồng `PENDING → CONFIRMED → SHIPPING → COMPLETED`, thời điểm duyệt và địa chỉ giao được giữ nguyên. Script chỉ ghi vào database QA local.
+Sau khi chạy `start.mjs`, dùng `node qa/harness/shipping-api-check.mjs` để kiểm tra luồng `PENDING → CONFIRMED → SHIPPING → COMPLETED`, thời điểm duyệt và địa chỉ giao được giữ nguyên. Khi xác nhận hoàn tất và đã thu đủ tiền COD, hóa đơn `PAID` được tạo cùng transaction; lỗi lưu hóa đơn phải rollback trạng thái giao hàng. Test cũng kiểm tra chống trùng, bổ sung hóa đơn đơn cũ với voucher hết hạn và doanh thu từ hóa đơn `PAID`. Script chỉ ghi vào database QA local.
+
+Đơn cũ đã hoàn thành nhưng chưa có hóa đơn: admin vào **Hóa đơn → Lập hóa đơn mới**, chọn đơn, kiểm tra phương thức và xác nhận đã thu đủ tiền. Không tự tạo hóa đơn mẫu khi khởi động; không áp lại voucher, thêm VAT hoặc đổi số tiền đã chốt. Tổng doanh thu, biểu đồ và báo cáo xuất bán hàng dùng hóa đơn đã thanh toán theo ngày thanh toán; đơn cũ thiếu hóa đơn cần đối soát và bổ sung trước khi được tính doanh thu.
 
 Backend tự chạy migration `backend/src/main/resources/order_shipping.sql` khi khởi động để thêm trạng thái vận chuyển, thời điểm duyệt và địa chỉ giao lúc duyệt; không gán thời điểm giả cho đơn cũ. Client ước tính ngày lịch từ lúc duyệt: TP.HCM 1–2 ngày, miền Nam khác 2–3 ngày, miền Trung/Tây Nguyên 2–3 ngày, miền Bắc 4–5 ngày. Đây là quy tắc mô phỏng theo vùng, không phải theo dõi hãng vận chuyển.
 

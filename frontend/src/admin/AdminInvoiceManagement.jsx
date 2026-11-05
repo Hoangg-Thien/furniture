@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   Receipt,
   Search,
@@ -61,9 +61,9 @@ export default function AdminInvoiceManagement({ currentUser }) {
   const [totalPages, setTotalPages] = useState(1)
   const [totalElements, setTotalElements] = useState(0)
 
-  // Modals
-  const [showCreateModal, setShowCreateModal] = useState(false)
-  const [showDetailModal, setShowDetailModal] = useState(false)
+  // Invoice views
+  const [creatingInvoice, setCreatingInvoice] = useState(false)
+  const [viewingInvoice, setViewingInvoice] = useState(false)
   const [selectedInvoice, setSelectedInvoice] = useState(null)
   const [detailLoading, setDetailLoading] = useState(false)
   const [printFormat, setPrintFormat] = useState('A4') // A4 | K80
@@ -71,13 +71,38 @@ export default function AdminInvoiceManagement({ currentUser }) {
   // Eligible orders for creating invoices
   const [eligibleOrders, setEligibleOrders] = useState([])
   const [eligibleLoading, setEligibleLoading] = useState(false)
+  const [eligibleError, setEligibleError] = useState('')
+  const [orderLoading, setOrderLoading] = useState(false)
+  const [previewError, setPreviewError] = useState('')
+  const orderController = useRef(null)
+  const previewController = useRef(null)
+  const createHeadingRef = useRef(null)
+  const createButtonRef = useRef(null)
+
+  useEffect(() => () => {
+    orderController.current?.abort()
+    previewController.current?.abort()
+  }, [])
+
+  function closeCreate() {
+    orderController.current?.abort()
+    previewController.current?.abort()
+    setCreatingInvoice(false)
+    setSelectedOrderId('')
+    setSelectedOrderInfo(null)
+    setPreviewCalculation(null)
+    setVoucherCodeInput('')
+    setNotes('')
+    setCalculating(false)
+    setOrderLoading(false)
+    window.requestAnimationFrame(() => createButtonRef.current?.focus())
+  }
   const [selectedOrderId, setSelectedOrderId] = useState('')
   const [selectedOrderInfo, setSelectedOrderInfo] = useState(null)
 
   // Form inputs for creating invoice
   const [voucherCodeInput, setVoucherCodeInput] = useState('')
-  const [includeVat, setIncludeVat] = useState(false)
-  const [paymentMethod, setPaymentMethod] = useState('BANK_TRANSFER')
+  const [paymentMethod, setPaymentMethod] = useState('CASH')
   const [notes, setNotes] = useState('')
   const [previewCalculation, setPreviewCalculation] = useState(null)
   const [calculating, setCalculating] = useState(false)
@@ -140,17 +165,17 @@ export default function AdminInvoiceManagement({ currentUser }) {
   // Load eligible orders
   const fetchEligibleOrders = async () => {
     setEligibleLoading(true)
+    setEligibleError('')
     try {
       const baseUrl = getApiBaseUrl()
       const res = await fetch(`${baseUrl}/api/admin/invoices/eligible-orders`, {
         headers: getApiHeaders()
       })
-      if (res.ok) {
-        const data = await res.json()
-        setEligibleOrders(data || [])
-      }
+      if (!res.ok) throw new Error('Không thể tải đơn hàng để lập hóa đơn. Vui lòng thử lại.')
+      const data = await res.json()
+      setEligibleOrders(data || [])
     } catch (err) {
-      console.error('Lỗi tải danh sách đơn chờ xuất hóa đơn:', err)
+      setEligibleError(err.message)
     } finally {
       setEligibleLoading(false)
     }
@@ -161,12 +186,19 @@ export default function AdminInvoiceManagement({ currentUser }) {
     fetchStats()
   }, [page, pageSize, selectedMethod, selectedStatus])
 
-  // Khi chọn 1 đơn hàng trong modal tạo hóa đơn, tự động tải chi tiết và preview tính tiền
+  // Tải chi tiết đơn và giá trị hóa đơn do backend tính.
   const handleSelectOrder = async (orderId) => {
+    orderController.current?.abort()
+    previewController.current?.abort()
+    const controller = new AbortController()
+    orderController.current = controller
     setSelectedOrderId(orderId)
+    setSelectedOrderInfo(null)
     setVoucherCodeInput('')
-    setIncludeVat(false)
     setPreviewCalculation(null)
+    setPreviewError('')
+    setCalculating(false)
+    setOrderLoading(Boolean(orderId))
 
     if (!orderId) {
       setSelectedOrderInfo(null)
@@ -176,10 +208,12 @@ export default function AdminInvoiceManagement({ currentUser }) {
     try {
       const baseUrl = getApiBaseUrl()
       const res = await fetch(`${baseUrl}/api/admin/orders/${orderId}`, {
-        headers: getApiHeaders()
+        headers: getApiHeaders(), signal: controller.signal
       })
+      if (!res.ok) throw new Error('Không thể tải chi tiết đơn hàng. Vui lòng chọn lại đơn.')
       if (res.ok) {
         const orderData = await res.json()
+        if (controller.signal.aborted) return
         setSelectedOrderInfo(orderData)
         // Nếu đơn hàng đã có voucher từ trước, điền sẵn
         if (orderData.voucherCode) {
@@ -189,19 +223,27 @@ export default function AdminInvoiceManagement({ currentUser }) {
         calculatePreview(orderId, orderData.voucherCode || '', false)
       }
     } catch (err) {
-      console.error('Lỗi tải chi tiết đơn hàng:', err)
+      if (!controller.signal.aborted) setPreviewError(err.message)
+    } finally {
+      if (!controller.signal.aborted) setOrderLoading(false)
     }
   }
 
   // Gọi API preview calculation
   const calculatePreview = async (orderId, voucherCode, vat) => {
     if (!orderId) return
+    previewController.current?.abort()
+    const controller = new AbortController()
+    previewController.current = controller
     setCalculating(true)
+    setPreviewCalculation(null)
+    setPreviewError('')
     try {
       const baseUrl = getApiBaseUrl()
       const res = await fetch(`${baseUrl}/api/admin/invoices/preview-calculation`, {
         method: 'POST',
         headers: getApiHeaders({ 'Content-Type': 'application/json' }),
+        signal: controller.signal,
         body: JSON.stringify({
           orderId: Number(orderId),
           voucherCode: voucherCode ? voucherCode.trim() : null,
@@ -209,21 +251,20 @@ export default function AdminInvoiceManagement({ currentUser }) {
           vatPercent: 8.0
         })
       })
-      if (res.ok) {
-        const data = await res.json()
-        setPreviewCalculation(data)
-      }
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Không thể tính tiền hóa đơn. Vui lòng thử lại.')
+      if (!controller.signal.aborted) setPreviewCalculation(data)
     } catch (err) {
-      console.error('Lỗi tính toán xem trước:', err)
+      if (!controller.signal.aborted) setPreviewError(err.message)
     } finally {
-      setCalculating(false)
+      if (!controller.signal.aborted) setCalculating(false)
     }
   }
 
   // Xem chi tiết hóa đơn
   const handleViewDetail = async (invoiceId) => {
     setDetailLoading(true)
-    setShowDetailModal(true)
+    setViewingInvoice(true)
     try {
       const baseUrl = getApiBaseUrl()
       const res = await fetch(`${baseUrl}/api/admin/invoices/${invoiceId}`, {
@@ -234,7 +275,7 @@ export default function AdminInvoiceManagement({ currentUser }) {
       setSelectedInvoice(data)
     } catch (err) {
       showToast(err.message, 'error')
-      setShowDetailModal(false)
+      setViewingInvoice(false)
     } finally {
       setDetailLoading(false)
     }
@@ -266,11 +307,17 @@ export default function AdminInvoiceManagement({ currentUser }) {
   // Tạo hóa đơn mới
   const handleCreateInvoiceSubmit = async (e) => {
     e.preventDefault()
+    if (createSubmitting) return
     if (!selectedOrderId) {
       showToast('Vui lòng chọn đơn hàng cần xuất hóa đơn!', 'error')
       return
     }
+    if (orderLoading || calculating || !selectedOrderInfo || !previewCalculation) {
+      showToast('Vui lòng chờ tính tiền hóa đơn thành công trước khi xuất.', 'error')
+      return
+    }
 
+    if (!window.confirm('Xác nhận đã thu đủ số tiền đã chốt của đơn hàng? Hóa đơn sẽ ghi nhận thanh toán thành công.')) return
     setCreateSubmitting(true)
     try {
       const baseUrl = getApiBaseUrl()
@@ -286,7 +333,7 @@ export default function AdminInvoiceManagement({ currentUser }) {
           orderId: Number(selectedOrderId),
           paymentMethod: paymentMethod,
           voucherCode: voucherCodeInput ? voucherCodeInput.trim() : null,
-          includeVat: includeVat,
+          includeVat: false,
           vatPercent: 8.0,
           notes: notes
         })
@@ -298,16 +345,16 @@ export default function AdminInvoiceManagement({ currentUser }) {
       }
 
       showToast(`Đã xuất hóa đơn ${data.invoiceCode} thành công!`, 'success')
-      setShowCreateModal(false)
+      setCreatingInvoice(false)
       setSelectedOrderId('')
       setSelectedOrderInfo(null)
       setVoucherCodeInput('')
       setNotes('')
       fetchInvoices()
       fetchStats()
-      // Mở luôn modal xem và in hóa đơn vừa tạo
+      // Chuyển sang bản xem và in sau khi lưu thành công.
       setSelectedInvoice(data)
-      setShowDetailModal(true)
+      setViewingInvoice(true)
     } catch (err) {
       showToast(err.message, 'error')
     } finally {
@@ -382,6 +429,7 @@ export default function AdminInvoiceManagement({ currentUser }) {
         </div>
       )}
 
+      {!creatingInvoice && !viewingInvoice && <>
       {/* Page Header */}
       <div className="admin-page-header">
         <div>
@@ -411,9 +459,11 @@ export default function AdminInvoiceManagement({ currentUser }) {
           <button
             type="button"
             className="admin-btn admin-btn-accent"
+            ref={createButtonRef}
             onClick={() => {
               fetchEligibleOrders()
-              setShowCreateModal(true)
+              setCreatingInvoice(true)
+              window.requestAnimationFrame(() => createHeadingRef.current?.focus())
             }}
           >
             <Plus size={16} />
@@ -800,9 +850,9 @@ export default function AdminInvoiceManagement({ currentUser }) {
                       </td>
                       <td>{getMethodBadge(inv.paymentMethod)}</td>
                       <td>
-                        {inv.voucherDiscount && Number(inv.voucherDiscount) > 0 ? (
+                        {Number(inv.discountAmount || 0) + Number(inv.voucherDiscount || 0) > 0 ? (
                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', padding: '2px 6px', background: '#FFEDD5', color: '#C2410C', border: '1px solid #FED7AA', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600 }}>
-                            <Tag size={10} /> -{formatVnd(inv.voucherDiscount)}
+                            <Tag size={10} /> -{formatVnd(Number(inv.discountAmount || 0) + Number(inv.voucherDiscount || 0))}
                           </span>
                         ) : (
                           <span style={{ color: 'var(--admin-text-muted)', fontSize: '0.82rem' }}>0 đ</span>
@@ -906,29 +956,30 @@ export default function AdminInvoiceManagement({ currentUser }) {
         </div>
       </div>
 
+      </>}
       {/* ========================================================================= */}
       {/* MODAL 1: LẬP HÓA ĐƠN MỚI TỪ ĐƠN HÀNG */}
       {/* ========================================================================= */}
-      {showCreateModal && (
-        <div className="admin-modal-backdrop" onClick={() => setShowCreateModal(false)}>
-          <div className="admin-modal-card inv-create-modal" onClick={(e) => e.stopPropagation()}>
+      {creatingInvoice && (
+        <section className="admin-card inv-create-page" aria-labelledby="invoice-create-title">
+          <div>
             <div className="admin-modal-header" style={{ borderBottom: '1px solid var(--admin-border)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <div className="modal-icon-badge success" style={{ background: '#ECFDF5', color: '#059669' }}>
                   <Receipt size={20} />
                 </div>
                 <div>
-                  <h3 className="modal-title">Lập Hóa Đơn Bán Hàng Mới</h3>
-                  <p className="modal-subtitle">Chọn đơn hàng chưa xuất hóa đơn, áp voucher &amp; xác nhận phương thức thanh toán</p>
+                  <h1 className="modal-title" id="invoice-create-title" ref={createHeadingRef} tabIndex={-1}>Lập Hóa Đơn Bán Hàng Mới</h1>
+                  <p className="modal-subtitle">Bổ sung hóa đơn cho đơn đã giao xong, chưa có hóa đơn và đã xác nhận thu đủ tiền</p>
                 </div>
               </div>
-              <button type="button" className="modal-close-btn" onClick={() => setShowCreateModal(false)}>
-                <X size={20} />
+              <button type="button" className="admin-btn admin-btn-outline" disabled={createSubmitting} onClick={closeCreate}>
+                Về danh sách
               </button>
             </div>
 
             <form onSubmit={handleCreateInvoiceSubmit}>
-              <div className="admin-modal-body inv-create-body">
+              <div className="inv-create-body">
                 {/* Bước 1: Chọn đơn hàng */}
                 <div className="inv-form-section">
                   <h4 className="inv-section-title">
@@ -938,15 +989,19 @@ export default function AdminInvoiceManagement({ currentUser }) {
                     <div className="inv-loading-box">
                       <RefreshCw size={16} className="spin" /> Đang tải danh sách đơn hàng chưa lập hóa đơn...
                     </div>
+                  ) : eligibleError ? (
+                    <div className="inv-calc-feedback feedback-warning" role="alert">{eligibleError} <button type="button" className="admin-btn admin-btn-outline" onClick={fetchEligibleOrders}>Thử lại</button></div>
                   ) : eligibleOrders.length === 0 ? (
                     <div className="inv-empty-orders">
                       <CheckCircle2 size={24} color="#059669" />
-                      <span>Tất cả các đơn hàng hợp lệ hiện đều đã được xuất hóa đơn đầy đủ!</span>
+                      <span>Chưa có đơn đã hoàn thành cần bổ sung hóa đơn. Đơn mới sẽ được ghi nhận khi xác nhận giao thành công và đã thu đủ tiền.</span>
                     </div>
                   ) : (
                     <div className="inv-order-select-grid">
                       <select
                         className="form-input"
+                        aria-label="Đơn hàng cần xuất hóa đơn"
+                        disabled={createSubmitting}
                         value={selectedOrderId}
                         onChange={(e) => handleSelectOrder(e.target.value)}
                         required
@@ -961,6 +1016,8 @@ export default function AdminInvoiceManagement({ currentUser }) {
                     </div>
                   )}
 
+                  {orderLoading && <p role="status">Đang tải chi tiết đơn hàng...</p>}
+                  {previewError && <p className="inv-calc-feedback feedback-warning" role="alert">{previewError}</p>}
                   {/* Thông tin preview đơn hàng */}
                   {selectedOrderInfo && (
                     <div className="inv-order-preview-card">
@@ -1015,51 +1072,18 @@ export default function AdminInvoiceManagement({ currentUser }) {
                 {selectedOrderId && (
                   <div className="inv-form-section">
                     <h4 className="inv-section-title">
-                      <span className="inv-step-badge">2</span> Khuyến mãi, Voucher &amp; Thuế VAT
+                      <span className="inv-step-badge">2</span> Số tiền đã chốt khi đặt hàng
                     </h4>
 
-                    <div className="inv-calc-controls-row">
-                      <div className="inv-voucher-input-group">
-                        <label>Mã Voucher / Khuyến mãi:</label>
-                        <div className="inv-voucher-field">
-                          <Tag size={15} className="inv-field-icon" />
-                          <input
-                            type="text"
-                            placeholder="Nhập mã voucher (vd: TET2026, VIP10...)"
-                            value={voucherCodeInput}
-                            onChange={(e) => setVoucherCodeInput(e.target.value.toUpperCase())}
-                          />
-                          <button
-                            type="button"
-                            className="admin-btn admin-btn-outline inv-apply-btn"
-                            onClick={() => calculatePreview(selectedOrderId, voucherCodeInput, includeVat)}
-                            disabled={calculating}
-                          >
-                            {calculating ? <RefreshCw size={13} className="spin" /> : 'Áp dụng'}
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="inv-vat-toggle-group">
-                        <label className="inv-checkbox-label">
-                          <input
-                            type="checkbox"
-                            checked={includeVat}
-                            onChange={(e) => {
-                              const checked = e.target.checked
-                              setIncludeVat(checked)
-                              calculatePreview(selectedOrderId, voucherCodeInput, checked)
-                            }}
-                          />
-                          <span className="inv-check-text">
-                            <strong>Xuất hóa đơn tài chính VAT (8%)</strong>
-                            <small>Áp dụng thuế giá trị gia tăng sau chiết khấu</small>
-                          </span>
-                        </label>
-                      </div>
-                    </div>
+                    <p className="inv-calc-feedback feedback-success">Giữ nguyên tổng tiền và giảm giá khi đặt hàng. Không áp thêm voucher hoặc VAT khi lập hóa đơn.</p>
+                    <button type="button" className="admin-btn admin-btn-outline"
+                      disabled={calculating || orderLoading || createSubmitting || !selectedOrderInfo}
+                      onClick={() => calculatePreview(selectedOrderId, voucherCodeInput, false)}>
+                      Tải lại số tiền
+                    </button>
 
                     {/* Feedback Voucher */}
+                    {calculating && <p role="status">Đang tính tiền hóa đơn...</p>}
                     {previewCalculation && previewCalculation.voucherMessage && (
                       <div className={`inv-calc-feedback ${previewCalculation.voucherValid ? 'feedback-success' : 'feedback-warning'}`}>
                         {previewCalculation.voucherValid ? <Check size={16} /> : <AlertCircle size={16} />}
@@ -1215,7 +1239,7 @@ export default function AdminInvoiceManagement({ currentUser }) {
                 <button
                   type="button"
                   className="admin-btn admin-btn-outline"
-                  onClick={() => setShowCreateModal(false)}
+                  onClick={closeCreate}
                   disabled={createSubmitting}
                 >
                   Hủy Bỏ
@@ -1223,7 +1247,7 @@ export default function AdminInvoiceManagement({ currentUser }) {
                 <button
                   type="submit"
                   className="admin-btn admin-btn-accent"
-                  disabled={!selectedOrderId || createSubmitting}
+                  disabled={!selectedOrderId || !selectedOrderInfo || !previewCalculation || orderLoading || calculating || createSubmitting}
                 >
                   {createSubmitting ? (
                     <>
@@ -1240,15 +1264,15 @@ export default function AdminInvoiceManagement({ currentUser }) {
               </div>
             </form>
           </div>
-        </div>
+        </section>
       )}
 
       {/* ========================================================================= */}
       {/* MODAL 2: CHI TIẾT & MẪU IN HÓA ĐƠN BÁN LẺ SHOWROOM (A4 / K80) */}
       {/* ========================================================================= */}
-      {showDetailModal && (
-        <div className="admin-modal-backdrop" onClick={() => setShowDetailModal(false)}>
-          <div className="admin-modal-card inv-printable-modal" onClick={(e) => e.stopPropagation()}>
+      {viewingInvoice && (
+        <section className="inv-detail-page" aria-label="Chi tiết và in hóa đơn">
+          <div className="inv-printable-modal">
             {/* Top Toolbar (Hidden on print) */}
             <div className="inv-modal-toolbar print-hide">
               <div className="inv-toolbar-left">
@@ -1297,7 +1321,8 @@ export default function AdminInvoiceManagement({ currentUser }) {
                   type="button"
                   className="modal-close-btn"
                   style={{ width: '34px', height: '34px', background: '#F1F5F9', border: '1px solid #E2E8F0', borderRadius: '8px' }}
-                  onClick={() => setShowDetailModal(false)}
+                  onClick={() => setViewingInvoice(false)}
+                  aria-label="Về danh sách hóa đơn"
                 >
                   <X size={18} />
                 </button>
@@ -1409,6 +1434,12 @@ export default function AdminInvoiceManagement({ currentUser }) {
                         <span>Tổng tiền hàng:</span>
                         <span>{formatVnd(selectedInvoice.subtotalAmount)}</span>
                       </div>
+                      {Number(selectedInvoice.discountAmount) > 0 && (
+                        <div className="inv-sum-row inv-sum-discount">
+                          <span>Giảm giá khi đặt hàng{selectedInvoice.voucherCode ? ` (${selectedInvoice.voucherCode})` : ''}:</span>
+                          <span>-{formatVnd(selectedInvoice.discountAmount)}</span>
+                        </div>
+                      )}
                       {selectedInvoice.voucherDiscount && Number(selectedInvoice.voucherDiscount) > 0 && (
                         <div className="inv-sum-row inv-sum-discount">
                           <span>Chiết khấu Voucher ({selectedInvoice.voucherCode}):</span>
@@ -1467,7 +1498,7 @@ export default function AdminInvoiceManagement({ currentUser }) {
               ) : null}
             </div>
           </div>
-        </div>
+        </section>
       )}
     </div>
   )
