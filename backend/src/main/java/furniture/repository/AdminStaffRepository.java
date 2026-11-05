@@ -72,7 +72,7 @@ public class AdminStaffRepository {
     public Optional<Map<String, Object>> findById(Long staffId) {
         String sql = """
                 SELECT s.id, s.user_id, u.username, s.full_name, s.phone, s.email, s.address,
-                       COALESCE(u.is_active, true) AS is_active, s.created_at,
+                       COALESCE(u.is_active, true) AS is_active, s.created_at, s.staff_type,
                        COUNT(DISTINCT o.id) AS handled_orders_count,
                        COUNT(DISTINCT pr.id) AS receipts_count
                 FROM public.staff s
@@ -80,7 +80,7 @@ public class AdminStaffRepository {
                 LEFT JOIN public.orders o ON o.staff_id = s.id
                 LEFT JOIN public.purchase_receipts pr ON pr.staff_id = s.id
                 WHERE s.id = ?
-                GROUP BY s.id, s.user_id, u.username, s.full_name, s.phone, s.email, s.address, u.is_active, s.created_at
+                GROUP BY s.id, s.user_id, u.username, s.full_name, s.phone, s.email, s.address, u.is_active, s.created_at, s.staff_type
                 """;
 
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql, staffId);
@@ -104,14 +104,14 @@ public class AdminStaffRepository {
         String baseCte = """
                 WITH staff_stats AS (
                     SELECT s.id, s.user_id, u.username, s.full_name, s.phone, s.email, s.address,
-                           COALESCE(u.is_active, true) AS is_active, s.created_at,
+                           COALESCE(u.is_active, true) AS is_active, s.created_at, s.staff_type,
                            COUNT(DISTINCT o.id) AS handled_orders_count,
                            COUNT(DISTINCT pr.id) AS receipts_count
                     FROM public.staff s
                     LEFT JOIN public.users u ON u.id = s.user_id
                     LEFT JOIN public.orders o ON o.staff_id = s.id
                     LEFT JOIN public.purchase_receipts pr ON pr.staff_id = s.id
-                    GROUP BY s.id, s.user_id, u.username, s.full_name, s.phone, s.email, s.address, u.is_active, s.created_at
+                    GROUP BY s.id, s.user_id, u.username, s.full_name, s.phone, s.email, s.address, u.is_active, s.created_at, s.staff_type
                 )
                 """;
 
@@ -170,7 +170,7 @@ public class AdminStaffRepository {
 
             return new StaffSummaryDto(
                     id, userId, username, fullName, phone, email, address,
-                    handledOrdersCount, receiptsCount, active, createdAt);
+                    handledOrdersCount, receiptsCount, active, createdAt, rs.getString("staff_type"));
         }, selectParams.toArray());
 
         boolean isFirst = page <= 0;
@@ -179,30 +179,32 @@ public class AdminStaffRepository {
         return new PageResponse<>(content, page, size, totalElements, totalPages, isFirst, isLast);
     }
 
-    public Long insertStaff(Long userId, String fullName, String email, String phone, String address) {
+    public Long insertStaff(Long userId, String fullName, String email, String phone, String address, String staffType) {
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
             PreparedStatement ps = connection.prepareStatement(
-                    "INSERT INTO public.staff (user_id, full_name, email, phone, address, role, created_at) " +
-                    "VALUES (?, ?, ?, ?, ?, 'STAFF', CURRENT_TIMESTAMP)",
+                    "INSERT INTO public.staff (user_id, full_name, email, phone, address, role, created_at, staff_type) " +
+                    "VALUES (?, ?, ?, ?, ?, 'STAFF', CURRENT_TIMESTAMP, ?)",
                     new String[] { "id" });
             ps.setLong(1, userId);
             ps.setString(2, fullName);
             ps.setString(3, email != null && !email.trim().isEmpty() ? email.trim() : null);
             ps.setString(4, phone != null && !phone.trim().isEmpty() ? phone.trim() : null);
             ps.setString(5, address != null && !address.trim().isEmpty() ? address.trim() : null);
+            ps.setString(6, staffType);
             return ps;
         }, keyHolder);
         return extractId(keyHolder);
     }
 
-    public int updateStaff(Long staffId, String fullName, String email, String phone, String address) {
+    public int updateStaff(Long staffId, String fullName, String email, String phone, String address, String staffType) {
         return jdbcTemplate.update(
-                "UPDATE public.staff SET full_name = ?, email = ?, phone = ?, address = ? WHERE id = ?",
+                "UPDATE public.staff SET full_name = ?, email = ?, phone = ?, address = ?, staff_type = COALESCE(?, staff_type) WHERE id = ?",
                 fullName,
                 email != null && !email.trim().isEmpty() ? email.trim() : null,
                 phone != null && !phone.trim().isEmpty() ? phone.trim() : null,
                 address != null && !address.trim().isEmpty() ? address.trim() : null,
+                staffType,
                 staffId);
     }
 

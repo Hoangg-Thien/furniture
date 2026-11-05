@@ -1,3 +1,4 @@
+import { mockAdminSession } from './admin-auth.mjs'
 import assert from 'node:assert/strict'
 import { fileURLToPath } from 'node:url'
 import { createServer } from '../../frontend/node_modules/vite/dist/node/index.js'
@@ -102,7 +103,7 @@ try {
   const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } })
   await context.addInitScript(() => {
     localStorage.setItem('furniture_customer_user', JSON.stringify({ id: 4, customerId: 4, role: 'CUSTOMER', username: 'refresh-test' }))
-    localStorage.setItem('furniture_admin_user', JSON.stringify({ id: 1, role: 'ADMIN', username: 'admin-test' }))
+    localStorage.setItem('furniture_admin_user', JSON.stringify({ id: 1, role: 'ADMIN', accessToken: 'qa-mock-token', apiBaseUrl: 'http://localhost:8080', username: 'admin-test' }))
     const timers = new Map()
     let nextId = 0
     const set = window.setInterval
@@ -139,6 +140,7 @@ try {
     else if (path === '/api/orders/42') body = { order: order(), items: [item] }
     await route.fulfill({ json: body })
   })
+  await mockAdminSession(context)
   const client = await context.newPage()
   const admin = await context.newPage()
   for (const page of [client, admin]) {

@@ -1,3 +1,4 @@
+import { mockAdminSession } from './admin-auth.mjs'
 // UI regression checks use an isolated in-memory API. No application database is modified.
 import assert from 'node:assert/strict'
 import fs from 'node:fs/promises'
@@ -30,7 +31,7 @@ const fixtures = () => Array.from({ length: 13 }, (_, index) => ({
 }))
 
 await page.addInitScript(() => {
-  localStorage.setItem('furniture_admin_user', JSON.stringify({ id: 1, username: 'admin01', role: 'ADMIN' }))
+  localStorage.setItem('furniture_admin_user', JSON.stringify({ id: 1, username: 'admin01', role: 'ADMIN', accessToken: 'qa-mock-token', apiBaseUrl: 'http://localhost:8080' }))
 })
 await page.route('**/api/**', async route => {
   const url = new URL(route.request().url())
@@ -79,6 +80,7 @@ const noOverflow = async () => assert(await page.evaluate(() => document.documen
 const openCreate = () => page.getByRole('button', { name: 'Tạo chiến dịch', exact: true }).click()
 
 try {
+  await mockAdminSession(page)
   await page.goto(origin + '/admin/promotions')
   await page.getByRole('heading', { name: 'Ưu đãi đầu tiên, khởi đầu mới' }).waitFor()
   await page.evaluate(() => document.fonts.ready)

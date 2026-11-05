@@ -13,5 +13,6 @@ public record StaffSummaryDto(
     Long handledOrdersCount,
     Long receiptsCount,
     Boolean isActive,
-    LocalDateTime createdAt
+    LocalDateTime createdAt,
+    String staffType
 ) {}

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { mockAdminSession } from './admin-auth.mjs'
 import { fileURLToPath } from 'node:url'
 import { createServer } from '../../frontend/node_modules/vite/dist/node/index.js'
 import { chromium } from 'file:///C:/Users/LENOVO/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright/index.mjs'
@@ -16,17 +17,18 @@ try {
   await page.route('https://**', route => route.fulfill({ contentType: 'text/css', body: '' }))
   await page.route('**/api/**', async route => {
     const path = new URL(route.request().url()).pathname
-    if (path === '/api/auth/login') {
+    if (path === '/api/auth/admin/login') {
       const body = route.request().postDataJSON()
       requests.push(body)
       if (mode === 'failure') {
         await new Promise(resolve => { releaseLogin = resolve })
         return route.fulfill({ status: 401, json: { error: 'Tên đăng nhập hoặc mật khẩu không chính xác.' } })
       }
-      return route.fulfill({ json: { id: 1, username: body.username, role: mode } })
+      return route.fulfill({ json: { user: { userId: 1, username: body.username, role: mode }, accessToken: 'qa-mock-token', staffType: mode === 'STAFF' ? 'SALES' : '' } })
     }
     return route.fulfill({ json: path === '/api/products' || path === '/api/admin/categories' ? [] : { content: [], total: 0, totalPages: 1 } })
   })
+  await mockAdminSession(page)
   const origin = server.resolvedUrls.local[0]
   await page.goto(new URL('/admin', origin).href)
   await page.getByRole('heading', { name: 'Chào mừng trở lại.' }).waitFor()

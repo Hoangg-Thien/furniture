@@ -1,3 +1,5 @@
+import { adminApiHeaders } from './admin-auth.mjs'
+import assert from 'node:assert/strict'
 import { PGlite } from '@electric-sql/pglite'
 import { PGLiteSocketServer } from '@electric-sql/pglite-socket'
 import { spawn } from 'node:child_process'
@@ -8,6 +10,7 @@ const runtime = path.join(root, 'qa/runtime/clean/backend')
 fs.mkdirSync(runtime, { recursive: true })
 fs.mkdirSync(path.resolve(runtime, '../database'), { recursive: true })
 fs.copyFileSync(path.join(root, 'database/sales.sql'), path.resolve(runtime, '../database/sales.sql'))
+fs.copyFileSync(path.join(root, 'database/admin_schema_extension.sql'), path.resolve(runtime, '../database/admin_schema_extension.sql'))
 const db = await PGlite.create()
 const socket = new PGLiteSocketServer({ db, host: '127.0.0.1', port: 15434 })
 await socket.start()
@@ -29,13 +32,17 @@ try {
   if (!ready) throw Error('Clean backend not ready after 25 seconds')
   await new Promise(r => setTimeout(r, 1500))
   for (const route of ['/api/products', '/api/admin/categories', '/api/admin/products', '/api/admin/invoices', '/api/auth/login']) {
-    const r = await fetch(`http://127.0.0.1:18081${route}`, route.endsWith('login') ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: 'admin01', password: '123456' }) } : {})
-    result.endpoints.push({ route, status: r.status, response: (await r.text()).slice(0, 1200) })
+    const r = await fetch(`http://127.0.0.1:18081${route}`, route.endsWith('login') ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: 'admin01', password: '123456' }) } : { headers: await adminApiHeaders('http://127.0.0.1:18081') })
+    result.endpoints.push({ route, status: r.status, response: (await r.text()).replace(/("accessToken"\s*:\s*")[^"]+(")/g, '$1[redacted]$2').slice(0, 1200) })
+    assert.equal(r.status, 200, `Clean startup: ${route}`)
   }
   await db.exec('ROLLBACK')
   result.schema = (await db.query("SELECT table_name FROM information_schema.tables WHERE table_schema='public' ORDER BY table_name")).rows
   result.counts = (await db.query('SELECT (SELECT COUNT(*) FROM users) AS users, (SELECT COUNT(*) FROM products) AS products')).rows
-} catch (e) { result.error = e.message }
+  assert(result.schema.some(table => table.table_name === 'admin_sessions'))
+  assert.equal((await db.query("SELECT COUNT(*)::int AS count FROM staff WHERE staff_type NOT IN ('SALES', 'WAREHOUSE', 'CONTENT')")).rows[0].count, 0)
+  assert.equal((await db.query("SELECT COUNT(*)::int AS count FROM admin_sessions WHERE expires_at NOT BETWEEN CURRENT_TIMESTAMP + INTERVAL '479' MINUTE AND CURRENT_TIMESTAMP + INTERVAL '481' MINUTE")).rows[0].count, 0, 'Session expiry must use database time')
+} catch (e) { result.error = e.message; process.exitCode = 1 }
 finally {
   fs.writeFileSync(path.join(root, 'qa/artifacts/clean-start-results.json'), JSON.stringify(result, null, 2))
   java.kill()

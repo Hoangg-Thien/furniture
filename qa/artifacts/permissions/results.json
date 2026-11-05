@@ -1,0 +1,11 @@
+{
+  "passed": 4,
+  "roles": [
+    "SALES",
+    "WAREHOUSE",
+    "CONTENT",
+    "ADMIN"
+  ],
+  "errors": [],
+  "api": "real Spring Boot on isolated PGlite"
+}

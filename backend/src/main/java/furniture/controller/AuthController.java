@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 
 import furniture.model.AuthResponse;
@@ -20,6 +21,7 @@ import furniture.model.LoginRequest;
 import furniture.model.RegisterRequest;
 import furniture.model.UpdateProfileRequest;
 import furniture.service.AuthService;
+import furniture.service.AdminSessionService;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -27,16 +29,18 @@ import furniture.service.AuthService;
 public class AuthController {
 
     private final AuthService authService;
+    private final AdminSessionService sessions;
 
-    public AuthController(AuthService authService) {
+    public AuthController(AuthService authService, AdminSessionService sessions) {
         this.authService = authService;
+        this.sessions = sessions;
     }
 
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody RegisterRequest req) {
         try {
             AuthResponse response = authService.register(req);
-            return ResponseEntity.status(HttpStatus.CREATED).body(response);
+            return ResponseEntity.status(HttpStatus.CREATED).body(response.withAccessToken(sessions.issueToken(response.userId())));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
         } catch (Exception ex) {
@@ -50,7 +54,7 @@ public class AuthController {
     public ResponseEntity<?> login(@RequestBody LoginRequest req) {
         try {
             AuthResponse response = authService.login(req);
-            return ResponseEntity.ok(response);
+            return ResponseEntity.ok(response.withAccessToken(sessions.issueToken(response.userId())));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
         } catch (SecurityException ex) {
@@ -82,7 +86,7 @@ public class AuthController {
     public ResponseEntity<?> updateProfile(@PathVariable Long userId, @RequestBody UpdateProfileRequest req) {
         try {
             AuthResponse response = authService.updateProfile(userId, req);
-            return ResponseEntity.ok(response);
+            return ResponseEntity.ok(response.withAccessToken(sessions.issueToken(response.userId())));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
         } catch (SecurityException ex) {
@@ -92,6 +96,12 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Lỗi cập nhật thông tin: " + ex.getMessage()));
         }
+    }
+
+    @PostMapping("/logout")
+    public Map<String, String> logout(@RequestHeader("Authorization") String authorization) {
+        sessions.logout(authorization);
+        return Map.of("message", "Đã đăng xuất");
     }
 
     @GetMapping("/users")

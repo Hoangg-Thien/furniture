@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import {
   FolderTree,
   FolderPlus,
@@ -11,19 +11,17 @@ import {
   X,
   Package,
   Armchair,
-  Layers,
-  Sparkles,
   Info,
   AlertTriangle,
   Eye,
   EyeOff,
-  Filter
+  ChevronRight
 } from 'lucide-react'
-import { getApiBaseUrl, getApiHeaders } from '../lib/apiConfig'
+import { getApiBaseUrl } from '../lib/apiConfig'
 
-export default function AdminCategoryManagement({ currentUser }) {
+export default function AdminCategoryManagement() {
   const [categories, setCategories] = useState([])
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   
   // Filters
@@ -59,17 +57,11 @@ export default function AdminCategoryManagement({ currentUser }) {
   const baseUrl = getApiBaseUrl()
 
   // 1. Tải danh sách categories
-  async function fetchCategories(search = searchKeyword, status = selectedStatus) {
+  const fetchCategories = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
-      const params = new URLSearchParams()
-      if (search?.trim()) params.append('search', search.trim())
-      if (status && status !== 'ALL') params.append('status', status)
-
-      const url = `${baseUrl}/api/admin/categories?${params.toString()}`
-
-      const res = await fetch(url)
+      const res = await fetch(`${baseUrl}/api/admin/categories`)
       if (!res.ok) {
         throw new Error(`Lỗi máy chủ (${res.status}): Không thể tải danh sách loại nội thất`)
       }
@@ -80,21 +72,48 @@ export default function AdminCategoryManagement({ currentUser }) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [baseUrl])
 
   useEffect(() => {
-    fetchCategories(searchKeyword, selectedStatus)
-  }, [selectedStatus])
+    fetchCategories()
+  }, [fetchCategories])
 
-  function handleSearchSubmit(e) {
-    if (e) e.preventDefault()
-    fetchCategories(searchKeyword, selectedStatus)
-  }
+  const modalOpen = showModal || showToggleModal || showDeleteModal
+  useEffect(() => {
+    if (!modalOpen) return
+    const previousFocus = document.activeElement
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const dialog = document.querySelector('.admin-category-management [role="dialog"]')
+    const focusable = () => [...dialog.querySelectorAll('button:not(:disabled), input:not(:disabled), textarea:not(:disabled)')]
+    const initialFocus = dialog.querySelector('input[type="text"]') || focusable()[0]
+    initialFocus?.focus()
+    function handleKey(event) {
+      if (event.key === 'Escape' && dialog.getAttribute('aria-busy') !== 'true') {
+        setShowModal(false)
+        setShowToggleModal(false)
+        setShowDeleteModal(false)
+      }
+      if (event.key === 'Tab') {
+        const items = focusable()
+        const first = items[0]
+        const last = items.at(-1)
+        if (!first) event.preventDefault()
+        else if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus() }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus() }
+      }
+    }
+    document.addEventListener('keydown', handleKey)
+    return () => {
+      document.removeEventListener('keydown', handleKey)
+      document.body.style.overflow = previousOverflow
+      previousFocus?.focus()
+    }
+  }, [modalOpen])
 
   function handleResetSearch() {
     setSearchKeyword('')
     setSelectedStatus('ALL')
-    fetchCategories('', 'ALL')
   }
 
   // 2. Mở Modal Thêm mới
@@ -243,29 +262,37 @@ export default function AdminCategoryManagement({ currentUser }) {
     return { total, activeCount, hiddenCount, totalProducts }
   }, [categories])
 
+  const filteredCategories = useMemo(() => {
+    const keyword = searchKeyword.trim().toLocaleLowerCase('vi')
+    return categories.filter(cat =>
+      `${cat.name} ${cat.description || ''}`.toLocaleLowerCase('vi').includes(keyword) &&
+      (selectedStatus === 'ALL' || (selectedStatus === 'ACTIVE' ? cat.isActive !== false : cat.isActive === false))
+    )
+  }, [categories, searchKeyword, selectedStatus])
+  const hasFilters = Boolean(searchKeyword.trim() || selectedStatus !== 'ALL')
+  const initialLoading = loading && categories.length === 0
+
   return (
-    <div className="admin-page-container">
+    <div className="admin-page-container admin-category-management">
       {/* Toast Notification */}
       {toast && (
-        <div className={`admin-toast ${toast.type}`}>
+        <div className={`admin-toast ${toast.type}`} role="status">
           {toast.type === 'success' ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
           <span>{toast.message}</span>
         </div>
       )}
 
       {/* Top Header */}
-      <div className="admin-page-header">
+      <nav className="category-breadcrumbs" aria-label="Đường dẫn điều hướng">
+        <span>Kho &amp; chuỗi cung ứng</span>
+        <ChevronRight size={13} aria-hidden="true" />
+        <span aria-current="page">Danh mục nội thất</span>
+      </nav>
+      <header className="admin-page-header category-header">
         <div>
-          <div className="admin-breadcrumbs">
-            <span>Trang chủ</span>
-            <span className="crumb-sep">/</span>
-            <span>Kho & Chuỗi Cung Ứng</span>
-            <span className="crumb-sep">/</span>
-            <span className="current">Quản lý Loại nội thất</span>
-          </div>
-          <h1 className="admin-page-title">Danh Mục & Loại Nội Thất</h1>
+          <h1 className="admin-page-title">Danh mục &amp; loại nội thất</h1>
           <p className="admin-page-desc">
-            Cấu trúc phân loại không gian nội thất, điều khiển trạng thái hiển thị/ẩn sản phẩm trên website
+            Sắp xếp sản phẩm theo không gian. Quản lý cách danh mục xuất hiện trên cửa hàng.
           </p>
         </div>
 
@@ -275,144 +302,150 @@ export default function AdminCategoryManagement({ currentUser }) {
             <span>Thêm loại nội thất</span>
           </button>
         </div>
-      </div>
+      </header>
 
       {/* KPI Cards */}
-      <div className="admin-kpi-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)', marginBottom: '24px' }}>
+      <section className="category-stats" aria-label="Tổng quan danh mục" aria-busy={loading}>
         <div className="kpi-card">
-          <div className="kpi-icon-wrap" style={{ background: '#EFF6FF', color: '#2563EB' }}>
-            <FolderTree size={22} />
+          <div className="kpi-icon-wrap category-tone-neutral">
+            <FolderTree size={20} aria-hidden="true" />
           </div>
           <div className="kpi-content">
             <span className="kpi-label">Tổng danh mục</span>
-            <div className="kpi-value">{stats.total}</div>
-            <span className="kpi-sub">Loại nội thất trong CSDL</span>
+            <div className="kpi-value">{initialLoading ? '—' : stats.total}</div>
+            <span className="kpi-sub">Nhóm nội thất trong hệ thống</span>
           </div>
         </div>
 
         <div className="kpi-card">
-          <div className="kpi-icon-wrap" style={{ background: '#ECFDF5', color: '#059669' }}>
-            <Eye size={22} />
+          <div className="kpi-icon-wrap category-tone-green">
+            <Eye size={20} aria-hidden="true" />
           </div>
           <div className="kpi-content">
             <span className="kpi-label">Đang hiển thị</span>
-            <div className="kpi-value" style={{ color: '#059669' }}>{stats.activeCount}</div>
-            <span className="kpi-sub">Công khai trên trang bán hàng</span>
+            <div className="kpi-value">{initialLoading ? '—' : stats.activeCount}</div>
+            <span className="kpi-sub">Đang có mặt trên cửa hàng</span>
           </div>
         </div>
 
         <div className="kpi-card">
-          <div className="kpi-icon-wrap" style={{ background: '#FEF2F2', color: '#DC2626' }}>
-            <EyeOff size={22} />
+          <div className="kpi-icon-wrap category-tone-muted">
+            <EyeOff size={20} aria-hidden="true" />
           </div>
           <div className="kpi-content">
             <span className="kpi-label">Đã tạm ẩn</span>
-            <div className="kpi-value" style={{ color: '#DC2626' }}>{stats.hiddenCount}</div>
-            <span className="kpi-sub">Tạm ngưng hiển thị & bán</span>
+            <div className="kpi-value">{initialLoading ? '—' : stats.hiddenCount}</div>
+            <span className="kpi-sub">Không hiển thị trên cửa hàng</span>
           </div>
         </div>
 
         <div className="kpi-card">
-          <div className="kpi-icon-wrap" style={{ background: '#FFFBEB', color: '#D97706' }}>
-            <Package size={22} />
+          <div className="kpi-icon-wrap category-tone-amber">
+            <Package size={20} aria-hidden="true" />
           </div>
           <div className="kpi-content">
             <span className="kpi-label">Tổng mẫu sản phẩm</span>
-            <div className="kpi-value">{stats.totalProducts}</div>
+            <div className="kpi-value">{initialLoading ? '—' : stats.totalProducts}</div>
             <span className="kpi-sub">Sản phẩm thuộc các danh mục</span>
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* Filter & Search Bar */}
-      <div className="admin-filter-bar">
-        <form onSubmit={handleSearchSubmit} className="admin-search-wrap" style={{ maxWidth: '380px' }}>
-          <Search size={16} className="search-icon" />
-          <input
-            type="text"
-            className="admin-search-input"
-            placeholder="Tìm theo tên loại nội thất (Sofa, Giường, Bàn ăn...)"
-            value={searchKeyword}
-            onChange={(e) => setSearchKeyword(e.target.value)}
-          />
-          {searchKeyword && (
-            <button type="button" className="search-clear-btn" onClick={() => setSearchKeyword('')}>
-              <X size={14} />
+      <section className="admin-table-card category-panel" aria-labelledby="category-list-title">
+        <div className="category-list-heading">
+          <div className="category-list-title">
+            <h2 id="category-list-title">Tất cả danh mục</h2>
+            <span className="category-total">{initialLoading ? '—' : stats.total}</span>
+          </div>
+          <span className="category-list-caption">Không gian được sắp xếp, quản lý dễ dàng hơn.</span>
+        </div>
+        <div className="category-toolbar">
+          <div className="category-search">
+            <Search size={17} aria-hidden="true" />
+            <input
+              type="search"
+              aria-label="Tìm kiếm danh mục"
+              placeholder="Tìm tên hoặc mô tả danh mục..."
+              value={searchKeyword}
+              onChange={(e) => setSearchKeyword(e.target.value)}
+            />
+            {searchKeyword && (
+              <button type="button" aria-label="Xóa từ khóa tìm kiếm" className="category-search-clear" onClick={() => setSearchKeyword('')}>
+                <X size={14} />
+              </button>
+            )}
+          </div>
+
+          <div className="category-status-filter">
+            <label htmlFor="category-status">Trạng thái</label>
+            <select
+              id="category-status"
+              value={selectedStatus}
+              onChange={(e) => setSelectedStatus(e.target.value)}
+            >
+              <option value="ALL">Tất cả ({stats.total})</option>
+              <option value="ACTIVE">Đang hiển thị ({stats.activeCount})</option>
+              <option value="INACTIVE">Đã tạm ẩn ({stats.hiddenCount})</option>
+            </select>
+          </div>
+
+          <div className="category-filter-actions">
+            {hasFilters && <button type="button" className="category-reset" onClick={handleResetSearch}>Xóa bộ lọc</button>}
+            <button
+              type="button"
+              className="admin-btn admin-btn-outline"
+              onClick={() => fetchCategories()}
+              disabled={loading}
+              title="Tải lại danh sách"
+            >
+              <RefreshCw size={15} className={loading ? 'spin' : ''} />
+              <span>Làm mới</span>
             </button>
-          )}
-        </form>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '0.84rem', color: 'var(--admin-text-muted)', fontWeight: 600 }}>Trạng thái:</span>
-          <select
-            className="form-input"
-            style={{ width: 'auto', padding: '8px 12px', fontSize: '0.84rem', background: '#FFFFFF' }}
-            value={selectedStatus}
-            onChange={(e) => setSelectedStatus(e.target.value)}
-          >
-            <option value="ALL">Tất cả ({stats.total})</option>
-            <option value="ACTIVE">Đang hiển thị ({stats.activeCount})</option>
-            <option value="INACTIVE">Đã tạm ẩn ({stats.hiddenCount})</option>
-          </select>
+          </div>
         </div>
 
-        <div className="filter-actions" style={{ marginLeft: 'auto' }}>
-          <button
-            type="button"
-            className="admin-btn admin-btn-secondary"
-            onClick={() => fetchCategories(searchKeyword, selectedStatus)}
-            disabled={loading}
-            title="Tải lại danh sách"
-          >
-            <RefreshCw size={15} className={loading ? 'spin' : ''} />
-            <span>Làm mới</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Main Table Card */}
-      <div className="admin-table-card">
         {error && (
-          <div className="admin-alert-banner error" style={{ margin: '16px 20px' }}>
+          <div className="category-error" role="alert">
             <AlertCircle size={18} />
             <span>{error}</span>
+            <button className="admin-btn admin-btn-outline" onClick={() => fetchCategories()} disabled={loading}>Thử lại</button>
           </div>
         )}
 
-        <div className="table-responsive">
+        <div className="category-table-scroll" role="region" aria-label="Danh sách loại nội thất" tabIndex={0} aria-busy={loading}>
           <table className="admin-table">
+            <caption className="category-sr-only">Danh sách danh mục, số sản phẩm và trạng thái hiển thị</caption>
             <thead>
               <tr>
-                <th style={{ width: '70px' }}>Mã ID</th>
+                <th style={{ width: '70px' }}>Mã</th>
                 <th style={{ minWidth: '220px' }}>Tên loại nội thất</th>
-                <th style={{ minWidth: '280px' }}>Mô tả không gian & kiểu dáng</th>
-                <th style={{ width: '150px', textAlign: 'center' }}>Sản phẩm trong kho</th>
-                <th style={{ width: '140px', textAlign: 'center' }}>Trạng thái hiển thị</th>
+                <th style={{ minWidth: '220px' }}>Mô tả</th>
+                <th style={{ width: '140px', textAlign: 'center' }}>Sản phẩm</th>
+                <th style={{ width: '140px', textAlign: 'center' }}>Trạng thái</th>
                 <th style={{ width: '180px', textAlign: 'right', paddingRight: '20px' }}>Thao tác</th>
               </tr>
             </thead>
             <tbody>
-              {loading && categories.length === 0 ? (
+              {initialLoading ? (
                 <tr>
                   <td colSpan="6" className="table-loading-cell">
                     <RefreshCw size={24} className="spin" />
                     <p>Đang tải danh mục loại nội thất...</p>
                   </td>
                 </tr>
-              ) : categories.length === 0 ? (
+              ) : error && categories.length === 0 ? null : filteredCategories.length === 0 ? (
                 <tr>
                   <td colSpan="6" className="table-empty-cell">
-                    <FolderTree size={36} color="var(--admin-text-muted)" />
-                    <p>Chưa tìm thấy loại nội thất nào phù hợp</p>
-                    {(searchKeyword || selectedStatus !== 'ALL') && (
-                      <button className="admin-btn admin-btn-secondary" onClick={handleResetSearch}>
-                        Xóa bộ lọc tìm kiếm
-                      </button>
-                    )}
+                    <div className="category-empty-icon"><FolderTree size={26} /></div>
+                    <h3>{hasFilters ? 'Không tìm thấy danh mục' : 'Bắt đầu với danh mục đầu tiên'}</h3>
+                    <p>{hasFilters ? 'Thử từ khóa khác hoặc xóa bộ lọc để xem tất cả danh mục.' : 'Tạo nhóm nội thất để sắp xếp sản phẩm trên cửa hàng.'}</p>
+                    <button className="admin-btn admin-btn-outline" onClick={hasFilters ? handleResetSearch : openCreateModal}>
+                      {hasFilters ? 'Xóa bộ lọc tìm kiếm' : 'Thêm loại nội thất'}
+                    </button>
                   </td>
                 </tr>
               ) : (
-                categories.map((cat) => {
+                filteredCategories.map((cat) => {
                   const pCount = Number(cat.productCount || 0)
                   const isActive = cat.isActive !== false
 
@@ -434,8 +467,8 @@ export default function AdminCategoryManagement({ currentUser }) {
                           <div>
                             <span className="category-name-text">{cat.name}</span>
                             {!isActive && (
-                              <span style={{ display: 'block', fontSize: '0.72rem', color: '#DC2626', fontWeight: 600 }}>
-                                (Đang ẩn khỏi website)
+                              <span className="category-hidden-label">
+                                Đã ẩn khỏi cửa hàng
                               </span>
                             )}
                           </div>
@@ -488,6 +521,7 @@ export default function AdminCategoryManagement({ currentUser }) {
                             className={`table-action-btn ${isActive ? 'lock' : 'unlock'}`}
                             onClick={() => openToggleVisibility(cat)}
                             title={isActive ? 'Tạm ẩn loại nội thất và sản phẩm' : 'Bật lại hiển thị công khai'}
+                            aria-label={`${isActive ? 'Ẩn' : 'Hiện'}: ${cat.name}`}
                           >
                             {isActive ? <EyeOff size={14} /> : <Eye size={14} />}
                             <span>{isActive ? 'Ẩn' : 'Hiện'}</span>
@@ -498,6 +532,7 @@ export default function AdminCategoryManagement({ currentUser }) {
                             className="table-action-btn edit"
                             onClick={() => openEditModal(cat)}
                             title="Chỉnh sửa tên và mô tả"
+                            aria-label={`Sửa: ${cat.name}`}
                           >
                             <Edit2 size={14} />
                             <span>Sửa</span>
@@ -507,6 +542,8 @@ export default function AdminCategoryManagement({ currentUser }) {
                           <button
                             className={`table-action-btn lock ${pCount > 0 ? 'disabled' : ''}`}
                             onClick={() => openDeleteConfirm(cat)}
+                            aria-label={`Xóa: ${cat.name}`}
+                            disabled={pCount > 0}
                             title={
                               pCount > 0
                                 ? `Không thể xóa: Đang có ${pCount} sản phẩm. Bạn hãy dùng nút "Ẩn" phía trước!`
@@ -528,28 +565,28 @@ export default function AdminCategoryManagement({ currentUser }) {
 
         {/* Footer info */}
         <div className="admin-pagination-footer">
-          <span className="pagination-info">
-            Hiển thị <strong>{categories.length}</strong> danh mục loại nội thất
+          <span className="pagination-info" role="status">
+            Hiển thị <strong>{filteredCategories.length}</strong> / <strong>{stats.total}</strong> danh mục
           </span>
-          <span style={{ fontSize: '0.78rem', color: 'var(--admin-text-muted)' }}>
-            * Mẹo: Nếu loại nội thất đang có sản phẩm, bạn có thể dùng nút <strong>"Ẩn"</strong> để ngừng bán tạm thời thay vì xóa.
+          <span className="category-table-tip">
+            <Info size={14} aria-hidden="true" /> Dùng “Ẩn” để tạm ngừng bán danh mục có sản phẩm.
           </span>
         </div>
-      </div>
+      </section>
 
       {/* ====================================================================
           MODAL 1: THÊM MỚI / CHỈNH SỬA LOẠI NỘI THẤT
           ==================================================================== */}
       {showModal && (
-        <div className="admin-modal-backdrop" onClick={() => setShowModal(false)}>
-          <div className="admin-modal-card" style={{ maxWidth: '520px' }} onClick={(e) => e.stopPropagation()}>
+        <div className="admin-modal-backdrop" onClick={() => !submitting && setShowModal(false)}>
+          <div className="admin-modal-card" role="dialog" aria-modal="true" aria-labelledby="category-form-title" aria-busy={submitting} style={{ maxWidth: '520px' }} onClick={(e) => e.stopPropagation()}>
             <div className="admin-modal-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <div className="modal-icon-badge">
                   {editingCategory ? <Edit2 size={20} /> : <FolderPlus size={20} />}
                 </div>
                 <div>
-                  <h3 className="modal-title">
+                  <h3 className="modal-title" id="category-form-title">
                     {editingCategory ? 'Chỉnh Sửa Loại Nội Thất' : 'Thêm Loại Nội Thất Mới'}
                   </h3>
                   <p className="modal-subtitle">
@@ -559,7 +596,7 @@ export default function AdminCategoryManagement({ currentUser }) {
                   </p>
                 </div>
               </div>
-              <button className="modal-close-btn" onClick={() => setShowModal(false)}>
+              <button className="modal-close-btn" aria-label="Đóng" disabled={submitting} onClick={() => setShowModal(false)}>
                 <X size={18} />
               </button>
             </div>
@@ -567,25 +604,25 @@ export default function AdminCategoryManagement({ currentUser }) {
             <form onSubmit={handleFormSubmit}>
               <div className="admin-modal-body">
                 {formError && (
-                  <div className="modal-alert-error">
+                  <div className="modal-alert-error" role="alert">
                     <AlertCircle size={16} />
                     <span>{formError}</span>
                   </div>
                 )}
 
                 <div className="form-group">
-                  <label className="form-label">
+                  <label className="form-label" htmlFor="category-name">
                     Tên loại nội thất <span className="req">*</span>
                   </label>
                   <input
                     type="text"
+                    id="category-name"
                     className="form-input"
                     placeholder="VD: Sofa & Ghế Thư Giãn, Bàn Ghế Phòng Ăn..."
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     maxLength={150}
                     required
-                    autoFocus
                   />
                   <small className="form-hint">
                     Tên danh mục là duy nhất trong hệ thống (tối đa 150 ký tự).
@@ -593,8 +630,9 @@ export default function AdminCategoryManagement({ currentUser }) {
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Mô tả không gian & phong cách sử dụng</label>
+                  <label className="form-label" htmlFor="category-description">Mô tả không gian & phong cách sử dụng</label>
                   <textarea
+                    id="category-description"
                     className="form-input"
                     rows="3"
                     placeholder="VD: Các dòng sofa góc chữ L, sofa văng da và nỉ cao cấp cho không gian phòng khách hiện đại..."
@@ -661,15 +699,15 @@ export default function AdminCategoryManagement({ currentUser }) {
           MODAL 2: ẨN / HIỆN LOẠI NỘI THẤT & ĐỒNG BỘ ẨN SẢN PHẨM
           ==================================================================== */}
       {showToggleModal && togglingCategory && (
-        <div className="admin-modal-backdrop" onClick={() => setShowToggleModal(false)}>
-          <div className="admin-modal-card" style={{ maxWidth: '480px' }} onClick={(e) => e.stopPropagation()}>
+        <div className="admin-modal-backdrop" onClick={() => !toggling && setShowToggleModal(false)}>
+          <div className="admin-modal-card" role="dialog" aria-modal="true" aria-labelledby="category-toggle-title" aria-busy={toggling} style={{ maxWidth: '480px' }} onClick={(e) => e.stopPropagation()}>
             <div className="admin-modal-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <div className={`modal-icon-badge ${togglingCategory.isActive !== false ? 'warning' : 'success'}`}>
                   {togglingCategory.isActive !== false ? <EyeOff size={20} /> : <Eye size={20} />}
                 </div>
                 <div>
-                  <h3 className="modal-title">
+                  <h3 className="modal-title" id="category-toggle-title">
                     {togglingCategory.isActive !== false
                       ? 'Tạm Ẩn Loại Nội Thất'
                       : 'Hiển Thị Lại Loại Nội Thất'}
@@ -677,7 +715,7 @@ export default function AdminCategoryManagement({ currentUser }) {
                   <p className="modal-subtitle">Điều khiển trạng thái hiển thị trên giao diện người mua</p>
                 </div>
               </div>
-              <button className="modal-close-btn" onClick={() => setShowToggleModal(false)}>
+              <button className="modal-close-btn" aria-label="Đóng" disabled={toggling} onClick={() => setShowToggleModal(false)}>
                 <X size={18} />
               </button>
             </div>
@@ -764,7 +802,7 @@ export default function AdminCategoryManagement({ currentUser }) {
 
               <button
                 type="button"
-                className={`admin-btn ${togglingCategory.isActive !== false ? 'admin-btn-primary' : 'admin-btn-primary'}`}
+                className="admin-btn admin-btn-primary"
                 style={togglingCategory.isActive !== false ? { background: '#D97706', borderColor: '#B45309' } : {}}
                 onClick={handleToggleSubmit}
                 disabled={toggling}
@@ -789,28 +827,28 @@ export default function AdminCategoryManagement({ currentUser }) {
           MODAL 3: XÁC NHẬN XÓA LOẠI NỘI THẤT
           ==================================================================== */}
       {showDeleteModal && deletingCategory && (
-        <div className="admin-modal-backdrop" onClick={() => setShowDeleteModal(false)}>
-          <div className="admin-modal-card" style={{ maxWidth: '480px' }} onClick={(e) => e.stopPropagation()}>
+        <div className="admin-modal-backdrop" onClick={() => !deleting && setShowDeleteModal(false)}>
+          <div className="admin-modal-card" role="dialog" aria-modal="true" aria-labelledby="category-delete-title" aria-busy={deleting} style={{ maxWidth: '480px' }} onClick={(e) => e.stopPropagation()}>
             <div className="admin-modal-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <div className="modal-icon-badge danger">
                   <AlertTriangle size={20} />
                 </div>
                 <div>
-                  <h3 className="modal-title" style={{ color: '#DC2626' }}>
+                  <h3 className="modal-title" id="category-delete-title" style={{ color: '#DC2626' }}>
                     Xác Nhận Xóa Loại Nội Thất
                   </h3>
                   <p className="modal-subtitle">Thao tác này sẽ xóa vĩnh viễn danh mục khỏi hệ thống</p>
                 </div>
               </div>
-              <button className="modal-close-btn" onClick={() => setShowDeleteModal(false)}>
+              <button className="modal-close-btn" aria-label="Đóng" disabled={deleting} onClick={() => setShowDeleteModal(false)}>
                 <X size={18} />
               </button>
             </div>
 
             <div className="admin-modal-body">
               {deleteError && (
-                <div className="modal-alert-error">
+                <div className="modal-alert-error" role="alert">
                   <AlertCircle size={16} />
                   <span>{deleteError}</span>
                 </div>

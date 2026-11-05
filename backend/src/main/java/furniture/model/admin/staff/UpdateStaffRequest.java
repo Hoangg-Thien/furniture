@@ -14,5 +14,7 @@ public record UpdateStaffRequest(
     @Pattern(regexp = "^(0|\\+84)?[0-9]{9,10}$", message = "Số điện thoại không đúng định dạng (9-10 số)")
     String phone,
 
-    String address
+    String address,
+    @Pattern(regexp = "SALES|WAREHOUSE|CONTENT", message = "Vị trí phải là SALES, WAREHOUSE hoặc CONTENT")
+    String staffType
 ) {}

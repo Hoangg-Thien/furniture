@@ -15,6 +15,8 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestAttribute;
+import furniture.model.admin.AdminIdentity;
 import org.springframework.web.bind.annotation.RestController;
 
 import furniture.model.admin.supplier.CreateReceiptRequest;
@@ -106,8 +108,10 @@ public class AdminSupplierController {
     @PostMapping("/{id}/receipts")
     public ResponseEntity<?> createReceipt(
             @PathVariable Long id,
-            @RequestBody CreateReceiptRequest req) {
+            @RequestBody CreateReceiptRequest req,
+            @RequestAttribute(AdminIdentity.ATTRIBUTE) AdminIdentity identity) {
         try {
+            if ("STAFF".equals(identity.role())) req = new CreateReceiptRequest(identity.staffId(), req.status(), req.items());
             Long receiptId = adminSupplierService.createReceipt(id, req);
             return ResponseEntity.status(HttpStatus.CREATED).body(Map.of(
                     "message", "Tạo phiếu nhập kho thành công",

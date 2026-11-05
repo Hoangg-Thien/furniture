@@ -63,7 +63,7 @@ public class AuthService {
                 phone,
                 address,
                 "CUSTOMER",
-                "Đăng ký tài khoản thành công!");
+                "Đăng ký tài khoản thành công!", null);
     }
 
     public AuthResponse login(LoginRequest req) {
@@ -102,7 +102,7 @@ public class AuthService {
                 (String) user.get("phone"),
                 (String) user.get("address"),
                 (String) user.get("role"),
-                "Đăng nhập thành công!");
+                "Đăng nhập thành công!", null);
     }
 
     public AuthResponse getProfile(Long userId) {
@@ -124,7 +124,7 @@ public class AuthService {
                 (String) user.get("phone"),
                 (String) user.get("address"),
                 (String) user.get("role"),
-                "OK");
+                "OK", null);
     }
 
     @Transactional
@@ -178,7 +178,7 @@ public class AuthService {
                 phone,
                 address,
                 (String) user.get("role"),
-                "Cập nhật thông tin thành công!");
+                "Cập nhật thông tin thành công!", null);
     }
 
     public List<Map<String, Object>> getAllUsers() {

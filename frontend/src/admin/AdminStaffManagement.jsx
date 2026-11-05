@@ -26,6 +26,7 @@ import {
   X
 } from 'lucide-react'
 import { getApiBaseUrl, getApiHeaders } from '../lib/apiConfig'
+import { STAFF_TYPES } from '../lib/adminPermissions'
 
 export default function AdminStaffManagement({ currentUser }) {
   const [staffList, setStaffList] = useState([])
@@ -54,6 +55,7 @@ export default function AdminStaffManagement({ currentUser }) {
     email: '',
     phone: '',
     address: '',
+    staffType: 'SALES',
     showPassword: false
   })
   const [createError, setCreateError] = useState('')
@@ -63,7 +65,8 @@ export default function AdminStaffManagement({ currentUser }) {
     fullName: '',
     email: '',
     phone: '',
-    address: ''
+    address: '',
+    staffType: 'SALES'
   })
   const [editError, setEditError] = useState('')
   const [editSubmitting, setEditSubmitting] = useState(false)
@@ -179,7 +182,8 @@ export default function AdminStaffManagement({ currentUser }) {
           fullName: createForm.fullName.trim(),
           email: createForm.email.trim() || null,
           phone: createForm.phone.trim() || null,
-          address: createForm.address.trim() || null
+          address: createForm.address.trim() || null,
+          staffType: createForm.staffType
         })
       })
 
@@ -197,6 +201,7 @@ export default function AdminStaffManagement({ currentUser }) {
         email: '',
         phone: '',
         address: '',
+        staffType: 'SALES',
         showPassword: false
       })
       loadStaff(0)
@@ -214,7 +219,8 @@ export default function AdminStaffManagement({ currentUser }) {
       fullName: staff.fullName || '',
       email: staff.email || '',
       phone: staff.phone || '',
-      address: staff.address || ''
+      address: staff.address || '',
+      staffType: staff.staffType || 'SALES'
     })
     setEditError('')
     setShowEditModal(true)
@@ -243,7 +249,8 @@ export default function AdminStaffManagement({ currentUser }) {
           fullName: editForm.fullName.trim(),
           email: editForm.email.trim() || null,
           phone: editForm.phone.trim() || null,
-          address: editForm.address.trim() || null
+          address: editForm.address.trim() || null,
+          staffType: editForm.staffType
         })
       })
 
@@ -402,7 +409,7 @@ export default function AdminStaffManagement({ currentUser }) {
             <thead>
               <tr>
                 <th style={{ width: '70px', whiteSpace: 'nowrap' }}>Mã NV</th>
-                <th style={{ minWidth: '180px' }}>Họ và Tên Nhân Viên</th>
+                <th style={{ minWidth: '180px' }}>Nhân viên / Vị trí</th>
                 <th style={{ whiteSpace: 'nowrap' }}>Số Điện Thoại</th>
                 <th style={{ whiteSpace: 'nowrap' }}>Email Công Vụ</th>
                 <th style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>Đơn Đã Xử Lý</th>
@@ -462,6 +469,7 @@ export default function AdminStaffManagement({ currentUser }) {
                             </div>
                             <div style={{ fontSize: '0.75rem', color: 'var(--admin-text-muted)' }}>
                               @{s.username || 'staff'}
+                              <span style={{ display: 'block', marginTop: 4 }}>{STAFF_TYPES[s.staffType] || 'Chưa phân công'}</span>
                               {isCurrentSelf && <span className="self-tag" style={{ marginLeft: '6px' }}>Bạn</span>}
                             </div>
                           </div>
@@ -708,6 +716,14 @@ export default function AdminStaffManagement({ currentUser }) {
                   </div>
                 </div>
 
+                <div className="form-group">
+                  <label className="form-label" htmlFor="create-staff-type">Vị trí công việc</label>
+                  <select id="create-staff-type" className="form-input" value={createForm.staffType} onChange={e => setCreateForm({ ...createForm, staffType: e.target.value })} required>
+                    {Object.entries(STAFF_TYPES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                  </select>
+                  <small className="form-hint">Vị trí quyết định quyền truy cập và thao tác trong hệ thống.</small>
+                </div>
+
                 {/* Phần 2: Hồ sơ nhân sự */}
                 <div className="form-section-title" style={{ marginTop: '16px' }}>
                   <Briefcase size={16} color="var(--admin-accent)" />
@@ -818,6 +834,13 @@ export default function AdminStaffManagement({ currentUser }) {
 
             <form onSubmit={handleEditSubmit}>
               <div className="admin-modal-body">
+                <div className="form-group">
+                  <label className="form-label" htmlFor="edit-staff-type">Vị trí công việc</label>
+                  <select id="edit-staff-type" className="form-input" value={editForm.staffType} onChange={e => setEditForm({ ...editForm, staffType: e.target.value })} required>
+                    {Object.entries(STAFF_TYPES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                  </select>
+                  <small className="form-hint">Thay đổi quyền có hiệu lực với request tiếp theo của nhân viên.</small>
+                </div>
                 {editError && (
                   <div className="modal-alert-error">
                     <AlertCircle size={16} />
@@ -854,7 +877,7 @@ export default function AdminStaffManagement({ currentUser }) {
                     <input
                       type="email"
                       className="form-input"
-                      value={editForm.email}
+                    value={editForm.email}
                       onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
                     />
                   </div>

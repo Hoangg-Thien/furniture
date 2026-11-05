@@ -1,0 +1,33 @@
+﻿{
+    "passed":  true,
+    "database":  "Isolated PGlite on 127.0.0.1:15434",
+    "endpoints":  [
+                      {
+                          "route":  "/api/products",
+                          "status":  200
+                      },
+                      {
+                          "route":  "/api/admin/categories",
+                          "status":  200
+                      },
+                      {
+                          "route":  "/api/admin/products",
+                          "status":  200
+                      },
+                      {
+                          "route":  "/api/admin/invoices",
+                          "status":  200
+                      },
+                      {
+                          "route":  "/api/auth/login",
+                          "status":  200
+                      }
+                  ],
+    "checks":  [
+                   "Empty database bootstrap",
+                   "Staff position migration",
+                   "Session table",
+                   "Eight-hour expiry based on database clock",
+                   "Authenticated private API reads"
+               ]
+}

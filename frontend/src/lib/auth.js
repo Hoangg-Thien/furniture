@@ -54,6 +54,8 @@ export function setCurrentUser(user) {
 }
 
 export function logoutUser() {
+  const user = getCurrentUser()
+  if (user?.accessToken && user.apiBaseUrl) fetch(`${user.apiBaseUrl}/api/auth/logout`, { method: 'POST', headers: { Authorization: `Bearer ${user.accessToken}` } }).catch(() => {})
   setCurrentUser(null)
 }
 
@@ -84,8 +86,9 @@ export async function loginCustomer(username, password) {
       }
     }
 
-    setCurrentUser(data)
-    return { user: data, error: null }
+    const user = { ...data, apiBaseUrl }
+    setCurrentUser(user)
+    return { user, error: null }
   } catch (err) {
     return {
       user: null,
@@ -114,8 +117,9 @@ export async function registerUser({ username, password, fullName, email, phone,
       return { user: null, error: data.error || 'Đăng ký tài khoản thất bại' }
     }
 
-    setCurrentUser(data)
-    return { user: data, error: null }
+    const user = { ...data, apiBaseUrl }
+    setCurrentUser(user)
+    return { user, error: null }
   } catch (err) {
     return {
       user: null,
@@ -141,8 +145,9 @@ export async function updateProfile(userId, { fullName, email, phone, address, c
       return { user: null, error: data.error || 'Cập nhật thất bại' }
     }
 
-    setCurrentUser(data)
-    return { user: data, error: null }
+    const user = { ...data, apiBaseUrl }
+    setCurrentUser(user)
+    return { user, error: null }
   } catch {
     return { user: null, error: 'Không thể kết nối đến Backend Server (port 8080).' }
   }
@@ -164,7 +169,7 @@ export function getCurrentAdminUser() {
     const raw = localStorage.getItem(SESSION_ADMIN_KEY)
     if (!raw) return null
     const user = JSON.parse(raw)
-    if (user && (user.role === 'ADMIN' || user.role === 'STAFF')) {
+    if (user?.accessToken && (user.role === 'ADMIN' || user.role === 'STAFF')) {
       return user
     }
     localStorage.removeItem(SESSION_ADMIN_KEY)
@@ -183,6 +188,10 @@ export function setCurrentAdminUser(user) {
 }
 
 export function logoutAdminUser() {
+  const user = getCurrentAdminUser()
+  if (user?.accessToken && user.apiBaseUrl) {
+    fetch(`${user.apiBaseUrl}/api/auth/admin/logout`, { method: 'POST', headers: { Authorization: `Bearer ${user.accessToken}` } }).catch(() => {})
+  }
   setCurrentAdminUser(null)
 }
 
@@ -192,19 +201,20 @@ export function logoutAdminUser() {
 export async function loginAdmin(username, password) {
   const apiBaseUrl = getApiBaseUrl()
   try {
-    const response = await fetch(`${apiBaseUrl}/api/auth/login`, {
+    const response = await fetch(`${apiBaseUrl}/api/auth/admin/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password }),
     })
 
-    const data = await response.json()
+    const result = await response.json()
+    const data = { ...result.user, accessToken: result.accessToken, staffType: result.staffType, apiBaseUrl }
     if (!response.ok) {
-      return { user: null, error: data.error || 'Tên đăng nhập hoặc mật khẩu không chính xác' }
+      return { user: null, error: result.error || 'Tên đăng nhập hoặc mật khẩu không chính xác' }
     }
 
     // Tại Trang Quản trị: Chỉ cho phép ADMIN hoặc STAFF.
-    if (data.role !== 'ADMIN' && data.role !== 'STAFF') {
+    if (!data.accessToken || (data.role !== 'ADMIN' && data.role !== 'STAFF')) {
       return {
         user: null,
         error: 'Tên đăng nhập hoặc mật khẩu không chính xác',

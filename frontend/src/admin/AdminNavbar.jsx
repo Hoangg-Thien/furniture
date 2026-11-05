@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { getApiBaseUrl, getApiHeaders } from '../lib/apiConfig'
 import { loadReadNotificationIds, saveReadNotificationIds } from '../lib/notifications.js'
+import { canAccessModule, adminRoleLabel } from '../lib/adminPermissions'
 
 export default function AdminNavbar({
   currentUser,
@@ -24,6 +25,8 @@ export default function AdminNavbar({
 }) {
   const username = currentUser?.username || 'Admin'
   const role = currentUser?.role || 'ADMIN'
+  const canReadOrders = canAccessModule(currentUser, 'orders')
+  const monitorStock = role === 'ADMIN' || currentUser?.staffType === 'WAREHOUSE'
   const storageKey = `funi_notifications_admin_${currentUser?.id ?? currentUser?.userId ?? username}`
 
   // Trạng thái Dropdown Thông báo
@@ -46,13 +49,12 @@ export default function AdminNavbar({
       try {
         const baseUrl = getApiBaseUrl()
         // shortcut: preview five orders per status, use server events for a full cancellation history.
-        const responses = await Promise.all([
-          fetch(`${baseUrl}/api/admin/orders?status=PENDING&size=5`, { headers: getApiHeaders(), signal: controller.signal }),
-          fetch(`${baseUrl}/api/admin/products?lowStock=true&size=5`, { headers: getApiHeaders(), signal: controller.signal }),
-          fetch(`${baseUrl}/api/admin/orders?status=CANCELLED&size=5`, { headers: getApiHeaders(), signal: controller.signal })
-        ])
-        if (responses.some(response => !response.ok)) throw new Error('Unavailable')
-        const [orders, products, cancelledOrders] = await Promise.all(responses.map(response => response.json()))
+        const paths = [canReadOrders ? 'orders?status=PENDING&size=5' : null,
+          monitorStock ? 'products?lowStock=true&size=5' : null,
+          canReadOrders ? 'orders?status=CANCELLED&size=5' : null]
+        const responses = await Promise.all(paths.map(path => path ? fetch(`${baseUrl}/api/admin/${path}`, { headers: getApiHeaders(), signal: controller.signal }) : null))
+        if (responses.some(response => response && !response.ok)) throw new Error('Unavailable')
+        const [orders, products, cancelledOrders] = await Promise.all(responses.map(response => response ? response.json() : { content: [] }))
         const items = [
           ...(orders.content || []).map(order => ({
             id: `order-${order.id}`, title: `Đơn hàng #${order.id} chờ xác nhận`,
@@ -67,7 +69,7 @@ export default function AdminNavbar({
           })),
           ...(products.content || []).filter(product => Number.isFinite(product.quantity) && product.quantity < 5).map(product => ({
             id: `stock-${product.id}-${product.quantity}`, title: product.quantity === 0 ? 'Sản phẩm đã hết hàng' : 'Sản phẩm sắp hết hàng', desc: `${product.name} · Còn ${product.quantity} sản phẩm`,
-            time: 'Bấm để kiểm tra và cập nhật tồn kho', icon: AlertTriangle, color: '#a28150', bg: '#faf5e9', module: 'products', recordId: product.id
+            time: 'Bấm để kiểm tra thông tin tồn kho', icon: AlertTriangle, color: '#a28150', bg: '#faf5e9', module: 'products', recordId: product.id
           }))
         ]
         if (!controller.signal.aborted) setNotifications(items.map(item => ({ ...item, unread: !readNotificationIds.current.has(item.id) })))
@@ -81,7 +83,7 @@ export default function AdminNavbar({
     load()
     const timer = setInterval(() => { if (!document.hidden) load() }, 30000)
     return () => { controller.abort(); clearInterval(timer) }
-  }, [refreshVersion, storageKey])
+  }, [refreshVersion, storageKey, canReadOrders, monitorStock])
 
   const notifRef = useRef(null)
 
@@ -123,9 +125,7 @@ export default function AdminNavbar({
     )
     setShowNotifications(false)
     if (onNavigateModule && item.module) {
-      if (role === 'STAFF' && ['promotions', 'users', 'staff', 'reports', 'dashboard', 'categories'].includes(item.module)) {
-        onNavigateModule('orders')
-      } else {
+      if (canAccessModule(currentUser, item.module)) {
         onNavigateModule(item.module, item.recordId)
       }
     }
@@ -261,7 +261,7 @@ export default function AdminNavbar({
           <div className="admin-profile-info">
             <span className="admin-profile-name">{username}</span>
             <span className="admin-profile-role">
-              {role === 'ADMIN' ? 'Quản trị viên' : 'Nhân viên'}
+              {adminRoleLabel(currentUser)}
             </span>
           </div>
         </div>

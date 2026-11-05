@@ -159,6 +159,12 @@ function App() {
   const [activeSection, setActiveSection] = useState('home')
 
   useEffect(() => {
+    const expireSession = () => { logoutUser(); setCurrentUser(null); setAuthOpen(true) }
+    window.addEventListener('customer-session-expired', expireSession)
+    return () => window.removeEventListener('customer-session-expired', expireSession)
+  }, [])
+
+  useEffect(() => {
     saveCart(cart)
   }, [cart])
 

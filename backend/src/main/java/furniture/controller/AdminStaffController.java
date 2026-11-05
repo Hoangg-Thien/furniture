@@ -10,7 +10,8 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestAttribute;
+import furniture.model.admin.AdminIdentity;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -84,10 +85,9 @@ public class AdminStaffController {
     @PutMapping("/{id}/toggle-status")
     public ResponseEntity<?> toggleStaffStatus(
             @PathVariable Long id,
-            @RequestHeader(value = "X-Current-User-Id", required = false) Long headerUserId,
-            @RequestParam(value = "currentUserId", required = false) Long paramUserId) {
+            @RequestAttribute(AdminIdentity.ATTRIBUTE) AdminIdentity identity) {
         try {
-            Long currentLoggedInId = headerUserId != null ? headerUserId : paramUserId;
+            Long currentLoggedInId = identity.userId();
             boolean newStatus = adminStaffService.toggleStaffStatus(id, currentLoggedInId);
             return ResponseEntity.ok(Map.of(
                     "message", newStatus ? "Đã kích hoạt quyền truy cập nhân viên" : "Đã thu hồi quyền truy cập (khóa tài khoản)",

@@ -31,6 +31,7 @@ public class AdminStaffService {
 
     @Transactional
     public StaffSummaryDto createStaff(CreateStaffRequest req) {
+        validateStaffType(req.staffType());
         if (req.username() == null || req.username().trim().length() < 4) {
             throw new IllegalArgumentException("Tên đăng nhập phải có ít nhất 4 ký tự");
         }
@@ -59,15 +60,17 @@ public class AdminStaffService {
         Long userId = adminUserRepository.insertUser(username, passwordHash, "STAFF", true);
 
         // 2. Tạo hồ sơ nhân viên Staff
-        Long staffId = adminStaffRepository.insertStaff(userId, req.fullName().trim(), email, phone, address);
+        String staffType = req.staffType() == null ? "SALES" : req.staffType();
+        Long staffId = adminStaffRepository.insertStaff(userId, req.fullName().trim(), email, phone, address, staffType);
 
         return new StaffSummaryDto(
                 staffId, userId, username, req.fullName().trim(), phone, email, address,
-                0L, 0L, true, LocalDateTime.now());
+                0L, 0L, true, LocalDateTime.now(), staffType);
     }
 
     @Transactional
     public void updateStaff(Long staffId, UpdateStaffRequest req) {
+        validateStaffType(req.staffType());
         if (staffId == null) {
             throw new IllegalArgumentException("ID nhân viên không hợp lệ");
         }
@@ -90,7 +93,13 @@ public class AdminStaffService {
         String phone = req.phone() != null && !req.phone().trim().isEmpty() ? req.phone().trim() : null;
         String address = req.address() != null && !req.address().trim().isEmpty() ? req.address().trim() : null;
 
-        adminStaffRepository.updateStaff(staffId, req.fullName().trim(), newEmail, phone, address);
+        adminStaffRepository.updateStaff(staffId, req.fullName().trim(), newEmail, phone, address, req.staffType());
+    }
+
+    private void validateStaffType(String staffType) {
+        if (staffType != null && !java.util.Set.of("SALES", "WAREHOUSE", "CONTENT").contains(staffType)) {
+            throw new IllegalArgumentException("Vị trí phải là SALES, WAREHOUSE hoặc CONTENT");
+        }
     }
 
     @Transactional

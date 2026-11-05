@@ -1,0 +1,15 @@
+{
+  "passed": 8,
+  "results": [
+    "Loading state, populated list and global statistics",
+    "Live name/description search, combined filters and stable totals",
+    "Create validation, recoverable save error and successful creation",
+    "Edit, keyboard focus trap and focus restoration",
+    "Visibility confirmation retains product-sync choice",
+    "Linked categories cannot be deleted; errors preserve confirmation",
+    "Responsive list and dialogs at desktop, tablet, mobile and 320px",
+    "Empty/mobile state fits viewport, error is distinct and retry works"
+  ],
+  "errors": [],
+  "api": "isolated route mocks"
+}

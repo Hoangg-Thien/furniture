@@ -4,6 +4,12 @@ Bộ kiểm thử này không sửa mã nghiệp vụ. Các request ghi chạy t
 
 ## Chạy lại trên máy hiện tại
 
+Phân quyền nhân viên: sau khi chạy `node qa/harness/start.mjs`, chạy lần lượt `node qa/harness/permissions-api-check.mjs` và `node qa/harness/permissions-ui-check.mjs`. Hai script dùng Spring Boot thật với PGlite trong bộ nhớ, tạo tài khoản Sales/Kho/Content và kiểm tra cả API lẫn giao diện; không kết nối database thật. Kết quả nằm trong `qa/artifacts/permissions-api-results.json` và `qa/artifacts/permissions/`.
+
+Các script API cũ lấy token Admin từ backend QA qua `admin-auth.mjs`; kiểm tra ẩn danh chủ động bỏ token. Các script giao diện dùng API giả lập có fixture phiên đăng nhập riêng. Chạy `node qa/harness/clean-start.mjs` để xác nhận database trống tạo được vị trí nhân viên, bảng phiên, danh mục, hóa đơn và đăng nhập; script này dùng database thứ hai ở port 15434/18081.
+
+Chạy Vite ở port 5173, sau đó `node qa/harness/category-ui-check.mjs` để kiểm tra trang danh mục: tìm kiếm/lọc và số liệu tổng, thêm/sửa/ẩn/xóa, bảo vệ danh mục có sản phẩm, lỗi/thử lại, bàn phím và bố cục 320–1920px. Script dùng API giả lập, không ghi database; ảnh nằm trong `qa/artifacts/categories/`.
+
 Chạy `node qa/harness/invoice-ui-check.mjs` để kiểm tra lập/xem hóa đơn COD ngay trong trang, giữ chứng từ cũ, không hiển thị QR thanh toán, API lỗi/thử lại, phản hồi cũ khi đổi đơn, khóa tổng tiền đã chốt, xác nhận thu tiền, in A4/K80, tải PDF và bố cục mobile. Script dùng API giả lập, không ghi database; ảnh nằm trong `qa/artifacts/invoice-create-desktop.png` và `invoice-create-mobile.png`.
 
 Chạy riêng `node qa/harness/admin-login-check.mjs` để kiểm tra giao diện đăng nhập admin ở desktop, tablet và mobile (320–390px), hiện/ẩn mật khẩu, validation, loading/lỗi, tài khoản demo và đăng nhập ADMIN/STAFF. Script dùng API giả lập, không ghi database; ảnh xem trước nằm trong `qa/artifacts/admin-login-desktop.png` và `admin-login-mobile.png`.

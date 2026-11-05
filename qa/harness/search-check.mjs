@@ -1,3 +1,4 @@
+import { mockAdminSession } from './admin-auth.mjs'
 import assert from 'node:assert/strict'
 import { fileURLToPath } from 'node:url'
 import { createServer } from '../../frontend/node_modules/vite/dist/node/index.js'
@@ -12,7 +13,7 @@ try {
   const errors = []
   const requests = []
   page.on('pageerror', error => errors.push(error.message))
-  await page.addInitScript(() => localStorage.setItem('furniture_admin_user', JSON.stringify({ id: 1, role: 'ADMIN', username: 'search-test' })))
+  await page.addInitScript(() => localStorage.setItem('furniture_admin_user', JSON.stringify({ id: 1, role: 'ADMIN', accessToken: 'qa-mock-token', apiBaseUrl: 'http://localhost:8080', username: 'search-test' })))
   await page.route('https://**', route => route.fulfill({ contentType: 'text/css', body: '' }))
   await page.route('**/api/**', async route => {
     const url = new URL(route.request().url())
@@ -37,6 +38,7 @@ try {
   const reply = (query, module, rows, status) => pending.get(`${query}/${module}`)(rows, status)
   const empty = query => Promise.all(['orders', 'customers'].map(module => reply(query, module, [])))
   const product = name => ({ id: 9, name, sellingPrice: 100000, quantity: 2 })
+  await mockAdminSession(page)
   await page.goto(new URL('/admin/orders', server.resolvedUrls.local[0]).href)
   const opener = page.locator('.admin-search-box')
   await opener.click()

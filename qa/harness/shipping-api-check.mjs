@@ -1,3 +1,4 @@
+import { adminApiHeaders } from './admin-auth.mjs'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 
@@ -12,7 +13,7 @@ async function sql(query, params = []) {
 
 async function api(path, method = 'GET', body, expected = 200) {
   const response = await fetch(`http://127.0.0.1:18080/api${path}`, {
-    method, headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined,
+    method, headers: { 'Content-Type': 'application/json', ...await adminApiHeaders() }, body: body ? JSON.stringify(body) : undefined,
   })
   const result = await response.json()
   assert.equal(response.status, expected, `${method} ${path}: ${JSON.stringify(result)}`)

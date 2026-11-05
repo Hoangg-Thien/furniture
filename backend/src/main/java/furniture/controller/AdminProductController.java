@@ -94,6 +94,15 @@ public class AdminProductController {
         }
     }
 
+    @PutMapping("/{id}/content")
+    public ResponseEntity<?> updateContent(@PathVariable Long id, @RequestBody Map<String, Object> body) {
+        try {
+            return ResponseEntity.ok(adminProductService.updateProductContent(id, body));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
     @PutMapping("/{id}/toggle-status")
     public ResponseEntity<?> toggleProductStatus(@PathVariable Long id) {
         try {

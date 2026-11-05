@@ -16,6 +16,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestAttribute;
+import furniture.model.admin.AdminIdentity;
 import org.springframework.web.bind.annotation.RestController;
 
 import furniture.model.admin.PageResponse;
@@ -87,8 +89,12 @@ public class AdminInvoiceController {
     @PostMapping
     public ResponseEntity<?> createInvoice(
             @Valid @RequestBody CreateInvoiceRequest req,
-            @RequestParam(required = false) Long staffUserId) {
+            @RequestParam(required = false) Long staffUserId,
+            @RequestAttribute(AdminIdentity.ATTRIBUTE) AdminIdentity identity) {
         try {
+            staffUserId = identity.userId();
+            if ("STAFF".equals(identity.role())) req = new CreateInvoiceRequest(req.orderId(), req.paymentMethod(),
+                    req.voucherCode(), req.includeVat(), req.vatPercent(), identity.staffId(), req.notes());
             InvoiceDetailDto created = adminInvoiceService.createInvoice(req, staffUserId);
             return ResponseEntity.status(HttpStatus.CREATED).body(created);
         } catch (IllegalStateException e) {

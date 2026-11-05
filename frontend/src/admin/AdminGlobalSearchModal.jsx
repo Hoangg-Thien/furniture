@@ -10,8 +10,9 @@ import {
   X
 } from 'lucide-react'
 import { getApiBaseUrl, getApiHeaders } from '../lib/apiConfig'
+import { canAccessModule } from '../lib/adminPermissions'
 
-export default function AdminGlobalSearchModal({ onClose, onNavigateModule }) {
+export default function AdminGlobalSearchModal({ currentUser, onClose, onNavigateModule }) {
   const [searchTerm, setSearchTerm] = useState('')
   const [searchResults, setSearchResults] = useState([])
   const [isSearching, setIsSearching] = useState(false)
@@ -69,7 +70,7 @@ export default function AdminGlobalSearchModal({ onClose, onNavigateModule }) {
           badgeColor: 'primary'
         }) },
       ]
-      await Promise.all(sources.map(async (source, index) => {
+      await Promise.all(sources.filter(source => canAccessModule(currentUser, source.path)).map(async (source, index) => {
         try {
           const response = await fetch(`${getApiBaseUrl()}/api/admin/${source.path}?search=${encodeURIComponent(q)}&page=0&size=${source.size}`, {
             headers: getApiHeaders(), signal: controller.signal,

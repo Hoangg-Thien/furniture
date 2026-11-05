@@ -28,8 +28,10 @@ import {
   Ban
 } from 'lucide-react'
 import { getApiBaseUrl, getApiHeaders } from '../lib/apiConfig'
+import { canProcessOrders } from '../lib/adminPermissions'
 
 export default function AdminOrderManagement({ currentUser, notificationTarget }) {
+  const processOrders = canProcessOrders(currentUser)
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(false)
   const pendingRequests = useRef(0)
@@ -125,6 +127,12 @@ export default function AdminOrderManagement({ currentUser, notificationTarget }
 
   // Fetch staff list for assignment
   const fetchStaff = async () => {
+    if (currentUser?.role !== 'ADMIN') {
+      const self = processOrders && currentUser?.staffId ? [{ id: currentUser.staffId, userId: currentUser.userId, username: currentUser.username, fullName: currentUser.fullName || currentUser.username }] : []
+      setStaffList(self)
+      setSelectedStaffId(self[0]?.id || '')
+      return
+    }
     try {
       const baseUrl = getApiBaseUrl()
       const res = await fetch(`${baseUrl}/api/admin/staff?size=100`, { headers: getApiHeaders() })
@@ -721,7 +729,7 @@ export default function AdminOrderManagement({ currentUser, notificationTarget }
                       <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
                         <div style={{ display: 'inline-flex', gap: '6px', alignItems: 'center' }}>
                           {/* Duyệt đơn hàng nếu PENDING */}
-                          {o.status === 'PENDING' && (
+                          {processOrders && o.status === 'PENDING' && (
                             <button
                               type="button"
                               className="table-action-btn unlock"
@@ -734,7 +742,7 @@ export default function AdminOrderManagement({ currentUser, notificationTarget }
                           )}
 
                           {/* Bàn giao vận chuyển, sau đó xác nhận giao lắp */}
-                          {(o.status === 'CONFIRMED' || o.status === 'SHIPPING') && (
+                          {processOrders && (o.status === 'CONFIRMED' || o.status === 'SHIPPING') && (
                             <button
                               type="button"
                               className="table-action-btn edit"
@@ -748,7 +756,7 @@ export default function AdminOrderManagement({ currentUser, notificationTarget }
                           )}
 
                           {/* Hủy đơn nếu chưa ở trạng thái cuối */}
-                          {o.status !== 'COMPLETED' && o.status !== 'CANCELLED' && (
+                          {processOrders && o.status !== 'COMPLETED' && o.status !== 'CANCELLED' && (
                             <button
                               type="button"
                               className="table-action-btn lock"
@@ -919,7 +927,7 @@ export default function AdminOrderManagement({ currentUser, notificationTarget }
                           <div style={{ fontSize: '0.85rem', color: '#B45309', fontWeight: 600 }}>
                             Chưa có nhân viên phụ trách
                           </div>
-                          <button
+                          {processOrders && <button
                             type="button"
                             className="admin-btn admin-btn-accent"
                             style={{ marginTop: '8px', padding: '6px 12px', fontSize: '0.82rem' }}
@@ -927,7 +935,7 @@ export default function AdminOrderManagement({ currentUser, notificationTarget }
                           >
                             <UserCheck size={13} />
                             <span>Gán Nhân Viên Ngay</span>
-                          </button>
+                          </button>}
                         </div>
                       )}
                     </div>
@@ -997,7 +1005,7 @@ export default function AdminOrderManagement({ currentUser, notificationTarget }
                 </div>
 
                 <div className="admin-modal-footer">
-                  {activeOrderDetail.status === 'PENDING' && (
+                  {processOrders && activeOrderDetail.status === 'PENDING' && (
                     <button
                       type="button"
                       className="admin-btn admin-btn-accent"
@@ -1008,7 +1016,7 @@ export default function AdminOrderManagement({ currentUser, notificationTarget }
                     </button>
                   )}
 
-                  {(activeOrderDetail.status === 'CONFIRMED' || activeOrderDetail.status === 'SHIPPING') && (
+                  {processOrders && (activeOrderDetail.status === 'CONFIRMED' || activeOrderDetail.status === 'SHIPPING') && (
                     <button
                       type="button"
                       className="admin-btn admin-btn-primary"
@@ -1020,7 +1028,7 @@ export default function AdminOrderManagement({ currentUser, notificationTarget }
                     </button>
                   )}
 
-                  {activeOrderDetail.status !== 'COMPLETED' && activeOrderDetail.status !== 'CANCELLED' && (
+                  {processOrders && activeOrderDetail.status !== 'COMPLETED' && activeOrderDetail.status !== 'CANCELLED' && (
                     <button
                       type="button"
                       className="admin-btn admin-btn-outline"

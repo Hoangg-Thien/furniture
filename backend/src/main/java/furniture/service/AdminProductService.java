@@ -88,6 +88,21 @@ public class AdminProductService {
     }
 
     @Transactional
+    public ProductDetailDto updateProductContent(Long id, java.util.Map<String, Object> body) {
+        if (!java.util.Set.of("name", "description", "imageUrl").containsAll(body.keySet())
+                || !(body.get("name") instanceof String name) || name.isBlank() || name.trim().length() > 200
+                || (body.get("description") != null && !(body.get("description") instanceof String))
+                || (body.get("imageUrl") != null && !(body.get("imageUrl") instanceof String))) {
+            throw new IllegalArgumentException("Chỉ được cập nhật tên (1–200 ký tự), mô tả và ảnh sản phẩm");
+        }
+        ProductDetailDto existing = getProductDetail(id);
+        adminProductRepository.updateProductContent(id, name.trim(),
+                body.containsKey("description") ? (String) body.get("description") : existing.description(),
+                body.containsKey("imageUrl") ? (String) body.get("imageUrl") : existing.imageUrl());
+        return getProductDetail(id);
+    }
+
+    @Transactional
     public List<ProductImageDto> uploadProductImages(Long productId, List<MultipartFile> files) {
         ProductDetailDto product = getProductDetail(productId);
 

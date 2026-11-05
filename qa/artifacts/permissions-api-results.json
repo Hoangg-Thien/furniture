@@ -1,0 +1,14 @@
+{
+  "passed": 8,
+  "results": [
+    "Anonymous administrative and shared private APIs are denied",
+    "Admin assigns each position and login/session returns its actual identity",
+    "Product writes, prices, stock and administrative modules follow the role matrix",
+    "Content updates only content, including rejection of smuggled fields",
+    "Warehouse receives stock and cannot impersonate the recorded employee",
+    "Customer session and order ownership prevent shared API bypasses",
+    "Changing position and locking accounts affect already-issued tokens",
+    "Password reset revokes old sessions and allows login with the new password"
+  ],
+  "database": "isolated PGlite on 127.0.0.1:15432"
+}

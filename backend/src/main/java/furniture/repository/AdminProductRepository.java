@@ -226,6 +226,11 @@ public class AdminProductRepository {
         return extractId(keyHolder);
     }
 
+    public void updateProductContent(Long id, String name, String description, String imageUrl) {
+        jdbcTemplate.update("UPDATE public.products SET name = ?, description = ?, image_url = ? WHERE id = ?",
+                name, description, imageUrl, id);
+    }
+
     public void updateProduct(Long id, SaveProductRequest req) {
         boolean isActive = req.isActive() == null || Boolean.TRUE.equals(req.isActive());
         BigDecimal price = req.sellingPrice() != null ? req.sellingPrice() : BigDecimal.ZERO;

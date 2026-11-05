@@ -15,6 +15,7 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.FileSystemResource;
 import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
 
 @Component
@@ -66,6 +67,7 @@ public class SalesDatabaseInitializer implements CommandLineRunner {
             }
 
             if (alreadyPopulated) {
+                new ResourceDatabasePopulator(new ClassPathResource("staff_permissions.sql")).populate(conn);
                 new ResourceDatabasePopulator(new ClassPathResource("order_shipping.sql")).populate(conn);
                 st.execute(new ClassPathResource("product_images.sql").getContentAsString(StandardCharsets.UTF_8));
                 log.info("Supabase database đã có dữ liệu từ sales.sql. Bỏ qua khởi tạo.");
@@ -116,6 +118,8 @@ public class SalesDatabaseInitializer implements CommandLineRunner {
             for (String statement : statements) {
                 String stmt = statement.trim();
                 if (stmt.isEmpty()) continue;
+                // Duplicate seed IDs must not abort every later statement and the migrations.
+                if ("BEGIN".equalsIgnoreCase(stmt) || "COMMIT".equalsIgnoreCase(stmt)) continue;
                 try {
                     st.execute(stmt);
                     successCount++;
@@ -127,6 +131,9 @@ public class SalesDatabaseInitializer implements CommandLineRunner {
                 }
             }
             log.info("Nạp sales.sql thành công: {} câu lệnh, bỏ qua: {}", successCount, warnCount);
+            new ResourceDatabasePopulator(new FileSystemResource(salesSqlPath.resolveSibling("admin_schema_extension.sql"))).populate(conn);
+            st.execute("ALTER TABLE public.categories ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT true");
+            new ResourceDatabasePopulator(new ClassPathResource("staff_permissions.sql")).populate(conn);
             new ResourceDatabasePopulator(new ClassPathResource("order_shipping.sql")).populate(conn);
             st.execute(new ClassPathResource("product_images.sql").getContentAsString(StandardCharsets.UTF_8));
 

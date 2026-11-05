@@ -48,6 +48,27 @@ export function getApiHeaders(extraHeaders = {}) {
 if (typeof window !== 'undefined' && window.fetch) {
   const originalFetch = window.fetch.bind(window)
   window.fetch = async function (resource, init = {}) {
+    let target
+    let authenticatedAdminRequest = false
+    let customerRequest = false
+    try { target = new URL(typeof resource === 'string' || resource instanceof URL ? resource : resource.url, window.location.href) } catch {}
+    if (target) {
+      const api = new URL(getApiBaseUrl(), window.location.href)
+      const apiPath = target.pathname.slice(api.pathname.replace(/\/$/, '').length)
+      customerRequest = /^\/api\/(orders(?:\/|$)|auth\/(me|update\/))/.test(apiPath)
+      if (target.origin === api.origin && target.pathname.startsWith(api.pathname.replace(/\/$/, '') + '/api/')
+          && (customerRequest || apiPath.startsWith('/api/admin/') || apiPath.startsWith('/api/auth/admin/')
+            || /^\/api\/auth\/(users|customers)$/.test(apiPath) || apiPath.startsWith('/api/vouchers'))) {
+        let user
+        try { user = JSON.parse(localStorage.getItem(customerRequest ? 'furniture_customer_user' : 'furniture_admin_user') || 'null') } catch {}
+        if (user?.accessToken && user.apiBaseUrl === getApiBaseUrl()) {
+          const headers = new Headers(init?.headers || (typeof resource === 'object' && resource?.headers) || {})
+          if (!headers.has('Authorization')) headers.set('Authorization', `Bearer ${user.accessToken}`)
+          init = { ...init, headers }
+          authenticatedAdminRequest = !customerRequest
+        }
+      } else customerRequest = false
+    }
     try {
       const url = typeof resource === 'string' ? resource : resource?.url || ''
       if (url.includes('ngrok') || url.includes('loca.lt')) {
@@ -55,11 +76,16 @@ if (typeof window !== 'undefined' && window.fetch) {
         if (!headers.has('ngrok-skip-browser-warning')) {
           headers.set('ngrok-skip-browser-warning', 'true')
         }
-        return originalFetch(resource, { ...init, headers })
+        init = { ...init, headers }
       }
     } catch {
       // Bỏ qua nếu có lỗi xử lý header, tiếp tục gọi fetch gốc
     }
-    return originalFetch(resource, init)
+    const response = await originalFetch(resource, init)
+    if (authenticatedAdminRequest && response.status === 401 && target?.pathname.includes('/api/admin/')) {
+      window.dispatchEvent(new Event('admin-session-expired'))
+    }
+    if (customerRequest && response.status === 401) window.dispatchEvent(new Event('customer-session-expired'))
+    return response
   }
 }

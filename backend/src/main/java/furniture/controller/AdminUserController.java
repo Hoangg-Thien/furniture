@@ -10,7 +10,8 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestAttribute;
+import furniture.model.admin.AdminIdentity;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -67,21 +68,9 @@ public class AdminUserController {
     @PutMapping("/{id}/toggle-status")
     public ResponseEntity<?> toggleStatus(
             @PathVariable Long id,
-            @RequestHeader(value = "X-Current-User-Id", required = false) String headerUserId,
-            @RequestParam(value = "currentUserId", required = false) String paramUserId) {
+            @RequestAttribute(AdminIdentity.ATTRIBUTE) AdminIdentity identity) {
         try {
-            Long currentLoggedInId = null;
-            if (headerUserId != null && !headerUserId.trim().isEmpty()) {
-                try {
-                    currentLoggedInId = Long.parseLong(headerUserId.trim());
-                } catch (NumberFormatException ignored) {}
-            }
-            if (currentLoggedInId == null && paramUserId != null && !paramUserId.trim().isEmpty()) {
-                try {
-                    currentLoggedInId = Long.parseLong(paramUserId.trim());
-                } catch (NumberFormatException ignored) {}
-            }
-            boolean newStatus = adminUserService.toggleActiveStatus(id, currentLoggedInId);
+            boolean newStatus = adminUserService.toggleActiveStatus(id, identity.userId());
             return ResponseEntity.ok(Map.of(
                     "message", newStatus ? "Đã kích hoạt tài khoản thành công" : "Đã tạm khóa tài khoản thành công",
                     "isActive", newStatus));

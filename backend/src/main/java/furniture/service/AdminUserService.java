@@ -104,5 +104,6 @@ public class AdminUserService {
 
         String hashed = PasswordUtil.hash(newPassword.trim());
         adminUserRepository.updatePassword(userId, hashed);
+        jdbcTemplate.update("DELETE FROM public.admin_sessions WHERE user_id = ?", userId);
     }
 }

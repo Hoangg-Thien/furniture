@@ -1,3 +1,4 @@
+import { mockAdminSession } from './admin-auth.mjs'
 import assert from 'node:assert/strict'
 import { fileURLToPath } from 'node:url'
 import { createServer } from '../../frontend/node_modules/vite/dist/node/index.js'
@@ -24,7 +25,7 @@ try {
   page.on('pageerror', error => errors.push(error.message))
   page.on('dialog', dialog => dialog.accept())
   await page.addInitScript(() => {
-    localStorage.setItem('furniture_admin_user', JSON.stringify({ id: 1, role: 'ADMIN', username: 'invoice-test' }))
+    localStorage.setItem('furniture_admin_user', JSON.stringify({ id: 1, role: 'ADMIN', accessToken: 'qa-mock-token', apiBaseUrl: 'http://localhost:8080', username: 'invoice-test' }))
     window.printCalls = 0
     window.print = () => window.printCalls++
   })
@@ -62,6 +63,7 @@ try {
     if (path === '/api/admin/invoices') return route.fulfill({ json: { content: created ? [created, legacy] : [legacy], totalPages: 1, totalElements: created ? 2 : 1 } })
     return route.fulfill({ json: { content: [], total: 0, totalPages: 1 } })
   })
+  await mockAdminSession(page)
   await page.goto(new URL('/admin/invoices', server.resolvedUrls.local[0]).href)
   await page.getByText('Chứng từ cũ: BANK_TRANSFER', { exact: true }).waitFor()
   await page.locator('.card-revenue .inv-stat-value').filter({ hasText: '80.402.000' }).waitFor()

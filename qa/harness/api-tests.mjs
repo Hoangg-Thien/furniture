@@ -1,17 +1,22 @@
+import { adminApiHeaders } from './admin-auth.mjs'
 import fs from 'node:fs'
 const base = 'http://127.0.0.1:18080'
 const out = new URL('../artifacts/api-results.json', import.meta.url)
 const results = []
+let customerToken
 async function sql(query, params = []) {
   const r = await fetch('http://127.0.0.1:15433', { method: 'POST', body: JSON.stringify({ sql: query, params }) })
   const data = await r.json()
   if (!r.ok) throw Error(JSON.stringify(data))
   return data
 }
-async function request(method, route, body) {
-  const r = await fetch(base + route, { method, headers: { 'Content-Type': 'application/json' }, ...(body !== undefined ? { body: JSON.stringify(body) } : {}) })
+async function request(method, route, body, authenticated = true) {
+  const ownProfile = /^\/api\/auth\/(me|update\/)/.test(route)
+  const auth = authenticated ? ownProfile ? { Authorization: `Bearer ${customerToken}` } : await adminApiHeaders(base) : {}
+  const r = await fetch(base + route, { method, headers: { 'Content-Type': 'application/json', ...auth }, ...(body !== undefined ? { body: JSON.stringify(body) } : {}) })
   const text = await r.text()
   let data; try { data = JSON.parse(text) } catch { data = text }
+  if (data.accessToken && (route === '/api/auth/register' || route.startsWith('/api/auth/update/'))) customerToken = data.accessToken
   return { status: r.status, data, contentType: r.headers.get('content-type') }
 }
 async function test(name, run) {
@@ -26,7 +31,7 @@ async function test(name, run) {
 async function check(name, method, route, body, expected = [200], verify = () => true) {
   let response
   await test(name, async () => {
-    response = await request(method, route, body)
+    response = await request(method, route, body, !name.startsWith('SECURITY anonymous'))
     return { pass: expected.includes(response.status) && verify(response.data), method, route, status: response.status,
       expected, response: typeof response.data === 'string' ? response.data.slice(0, 160) : response.data }
   })

@@ -25,8 +25,11 @@ import {
   Filter
 } from 'lucide-react'
 import { getApiBaseUrl, getApiHeaders } from '../lib/apiConfig'
+import { canManageProducts, canEditProductContent } from '../lib/adminPermissions'
 
 export default function AdminProductManagement({ currentUser, notificationTarget }) {
+  const manageProducts = canManageProducts(currentUser)
+  const editContent = canEditProductContent(currentUser)
   const [products, setProducts] = useState([])
   const [categories, setCategories] = useState([])
   const [loading, setLoading] = useState(false)
@@ -149,6 +152,7 @@ export default function AdminProductManagement({ currentUser, notificationTarget
 
   // 3. Mở Modal Thêm mới sản phẩm
   function openCreateModal() {
+    if (!manageProducts) return
     setEditingProduct(null)
     setProductForm({
       name: '',
@@ -214,6 +218,7 @@ export default function AdminProductManagement({ currentUser, notificationTarget
   // 5. Submit Tạo / Cập nhật sản phẩm
   async function handleProductSubmit(e) {
     e.preventDefault()
+    if (!editContent) return
     setProductFormError('')
 
     if (!productForm.name.trim()) {
@@ -221,19 +226,19 @@ export default function AdminProductManagement({ currentUser, notificationTarget
       return
     }
 
-    if (!productForm.categoryId) {
+    if (manageProducts && !productForm.categoryId) {
       setProductFormError('Vui lòng chọn loại nội thất.')
       return
     }
 
     const priceNum = parseFloat(productForm.sellingPrice)
-    if (isNaN(priceNum) || priceNum < 0) {
+    if (manageProducts && (isNaN(priceNum) || priceNum < 0)) {
       setProductFormError('Giá bán phải là số hợp lệ và lớn hơn hoặc bằng 0.')
       return
     }
 
     const qtyNum = parseInt(productForm.quantity, 10)
-    if (isNaN(qtyNum) || qtyNum < 0) {
+    if (manageProducts && (isNaN(qtyNum) || qtyNum < 0)) {
       setProductFormError('Số lượng tồn kho phải lớn hơn hoặc bằng 0.')
       return
     }
@@ -242,14 +247,14 @@ export default function AdminProductManagement({ currentUser, notificationTarget
     try {
       const isEdit = Boolean(editingProduct)
       const url = isEdit
-        ? `${baseUrl}/api/admin/products/${editingProduct.id}`
+        ? `${baseUrl}/api/admin/products/${editingProduct.id}${manageProducts ? '' : '/content'}`
         : `${baseUrl}/api/admin/products`
       const method = isEdit ? 'PUT' : 'POST'
 
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+        body: JSON.stringify(manageProducts ? {
           name: productForm.name.trim(),
           categoryId: parseInt(productForm.categoryId, 10),
           unit: productForm.unit.trim(),
@@ -258,6 +263,9 @@ export default function AdminProductManagement({ currentUser, notificationTarget
           description: productForm.description.trim() || null,
           imageUrl: productForm.imageUrl.trim() || null,
           isActive: productForm.isActive
+        } : {
+          name: productForm.name.trim(), description: productForm.description.trim() || null,
+          imageUrl: productForm.imageUrl.trim() || null
         })
       })
 
@@ -478,14 +486,14 @@ export default function AdminProductManagement({ currentUser, notificationTarget
             <RefreshCw size={16} className={loading ? 'spin' : ''} />
             <span>Làm Mới</span>
           </button>
-          <button
+          {manageProducts && <button
             type="button"
             className="admin-btn admin-btn-accent"
             onClick={openCreateModal}
           >
             <Plus size={16} />
             <span>+ Thêm Sản Phẩm Mới</span>
-          </button>
+          </button>}
         </div>
       </div>
 
@@ -925,14 +933,14 @@ export default function AdminProductManagement({ currentUser, notificationTarget
                             type="button"
                             className="btn-action-edit"
                             onClick={() => openEditModal(p)}
-                            title="Chỉnh sửa sản phẩm"
+                            title={editContent ? 'Chỉnh sửa sản phẩm' : 'Xem thông tin sản phẩm'}
                           >
-                            <Edit2 size={13} />
-                            <span>Sửa</span>
+                            {editContent ? <Edit2 size={13} /> : <Eye size={13} />}
+                            <span>{editContent ? 'Sửa' : 'Xem'}</span>
                           </button>
 
                           {/* Ẩn / Hiện */}
-                          <button
+                          {manageProducts && <button
                             type="button"
                             className={`btn-action-toggle ${isActive ? 'active' : ''}`}
                             onClick={() => handleToggleStatus(p)}
@@ -940,7 +948,7 @@ export default function AdminProductManagement({ currentUser, notificationTarget
                           >
                             {isActive ? <EyeOff size={13} /> : <Eye size={13} />}
                             <span>{isActive ? 'Ẩn' : 'Hiện'}</span>
-                          </button>
+                          </button>}
                         </div>
                       </td>
                     </tr>
@@ -1021,7 +1029,7 @@ export default function AdminProductManagement({ currentUser, notificationTarget
           ==================================================================== */}
       {showProductModal && (
         <div className="admin-modal-backdrop" onClick={() => setShowProductModal(false)}>
-          <div className="admin-modal-card large" onClick={(e) => e.stopPropagation()}>
+          <div className="admin-modal-card large" role="dialog" aria-modal="true" aria-label={editContent ? 'Thông tin chỉnh sửa sản phẩm' : 'Thông tin sản phẩm'} onClick={(e) => e.stopPropagation()}>
             <div className="admin-modal-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <div className="modal-icon-badge">
@@ -1029,14 +1037,14 @@ export default function AdminProductManagement({ currentUser, notificationTarget
                 </div>
                 <div>
                   <h3 className="modal-title">
-                    {editingProduct ? 'Chỉnh Sửa Sản Phẩm Nội Thất' : 'Thêm Sản Phẩm Nội Thất Mới'}
+                    {!editContent ? 'Thông tin sản phẩm' : editingProduct ? 'Chỉnh Sửa Sản Phẩm Nội Thất' : 'Thêm Sản Phẩm Nội Thất Mới'}
                   </h3>
                   <p className="modal-subtitle">
                     {editingProduct ? `Cập nhật thông tin cho sản phẩm #${editingProduct.id}` : 'Nhập thông tin sản phẩm và định giá'}
                   </p>
                 </div>
               </div>
-              <button className="modal-close-btn" onClick={() => setShowProductModal(false)}>
+              <button className="modal-close-btn" aria-label="Đóng" onClick={() => setShowProductModal(false)}>
                 <X size={18} />
               </button>
             </div>
@@ -1060,6 +1068,7 @@ export default function AdminProductManagement({ currentUser, notificationTarget
                     className="form-input"
                     placeholder="VD: Sofa Da Bò Ý Nhập Khẩu Góc Chữ L, Bàn Ăn Gỗ Sồi Bắc Âu 6 Ghế..."
                     value={productForm.name}
+                    disabled={!editContent}
                     onChange={(e) => setProductForm({ ...productForm, name: e.target.value })}
                     required
                     autoFocus
@@ -1075,6 +1084,7 @@ export default function AdminProductManagement({ currentUser, notificationTarget
                     <select
                       className="form-input"
                       value={productForm.categoryId}
+                      disabled={!manageProducts}
                       onChange={(e) => setProductForm({ ...productForm, categoryId: e.target.value })}
                       required
                     >
@@ -1095,6 +1105,7 @@ export default function AdminProductManagement({ currentUser, notificationTarget
                       className="form-input"
                       placeholder="VD: Bộ, Chiếc, Cái, Bộ 6 ghế..."
                       value={productForm.unit}
+                      disabled={!manageProducts}
                       onChange={(e) => setProductForm({ ...productForm, unit: e.target.value })}
                     />
                   </div>
@@ -1112,6 +1123,7 @@ export default function AdminProductManagement({ currentUser, notificationTarget
                       className="form-input"
                       placeholder="VD: 15500000"
                       value={productForm.sellingPrice}
+                      disabled={!manageProducts}
                       onChange={(e) => setProductForm({ ...productForm, sellingPrice: e.target.value })}
                       required
                     />
@@ -1130,6 +1142,7 @@ export default function AdminProductManagement({ currentUser, notificationTarget
                       className="form-input"
                       placeholder="VD: 10"
                       value={productForm.quantity}
+                      disabled={!manageProducts}
                       onChange={(e) => setProductForm({ ...productForm, quantity: e.target.value })}
                       required
                     />
@@ -1145,6 +1158,7 @@ export default function AdminProductManagement({ currentUser, notificationTarget
                     className="form-input"
                     placeholder="https://example.com/sofa-leather.jpg (hoặc tải album ảnh sau)"
                     value={productForm.imageUrl}
+                    disabled={!editContent}
                     onChange={(e) => setProductForm({ ...productForm, imageUrl: e.target.value })}
                   />
                   <small className="form-hint">Bạn cũng có thể tải nhiều ảnh trực tiếp qua chức năng "Album ảnh" bên ngoài.</small>
@@ -1158,6 +1172,7 @@ export default function AdminProductManagement({ currentUser, notificationTarget
                     rows="4"
                     placeholder="VD: Kích thước: Dài 280 x Rộng 160 x Cao 85cm. Chất liệu: Da bò nguyên tấm nhập khẩu Ý, khung gỗ thông đã qua sấy chống mối mọt, đệm mút cao cấp D40 đàn hồi cao..."
                     value={productForm.description}
+                    disabled={!editContent}
                     onChange={(e) => setProductForm({ ...productForm, description: e.target.value })}
                   />
                 </div>
@@ -1168,6 +1183,7 @@ export default function AdminProductManagement({ currentUser, notificationTarget
                     <input
                       type="checkbox"
                       checked={productForm.isActive}
+                      disabled={!manageProducts}
                       onChange={(e) => setProductForm({ ...productForm, isActive: e.target.checked })}
                       style={{ width: '16px', height: '16px', accentColor: 'var(--admin-accent)' }}
                     />
@@ -1185,7 +1201,7 @@ export default function AdminProductManagement({ currentUser, notificationTarget
                 >
                   Hủy bỏ
                 </button>
-                <button
+                {editContent && <button
                   type="submit"
                   className="admin-btn admin-btn-primary"
                   disabled={submittingProduct}
@@ -1198,7 +1214,7 @@ export default function AdminProductManagement({ currentUser, notificationTarget
                   ) : (
                     <span>{editingProduct ? 'Lưu cập nhật' : 'Tạo sản phẩm'}</span>
                   )}
-                </button>
+                </button>}
               </div>
             </form>
           </div>
@@ -1210,7 +1226,7 @@ export default function AdminProductManagement({ currentUser, notificationTarget
           ==================================================================== */}
       {showGalleryModal && activeGalleryProduct && (
         <div className="admin-modal-backdrop" onClick={() => setShowGalleryModal(false)}>
-          <div className="admin-modal-card large" style={{ maxWidth: '780px' }} onClick={(e) => e.stopPropagation()}>
+          <div className="admin-modal-card large" role="dialog" aria-modal="true" aria-label="Album ảnh sản phẩm" style={{ maxWidth: '780px' }} onClick={(e) => e.stopPropagation()}>
             <div className="admin-modal-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <div className="modal-icon-badge" style={{ background: '#EFF6FF', color: '#2563EB' }}>
@@ -1223,14 +1239,14 @@ export default function AdminProductManagement({ currentUser, notificationTarget
                   </p>
                 </div>
               </div>
-              <button className="modal-close-btn" onClick={() => setShowGalleryModal(false)}>
+              <button className="modal-close-btn" aria-label="Đóng" onClick={() => setShowGalleryModal(false)}>
                 <X size={18} />
               </button>
             </div>
 
             <div className="admin-modal-body" style={{ maxHeight: '72vh', overflowY: 'auto' }}>
               {/* Box tải ảnh lên */}
-              <div className="gallery-upload-zone">
+              {editContent && <div className="gallery-upload-zone">
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
                   <Upload size={32} color="var(--admin-accent)" />
                   <strong style={{ fontSize: '0.94rem', color: 'var(--admin-primary)' }}>
@@ -1293,15 +1309,16 @@ export default function AdminProductManagement({ currentUser, notificationTarget
                 </div>
               </div>
 
+              }
               {/* Lưới các ảnh trong album */}
               <div style={{ marginTop: '20px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
                   <strong style={{ fontSize: '0.9rem', color: 'var(--admin-primary)' }}>
                     Các góc ảnh hiện có ({galleryImages.length} ảnh):
                   </strong>
-                  <span style={{ fontSize: '0.76rem', color: 'var(--admin-text-muted)' }}>
+                  {editContent && <span style={{ fontSize: '0.76rem', color: 'var(--admin-text-muted)' }}>
                     * Nhấp vào biểu tượng ngôi sao ⭐ để chọn làm ảnh đại diện chính.
-                  </span>
+                  </span>}
                 </div>
 
                 {galleryLoading ? (
@@ -1329,7 +1346,7 @@ export default function AdminProductManagement({ currentUser, notificationTarget
                         )}
 
                         {/* Action Overlay */}
-                        <div className="gallery-item-actions">
+                        {editContent && <div className="gallery-item-actions">
                           {!img.isPrimary && (
                             <button
                               type="button"
@@ -1350,7 +1367,7 @@ export default function AdminProductManagement({ currentUser, notificationTarget
                           >
                             <Trash2 size={13} />
                           </button>
-                        </div>
+                        </div>}
                       </div>
                     ))}
                   </div>

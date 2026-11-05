@@ -1,3 +1,4 @@
+import { mockAdminSession } from './admin-auth.mjs'
 import assert from 'node:assert/strict'
 import { fileURLToPath } from 'node:url'
 import { createServer } from '../../frontend/node_modules/vite/dist/node/index.js'
@@ -11,7 +12,7 @@ try {
   await context.addInitScript(() => {
     if (!localStorage.getItem('qa_notifications_initialized')) {
       localStorage.setItem('furniture_customer_user', JSON.stringify({ customerId: 4, role: 'CUSTOMER', username: 'notification-test' }))
-      localStorage.setItem('furniture_admin_user', JSON.stringify({ id: 1, role: 'ADMIN', username: 'admin-test' }))
+      localStorage.setItem('furniture_admin_user', JSON.stringify({ id: 1, role: 'ADMIN', accessToken: 'qa-mock-token', apiBaseUrl: 'http://localhost:8080', username: 'admin-test' }))
       localStorage.setItem('qa_notifications_initialized', 'yes')
     }
     const timers = new Map()
@@ -52,6 +53,7 @@ try {
     else if (path === '/api/admin/categories') body = [{ id: 1, name: 'Chair' }]
     await route.fulfill({ json: body })
   })
+  await mockAdminSession(context)
   const page = await context.newPage()
   const errors = []
   page.on('pageerror', error => errors.push(error.message))

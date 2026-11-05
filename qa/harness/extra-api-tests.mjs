@@ -1,3 +1,4 @@
+import { adminApiHeaders } from './admin-auth.mjs'
 import fs from 'node:fs'
 const f = JSON.parse(fs.readFileSync(new URL('../artifacts/fixtures.json', import.meta.url)))
 const results = []
@@ -9,7 +10,7 @@ async function sql(query, params = []) {
   return data
 }
 async function req(method, route, body) {
-  const r = await fetch(base + route, { method, headers: { 'Content-Type': 'application/json' }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) })
+  const r = await fetch(base + route, { method, headers: { 'Content-Type': 'application/json', ...await adminApiHeaders(base) }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) })
   let data; const text = await r.text(); try { data = JSON.parse(text) } catch { data = text }
   return { status: r.status, data }
 }
@@ -82,7 +83,7 @@ record('Category revenue obeys date range with no orders', revenue.every(x => Nu
 // Verify actual file serving, including a valid PNG and a disallowed HTML upload.
 const form = new FormData()
 form.append('files', new Blob([Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=', 'base64')], { type: 'image/png' }), 'qa.png')
-const upload = await fetch(`${base}/api/admin/products/${p.id}/images`, { method: 'POST', body: form })
+const upload = await fetch(`${base}/api/admin/products/${p.id}/images`, { method: 'POST', headers: await adminApiHeaders(base), body: form })
 const uploadData = await upload.json()
 record('Upload valid PNG', upload.ok, { status: upload.status, data: uploadData })
 const uploadedPath = uploadData.find?.(x => x.imageUrl?.startsWith('/uploads'))?.imageUrl
@@ -92,7 +93,7 @@ if (uploadedPath) {
 }
 const html = new FormData()
 html.append('files', new Blob(['<!doctype html><title>QA upload type probe</title>'], { type: 'text/html' }), 'qa.html')
-const bad = await fetch(`${base}/api/admin/products/${p.id}/images`, { method: 'POST', body: html })
+const bad = await fetch(`${base}/api/admin/products/${p.id}/images`, { method: 'POST', headers: await adminApiHeaders(base), body: html })
 record('Image upload rejects HTML files', [400, 415, 422].includes(bad.status), { status: bad.status, response: await bad.json() })
 const emptyProg = await check('Empty promotion create', 'POST', '/api/admin/promotions', { name: `QA deletable ${suffix}`, startDate: '2026-01-01T00:00:00', endDate: '2027-12-31T23:59:59', status: 'DRAFT' }, [201])
 await check('Empty promotion delete', 'DELETE', `/api/admin/promotions/${emptyProg.id}`)

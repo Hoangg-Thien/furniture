@@ -11,6 +11,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestAttribute;
+import org.springframework.web.server.ResponseStatusException;
+import furniture.model.admin.AdminIdentity;
 import org.springframework.web.bind.annotation.RestController;
 
 import furniture.model.CreateOrderRequest;
@@ -29,7 +32,13 @@ public class OrderController {
     }
 
     @PostMapping
-    public ResponseEntity<?> createOrder(@RequestBody CreateOrderRequest req) {
+    public ResponseEntity<?> createOrder(@RequestBody CreateOrderRequest req,
+            @RequestAttribute(AdminIdentity.ATTRIBUTE) AdminIdentity identity) {
+        if ("CUSTOMER".equals(identity.role()) &&
+                ((req.userId() != null && !req.userId().equals(identity.userId()))
+                || identity.customerId() == null || !identity.customerId().equals(req.customerId()))) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Không được đặt hàng bằng tài khoản người khác");
+        }
         try {
             OrderResponse response = orderService.createOrder(req);
             return ResponseEntity.ok(response);

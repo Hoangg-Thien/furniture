@@ -17,11 +17,50 @@ import AdminToastContainer from './AdminToastContainer'
 import AdminGlobalSearchModal from './AdminGlobalSearchModal'
 import './admin.css'
 import './admin-modern.css'
+import './AdminCategoryManagement.css'
+import { getApiBaseUrl, getApiHeaders } from '../lib/apiConfig'
+import { setCurrentAdminUser } from '../lib/auth'
+import { canAccessModule, defaultAdminModule } from '../lib/adminPermissions'
 
 import { ShieldAlert } from 'lucide-react'
 
-// Danh sách các module mà Nhân viên (STAFF) được phép thao tác
-const STAFF_ALLOWED_MODULES = ['orders', 'invoices', 'customers', 'products', 'suppliers']
+export default function AdminLayout({ currentUser: storedUser, onLogout, onBackToStore }) {
+  const [verifiedUser, setVerifiedUser] = useState(null)
+  const [sessionError, setSessionError] = useState('')
+  const [attempt, setAttempt] = useState(0)
+  useEffect(() => {
+    const controller = new AbortController()
+    async function refresh() {
+      try {
+        const response = await fetch(`${getApiBaseUrl()}/api/auth/admin/session`, { headers: getApiHeaders(), signal: controller.signal })
+        if (response.status === 401) { onLogout(); return }
+        if (!response.ok) throw new Error('Không thể kiểm tra quyền truy cập. Vui lòng thử lại.')
+        const identity = await response.json()
+        if (controller.signal.aborted) return
+        const user = { ...storedUser, ...identity }
+        setCurrentAdminUser(user)
+        setVerifiedUser(previous => previous?.role === user.role && previous?.staffType === user.staffType && previous?.staffId === user.staffId ? previous : user)
+        setSessionError('')
+      } catch (error) {
+        if (!controller.signal.aborted) setSessionError(error.message || 'Không thể kết nối máy chủ')
+      }
+    }
+    refresh()
+    window.addEventListener('focus', refresh)
+    window.addEventListener('admin-session-expired', onLogout)
+    return () => {
+      controller.abort()
+      window.removeEventListener('focus', refresh)
+      window.removeEventListener('admin-session-expired', onLogout)
+    }
+  }, [storedUser.accessToken, attempt])
+  if (!verifiedUser || sessionError) return <div className="admin-shell"><div className="admin-card" role={sessionError ? 'alert' : 'status'} style={{ margin: 24 }}>
+    <p>{sessionError || 'Đang kiểm tra phiên đăng nhập...'}</p>
+    {sessionError && <button className="admin-btn admin-btn-primary" onClick={() => setAttempt(value => value + 1)}>Thử lại</button>}
+    {sessionError && <button className="admin-btn admin-btn-outline" onClick={onLogout}>Đăng xuất</button>}
+  </div></div>
+  return <AdminWorkspace key={`${verifiedUser.role}:${verifiedUser.staffType}`} currentUser={verifiedUser} onLogout={onLogout} onBackToStore={onBackToStore} />
+}
 
 function AccessDeniedView({ onGoBack }) {
   return (
@@ -46,10 +85,10 @@ function AccessDeniedView({ onGoBack }) {
   )
 }
 
-export default function AdminLayout({ currentUser, onLogout, onBackToStore }) {
-  const role = currentUser?.role?.toUpperCase() || 'ADMIN'
+function AdminWorkspace({ currentUser, onLogout, onBackToStore }) {
+  const role = currentUser.role
   const isStaff = role === 'STAFF'
-  const defaultModule = isStaff ? 'orders' : 'dashboard'
+  const defaultModule = defaultAdminModule(currentUser)
 
   const getInitialModule = () => {
     if (typeof window !== 'undefined') {
@@ -57,16 +96,16 @@ export default function AdminLayout({ currentUser, onLogout, onBackToStore }) {
       if (path.startsWith('/admin/')) {
         const sub = path.replace('/admin/', '').split('/')[0]
         if (sub && !sub.includes('login')) {
-          if (isStaff && !STAFF_ALLOWED_MODULES.includes(sub)) {
-            return 'orders'
+          if (!canAccessModule(currentUser, sub)) {
+            return defaultModule
           }
           return sub
         }
       }
       const saved = localStorage.getItem('funi_admin_active_module')
       if (saved) {
-        if (isStaff && !STAFF_ALLOWED_MODULES.includes(saved)) {
-          return 'orders'
+        if (!canAccessModule(currentUser, saved)) {
+          return defaultModule
         }
         return saved
       }
@@ -80,6 +119,7 @@ export default function AdminLayout({ currentUser, onLogout, onBackToStore }) {
   const [isGlobalSearchOpen, setIsGlobalSearchOpen] = useState(false)
 
   const handleSelectModule = (mod, recordId) => {
+    if (!canAccessModule(currentUser, mod)) mod = defaultModule
     setNotificationTarget(recordId ? { module: mod, id: recordId } : null)
     setActiveModule(mod)
     try {
@@ -99,7 +139,7 @@ export default function AdminLayout({ currentUser, onLogout, onBackToStore }) {
       if (path.startsWith('/admin/')) {
         const sub = path.replace('/admin/', '').split('/')[0]
         if (sub) {
-          setActiveModule(sub)
+            setActiveModule(canAccessModule(currentUser, sub) ? sub : defaultModule)
         }
       } else if (path === '/admin') {
         setActiveModule(defaultModule)
@@ -109,10 +149,10 @@ export default function AdminLayout({ currentUser, onLogout, onBackToStore }) {
     return () => window.removeEventListener('popstate', handlePopState)
   }, [defaultModule])
 
-  // Nếu tài khoản là nhân viên nhưng cố tình vào các module cấm, tự chuyển hướng về 'orders'
+  // Giữ URL và nội dung phù hợp với vị trí đã xác thực.
   useEffect(() => {
-    if (isStaff && !STAFF_ALLOWED_MODULES.includes(activeModule)) {
-      handleSelectModule('orders')
+    if (!canAccessModule(currentUser, activeModule) || window.location.pathname !== `/admin/${activeModule}`) {
+      handleSelectModule(canAccessModule(currentUser, activeModule) ? activeModule : defaultModule)
     }
   }, [isStaff, activeModule])
 
@@ -127,6 +167,11 @@ export default function AdminLayout({ currentUser, onLogout, onBackToStore }) {
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [])
+
+  if (!canAccessModule(currentUser, activeModule)) return <div className="admin-shell"><div className="admin-card" role="alert" style={{ margin: 24 }}>
+    <p>Tài khoản chưa được phân công vị trí hợp lệ. Vui lòng liên hệ quản trị viên.</p>
+    <button className="admin-btn admin-btn-outline" onClick={onLogout}>Đăng xuất</button>
+  </div></div>
 
   return (
     <div className="admin-shell">
@@ -190,7 +235,7 @@ export default function AdminLayout({ currentUser, onLogout, onBackToStore }) {
             isStaff ? (
               <AccessDeniedView onGoBack={() => handleSelectModule('orders')} />
             ) : (
-              <AdminCategoryManagement currentUser={currentUser} />
+              <AdminCategoryManagement />
             )
           ) : activeModule === 'products' ? (
             <AdminProductManagement currentUser={currentUser} notificationTarget={notificationTarget?.module === 'products' ? notificationTarget : null} />
@@ -230,6 +275,7 @@ export default function AdminLayout({ currentUser, onLogout, onBackToStore }) {
 
       {/* Hộp thoại Tìm kiếm nhanh toàn hệ thống (Ctrl + K) */}
       {isGlobalSearchOpen && <AdminGlobalSearchModal
+        currentUser={currentUser}
         onClose={() => setIsGlobalSearchOpen(false)}
         onNavigateModule={handleSelectModule}
       />}

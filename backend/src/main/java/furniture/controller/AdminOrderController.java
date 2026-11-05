@@ -13,6 +13,8 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestAttribute;
+import furniture.model.admin.AdminIdentity;
 import org.springframework.web.bind.annotation.RestController;
 
 import furniture.model.admin.PageResponse;
@@ -69,8 +71,10 @@ public class AdminOrderController {
     @PutMapping("/{id}/confirm")
     public ResponseEntity<?> confirmOrder(
             @PathVariable Long id,
-            @Valid @RequestBody ConfirmOrderRequest req) {
+            @Valid @RequestBody ConfirmOrderRequest req,
+            @RequestAttribute(AdminIdentity.ATTRIBUTE) AdminIdentity identity) {
         try {
+            if ("STAFF".equals(identity.role())) req = new ConfirmOrderRequest(identity.staffId(), req.notes());
             adminOrderService.confirmOrder(id, req);
             return ResponseEntity.ok(Map.of("message", "Đã xác nhận đơn hàng và gán nhân viên phụ trách thành công!"));
         } catch (IllegalArgumentException e) {

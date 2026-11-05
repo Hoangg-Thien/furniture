@@ -427,7 +427,7 @@ export default function AdminSupplierManagement({ currentUser }) {
     try {
       const baseUrl = getApiBaseUrl()
       const payload = {
-        staffId: Number(receiptForm.staffId) || 1,
+        staffId: currentUser?.staffId || null,
         status: receiptForm.status,
         items: receiptForm.items.map((it) => ({
           productId: Number(it.productId),
@@ -835,7 +835,7 @@ export default function AdminSupplierManagement({ currentUser }) {
                           </button>
 
                           {/* Xóa */}
-                          <button
+                          {currentUser?.role === 'ADMIN' && <button
                             type="button"
                             className="btn-action-delete"
                             title="Xóa nhà cung cấp"
@@ -845,7 +845,7 @@ export default function AdminSupplierManagement({ currentUser }) {
                             }}
                           >
                             <Trash2 size={13} />
-                          </button>
+                          </button>}
                         </div>
                       </td>
                     </tr>
@@ -1252,7 +1252,7 @@ export default function AdminSupplierManagement({ currentUser }) {
                       className="form-input"
                       disabled
                       style={{ background: '#F8FAFC', color: 'var(--admin-text-muted)' }}
-                      value={currentUser ? `${currentUser.fullName || currentUser.username} (ID: 1)` : 'Nhân viên kho (ID: 1)'}
+                      value={currentUser ? currentUser.fullName || currentUser.username : ''}
                     />
                   </div>
                 </div>

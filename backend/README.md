@@ -5,7 +5,7 @@ The backend connects to the Supabase PostgreSQL database using the PostgreSQL JD
 ## Configure Supabase
 
 1. In Supabase, open **Project Settings > Database > Connection string** and choose **Session pooler**. Use the host, port, database, and username shown for your project. A JDBC URL has this shape: `jdbc:postgresql://<pooler-host>:<port>/postgres?sslmode=require`. If you have a URI beginning with `postgresql://`, do not use it unchanged: make the JDBC URL from its host, port, and database parts, and set its username and password in the separate variables below. Keep `sslmode=require`.
-2. If the database schema has not been installed yet, run `../database/sales.sql` in the Supabase SQL Editor. Then run `../database/supabase_storefront.sql` to add the product image column and sample catalog rows.
+2. For an empty database, start the backend from this checkout with `../database/sales.sql` and `../database/admin_schema_extension.sql` available. The initializer loads the base/admin schema and applies permission migrations.
 3. In PowerShell, set the connection values in the terminal where the backend will run. These are PostgreSQL connection credentials, not the Supabase anon key or service-role key:
 
 ```powershell
@@ -21,4 +21,8 @@ The application uses `ddl-auto: validate`, so Hibernate checks mappings but does
 
 With the backend running, open `http://localhost:8080/api/products` or run `Invoke-RestMethod http://localhost:8080/api/products` in PowerShell. The Vite app defaults to this backend URL; set `VITE_API_BASE_URL` in `frontend/.env` only if it runs elsewhere.
 
-The catalog endpoint is the first backend API. Cart persistence, authentication, and order submission are not implemented yet.
+The backend supports customer orders and an administration portal. Staff accounts keep `role=STAFF` and have one business position: `SALES`, `WAREHOUSE`, or `CONTENT`. Admins assign positions in the employee screen. See [the implementation plan and permission matrix](../doc_kehoach/13_PHAN_QUYEN_NHAN_VIEN.md).
+
+Startup applies `staff_permissions.sql` to existing and new databases. Existing staff default to `SALES`; reassign warehouse/content employees as needed. Existing sessions must sign in again. Admin login uses `POST /api/auth/admin/login`; protected APIs require the returned bearer token and read current permissions from the database. Customer login/registration also returns a token for private order/profile APIs.
+
+When bootstrapping an empty database from this checkout, keep both `database/sales.sql` and `database/admin_schema_extension.sql` available next to each other. Startup loads the existing admin schema after the base seed before applying permissions. Test migrations with the isolated QA harness before running against a live database.

@@ -13,6 +13,7 @@ import {
   ShieldAlert,
   X
 } from 'lucide-react'
+import { canAccessModule } from '../lib/adminPermissions'
 
 export const ADMIN_MODULES = [
   // Nhóm 1: Bảng điều khiển (Chỉ Quản trị viên)
@@ -50,7 +51,7 @@ export default function AdminSidebar({
   const isStaff = role === 'STAFF'
 
   // Lọc danh sách module theo quyền hạn người đăng nhập
-  const visibleModules = ADMIN_MODULES.filter((m) => !m.roles || m.roles.includes(role))
+  const visibleModules = ADMIN_MODULES.filter(m => canAccessModule(currentUser, m.id))
 
   // Lấy danh sách các nhóm thực sự có module hiển thị
   const groups = Array.from(new Set(visibleModules.map((m) => m.group)))

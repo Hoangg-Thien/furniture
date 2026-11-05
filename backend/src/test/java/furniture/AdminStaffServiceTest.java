@@ -42,7 +42,7 @@ public class AdminStaffServiceTest {
 
     @Test
     void testCreateStaff_DuplicateUsername_ThrowsException() {
-        CreateStaffRequest req = new CreateStaffRequest("staff_lan", "pass123456", "Trần Thị Lan", "lan@noithat.vn", "0901234567", "Hà Nội");
+        CreateStaffRequest req = new CreateStaffRequest("staff_lan", "pass123456", "Trần Thị Lan", "lan@noithat.vn", "0901234567", "Hà Nội", "SALES");
         when(adminUserRepository.existsByUsername("staff_lan")).thenReturn(true);
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> {
@@ -54,7 +54,7 @@ public class AdminStaffServiceTest {
 
     @Test
     void testCreateStaff_DuplicateEmail_ThrowsException() {
-        CreateStaffRequest req = new CreateStaffRequest("staff_lan", "pass123456", "Trần Thị Lan", "lan@noithat.vn", "0901234567", "Hà Nội");
+        CreateStaffRequest req = new CreateStaffRequest("staff_lan", "pass123456", "Trần Thị Lan", "lan@noithat.vn", "0901234567", "Hà Nội", "SALES");
         when(adminUserRepository.existsByUsername("staff_lan")).thenReturn(false);
         when(adminStaffRepository.existsByEmail("lan@noithat.vn")).thenReturn(true);
 
@@ -67,11 +67,11 @@ public class AdminStaffServiceTest {
 
     @Test
     void testCreateStaff_Success() {
-        CreateStaffRequest req = new CreateStaffRequest("staff_duc", "pass123456", "Hoàng Minh Đức", "duc@noithat.vn", "0933444555", "Hồ Chí Minh");
+        CreateStaffRequest req = new CreateStaffRequest("staff_duc", "pass123456", "Hoàng Minh Đức", "duc@noithat.vn", "0933444555", "Hồ Chí Minh", "WAREHOUSE");
         when(adminUserRepository.existsByUsername("staff_duc")).thenReturn(false);
         when(adminStaffRepository.existsByEmail("duc@noithat.vn")).thenReturn(false);
         when(adminUserRepository.insertUser(eq("staff_duc"), anyString(), eq("STAFF"), eq(true))).thenReturn(20L);
-        when(adminStaffRepository.insertStaff(eq(20L), eq("Hoàng Minh Đức"), eq("duc@noithat.vn"), eq("0933444555"), eq("Hồ Chí Minh"))).thenReturn(5L);
+        when(adminStaffRepository.insertStaff(eq(20L), eq("Hoàng Minh Đức"), eq("duc@noithat.vn"), eq("0933444555"), eq("Hồ Chí Minh"), eq("WAREHOUSE"))).thenReturn(5L);
 
         StaffSummaryDto dto = adminStaffService.createStaff(req);
 
@@ -80,12 +80,13 @@ public class AdminStaffServiceTest {
         assertEquals("staff_duc", dto.username());
         assertEquals("Hoàng Minh Đức", dto.fullName());
         assertTrue(dto.isActive());
+        assertEquals("WAREHOUSE", dto.staffType());
     }
 
     @Test
     void testUpdateStaff_DuplicateEmail_ThrowsException() {
         Long staffId = 2L;
-        UpdateStaffRequest req = new UpdateStaffRequest("Lê Thị Thu Hà", "other@noithat.vn", "0905111222", "Đà Nẵng");
+        UpdateStaffRequest req = new UpdateStaffRequest("Lê Thị Thu Hà", "other@noithat.vn", "0905111222", "Đà Nẵng", "CONTENT");
 
         when(adminStaffRepository.findById(staffId)).thenReturn(Optional.of(Map.of(
                 "id", staffId,
