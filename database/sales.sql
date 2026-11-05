@@ -383,8 +383,8 @@ INSERT INTO products (id, category_id, name, description, unit, selling_price, i
 (10, 5,  'Tu quan ao 3 canh go MDF Alice',       'Tu quan ao 3 canh, go MDF chong am',                'cai',  6800000,  'https://images.unsplash.com/photo-1595428774223-ef52624120d2?auto=format&fit=crop&w=900&q=85', 16),
 (11, 5,  'Tu giay thong minh 5 tang',            'Tu giay canh lat, go cong nghiep',                  'cai',  2400000,  'https://images.unsplash.com/photo-1538688525198-9b88f6f53126?auto=format&fit=crop&w=900&q=85', 25),
 (12, 6,  'Ban lam viec chan sat 1m2 Office',     'Ban lam viec mat go MDF, chan sat chu U',           'cai',  1900000,  'https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?auto=format&fit=crop&w=900&q=85', 45),
-(13, 6,  'Ghe cong thai hoc Ergo',               'Ghe luoi tua lung, ke tay 3D, nang ha khi nen',     'cai',  3600000,  'https://images.unsplash.com/photo-1580481077190-736134b223c6?auto=format&fit=crop&w=900&q=85', 30),
-(14, 7,  'Ke sach go 5 tang Bookie',             'Ke sach 5 tang, go cong nghiep phu melamine',       'cai',  2100000,  'https://images.unsplash.com/photo-1594671581654-27d5303d3d45?auto=format&fit=crop&w=900&q=85', 35),
+(13, 6,  'Ghe cong thai hoc Ergo',               'Ghe luoi tua lung, ke tay 3D, nang ha khi nen',     'cai',  3600000,  '/images/ghe_ergo.jpg', 30),
+(14, 7,  'Ke sach go 5 tang Bookie',             'Ke sach 5 tang, go cong nghiep phu melamine',       'cai',  2100000,  '/images/ke_5_tang.jpg', 35),
 (15, 7,  'Ke tivi go oc cho 1m8 Nova',           'Ke tivi 1m8 co ngan keo, go oc cho',                'cai',  3200000,  'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=900&q=85', 22),
 (16, 8,  'Den chum pha le 8 bong',               'Den chum phong khach, khung ma vang',               'cai',  5400000,  'https://images.unsplash.com/photo-1513506003901-1e6a229e2d15?auto=format&fit=crop&w=900&q=85', 10),
 (17, 8,  'Den san thong tru Arc',                'Den san cao 1m8, than kim loai',                    'cai',  1350000,  'https://images.unsplash.com/photo-1507473885765-e6ed057f782c?auto=format&fit=crop&w=900&q=85&sat=-40', 28),
@@ -779,4 +779,6 @@ INSERT INTO orders (id, customer_id, order_date, status, total_amount, discount_
 INSERT INTO order_items (order_id, product_id, quantity, unit_price, amount) VALUES (53, 1, 1, 14500000, 14500000);
 INSERT INTO orders (id, customer_id, order_date, status, total_amount, discount_amount) VALUES (54, 25, '2026-11-05 10:40:29', 'PENDING', 9800000, 0);
 INSERT INTO order_items (order_id, product_id, quantity, unit_price, amount) VALUES (54, 2, 1, 9800000, 9800000);
+INSERT INTO orders (id, customer_id, order_date, status, total_amount, discount_amount) VALUES (55, 25, '2026-11-05 13:38:42', 'PENDING', 14000000, 0);
+INSERT INTO order_items (order_id, product_id, quantity, unit_price, amount) VALUES (55, 1, 1, 14500000, 14500000);
 COMMIT;

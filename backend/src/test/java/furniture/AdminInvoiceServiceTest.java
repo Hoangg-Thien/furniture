@@ -221,6 +221,19 @@ class AdminInvoiceServiceTest {
     }
 
     @Test
+    void completedInvoiceRejectsNonCodPaymentMethods() {
+        OrderDetailDto order = new OrderDetailDto(100L, 2L, "Customer", "0901", "Address",
+                1L, "Staff", now, "COMPLETED", BigDecimal.TEN, null, BigDecimal.ZERO, BigDecimal.TEN, List.of());
+        when(adminOrderRepository.findDetailById(100L)).thenReturn(order);
+        for (String method : new String[] {null, "BANK_TRANSFER", "CREDIT_CARD", "VNPAY", "MOMO"}) {
+            assertThrows(IllegalArgumentException.class, () -> adminInvoiceService.createInvoice(
+                    new CreateInvoiceRequest(100L, method, null, false, null, null, null), null));
+        }
+        verify(adminInvoiceRepository, org.mockito.Mockito.never()).insertInvoice(anyString(), any(), any(), any(),
+                any(), any(), any(), any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
     void completedOrderRejectsAddedVatOrDifferentVoucher() {
         OrderDetailDto order = new OrderDetailDto(100L, 2L, "Customer", "0901", "Address",
                 1L, "Staff", now, "COMPLETED", BigDecimal.TEN, null, BigDecimal.ZERO, BigDecimal.TEN, List.of());
@@ -322,7 +335,7 @@ class AdminInvoiceServiceTest {
     void generatePdfBytes_ShouldReturnValidPdf() {
         InvoiceDetailDto invoice = new InvoiceDetailDto(
                 1L, "HD-20261027-001", 100L, 2L, "Nguyễn Thị Lan", "0912345678", "123 Đường Nội Thất", "lan@example.com",
-                1L, "Hoàng Minh Đức", now, "BANK_TRANSFER", "PAID",
+                1L, "Hoàng Minh Đức", now, "CASH", "PAID",
                 new BigDecimal("18000000"), BigDecimal.ZERO, "VIP10", new BigDecimal("1800000"),
                 new BigDecimal("1296000"), new BigDecimal("17496000"), "Ghi chú",
                 List.of(
@@ -338,5 +351,6 @@ class AdminInvoiceServiceTest {
 
         String pdfString = new String(pdfBytes, 0, Math.min(pdfBytes.length, 50));
         assertTrue(pdfString.startsWith("%PDF-1.4"), "File PDF phải bắt đầu bằng tiêu đề %PDF-1.4");
+        assertTrue(new String(pdfBytes, java.nio.charset.StandardCharsets.ISO_8859_1).contains("COD - thu tien khi giao hang"));
     }
 }

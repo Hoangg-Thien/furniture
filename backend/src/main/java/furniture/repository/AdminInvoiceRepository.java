@@ -229,12 +229,6 @@ public class AdminInvoiceRepository {
             BigDecimal finalAmount = rs.getBigDecimal("final_amount");
             String code = rs.getString("invoice_code");
 
-            // Sinh link VietQR động
-            String qrUrl = "https://img.vietqr.io/image/MB-0312345678-compact.png?amount="
-                    + (finalAmount != null ? finalAmount.toBigInteger() : 0)
-                    + "&addInfo=" + code
-                    + "&accountName=SHOWROOM%20NOI%20THAT%20CAO%20CAP";
-
             return new InvoiceDetailDto(
                     rs.getLong("id"),
                     code,
@@ -257,7 +251,7 @@ public class AdminInvoiceRepository {
                     finalAmount,
                     rs.getString("notes"),
                     null,
-                    qrUrl
+                    null
             );
         }, id);
 

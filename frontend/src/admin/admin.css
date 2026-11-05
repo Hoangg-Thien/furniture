@@ -2337,8 +2337,8 @@
 
 .inv-stat-card.card-total::before { background: #0284c7; }
 .inv-stat-card.card-revenue::before { background: #059669; }
-.inv-stat-card.card-vietqr::before { background: #0d9488; }
-.inv-stat-card.card-pos::before { background: #d97706; }
+.inv-stat-card.card-cod::before { background: #0d9488; }
+.inv-stat-card.card-legacy::before { background: #d97706; }
 
 .inv-stat-card:hover {
   transform: translateY(-3px);
@@ -2384,6 +2384,19 @@
 
 .inv-stat-value.text-emerald {
   color: #059669;
+}
+
+.inv-invoice-stats .inv-stat-info {
+  container-type: inline-size;
+}
+
+.inv-invoice-stats .card-revenue .inv-stat-value {
+  font-size: clamp(1rem, 12cqi, 1.55rem);
+  white-space: nowrap;
+}
+
+.inv-invoice-stats .inv-stat-sub {
+  white-space: normal;
 }
 
 .inv-stat-unit {

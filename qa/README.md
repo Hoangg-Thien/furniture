@@ -4,7 +4,7 @@ Bộ kiểm thử này không sửa mã nghiệp vụ. Các request ghi chạy t
 
 ## Chạy lại trên máy hiện tại
 
-Chạy `node qa/harness/invoice-ui-check.mjs` để kiểm tra lập/xem hóa đơn ngay trong trang, API lỗi/thử lại, phản hồi cũ khi đổi đơn, khóa tổng tiền đã chốt, xác nhận thu tiền, in A4/K80, tải PDF và bố cục mobile. Script dùng API giả lập, không ghi database; ảnh nằm trong `qa/artifacts/invoice-create-desktop.png` và `invoice-create-mobile.png`.
+Chạy `node qa/harness/invoice-ui-check.mjs` để kiểm tra lập/xem hóa đơn COD ngay trong trang, giữ chứng từ cũ, không hiển thị QR thanh toán, API lỗi/thử lại, phản hồi cũ khi đổi đơn, khóa tổng tiền đã chốt, xác nhận thu tiền, in A4/K80, tải PDF và bố cục mobile. Script dùng API giả lập, không ghi database; ảnh nằm trong `qa/artifacts/invoice-create-desktop.png` và `invoice-create-mobile.png`.
 
 Chạy riêng `node qa/harness/admin-login-check.mjs` để kiểm tra giao diện đăng nhập admin ở desktop, tablet và mobile (320–390px), hiện/ẩn mật khẩu, validation, loading/lỗi, tài khoản demo và đăng nhập ADMIN/STAFF. Script dùng API giả lập, không ghi database; ảnh xem trước nằm trong `qa/artifacts/admin-login-desktop.png` và `admin-login-mobile.png`.
 

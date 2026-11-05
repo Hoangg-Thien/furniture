@@ -537,6 +537,7 @@ function App() {
 
   function handleAdminLogout() {
     logoutAdminUser()
+    window.history.replaceState(null, '', '/admin')
     setAdminUser(null)
   }
 

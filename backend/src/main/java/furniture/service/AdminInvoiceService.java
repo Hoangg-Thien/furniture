@@ -178,6 +178,9 @@ public class AdminInvoiceService {
         if (!"COMPLETED".equalsIgnoreCase(order.status())) {
             throw new IllegalStateException("Đơn hàng chưa hoàn tất giao hàng.");
         }
+        if (!"CASH".equals(paymentMethod)) {
+            throw new IllegalArgumentException("Chỉ hỗ trợ COD: thu tiền mặt khi giao hàng.");
+        }
         Optional<Long> existingId = adminInvoiceRepository.findInvoiceIdByOrderId(order.id());
         if (existingId.isPresent()) {
             InvoiceDetailDto existing = adminInvoiceRepository.findDetailById(existingId.get());
@@ -186,9 +189,6 @@ public class AdminInvoiceService {
                 throw new IllegalStateException("Hóa đơn có sẵn chưa thanh toán hoặc lệch tổng tiền đơn hàng; cần đối soát trước khi hoàn tất.");
             }
             return existing;
-        }
-        if (paymentMethod == null || !List.of("CASH", "BANK_TRANSFER", "CREDIT_CARD", "VNPAY", "MOMO").contains(paymentMethod)) {
-            throw new IllegalArgumentException("Phương thức thanh toán không hợp lệ.");
         }
         if (order.finalTotal() == null || order.finalTotal().signum() < 0
                 || order.discountAmount() == null || order.discountAmount().signum() < 0
@@ -275,7 +275,7 @@ public class AdminInvoiceService {
             streamContent.append("(").append(escapePdf("Dia chi giao: " + stripAccents(invoice.address()))).append(") Tj\n");
 
             streamContent.append("0 -15 Td\n");
-            streamContent.append("(").append(escapePdf("Thu ngan: " + stripAccents(invoice.staffName() != null ? invoice.staffName() : "Admin") + "   |   PTTT: " + invoice.paymentMethod())).append(") Tj\n");
+            streamContent.append("(").append(escapePdf("Thu ngan: " + stripAccents(invoice.staffName() != null ? invoice.staffName() : "Admin") + "   |   PTTT: " + ("CASH".equals(invoice.paymentMethod()) ? "COD - thu tien khi giao hang" : "Chung tu cu: " + invoice.paymentMethod()))).append(") Tj\n");
 
             // Bảng danh sách hàng hóa
             streamContent.append("0 -30 Td\n");

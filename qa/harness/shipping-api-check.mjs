@@ -82,7 +82,12 @@ try {
   const [voucher] = await sql('SELECT id, code, used_quantity FROM public.vouchers ORDER BY id LIMIT 1')
   await sql("UPDATE public.orders SET status = 'COMPLETED', staff_id = $2, total_amount = 90000, discount_amount = 10000, voucher_id = $3 WHERE id = $1", [historical.orderId, staff.id, voucher.id])
   await sql("UPDATE public.vouchers SET end_date = CURRENT_TIMESTAMP - INTERVAL '1 day' WHERE id = $1", [voucher.id])
+  for (const paymentMethod of ['BANK_TRANSFER', 'CREDIT_CARD', 'VNPAY', 'MOMO']) {
+    await api('/admin/invoices', 'POST', { orderId: historical.orderId, paymentMethod, voucherCode: voucher.code, includeVat: false }, 400)
+  }
+  assert.equal((await sql('SELECT id FROM public.invoices WHERE order_id = $1', [historical.orderId])).length, 0)
   const recovered = await api('/admin/invoices', 'POST', { orderId: historical.orderId, paymentMethod: 'CASH', voucherCode: voucher.code, includeVat: false }, 201)
+  assert.equal(recovered.qrCodeUrl, null)
   assert.equal(Number(recovered.finalAmount), 90000)
   assert.equal(Number(recovered.discountAmount), 10000)
   assert.equal(Number(recovered.voucherDiscount), 0)

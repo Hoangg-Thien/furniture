@@ -14,10 +14,7 @@ import {
   User,
   Phone,
   MapPin,
-  CreditCard,
-  QrCode,
   Banknote,
-  Wallet,
   Tag,
   DollarSign,
   ChevronLeft,
@@ -28,8 +25,7 @@ import {
   FileText,
   Building,
   ShieldCheck,
-  Clock,
-  Sparkles
+  Clock
 } from 'lucide-react'
 import { getApiBaseUrl, getApiHeaders } from '../lib/apiConfig'
 
@@ -43,21 +39,17 @@ export default function AdminInvoiceManagement({ currentUser }) {
     total: 0,
     totalRevenue: 0,
     cashCount: 0,
-    bankTransferCount: 0,
-    posCardCount: 0,
-    eWalletCount: 0,
     paidCount: 0,
     refundedCount: 0
   })
 
   // Filters & Pagination
   const [searchKeyword, setSearchKeyword] = useState('')
-  const [selectedMethod, setSelectedMethod] = useState('ALL')
   const [selectedStatus, setSelectedStatus] = useState('ALL')
   const [fromDate, setFromDate] = useState('')
   const [toDate, setToDate] = useState('')
   const [page, setPage] = useState(0)
-  const [pageSize] = useState(10)
+  const [pageSize, setPageSize] = useState(10)
   const [totalPages, setTotalPages] = useState(1)
   const [totalElements, setTotalElements] = useState(0)
 
@@ -102,7 +94,6 @@ export default function AdminInvoiceManagement({ currentUser }) {
 
   // Form inputs for creating invoice
   const [voucherCodeInput, setVoucherCodeInput] = useState('')
-  const [paymentMethod, setPaymentMethod] = useState('CASH')
   const [notes, setNotes] = useState('')
   const [previewCalculation, setPreviewCalculation] = useState(null)
   const [calculating, setCalculating] = useState(false)
@@ -124,7 +115,6 @@ export default function AdminInvoiceManagement({ currentUser }) {
       const baseUrl = getApiBaseUrl()
       const params = new URLSearchParams()
       if (searchKeyword.trim()) params.append('search', searchKeyword.trim())
-      if (selectedMethod && selectedMethod !== 'ALL') params.append('paymentMethod', selectedMethod)
       if (selectedStatus && selectedStatus !== 'ALL') params.append('paymentStatus', selectedStatus)
       if (fromDate) params.append('fromDate', fromDate)
       if (toDate) params.append('toDate', toDate)
@@ -184,7 +174,7 @@ export default function AdminInvoiceManagement({ currentUser }) {
   useEffect(() => {
     fetchInvoices()
     fetchStats()
-  }, [page, pageSize, selectedMethod, selectedStatus])
+  }, [page, pageSize, selectedStatus])
 
   // Tải chi tiết đơn và giá trị hóa đơn do backend tính.
   const handleSelectOrder = async (orderId) => {
@@ -247,8 +237,7 @@ export default function AdminInvoiceManagement({ currentUser }) {
         body: JSON.stringify({
           orderId: Number(orderId),
           voucherCode: voucherCode ? voucherCode.trim() : null,
-          includeVat: vat,
-          vatPercent: 8.0
+          includeVat: vat
         })
       })
       const data = await res.json()
@@ -331,10 +320,9 @@ export default function AdminInvoiceManagement({ currentUser }) {
         headers: getApiHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({
           orderId: Number(selectedOrderId),
-          paymentMethod: paymentMethod,
+          paymentMethod: 'CASH',
           voucherCode: voucherCodeInput ? voucherCodeInput.trim() : null,
           includeVat: false,
-          vatPercent: 8.0,
           notes: notes
         })
       })
@@ -384,37 +372,9 @@ export default function AdminInvoiceManagement({ currentUser }) {
     })
   }
 
-  const getMethodBadge = (method) => {
-    switch (method) {
-      case 'BANK_TRANSFER':
-        return (
-          <span className="inv-badge inv-badge-bank">
-            <QrCode size={13} /> VietQR
-          </span>
-        )
-      case 'CASH':
-        return (
-          <span className="inv-badge inv-badge-cash">
-            <Banknote size={13} /> Tiền mặt
-          </span>
-        )
-      case 'CREDIT_CARD':
-        return (
-          <span className="inv-badge inv-badge-card">
-            <CreditCard size={13} /> Thẻ POS
-          </span>
-        )
-      case 'VNPAY':
-      case 'MOMO':
-        return (
-          <span className="inv-badge inv-badge-ewallet">
-            <Wallet size={13} /> {method}
-          </span>
-        )
-      default:
-        return <span className="inv-badge inv-badge-default">{method}</span>
-    }
-  }
+  const getMethodBadge = (method) => method === 'CASH'
+    ? <span className="inv-badge inv-badge-cash"><Banknote size={13} /> COD — thu tiền khi giao hàng</span>
+    : <span className="inv-badge inv-badge-default">Chứng từ cũ: {method}</span>
 
   return (
     <div className="admin-module-view">
@@ -438,7 +398,7 @@ export default function AdminInvoiceManagement({ currentUser }) {
           </div>
           <h1 className="admin-page-title">Quản Lý Hóa Đơn &amp; Thanh Toán</h1>
           <p className="admin-page-subtitle" style={{ margin: '4px 0 0', color: 'var(--admin-text-muted)', fontSize: '0.88rem' }}>
-            Xuất chứng từ thanh toán chính thức, áp dụng chiết khấu voucher &amp; VAT, quét VietQR động và in hóa đơn bán lẻ.
+            Ghi nhận thanh toán COD sau khi giao hàng thành công và thu đủ tiền. Hóa đơn giữ nguyên tổng tiền đã đặt.
           </p>
         </div>
 
@@ -473,7 +433,7 @@ export default function AdminInvoiceManagement({ currentUser }) {
       </div>
 
       {/* KPI Stats Cards */}
-      <div className="inv-stats-grid">
+      <div className="inv-stats-grid inv-invoice-stats">
         <div className="inv-stat-card card-total">
           <div className="inv-stat-icon" style={{ background: '#EFF6FF', color: '#0284C7' }}>
             <Receipt size={22} />
@@ -495,91 +455,35 @@ export default function AdminInvoiceManagement({ currentUser }) {
             <span className="inv-stat-label">Doanh thu thực tế</span>
             <h3 className="inv-stat-value text-emerald">{formatVnd(stats.totalRevenue)}</h3>
             <span className="inv-stat-sub" style={{ color: '#78716C' }}>
-              Đã gồm VAT &amp; trừ Voucher
+              Tổng tiền các hóa đơn đã thanh toán
             </span>
           </div>
         </div>
 
-        <div className="inv-stat-card card-vietqr">
+        <div className="inv-stat-card card-cod">
           <div className="inv-stat-icon" style={{ background: '#F0FDFA', color: '#0D9488' }}>
-            <QrCode size={22} />
+            <Banknote size={22} />
           </div>
           <div className="inv-stat-info">
-            <span className="inv-stat-label">Chuyển khoản VietQR</span>
-            <h3 className="inv-stat-value">{stats.bankTransferCount} <span className="inv-stat-unit">giao dịch</span></h3>
+            <span className="inv-stat-label">Thanh toán COD</span>
+            <h3 className="inv-stat-value">{stats.cashCount} <span className="inv-stat-unit">hóa đơn</span></h3>
             <span className="inv-stat-sub" style={{ color: '#0F766E', fontWeight: 600 }}>
-              {stats.total > 0 ? Math.round((stats.bankTransferCount / stats.total) * 100) : 0}% tỷ trọng thanh toán
+              Thu tiền khi giao hàng
             </span>
           </div>
         </div>
 
-        <div className="inv-stat-card card-pos">
+        <div className="inv-stat-card card-legacy">
           <div className="inv-stat-icon" style={{ background: '#FFFBEB', color: '#D97706' }}>
-            <CreditCard size={22} />
+            <AlertCircle size={22} />
           </div>
           <div className="inv-stat-info">
-            <span className="inv-stat-label">Tiền mặt &amp; Quẹt thẻ POS</span>
-            <h3 className="inv-stat-value">{stats.cashCount + stats.posCardCount} <span className="inv-stat-unit">hóa đơn</span></h3>
+            <span className="inv-stat-label">Chứng từ cũ khác COD</span>
+            <h3 className="inv-stat-value">{stats.total - stats.cashCount} <span className="inv-stat-unit">hóa đơn</span></h3>
             <span className="inv-stat-sub" style={{ color: '#78716C' }}>
-              Tiền mặt: {stats.cashCount} | Quẹt POS: {stats.posCardCount}
+              Giữ nguyên để đối soát lịch sử thanh toán
             </span>
           </div>
-        </div>
-      </div>
-
-      {/* Quick Method Tab Bar */}
-      <div className="inv-method-tabs-card">
-        <div className="inv-method-tabs-wrapper">
-          <button
-            type="button"
-            className={`inv-method-tab ${selectedMethod === 'ALL' ? 'active' : ''}`}
-            onClick={() => {
-              setSelectedMethod('ALL')
-              setPage(0)
-            }}
-          >
-            <span>Tất Cả Phương Thức</span>
-            <span className="tab-badge">{stats.total}</span>
-          </button>
-
-          <button
-            type="button"
-            className={`inv-method-tab ${selectedMethod === 'BANK_TRANSFER' ? 'active' : ''}`}
-            onClick={() => {
-              setSelectedMethod('BANK_TRANSFER')
-              setPage(0)
-            }}
-          >
-            <QrCode size={14} />
-            <span>Chuyển Khoản VietQR</span>
-            <span className="tab-badge">{stats.bankTransferCount}</span>
-          </button>
-
-          <button
-            type="button"
-            className={`inv-method-tab ${selectedMethod === 'CASH' ? 'active' : ''}`}
-            onClick={() => {
-              setSelectedMethod('CASH')
-              setPage(0)
-            }}
-          >
-            <Banknote size={14} />
-            <span>Tiền Mặt Tại Quầy</span>
-            <span className="tab-badge">{stats.cashCount}</span>
-          </button>
-
-          <button
-            type="button"
-            className={`inv-method-tab ${selectedMethod === 'CREDIT_CARD' ? 'active' : ''}`}
-            onClick={() => {
-              setSelectedMethod('CREDIT_CARD')
-              setPage(0)
-            }}
-          >
-            <CreditCard size={14} />
-            <span>Quẹt Thẻ POS</span>
-            <span className="tab-badge">{stats.posCardCount}</span>
-          </button>
         </div>
       </div>
 
@@ -670,14 +574,13 @@ export default function AdminInvoiceManagement({ currentUser }) {
             <span>Lọc Dữ Liệu</span>
           </button>
 
-          {(searchKeyword || selectedMethod !== 'ALL' || selectedStatus !== 'ALL' || fromDate || toDate) && (
+          {(searchKeyword || selectedStatus !== 'ALL' || fromDate || toDate) && (
             <button
               type="button"
               className="admin-btn admin-btn-outline"
               style={{ height: '42px', padding: '0 14px', fontSize: '0.84rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
               onClick={() => {
                 setSearchKeyword('')
-                setSelectedMethod('ALL')
                 setSelectedStatus('ALL')
                 setFromDate('')
                 setToDate('')
@@ -691,19 +594,13 @@ export default function AdminInvoiceManagement({ currentUser }) {
         </div>
 
         {/* Active Filter Chips */}
-        {(searchKeyword || selectedMethod !== 'ALL' || selectedStatus !== 'ALL' || fromDate || toDate) && (
+        {(searchKeyword || selectedStatus !== 'ALL' || fromDate || toDate) && (
           <div className="inv-active-chips-row">
             <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748B' }}>Đang áp dụng bộ lọc:</span>
             {searchKeyword && (
               <span className="inv-chip">
                 <span>Từ khóa: "{searchKeyword}"</span>
                 <button type="button" onClick={() => setSearchKeyword('')}><X size={12} /></button>
-              </span>
-            )}
-            {selectedMethod !== 'ALL' && (
-              <span className="inv-chip">
-                <span>Phương thức: {selectedMethod === 'BANK_TRANSFER' ? 'VietQR' : selectedMethod === 'CASH' ? 'Tiền mặt' : 'Quẹt thẻ POS'}</span>
-                <button type="button" onClick={() => setSelectedMethod('ALL')}><X size={12} /></button>
               </span>
             )}
             {selectedStatus !== 'ALL' && (
@@ -1133,93 +1030,7 @@ export default function AdminInvoiceManagement({ currentUser }) {
                       <span className="inv-step-badge">3</span> Phương thức thanh toán &amp; Ghi chú
                     </h4>
 
-                    <div className="inv-payment-methods-grid">
-                      <label className={`inv-method-card ${paymentMethod === 'BANK_TRANSFER' ? 'active' : ''}`}>
-                        <input
-                          type="radio"
-                          name="paymentMethod"
-                          value="BANK_TRANSFER"
-                          checked={paymentMethod === 'BANK_TRANSFER'}
-                          onChange={() => setPaymentMethod('BANK_TRANSFER')}
-                        />
-                        <div className="inv-method-content">
-                          <QrCode size={20} color="#0284C7" />
-                          <div>
-                            <strong>Chuyển khoản VietQR</strong>
-                            <span>Quét mã QR ngân hàng tự động</span>
-                          </div>
-                        </div>
-                      </label>
-
-                      <label className={`inv-method-card ${paymentMethod === 'CASH' ? 'active' : ''}`}>
-                        <input
-                          type="radio"
-                          name="paymentMethod"
-                          value="CASH"
-                          checked={paymentMethod === 'CASH'}
-                          onChange={() => setPaymentMethod('CASH')}
-                        />
-                        <div className="inv-method-content">
-                          <Banknote size={20} color="#059669" />
-                          <div>
-                            <strong>Tiền mặt tại quầy</strong>
-                            <span>Thanh toán trực tiếp khi nhận hàng</span>
-                          </div>
-                        </div>
-                      </label>
-
-                      <label className={`inv-method-card ${paymentMethod === 'CREDIT_CARD' ? 'active' : ''}`}>
-                        <input
-                          type="radio"
-                          name="paymentMethod"
-                          value="CREDIT_CARD"
-                          checked={paymentMethod === 'CREDIT_CARD'}
-                          onChange={() => setPaymentMethod('CREDIT_CARD')}
-                        />
-                        <div className="inv-method-content">
-                          <CreditCard size={20} color="#D97706" />
-                          <div>
-                            <strong>Quẹt thẻ qua POS</strong>
-                            <span>Thẻ ATM nội địa / Visa / Master</span>
-                          </div>
-                        </div>
-                      </label>
-
-                      <label className={`inv-method-card ${paymentMethod === 'MOMO' ? 'active' : ''}`}>
-                        <input
-                          type="radio"
-                          name="paymentMethod"
-                          value="MOMO"
-                          checked={paymentMethod === 'MOMO'}
-                          onChange={() => setPaymentMethod('MOMO')}
-                        />
-                        <div className="inv-method-content">
-                          <Wallet size={20} color="#7E22CE" />
-                          <div>
-                            <strong>Ví MoMo / VNPay</strong>
-                            <span>Cổng thanh toán điện tử</span>
-                          </div>
-                        </div>
-                      </label>
-                    </div>
-
-                    {/* Dynamic QR Demo if Bank Transfer */}
-                    {paymentMethod === 'BANK_TRANSFER' && previewCalculation && (
-                      <div className="inv-vietqr-box">
-                        <div className="inv-vietqr-info">
-                          <h5><Sparkles size={14} color="var(--admin-accent)" /> Thanh toán VietQR động theo đơn</h5>
-                          <p>Số tài khoản: <strong>0312345678</strong> - MB Bank</p>
-                          <p>Chủ tài khoản: <strong>SHOWROOM NOI THAT FUNISTORE</strong></p>
-                          <p>Số tiền: <strong style={{ color: '#059669' }}>{formatVnd(previewCalculation.finalAmount)}</strong></p>
-                          <p>Nội dung: <strong>HD-{selectedOrderId}</strong></p>
-                        </div>
-                        <img
-                          src={`https://img.vietqr.io/image/MB-0312345678-compact.png?amount=${previewCalculation.finalAmount}&addInfo=HD-${selectedOrderId}&accountName=SHOWROOM%20NOI%20THAT%20FUNISTORE`}
-                          alt="VietQR"
-                          className="inv-vietqr-img"
-                        />
-                      </div>
-                    )}
+                    <p className="inv-calc-feedback feedback-success"><Banknote size={18} /> COD — thu tiền mặt khi giao hàng. Chỉ lập hóa đơn sau khi đã thu đủ tiền.</p>
 
                     <div className="form-group" style={{ marginTop: '16px' }}>
                       <label className="form-label">Ghi chú trên hóa đơn (tùy chọn):</label>
@@ -1379,7 +1190,7 @@ export default function AdminInvoiceManagement({ currentUser }) {
                     <div className="inv-info-col inv-info-right">
                       <p><strong>Ngày lập:</strong> {formatDate(selectedInvoice.paymentDate)}</p>
                       <p><strong>Thu ngân phụ trách:</strong> {selectedInvoice.staffName || 'Admin Showroom'}</p>
-                      <p><strong>Hình thức thanh toán:</strong> {selectedInvoice.paymentMethod}</p>
+                      <p><strong>Hình thức thanh toán:</strong> {selectedInvoice.paymentMethod === 'CASH' ? 'COD — thu tiền khi giao hàng' : `Chứng từ cũ: ${selectedInvoice.paymentMethod}`}</p>
                     </div>
                   </div>
 
@@ -1416,12 +1227,6 @@ export default function AdminInvoiceManagement({ currentUser }) {
                   {/* Financial Summary */}
                   <div className="inv-summary-container">
                     <div className="inv-summary-left">
-                      {selectedInvoice.qrCodeUrl && (
-                        <div className="inv-paper-qr-box">
-                          <img src={selectedInvoice.qrCodeUrl} alt="VietQR" className="inv-paper-qr-img" />
-                          <small>Quét mã VietQR để kiểm tra / thanh toán</small>
-                        </div>
-                      )}
                       {selectedInvoice.notes && (
                         <div className="inv-paper-notes">
                           <em>* Ghi chú: {selectedInvoice.notes}</em>

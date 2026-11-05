@@ -1,5 +1,6 @@
 package furniture.config;
 
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -66,6 +67,7 @@ public class SalesDatabaseInitializer implements CommandLineRunner {
 
             if (alreadyPopulated) {
                 new ResourceDatabasePopulator(new ClassPathResource("order_shipping.sql")).populate(conn);
+                st.execute(new ClassPathResource("product_images.sql").getContentAsString(StandardCharsets.UTF_8));
                 log.info("Supabase database đã có dữ liệu từ sales.sql. Bỏ qua khởi tạo.");
                 try (ResultSet rs = st.executeQuery("SELECT COUNT(*) FROM public.users")) {
                     if (rs.next()) log.info("users count: {}", rs.getInt(1));
@@ -126,6 +128,7 @@ public class SalesDatabaseInitializer implements CommandLineRunner {
             }
             log.info("Nạp sales.sql thành công: {} câu lệnh, bỏ qua: {}", successCount, warnCount);
             new ResourceDatabasePopulator(new ClassPathResource("order_shipping.sql")).populate(conn);
+            st.execute(new ClassPathResource("product_images.sql").getContentAsString(StandardCharsets.UTF_8));
 
             // Với PostgreSQL (Supabase): đồng bộ lại sequence sau khi INSERT thủ công có ID
             try {

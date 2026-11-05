@@ -9,7 +9,7 @@ public record CreateInvoiceRequest(
         Long orderId,
 
         @NotBlank(message = "Phương thức thanh toán không được để trống")
-        String paymentMethod, // CASH, BANK_TRANSFER, CREDIT_CARD, VNPAY, MOMO
+        String paymentMethod, // CASH: COD, thu tiền mặt khi giao hàng
 
         String voucherCode,
         Boolean includeVat,
