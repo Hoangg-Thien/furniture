@@ -68,6 +68,7 @@ public class SalesDatabaseInitializer implements CommandLineRunner {
 
             if (alreadyPopulated) {
                 new ResourceDatabasePopulator(new ClassPathResource("staff_permissions.sql")).populate(conn);
+                new ResourceDatabasePopulator(new ClassPathResource("product_audit.sql")).populate(conn);
                 new ResourceDatabasePopulator(new ClassPathResource("order_shipping.sql")).populate(conn);
                 st.execute(new ClassPathResource("product_images.sql").getContentAsString(StandardCharsets.UTF_8));
                 log.info("Supabase database đã có dữ liệu từ sales.sql. Bỏ qua khởi tạo.");
@@ -134,6 +135,7 @@ public class SalesDatabaseInitializer implements CommandLineRunner {
             new ResourceDatabasePopulator(new FileSystemResource(salesSqlPath.resolveSibling("admin_schema_extension.sql"))).populate(conn);
             st.execute("ALTER TABLE public.categories ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT true");
             new ResourceDatabasePopulator(new ClassPathResource("staff_permissions.sql")).populate(conn);
+            new ResourceDatabasePopulator(new ClassPathResource("product_audit.sql")).populate(conn);
             new ResourceDatabasePopulator(new ClassPathResource("order_shipping.sql")).populate(conn);
             st.execute(new ClassPathResource("product_images.sql").getContentAsString(StandardCharsets.UTF_8));
 

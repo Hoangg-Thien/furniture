@@ -40,6 +40,9 @@ try {
   result.schema = (await db.query("SELECT table_name FROM information_schema.tables WHERE table_schema='public' ORDER BY table_name")).rows
   result.counts = (await db.query('SELECT (SELECT COUNT(*) FROM users) AS users, (SELECT COUNT(*) FROM products) AS products')).rows
   assert(result.schema.some(table => table.table_name === 'admin_sessions'))
+  assert(result.schema.some(table => table.table_name === 'product_audit_logs'))
+  assert.equal((await db.query("SELECT relrowsecurity FROM pg_class WHERE oid='public.product_audit_logs'::regclass")).rows[0].relrowsecurity, true)
+  assert.equal(Number((await db.query('SELECT COUNT(*) AS count FROM product_audit_logs')).rows[0].count), 0, 'Startup must not invent historical product changes')
   assert.equal((await db.query("SELECT COUNT(*)::int AS count FROM staff WHERE staff_type NOT IN ('SALES', 'WAREHOUSE', 'CONTENT')")).rows[0].count, 0)
   assert.equal((await db.query("SELECT COUNT(*)::int AS count FROM admin_sessions WHERE expires_at NOT BETWEEN CURRENT_TIMESTAMP + INTERVAL '479' MINUTE AND CURRENT_TIMESTAMP + INTERVAL '481' MINUTE")).rows[0].count, 0, 'Session expiry must use database time')
 } catch (e) { result.error = e.message; process.exitCode = 1 }

@@ -3,6 +3,7 @@ package furniture.service;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,6 +16,8 @@ import furniture.model.admin.product.ProductSummaryDto;
 import furniture.model.admin.product.SaveProductRequest;
 import furniture.repository.AdminCategoryRepository;
 import furniture.repository.AdminProductRepository;
+import furniture.repository.ProductAuditRepository;
+import furniture.model.admin.product.ProductAuditDto;
 
 @Service
 public class AdminProductService {
@@ -22,14 +25,17 @@ public class AdminProductService {
     private final AdminProductRepository adminProductRepository;
     private final AdminCategoryRepository adminCategoryRepository;
     private final FileStorageService fileStorageService;
+    private final ProductAuditRepository audit;
 
     public AdminProductService(
             AdminProductRepository adminProductRepository,
             AdminCategoryRepository adminCategoryRepository,
-            FileStorageService fileStorageService) {
+            FileStorageService fileStorageService,
+            ProductAuditRepository audit) {
         this.adminProductRepository = adminProductRepository;
         this.adminCategoryRepository = adminCategoryRepository;
         this.fileStorageService = fileStorageService;
+        this.audit = audit;
     }
 
     public PageResponse<ProductSummaryDto> searchProducts(
@@ -46,7 +52,7 @@ public class AdminProductService {
     }
 
     @Transactional
-    public ProductDetailDto createProduct(SaveProductRequest req) {
+    public ProductDetailDto createProduct(SaveProductRequest req, Long actorUserId) {
         validateProductRequest(req);
 
         if (!adminCategoryRepository.existsById(req.categoryId())) {
@@ -60,11 +66,12 @@ public class AdminProductService {
             adminProductRepository.insertProductImage(productId, req.imageUrl().trim(), true, 1);
         }
 
+        audit.record(productId, actorUserId, Map.of());
         return getProductDetail(productId);
     }
 
     @Transactional
-    public ProductDetailDto updateProduct(Long id, SaveProductRequest req) {
+    public ProductDetailDto updateProduct(Long id, SaveProductRequest req, Long actorUserId) {
         if (!adminProductRepository.existsById(id)) {
             throw new IllegalArgumentException("Không tìm thấy sản phẩm với ID: " + id);
         }
@@ -75,35 +82,42 @@ public class AdminProductService {
             throw new IllegalArgumentException("Loại nội thất (Category ID: " + req.categoryId() + ") không tồn tại trong hệ thống");
         }
 
+        Map<String, Object> before = audit.snapshot(id);
         adminProductRepository.updateProduct(id, req);
+        audit.record(id, actorUserId, before);
         return getProductDetail(id);
     }
 
     @Transactional
-    public boolean toggleProductStatus(Long id) {
+    public boolean toggleProductStatus(Long id, Long actorUserId) {
+        Map<String, Object> before = audit.snapshot(id);
         ProductDetailDto product = getProductDetail(id);
         boolean newActive = !Boolean.TRUE.equals(product.isActive());
         adminProductRepository.updateProductActive(id, newActive);
+        audit.record(id, actorUserId, before);
         return newActive;
     }
 
     @Transactional
-    public ProductDetailDto updateProductContent(Long id, java.util.Map<String, Object> body) {
+    public ProductDetailDto updateProductContent(Long id, java.util.Map<String, Object> body, Long actorUserId) {
         if (!java.util.Set.of("name", "description", "imageUrl").containsAll(body.keySet())
                 || !(body.get("name") instanceof String name) || name.isBlank() || name.trim().length() > 200
                 || (body.get("description") != null && !(body.get("description") instanceof String))
                 || (body.get("imageUrl") != null && !(body.get("imageUrl") instanceof String))) {
             throw new IllegalArgumentException("Chỉ được cập nhật tên (1–200 ký tự), mô tả và ảnh sản phẩm");
         }
+        Map<String, Object> before = audit.snapshot(id);
         ProductDetailDto existing = getProductDetail(id);
         adminProductRepository.updateProductContent(id, name.trim(),
                 body.containsKey("description") ? (String) body.get("description") : existing.description(),
                 body.containsKey("imageUrl") ? (String) body.get("imageUrl") : existing.imageUrl());
+        audit.record(id, actorUserId, before);
         return getProductDetail(id);
     }
 
     @Transactional
-    public List<ProductImageDto> uploadProductImages(Long productId, List<MultipartFile> files) {
+    public List<ProductImageDto> uploadProductImages(Long productId, List<MultipartFile> files, Long actorUserId) {
+        Map<String, Object> before = audit.snapshot(productId);
         ProductDetailDto product = getProductDetail(productId);
 
         if (files == null || files.isEmpty()) {
@@ -132,15 +146,17 @@ public class AdminProductService {
             }
         }
 
+        audit.record(productId, actorUserId, before);
         return adminProductRepository.findImagesByProductId(productId);
     }
 
     @Transactional
-    public List<ProductImageDto> addDirectImageUrl(Long productId, String imageUrl) {
+    public List<ProductImageDto> addDirectImageUrl(Long productId, String imageUrl, Long actorUserId) {
         if (imageUrl == null || imageUrl.trim().isEmpty()) {
             throw new IllegalArgumentException("Đường dẫn URL ảnh không được để trống");
         }
 
+        Map<String, Object> before = audit.snapshot(productId);
         ProductDetailDto product = getProductDetail(productId);
         List<ProductImageDto> currentImages = product.images();
         int currentCount = currentImages != null ? currentImages.size() : 0;
@@ -153,23 +169,34 @@ public class AdminProductService {
             adminProductRepository.updateProductImageUrl(productId, imageUrl.trim());
         }
 
+        audit.record(productId, actorUserId, before);
         return adminProductRepository.findImagesByProductId(productId);
     }
 
     @Transactional
-    public void setPrimaryImage(Long productId, Long imageId) {
+    public void setPrimaryImage(Long productId, Long imageId, Long actorUserId) {
         if (!adminProductRepository.existsById(productId)) {
             throw new IllegalArgumentException("Sản phẩm không tồn tại");
         }
+        Map<String, Object> before = audit.snapshot(productId);
         adminProductRepository.setPrimaryImage(productId, imageId);
+        audit.record(productId, actorUserId, before);
     }
 
     @Transactional
-    public void deleteProductImage(Long productId, Long imageId) {
+    public void deleteProductImage(Long productId, Long imageId, Long actorUserId) {
         if (!adminProductRepository.existsById(productId)) {
             throw new IllegalArgumentException("Sản phẩm không tồn tại");
         }
+        Map<String, Object> before = audit.snapshot(productId);
         adminProductRepository.deleteProductImage(productId, imageId);
+        audit.record(productId, actorUserId, before);
+    }
+
+    public List<ProductAuditDto> getProductAuditLog(Long productId, Long beforeId) {
+        if (beforeId != null && beforeId < 1) throw new IllegalArgumentException("Mốc nhật ký không hợp lệ");
+        getProductDetail(productId);
+        return audit.findByProductId(productId, beforeId);
     }
 
     private void validateProductRequest(SaveProductRequest req) {

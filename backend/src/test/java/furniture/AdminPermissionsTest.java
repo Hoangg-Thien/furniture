@@ -183,16 +183,16 @@ class AdminPermissionsTest {
     @Test
     void contentWritesRejectHiddenPriceStockAndStatusFields() {
         AdminProductRepository products = mock(AdminProductRepository.class);
-        AdminProductService service = new AdminProductService(products, mock(AdminCategoryRepository.class), mock(FileStorageService.class));
+        AdminProductService service = new AdminProductService(products, mock(AdminCategoryRepository.class), mock(FileStorageService.class), mock(furniture.repository.ProductAuditRepository.class));
         when(products.findDetailById(1L)).thenReturn(new ProductDetailDto(1L, "Sofa", 1L, "Living", "piece", BigDecimal.TEN, "/uploads/original.jpg", 7, true, "Original description", List.of()));
         for (String field : List.of("sellingPrice", "quantity", "categoryId", "unit", "isActive")) {
-            assertThrows(IllegalArgumentException.class, () -> service.updateProductContent(1L, Map.of("name", "Sofa", field, 0)));
+            assertThrows(IllegalArgumentException.class, () -> service.updateProductContent(1L, Map.of("name", "Sofa", field, 0), 1L));
         }
-        assertThrows(IllegalArgumentException.class, () -> service.updateProductContent(1L, Map.of("name", 123)));
-        assertThrows(IllegalArgumentException.class, () -> service.updateProductContent(1L, Map.of("name", "   ")));
-        service.updateProductContent(1L, Map.of("name", " Updated sofa ", "description", "New description"));
+        assertThrows(IllegalArgumentException.class, () -> service.updateProductContent(1L, Map.of("name", 123), 1L));
+        assertThrows(IllegalArgumentException.class, () -> service.updateProductContent(1L, Map.of("name", "   "), 1L));
+        service.updateProductContent(1L, Map.of("name", " Updated sofa ", "description", "New description"), 1L);
         verify(products).updateProductContent(1L, "Updated sofa", "New description", "/uploads/original.jpg");
-        service.updateProductContent(1L, Map.of("name", "Only name"));
+        service.updateProductContent(1L, Map.of("name", "Only name"), 1L);
         verify(products).updateProductContent(1L, "Only name", "Original description", "/uploads/original.jpg");
         verify(products, never()).updateProduct(anyLong(), any());
     }

@@ -4,6 +4,8 @@ Bộ kiểm thử này không sửa mã nghiệp vụ. Các request ghi chạy t
 
 ## Chạy lại trên máy hiện tại
 
+Nhật ký sản phẩm: sau khi bật `node qa/harness/start.mjs`, chạy `node qa/harness/product-audit-check.mjs`. Script kiểm tra API/giao diện Admin với backend thật và PGlite: diff/no-op, người sửa, album/upload, rollback khi log lỗi, quyền đọc, RLS, cursor, thử lại, keyboard và mobile. Kết quả/ảnh tại `qa/artifacts/product-audit/`. Test transaction H2 nằm trong `ProductAuditTest.java`; kiểm tra database trống cũng xác nhận bảng audit có RLS và không tạo lịch sử giả.
+
 Phân quyền nhân viên: sau khi chạy `node qa/harness/start.mjs`, chạy lần lượt `node qa/harness/permissions-api-check.mjs` và `node qa/harness/permissions-ui-check.mjs`. Hai script dùng Spring Boot thật với PGlite trong bộ nhớ, tạo tài khoản Sales/Kho/Content và kiểm tra cả API lẫn giao diện; không kết nối database thật. Kết quả nằm trong `qa/artifacts/permissions-api-results.json` và `qa/artifacts/permissions/`.
 
 Các script API cũ lấy token Admin từ backend QA qua `admin-auth.mjs`; kiểm tra ẩn danh chủ động bỏ token. Các script giao diện dùng API giả lập có fixture phiên đăng nhập riêng. Chạy `node qa/harness/clean-start.mjs` để xác nhận database trống tạo được vị trí nhân viên, bảng phiên, danh mục, hóa đơn và đăng nhập; script này dùng database thứ hai ở port 15434/18081.

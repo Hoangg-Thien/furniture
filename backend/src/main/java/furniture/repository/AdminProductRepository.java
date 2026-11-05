@@ -281,6 +281,10 @@ public class AdminProductRepository {
     }
 
     public void setPrimaryImage(Long productId, Long imageId) {
+        List<String> imageUrls = jdbcTemplate.queryForList(
+                "SELECT image_url FROM public.product_images WHERE id = ? AND product_id = ?",
+                String.class, imageId, productId);
+        if (imageUrls.isEmpty()) throw new IllegalArgumentException("Ảnh không thuộc sản phẩm này");
         // 1. Reset all images of this product to is_primary = false
         jdbcTemplate.update("UPDATE public.product_images SET is_primary = false WHERE product_id = ?", productId);
 
@@ -288,11 +292,7 @@ public class AdminProductRepository {
         jdbcTemplate.update("UPDATE public.product_images SET is_primary = true WHERE id = ? AND product_id = ?", imageId, productId);
 
         // 3. Update products.image_url
-        String imageUrl = jdbcTemplate.queryForObject(
-                "SELECT image_url FROM public.product_images WHERE id = ?",
-                String.class,
-                imageId
-        );
+        String imageUrl = imageUrls.get(0);
 
         if (imageUrl != null) {
             updateProductImageUrl(productId, imageUrl);

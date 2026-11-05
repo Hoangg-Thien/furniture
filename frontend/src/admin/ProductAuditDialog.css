@@ -1,0 +1,21 @@
+.admin-shell .product-audit-backdrop { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.admin-shell .product-audit-dialog { width: min(1100px, 100%); max-width: 1100px; max-height: calc(100dvh - 32px); display: flex; flex-direction: column; }
+.admin-shell .product-audit-dialog .admin-modal-header { gap: 16px; }
+.admin-shell .product-audit-dialog h2 { display: flex; align-items: center; gap: 8px; font-size: 17px; }
+.admin-shell .product-audit-dialog .modal-subtitle { overflow-wrap: anywhere; }
+.admin-shell .product-audit-body { min-height: 100px; overflow: auto; padding: 0; }
+.admin-shell .product-audit-scroll { overflow: auto; }
+.admin-shell .product-audit-scroll table { min-width: 720px; }
+.admin-shell .product-audit-scroll th, .admin-shell .product-audit-scroll td { padding: 14px 16px; vertical-align: top; }
+.admin-shell .product-audit-scroll time { display: block; width: 130px; font-size: 11px; }
+.admin-shell .product-audit-scroll small { display: block; margin-top: 4px; font-size: 10px; color: #626f69; }
+.admin-shell .product-audit-scroll pre { min-width: 100px; max-width: 340px; margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; line-height: 1.6; }
+.admin-shell .product-audit-state { display: flex; justify-content: center; align-items: center; gap: 8px; padding: 30px 20px; color: #626f69; font-size: 13px; }
+.admin-shell .product-audit-count { margin-right: auto; color: #626f69; font-size: 12px; }
+.admin-shell .product-audit-dialog .admin-modal-footer { flex-wrap: wrap; gap: 10px; }
+.admin-shell .product-audit-dialog .modal-alert-error { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 16px; }
+@media (max-width: 639px) {
+  .admin-shell .product-audit-dialog .admin-modal-header, .admin-shell .product-audit-dialog .admin-modal-footer { padding: 16px; }
+  .admin-shell .product-audit-dialog h2 { font-size: 15px; }
+  .admin-shell .product-audit-count { width: 100%; }
+}

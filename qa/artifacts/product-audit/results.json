@@ -1,0 +1,15 @@
+{
+  "passed": 8,
+  "results": [
+    "Creation and content changes record real old/new values and the authenticated actor",
+    "Only Admin can read history; audit APIs have no employee write/delete operation",
+    "Admin price/stock/status and all album operations are audited",
+    "PostgreSQL rollback preserves the product and discards partial audit writes",
+    "Full migration is repeatable and RLS prevents direct client-role reads",
+    "Cursor paging returns all changes without duplicates or cross-product records",
+    "Admin UI shows real history, handles retry/paging safely, and traps/restores keyboard focus",
+    "Staff UI has no history button"
+  ],
+  "errors": [],
+  "api": "real Spring Boot with isolated PGlite"
+}

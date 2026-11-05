@@ -103,13 +103,13 @@ class AcceptanceAndCornerCasesTest {
     @Test
     @DisplayName("TC03 - Đặt ảnh làm ảnh chính (Primary) -> Cập nhật is_primary = true và cập nhật products.image_url")
     void testTC03_SetPrimaryProductImageUpdatesProductAndGallery() {
-        AdminProductService productService = new AdminProductService(adminProductRepository, adminCategoryRepository, null);
+        AdminProductService productService = new AdminProductService(adminProductRepository, adminCategoryRepository, null, org.mockito.Mockito.mock(furniture.repository.ProductAuditRepository.class));
         Long productId = 100L;
         Long imageId = 3L;
 
         when(adminProductRepository.existsById(productId)).thenReturn(true);
 
-        productService.setPrimaryImage(productId, imageId);
+        productService.setPrimaryImage(productId, imageId, 1L);
 
         verify(adminProductRepository).setPrimaryImage(productId, imageId);
     }

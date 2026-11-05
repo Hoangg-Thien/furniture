@@ -13,12 +13,14 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import furniture.model.admin.PageResponse;
+import furniture.model.admin.AdminIdentity;
 import furniture.model.admin.product.ProductDetailDto;
 import furniture.model.admin.product.ProductImageDto;
 import furniture.model.admin.product.ProductSummaryDto;
@@ -69,9 +71,9 @@ public class AdminProductController {
     }
 
     @PostMapping
-    public ResponseEntity<?> createProduct(@RequestBody SaveProductRequest req) {
+    public ResponseEntity<?> createProduct(@RequestBody SaveProductRequest req, @RequestAttribute(AdminIdentity.ATTRIBUTE) AdminIdentity identity) {
         try {
-            ProductDetailDto created = adminProductService.createProduct(req);
+            ProductDetailDto created = adminProductService.createProduct(req, identity.userId());
             return ResponseEntity.status(HttpStatus.CREATED).body(created);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", e.getMessage()));
@@ -82,9 +84,9 @@ public class AdminProductController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<?> updateProduct(@PathVariable Long id, @RequestBody SaveProductRequest req) {
+    public ResponseEntity<?> updateProduct(@PathVariable Long id, @RequestBody SaveProductRequest req, @RequestAttribute(AdminIdentity.ATTRIBUTE) AdminIdentity identity) {
         try {
-            ProductDetailDto updated = adminProductService.updateProduct(id, req);
+            ProductDetailDto updated = adminProductService.updateProduct(id, req, identity.userId());
             return ResponseEntity.ok(updated);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", e.getMessage()));
@@ -95,18 +97,18 @@ public class AdminProductController {
     }
 
     @PutMapping("/{id}/content")
-    public ResponseEntity<?> updateContent(@PathVariable Long id, @RequestBody Map<String, Object> body) {
+    public ResponseEntity<?> updateContent(@PathVariable Long id, @RequestBody Map<String, Object> body, @RequestAttribute(AdminIdentity.ATTRIBUTE) AdminIdentity identity) {
         try {
-            return ResponseEntity.ok(adminProductService.updateProductContent(id, body));
+            return ResponseEntity.ok(adminProductService.updateProductContent(id, body, identity.userId()));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
 
     @PutMapping("/{id}/toggle-status")
-    public ResponseEntity<?> toggleProductStatus(@PathVariable Long id) {
+    public ResponseEntity<?> toggleProductStatus(@PathVariable Long id, @RequestAttribute(AdminIdentity.ATTRIBUTE) AdminIdentity identity) {
         try {
-            boolean newActive = adminProductService.toggleProductStatus(id);
+            boolean newActive = adminProductService.toggleProductStatus(id, identity.userId());
             return ResponseEntity.ok(Map.of(
                     "message", newActive ? "Đã bật hiển thị sản phẩm công khai" : "Đã tạm ẩn sản phẩm khỏi cửa hàng",
                     "isActive", newActive
@@ -122,9 +124,10 @@ public class AdminProductController {
     @PostMapping(value = "/{id}/images", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> uploadImages(
             @PathVariable Long id,
-            @RequestParam("files") List<MultipartFile> files) {
+            @RequestParam("files") List<MultipartFile> files,
+            @RequestAttribute(AdminIdentity.ATTRIBUTE) AdminIdentity identity) {
         try {
-            List<ProductImageDto> images = adminProductService.uploadProductImages(id, files);
+            List<ProductImageDto> images = adminProductService.uploadProductImages(id, files, identity.userId());
             return ResponseEntity.ok(images);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", e.getMessage()));
@@ -137,10 +140,11 @@ public class AdminProductController {
     @PostMapping("/{id}/images/url")
     public ResponseEntity<?> addImageUrl(
             @PathVariable Long id,
-            @RequestBody Map<String, String> body) {
+            @RequestBody Map<String, String> body,
+            @RequestAttribute(AdminIdentity.ATTRIBUTE) AdminIdentity identity) {
         try {
             String imageUrl = body.get("imageUrl");
-            List<ProductImageDto> images = adminProductService.addDirectImageUrl(id, imageUrl);
+            List<ProductImageDto> images = adminProductService.addDirectImageUrl(id, imageUrl, identity.userId());
             return ResponseEntity.ok(images);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", e.getMessage()));
@@ -151,9 +155,9 @@ public class AdminProductController {
     }
 
     @PutMapping("/{id}/images/{imageId}/set-primary")
-    public ResponseEntity<?> setPrimaryImage(@PathVariable Long id, @PathVariable Long imageId) {
+    public ResponseEntity<?> setPrimaryImage(@PathVariable Long id, @PathVariable Long imageId, @RequestAttribute(AdminIdentity.ATTRIBUTE) AdminIdentity identity) {
         try {
-            adminProductService.setPrimaryImage(id, imageId);
+            adminProductService.setPrimaryImage(id, imageId, identity.userId());
             return ResponseEntity.ok(Map.of("message", "Đã đặt làm ảnh đại diện chính"));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", e.getMessage()));
@@ -164,15 +168,23 @@ public class AdminProductController {
     }
 
     @DeleteMapping("/{id}/images/{imageId}")
-    public ResponseEntity<?> deleteImage(@PathVariable Long id, @PathVariable Long imageId) {
+    public ResponseEntity<?> deleteImage(@PathVariable Long id, @PathVariable Long imageId, @RequestAttribute(AdminIdentity.ATTRIBUTE) AdminIdentity identity) {
         try {
-            adminProductService.deleteProductImage(id, imageId);
+            adminProductService.deleteProductImage(id, imageId, identity.userId());
             return ResponseEntity.ok(Map.of("message", "Đã xóa ảnh thành công"));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Lỗi khi xóa ảnh: " + e.getMessage()));
+        }
+    }
+    @GetMapping("/{id}/audit-log")
+    public ResponseEntity<?> getAuditLog(@PathVariable Long id, @RequestParam(required = false) Long beforeId) {
+        try {
+            return ResponseEntity.ok(adminProductService.getProductAuditLog(id, beforeId));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
 }

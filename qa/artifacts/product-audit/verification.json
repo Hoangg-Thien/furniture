@@ -1,0 +1,9 @@
+{
+  "backendTests": 121,
+  "backendFailures": 0,
+  "backendErrors": 0,
+  "frontendTests": 33,
+  "productAuditChecks": 8,
+  "build": "PASS",
+  "cleanStartup": "PASS: isolated empty PostgreSQL database; audit table, RLS and zero invented history checked by clean-start.mjs"
+}

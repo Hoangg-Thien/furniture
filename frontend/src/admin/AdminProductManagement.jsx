@@ -26,10 +26,12 @@ import {
 } from 'lucide-react'
 import { getApiBaseUrl, getApiHeaders } from '../lib/apiConfig'
 import { canManageProducts, canEditProductContent } from '../lib/adminPermissions'
+import ProductAuditDialog from './ProductAuditDialog'
 
 export default function AdminProductManagement({ currentUser, notificationTarget }) {
   const manageProducts = canManageProducts(currentUser)
   const editContent = canEditProductContent(currentUser)
+  const [auditProduct, setAuditProduct] = useState(null)
   const [products, setProducts] = useState([])
   const [categories, setCategories] = useState([])
   const [loading, setLoading] = useState(false)
@@ -940,6 +942,9 @@ export default function AdminProductManagement({ currentUser, notificationTarget
                           </button>
 
                           {/* Ẩn / Hiện */}
+                          {manageProducts && <button type="button" className="btn-action-edit" onClick={() => setAuditProduct(p)} aria-label={`Lịch sử: ${p.name}`}>
+                            <Layers size={13} /><span>Lịch sử</span>
+                          </button>}
                           {manageProducts && <button
                             type="button"
                             className={`btn-action-toggle ${isActive ? 'active' : ''}`}
@@ -1387,6 +1392,7 @@ export default function AdminProductManagement({ currentUser, notificationTarget
           </div>
         </div>
       )}
+      {auditProduct && <ProductAuditDialog key={auditProduct.id} product={auditProduct} onClose={() => setAuditProduct(null)} />}
     </div>
   )
 }

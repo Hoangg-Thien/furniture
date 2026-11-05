@@ -49,7 +49,7 @@ class AdminProductServiceTest {
     @BeforeEach
     void setUp() {
         adminProductService = new AdminProductService(
-                adminProductRepository, adminCategoryRepository, fileStorageService
+                adminProductRepository, adminCategoryRepository, fileStorageService, org.mockito.Mockito.mock(furniture.repository.ProductAuditRepository.class)
         );
     }
 
@@ -88,7 +88,7 @@ class AdminProductServiceTest {
         when(adminProductRepository.insertProduct(req)).thenReturn(100L);
         when(adminProductRepository.findDetailById(100L)).thenReturn(mockDetail);
 
-        ProductDetailDto result = adminProductService.createProduct(req);
+        ProductDetailDto result = adminProductService.createProduct(req, 1L);
 
         assertNotNull(result);
         assertEquals(100L, result.id());
@@ -106,7 +106,7 @@ class AdminProductServiceTest {
         when(adminCategoryRepository.existsById(999L)).thenReturn(false);
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> {
-            adminProductService.createProduct(req);
+            adminProductService.createProduct(req, 1L);
         });
 
         assertTrue(ex.getMessage().contains("Category ID: 999"));
@@ -130,7 +130,7 @@ class AdminProductServiceTest {
         when(adminCategoryRepository.existsById(1L)).thenReturn(true);
         when(adminProductRepository.findDetailById(5L)).thenReturn(updated);
 
-        ProductDetailDto result = adminProductService.updateProduct(5L, req);
+        ProductDetailDto result = adminProductService.updateProduct(5L, req, 1L);
 
         assertNotNull(result);
         assertEquals("Sofa Da Góc Chữ L Mới", result.name());
@@ -147,7 +147,7 @@ class AdminProductServiceTest {
 
         when(adminProductRepository.findDetailById(1L)).thenReturn(current);
 
-        boolean newStatus = adminProductService.toggleProductStatus(1L);
+        boolean newStatus = adminProductService.toggleProductStatus(1L, 1L);
 
         assertFalse(newStatus);
         verify(adminProductRepository).updateProductActive(1L, false);
@@ -166,7 +166,7 @@ class AdminProductServiceTest {
                 new ProductImageDto(10L, "https://example.com/photo1.jpg", true, 1)
         ));
 
-        List<ProductImageDto> result = adminProductService.addDirectImageUrl(1L, "https://example.com/photo1.jpg");
+        List<ProductImageDto> result = adminProductService.addDirectImageUrl(1L, "https://example.com/photo1.jpg", 1L);
 
         assertNotNull(result);
         assertEquals(1, result.size());
@@ -179,7 +179,7 @@ class AdminProductServiceTest {
     void setPrimaryImage_Success() {
         when(adminProductRepository.existsById(1L)).thenReturn(true);
 
-        adminProductService.setPrimaryImage(1L, 10L);
+        adminProductService.setPrimaryImage(1L, 10L, 1L);
 
         verify(adminProductRepository).setPrimaryImage(1L, 10L);
     }
@@ -189,7 +189,7 @@ class AdminProductServiceTest {
     void deleteProductImage_Success() {
         when(adminProductRepository.existsById(1L)).thenReturn(true);
 
-        adminProductService.deleteProductImage(1L, 10L);
+        adminProductService.deleteProductImage(1L, 10L, 1L);
 
         verify(adminProductRepository).deleteProductImage(1L, 10L);
     }
