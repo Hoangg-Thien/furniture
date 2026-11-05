@@ -67,6 +67,9 @@
 .admin-shell .admin-table th { text-transform: none; letter-spacing: 0; font-size: 11px; font-weight: 500; background: #fafbfc; color: #6e7b74; }
 .admin-shell .admin-table td { font-size: 12px; }
 .admin-shell .admin-modal-backdrop { background: #17282266; backdrop-filter: blur(3px); }
+.admin-shell .admin-search-backdrop { backdrop-filter: none; }
+.admin-search-backdrop .admin-global-search-modal { animation: none; }
+.admin-search-result-row { width: 100%; text-align: left; font: inherit; color: inherit; }
 .admin-shell .admin-notif-item { width: 100%; text-align: left; border-top: 0; border-left: 0; border-right: 0; background: #fff; }
 .admin-shell .admin-notif-item.unread { background: #f6f9f7; }
 .admin-shell .admin-modal-card { border: 1px solid var(--admin-border); max-height: calc(100dvh - 40px); overflow-y: auto; }

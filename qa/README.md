@@ -35,6 +35,14 @@ Playwright được dùng từ runtime có sẵn tại `C:/Users/LENOVO/.cache/c
 
 Chạy riêng `node qa/harness/order-refresh-check.mjs` để kiểm tra cập nhật ngầm, API chậm/lỗi, tab ẩn, dọn timer và trang `/orders` (URL trực tiếp, reload, Back/Forward, mobile, trạng thái từ admin, hủy đơn, mua lại, khách chưa đăng nhập). Script tự mở Vite, giả lập API và timer trên Chrome, không cần backend hay fixtures.
 
+Chạy `node qa/harness/notifications-check.mjs` để kiểm tra chuông client/admin, cập nhật trạng thái, lưu đã đọc, tách tài khoản, điều hướng, khách chưa đăng nhập, lỗi API và giao diện mobile. Script dùng API giả lập, không ghi database. Thông báo client hiển thị trạng thái mới nhất của từng đơn; dấu đã đọc lưu riêng từng tài khoản trong localStorage của trình duyệt.
+
+Chạy `node qa/harness/search-check.mjs` để kiểm tra tìm kiếm admin: gọi song song ba API, hiện kết quả từng nhóm, debounce, bỏ phản hồi cũ, hủy khi đóng, lỗi từng API và điều khiển bàn phím. Script giữ phản hồi API giả lập để xác nhận truy vấn nhanh không phải chờ truy vấn chậm; không đo hiệu năng phần cứng hoặc backend thật.
+
+Chuông admin mở đúng chi tiết đơn chờ duyệt hoặc biểu mẫu sản phẩm cần cập nhật tồn kho. Cảnh báo phân biệt sắp hết hàng (1–4 sản phẩm) với đã hết hàng (0 sản phẩm); lỗi tải có nút **Thử lại**. Test trình duyệt kiểm tra cả việc mở lại cùng một thông báo sau khi đóng chi tiết.
+
+Admin cũng nhận thông báo cho tối đa 5 đơn có trạng thái `CANCELLED` từ API hiện tại; bấm để mở chi tiết. Thông báo hủy có dấu đã đọc riêng, nên vẫn báo mới nếu thông báo chờ duyệt của đơn đó đã được đọc. API chưa lưu người hủy hoặc thời điểm hủy riêng nên giao diện không gán người hủy hay thời gian sự kiện.
+
 Sau khi chạy `start.mjs`, dùng `node qa/harness/shipping-api-check.mjs` để kiểm tra luồng `PENDING → CONFIRMED → SHIPPING → COMPLETED`, thời điểm duyệt và địa chỉ giao được giữ nguyên. Script chỉ ghi vào database QA local.
 
 Backend tự chạy migration `backend/src/main/resources/order_shipping.sql` khi khởi động để thêm trạng thái vận chuyển, thời điểm duyệt và địa chỉ giao lúc duyệt; không gán thời điểm giả cho đơn cũ. Client ước tính ngày lịch từ lúc duyệt: TP.HCM 1–2 ngày, miền Nam khác 2–3 ngày, miền Trung/Tây Nguyên 2–3 ngày, miền Bắc 4–5 ngày. Đây là quy tắc mô phỏng theo vùng, không phải theo dõi hãng vận chuyển.

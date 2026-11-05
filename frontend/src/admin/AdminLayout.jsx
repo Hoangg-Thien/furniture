@@ -75,10 +75,12 @@ export default function AdminLayout({ currentUser, onLogout, onBackToStore }) {
   }
 
   const [activeModule, setActiveModule] = useState(getInitialModule)
+  const [notificationTarget, setNotificationTarget] = useState(null)
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
   const [isGlobalSearchOpen, setIsGlobalSearchOpen] = useState(false)
 
-  const handleSelectModule = (mod) => {
+  const handleSelectModule = (mod, recordId) => {
+    setNotificationTarget(recordId ? { module: mod, id: recordId } : null)
     setActiveModule(mod)
     try {
       localStorage.setItem('funi_admin_active_module', mod)
@@ -92,6 +94,7 @@ export default function AdminLayout({ currentUser, onLogout, onBackToStore }) {
   // Đồng bộ activeModule khi người dùng bấm Back/Forward của trình duyệt
   useEffect(() => {
     const handlePopState = () => {
+      setNotificationTarget(null)
       const path = window.location.pathname.toLowerCase().replace(/\/+$/, '')
       if (path.startsWith('/admin/')) {
         const sub = path.replace('/admin/', '').split('/')[0]
@@ -152,6 +155,7 @@ export default function AdminLayout({ currentUser, onLogout, onBackToStore }) {
       <div className="admin-main">
         {/* Top Navbar */}
         <AdminNavbar
+          key={currentUser?.id ?? currentUser?.userId ?? currentUser?.username}
           currentUser={currentUser}
           onLogout={onLogout}
           onBackToStore={onBackToStore}
@@ -189,7 +193,7 @@ export default function AdminLayout({ currentUser, onLogout, onBackToStore }) {
               <AdminCategoryManagement currentUser={currentUser} />
             )
           ) : activeModule === 'products' ? (
-            <AdminProductManagement currentUser={currentUser} />
+            <AdminProductManagement currentUser={currentUser} notificationTarget={notificationTarget?.module === 'products' ? notificationTarget : null} />
           ) : activeModule === 'suppliers' ? (
             <AdminSupplierManagement currentUser={currentUser} />
           ) : activeModule === 'promotions' ? (
@@ -199,7 +203,7 @@ export default function AdminLayout({ currentUser, onLogout, onBackToStore }) {
               <AdminPromotionManagement currentUser={currentUser} />
             )
           ) : activeModule === 'orders' ? (
-            <AdminOrderManagement currentUser={currentUser} />
+            <AdminOrderManagement currentUser={currentUser} notificationTarget={notificationTarget?.module === 'orders' ? notificationTarget : null} />
           ) : activeModule === 'invoices' ? (
             <AdminInvoiceManagement currentUser={currentUser} />
           ) : activeModule === 'reports' ? (
@@ -225,11 +229,10 @@ export default function AdminLayout({ currentUser, onLogout, onBackToStore }) {
       </div>
 
       {/* Hộp thoại Tìm kiếm nhanh toàn hệ thống (Ctrl + K) */}
-      <AdminGlobalSearchModal
-        isOpen={isGlobalSearchOpen}
+      {isGlobalSearchOpen && <AdminGlobalSearchModal
         onClose={() => setIsGlobalSearchOpen(false)}
         onNavigateModule={handleSelectModule}
-      />
+      />}
     </div>
   )
 }

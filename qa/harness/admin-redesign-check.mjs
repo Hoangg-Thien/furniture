@@ -68,7 +68,7 @@ await page.route('**/api/**', async route => {
   if (/\/vouchers\/\d+\/status$/.test(path)) { vouchers[0].status = body.status; return send({}) }
   if (/\/vouchers\/\d+$/.test(path) && method === 'DELETE') { vouchers = []; return send({}) }
   if (path === '/api/admin/products') return send({ content: url.searchParams.has('lowStock') ? showActivity ? [{ ...product, quantity: 2 }] : [] : [product], totalElements: 1, totalPages: 1 })
-  if (path === '/api/admin/orders' && showActivity) return send({ content: [{ id: 44, customerName: 'Khách kiểm thử', totalAmount: 10000000, status: 'PENDING', orderDate: past }], totalElements: 1, totalPages: 1 })
+  if (path === '/api/admin/orders' && showActivity && (!url.searchParams.has('status') || url.searchParams.get('status') === 'PENDING')) return send({ content: [{ id: 44, customerName: 'Khách kiểm thử', totalAmount: 10000000, status: 'PENDING', orderDate: past }], totalElements: 1, totalPages: 1 })
   if (path.startsWith('/api/admin/')) return send({ content: [], totalElements: 0, totalPages: 1 })
   return send([])
 })

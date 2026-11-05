@@ -6,10 +6,13 @@ import {
   Home,
   LogOut,
   Menu,
+  RefreshCw,
   Search,
-  ShoppingCart
+  ShoppingCart,
+  XCircle
 } from 'lucide-react'
 import { getApiBaseUrl, getApiHeaders } from '../lib/apiConfig'
+import { loadReadNotificationIds, saveReadNotificationIds } from '../lib/notifications.js'
 
 export default function AdminNavbar({
   currentUser,
@@ -21,72 +24,100 @@ export default function AdminNavbar({
 }) {
   const username = currentUser?.username || 'Admin'
   const role = currentUser?.role || 'ADMIN'
+  const storageKey = `funi_notifications_admin_${currentUser?.id ?? currentUser?.userId ?? username}`
 
   // Trạng thái Dropdown Thông báo
   const [showNotifications, setShowNotifications] = useState(false)
+  const [refreshVersion, setRefreshVersion] = useState(0)
   const [notifications, setNotifications] = useState([])
   const [notificationsLoading, setNotificationsLoading] = useState(false)
   const [notificationsError, setNotificationsError] = useState(false)
   const readNotificationIds = useRef(new Set())
 
   useEffect(() => {
+    readNotificationIds.current = loadReadNotificationIds(storageKey)
     const controller = new AbortController()
+    let fetching = false
     const load = async () => {
+      if (fetching) return
+      fetching = true
       setNotificationsLoading(true)
       setNotificationsError(false)
       try {
         const baseUrl = getApiBaseUrl()
+        // shortcut: preview five orders per status, use server events for a full cancellation history.
         const responses = await Promise.all([
           fetch(`${baseUrl}/api/admin/orders?status=PENDING&size=5`, { headers: getApiHeaders(), signal: controller.signal }),
-          fetch(`${baseUrl}/api/admin/products?lowStock=true&size=5`, { headers: getApiHeaders(), signal: controller.signal })
+          fetch(`${baseUrl}/api/admin/products?lowStock=true&size=5`, { headers: getApiHeaders(), signal: controller.signal }),
+          fetch(`${baseUrl}/api/admin/orders?status=CANCELLED&size=5`, { headers: getApiHeaders(), signal: controller.signal })
         ])
         if (responses.some(response => !response.ok)) throw new Error('Unavailable')
-        const [orders, products] = await Promise.all(responses.map(response => response.json()))
+        const [orders, products, cancelledOrders] = await Promise.all(responses.map(response => response.json()))
         const items = [
           ...(orders.content || []).map(order => ({
             id: `order-${order.id}`, title: `Đơn hàng #${order.id} chờ xác nhận`,
             desc: `${order.customerName || 'Khách hàng'} · ${new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(order.totalAmount || 0)}`,
             time: order.orderDate ? new Date(order.orderDate).toLocaleDateString('vi-VN') : '',
-            icon: ShoppingCart, color: '#376757', bg: '#edf3ef', module: 'orders'
+            icon: ShoppingCart, color: '#376757', bg: '#edf3ef', module: 'orders', recordId: order.id
           })),
-          ...(products.content || []).filter(product => Number.isFinite(product.quantity) && product.quantity <= 5).map(product => ({
-            id: `stock-${product.id}`, title: 'Sản phẩm sắp hết hàng', desc: `${product.name} · Còn ${product.quantity} sản phẩm`,
-            time: 'Cần kiểm tra tồn kho', icon: AlertTriangle, color: '#a28150', bg: '#faf5e9', module: 'products'
+          ...(cancelledOrders.content || []).map(order => ({
+            id: `cancelled-order-${order.id}`, title: `Đơn hàng #${order.id} đã được hủy`,
+            desc: `${order.customerName || 'Khách hàng'} · Bấm để xem chi tiết đơn đã hủy`,
+            icon: XCircle, color: '#b42318', bg: '#fef3f2', module: 'orders', recordId: order.id
+          })),
+          ...(products.content || []).filter(product => Number.isFinite(product.quantity) && product.quantity < 5).map(product => ({
+            id: `stock-${product.id}-${product.quantity}`, title: product.quantity === 0 ? 'Sản phẩm đã hết hàng' : 'Sản phẩm sắp hết hàng', desc: `${product.name} · Còn ${product.quantity} sản phẩm`,
+            time: 'Bấm để kiểm tra và cập nhật tồn kho', icon: AlertTriangle, color: '#a28150', bg: '#faf5e9', module: 'products', recordId: product.id
           }))
         ]
         if (!controller.signal.aborted) setNotifications(items.map(item => ({ ...item, unread: !readNotificationIds.current.has(item.id) })))
       } catch {
         if (!controller.signal.aborted) setNotificationsError(true)
       } finally {
+        fetching = false
         if (!controller.signal.aborted) setNotificationsLoading(false)
       }
     }
     load()
-    return () => controller.abort()
-  }, [showNotifications])
+    const timer = setInterval(() => { if (!document.hidden) load() }, 30000)
+    return () => { controller.abort(); clearInterval(timer) }
+  }, [refreshVersion, storageKey])
 
   const notifRef = useRef(null)
 
   // Đóng dropdown khi click ra ngoài
   useEffect(() => {
+    if (!showNotifications) return
     const handleClickOutside = (e) => {
       if (notifRef.current && !notifRef.current.contains(e.target)) {
         setShowNotifications(false)
       }
     }
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') {
+        setShowNotifications(false)
+        notifRef.current?.querySelector('button')?.focus()
+      }
+    }
     document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
+    document.addEventListener('keydown', handleEscape)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('keydown', handleEscape)
+    }
+  }, [showNotifications])
 
   const unreadCount = notifications.filter((n) => n.unread).length
 
   const handleMarkAllRead = () => {
     notifications.forEach(item => readNotificationIds.current.add(item.id))
+    saveReadNotificationIds(storageKey, readNotificationIds.current)
     setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })))
   }
 
   const handleNotificationClick = (item) => {
     readNotificationIds.current.add(item.id)
+    saveReadNotificationIds(storageKey, readNotificationIds.current)
     setNotifications((prev) =>
       prev.map((n) => (n.id === item.id ? { ...n, unread: false } : n))
     )
@@ -95,7 +126,7 @@ export default function AdminNavbar({
       if (role === 'STAFF' && ['promotions', 'users', 'staff', 'reports', 'dashboard', 'categories'].includes(item.module)) {
         onNavigateModule('orders')
       } else {
-        onNavigateModule(item.module)
+        onNavigateModule(item.module, item.recordId)
       }
     }
   }
@@ -137,8 +168,13 @@ export default function AdminNavbar({
             type="button"
             className="admin-action-icon-btn admin-notif-bell-btn"
             title="Thông báo hệ thống"
-            onClick={() => setShowNotifications(!showNotifications)}
+            aria-label={`Thông báo hệ thống, ${unreadCount} chưa đọc`}
+            onClick={() => {
+              if (!showNotifications) setRefreshVersion(value => value + 1)
+              setShowNotifications(value => !value)
+            }}
             aria-expanded={showNotifications}
+            aria-controls="admin-notifications-panel"
           >
             <Bell size={18} />
             {unreadCount > 0 && (
@@ -148,7 +184,7 @@ export default function AdminNavbar({
 
           {/* Hộp Thông Báo Dropdown */}
           {showNotifications && (
-            <div className="admin-notif-dropdown">
+            <div className="admin-notif-dropdown" id="admin-notifications-panel" role="region" aria-label="Thông báo hoạt động">
               <div className="admin-notif-header">
                 <div>
                   <h4 className="admin-notif-title">Thông Báo Hoạt Động</h4>
@@ -170,7 +206,10 @@ export default function AdminNavbar({
               </div>
 
               <div className="admin-notif-list">
-                {notificationsError && <p className="admin-search-status" role="status">Chưa tải được thông báo. Mở lại để thử cập nhật.</p>}
+                {notificationsError && <div className="admin-search-status" role="status">
+                  <p>Chưa tải được thông báo. Vui lòng thử lại.</p>
+                  <button type="button" className="admin-btn admin-btn-outline" disabled={notificationsLoading} onClick={() => setRefreshVersion(value => value + 1)}><RefreshCw size={14} /> Thử lại</button>
+                </div>}
                 {!notificationsLoading && !notificationsError && notifications.length === 0 && <p className="admin-search-status">Không có hoạt động nào cần xử lý.</p>}
                 {notifications.map((item) => {
                   const IconComp = item.icon

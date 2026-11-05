@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react'
+import { useState, useEffect, useMemo, useRef, useEffectEvent } from 'react'
 import {
   ShoppingCart,
   Search,
@@ -29,7 +29,7 @@ import {
 } from 'lucide-react'
 import { getApiBaseUrl, getApiHeaders } from '../lib/apiConfig'
 
-export default function AdminOrderManagement({ currentUser }) {
+export default function AdminOrderManagement({ currentUser, notificationTarget }) {
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(false)
   const pendingRequests = useRef(0)
@@ -205,22 +205,31 @@ export default function AdminOrderManagement({ currentUser }) {
   }, [page, pageSize, selectedStatus, searchKeyword, fromDate, toDate, showConfirmModal, showCancelModal])
 
   // Open Detail Modal
-  const handleOpenDetail = async (orderId) => {
+  const handleOpenDetail = async (orderId, signal) => {
     setShowDetailModal(true)
     setLoadingDetail(true)
     try {
       const baseUrl = getApiBaseUrl()
-      const res = await fetch(`${baseUrl}/api/admin/orders/${orderId}`, { headers: getApiHeaders() })
+      const res = await fetch(`${baseUrl}/api/admin/orders/${orderId}`, { headers: getApiHeaders(), signal })
       if (!res.ok) throw new Error('Không thể tải chi tiết đơn hàng.')
       const data = await res.json()
-      setActiveOrderDetail(data)
+      if (!signal?.aborted) setActiveOrderDetail(data)
     } catch (err) {
+      if (signal?.aborted) return
       showToast(err.message, 'error')
       setShowDetailModal(false)
     } finally {
-      setLoadingDetail(false)
+      if (!signal?.aborted) setLoadingDetail(false)
     }
   }
+
+  const openNotificationOrder = useEffectEvent(handleOpenDetail)
+  useEffect(() => {
+    if (!notificationTarget) return
+    const controller = new AbortController()
+    openNotificationOrder(notificationTarget.id, controller.signal)
+    return () => controller.abort()
+  }, [notificationTarget])
 
   // Open Confirm / Assign Modal
   const handleOpenConfirmModal = (order) => {

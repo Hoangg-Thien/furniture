@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react'
+import { useState, useEffect, useMemo, useRef, useEffectEvent } from 'react'
 import {
   Armchair,
   Plus,
@@ -26,7 +26,7 @@ import {
 } from 'lucide-react'
 import { getApiBaseUrl, getApiHeaders } from '../lib/apiConfig'
 
-export default function AdminProductManagement({ currentUser }) {
+export default function AdminProductManagement({ currentUser, notificationTarget }) {
   const [products, setProducts] = useState([])
   const [categories, setCategories] = useState([])
   const [loading, setLoading] = useState(false)
@@ -193,6 +193,23 @@ export default function AdminProductManagement({ currentUser }) {
       })
       .catch((err) => console.warn(err))
   }
+
+  const openNotificationProduct = useEffectEvent(async (id, signal) => {
+    try {
+      const response = await fetch(`${baseUrl}/api/admin/products/${id}`, { signal })
+      if (!response.ok) throw new Error('Không thể mở sản phẩm. Sản phẩm có thể đã bị xóa hoặc máy chủ chưa phản hồi.')
+      const product = await response.json()
+      if (!signal.aborted) openEditModal(product)
+    } catch (error) {
+      if (!signal.aborted) showToast(error.message, 'error')
+    }
+  })
+  useEffect(() => {
+    if (!notificationTarget) return
+    const controller = new AbortController()
+    openNotificationProduct(notificationTarget.id, controller.signal)
+    return () => controller.abort()
+  }, [notificationTarget])
 
   // 5. Submit Tạo / Cập nhật sản phẩm
   async function handleProductSubmit(e) {

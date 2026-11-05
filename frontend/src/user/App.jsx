@@ -2,7 +2,6 @@ import { useEffect, useRef, useState, useMemo } from 'react'
 import {
   ArrowRight,
   ArrowUpDown,
-  Bell,
   Check,
   ChevronDown,
   Filter,
@@ -35,6 +34,7 @@ import ProfileModal from './components/ProfileModal'
 import AccountModal from './components/AccountModal'
 import OrderReviewPage from './components/OrderReviewPage'
 import MyOrdersPage from './components/MyOrdersPage'
+import NotificationsMenu from './components/NotificationsMenu'
 import VouchersModal from './components/VouchersModal'
 import AdminLayout from '../admin/AdminLayout'
 import AdminLoginPage from '../admin/AdminLoginPage'
@@ -630,19 +630,17 @@ function App() {
               }}
             />
           </label>
-          <button
-            className={showFavorites ? 'icon-button favorite-shortcut active' : 'icon-button favorite-shortcut'}
-            type="button"
-            aria-label={`Lọc sản phẩm yêu thích, ${favorites.length} món`}
-            aria-pressed={showFavorites}
-            onClick={() => {
-              setShowFavorites((current) => !current)
-              scrollToSection('products')
+          <NotificationsMenu
+            key={`notifications-${currentUser?.customerId || 'guest'}`}
+            customerId={currentUser?.customerId}
+            onLogin={() => setAuthOpen(true)}
+            onOpenOrder={id => {
+              setCompletedOrder(null)
+              setOrderOpen(false)
+              window.history.pushState({}, '', `/order-success?id=${encodeURIComponent(id)}`)
+              window.dispatchEvent(new PopStateEvent('popstate'))
             }}
-          >
-            <Heart size={20} strokeWidth={1.7} />
-            {favorites.length > 0 && <span className="tiny-count">{favorites.length}</span>}
-          </button>
+          />
           <button
             className={`bag-button ${cartBump ? 'cart-bounce' : ''}`}
             type="button"
@@ -694,14 +692,6 @@ function App() {
                   >
                     <ShoppingBag size={15} /> Lịch sử đơn hàng
                   </a>
-                  <button
-                    className="user-dropdown-item user-dropdown-item--soon"
-                    role="menuitem"
-                    type="button"
-                    disabled
-                  >
-                    <Bell size={15} /> Thông báo <span className="coming-soon-tag">Sắp ra mắt</span>
-                  </button>
                   <button
                     className="user-dropdown-item"
                     role="menuitem"
@@ -837,6 +827,9 @@ function App() {
                 </button>
               ))}
             </div>
+            <button className={`category-chip ${showFavorites ? 'selected' : ''}`} type="button"
+              aria-label={`Lọc sản phẩm yêu thích, ${favorites.length} món`} aria-pressed={showFavorites}
+              onClick={() => setShowFavorites(value => !value)}><Heart size={14} /> Yêu thích</button>
             <span className="result-count">{filteredProducts.length} sản phẩm</span>
           </div>
 
