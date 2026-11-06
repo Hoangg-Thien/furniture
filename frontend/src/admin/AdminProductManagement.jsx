@@ -827,7 +827,8 @@ export default function AdminProductManagement({ currentUser, notificationTarget
                 </tr>
               ) : (
                 products.map((p) => {
-                  const isLow = p.quantity !== undefined && p.quantity < 5
+                  const isOutOfStock = p.quantity !== undefined && p.quantity <= 0
+                  const isLow = !isOutOfStock && p.quantity !== undefined && p.quantity < 5
                   const isActive = p.isActive !== false
 
                   return (
@@ -889,15 +890,12 @@ export default function AdminProductManagement({ currentUser, notificationTarget
 
                       {/* Stock Quantity */}
                       <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
-                        {isLow ? (
-                          <span className="stock-pill low" title="Cảnh báo: Sản phẩm sắp hết hàng!">
-                            <AlertTriangle size={12} />
-                            <span>{p.quantity} (Sắp hết)</span>
-                          </span>
+                        {isOutOfStock ? (
+                          <span className="stock-pill out" title="Hết hàng: Tồn kho bằng 0, cần nhập hàng!"><AlertCircle size={12} /><span>0 (Hết hàng)</span></span>
+                        ) : isLow ? (
+                          <span className="stock-pill low" title="Cảnh báo: Sản phẩm sắp hết hàng!"><AlertTriangle size={12} /><span>{p.quantity} (Sắp hết)</span></span>
                         ) : (
-                          <span className="stock-pill normal">
-                            <span>{p.quantity} {p.unit || 'chiếc'}</span>
-                          </span>
+                          <span className="stock-pill normal"><span>{p.quantity} {p.unit || 'chiếc'}</span></span>
                         )}
                       </td>
 

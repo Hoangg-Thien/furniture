@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, useMemo } from 'react'
 import {
+  AlertCircle,
+  AlertTriangle,
   ArrowRight,
   ShieldCheck,
   ArrowUpDown,
@@ -427,8 +429,13 @@ function App() {
   const subtotal = cartItems.reduce((sum, product) => sum + product.price * cart[product.id], 0)
 
   function updateQuantity(productId, change) {
+    const product = products.find((p) => p.id === productId)
     setCart((currentCart) => {
-      const nextQuantity = (currentCart[productId] || 0) + change
+      const currentQty = currentCart[productId] || 0
+      const nextQuantity = currentQty + change
+      if (change > 0 && product && product.quantity !== undefined && nextQuantity > product.quantity) {
+        return currentCart
+      }
       const nextCart = { ...currentCart }
       if (nextQuantity <= 0) delete nextCart[productId]
       else nextCart[productId] = nextQuantity
@@ -438,6 +445,9 @@ function App() {
 
   function handleAddToCart(product, event) {
     if (event) event.stopPropagation()
+    if (product.quantity !== undefined && product.quantity <= 0) return
+    const currentInCart = cart[product.id] || 0
+    if (product.quantity !== undefined && currentInCart >= product.quantity) return
     updateQuantity(product.id, 1)
 
     // 1. Phản hồi trực quan ngay trên nút
@@ -1084,61 +1094,115 @@ function App() {
 
           {filteredProducts.length > 0 ? (
             <div className="product-grid">
-              {filteredProducts.map((product, index) => (
-                <article className="product-card" key={product.id} style={{ '--item-index': index }}>
-                  <div className="product-image-wrap">
-                    <img className="product-image" src={product.image} alt={product.name} />
-                    {product.badge && <span className="product-badge">{product.badge}</span>}
-                    {cart[product.id] > 0 && (
-                      <span className="product-cart-tag" title={`Đang có ${cart[product.id]} sản phẩm trong giỏ`}>
-                        <ShoppingBag size={11} strokeWidth={2.2} />
-                        <span>Trong giỏ: <strong>{cart[product.id]}</strong></span>
-                      </span>
-                    )}
-                    <button
-                      className={favorites.includes(product.id) ? 'favorite-button is-favorite' : 'favorite-button'}
-                      type="button"
-                      aria-label={favorites.includes(product.id) ? `Bỏ thích ${product.name}` : `Yêu thích ${product.name}`}
-                      aria-pressed={favorites.includes(product.id)}
-                      onClick={() => toggleFavorite(product.id)}
-                    >
-                      <Heart size={19} strokeWidth={1.7} fill={favorites.includes(product.id) ? 'currentColor' : 'none'} />
-                    </button>
-                    <button
-                      className={`quick-add ${justAddedId === product.id ? 'is-added' : ''} ${cart[product.id] > 0 ? 'has-in-cart' : ''}`}
-                      type="button"
-                      aria-label={`Thêm ${product.name} vào giỏ hàng`}
-                      onClick={(e) => handleAddToCart(product, e)}
-                    >
-                      {justAddedId === product.id ? (
-                        <>
-                          <Check size={16} strokeWidth={2.5} className="quick-add-check-icon" />
-                          <span>Đã thêm! ({cart[product.id] || 1})</span>
-                        </>
-                      ) : cart[product.id] > 0 ? (
-                        <>
-                          <Plus size={15} />
-                          <span>Thêm tiếp (đang có {cart[product.id]})</span>
-                        </>
-                      ) : (
-                        <>
-                          <Plus size={15} />
-                          <span>Thêm vào giỏ</span>
-                        </>
+              {filteredProducts.map((product, index) => {
+                const isOutOfStock = product.quantity !== undefined && product.quantity <= 0
+                const isLowStock = !isOutOfStock && product.quantity !== undefined && product.quantity < 5
+                const inCartQty = cart[product.id] || 0
+                const isMaxInCart = product.quantity !== undefined && inCartQty >= product.quantity
+
+                return (
+                  <article
+                    className={`product-card ${isOutOfStock ? 'is-out-of-stock' : ''}`}
+                    key={product.id}
+                    style={{ '--item-index': index }}
+                  >
+                    <div className="product-image-wrap">
+                      <img className="product-image" src={product.image} alt={product.name} />
+                      {product.badge && <span className="product-badge">{product.badge}</span>}
+
+                      {/* Lớp phủ làm mờ và thông báo khi hết hàng (0 cái) */}
+                      {isOutOfStock && (
+                        <div className="product-stock-overlay out-of-stock">
+                          <span className="stock-overlay-badge">Hết hàng</span>
+                          <span className="stock-overlay-msg">Sản phẩm hiện đang hết hàng, vui lòng chờ nhập thêm hàng</span>
+                        </div>
                       )}
-                    </button>
-                  </div>
-                  <div className="product-meta">
-                    <span>{product.category}</span>
-                    <span className="product-rating">Funi chọn</span>
-                  </div>
-                  <h3>{product.name}</h3>
-                  <div className="product-price-row">
-                    <strong>{formatPrice(product.price)}</strong>
-                    {product.oldPrice && <del>{formatPrice(product.oldPrice)}</del>}
-                  </div>
-                </article>
-              ))}
+
+                      {/* Tag thông báo khi sắp hết hàng (< 5 cái) */}
+                      {!isOutOfStock && isLowStock && (
+                        <span className="product-stock-tag low-stock" title={`Chỉ còn ${product.quantity} sản phẩm trong kho`}>
+                          <AlertTriangle size={11} strokeWidth={2.4} />
+                          <span>Sắp hết (còn {product.quantity})</span>
+                        </span>
+                      )}
+
+                      {inCartQty > 0 && (
+                        <span className="product-cart-tag" title={`Đang có ${inCartQty} sản phẩm trong giỏ`}>
+                          <ShoppingBag size={11} strokeWidth={2.2} />
+                          <span>Trong giỏ: <strong>{inCartQty}</strong></span>
+                        </span>
+                      )}
+
+                      <button
+                        className={favorites.includes(product.id) ? 'favorite-button is-favorite' : 'favorite-button'}
+                        type="button"
+                        aria-label={favorites.includes(product.id) ? `Bỏ thích ${product.name}` : `Yêu thích ${product.name}`}
+                        aria-pressed={favorites.includes(product.id)}
+                        onClick={() => toggleFavorite(product.id)}
+                      >
+                        <Heart size={19} strokeWidth={1.7} fill={favorites.includes(product.id) ? 'currentColor' : 'none'} />
+                      </button>
+
+                      {isOutOfStock ? (
+                        <button
+                          className="quick-add is-out-of-stock-btn"
+                          type="button"
+                          disabled
+                          aria-label={`${product.name} hiện đang hết hàng`}
+                        >
+                          <span>Tạm hết hàng</span>
+                        </button>
+                      ) : (
+                        <button
+                          className={`quick-add ${justAddedId === product.id ? 'is-added' : ''} ${inCartQty > 0 ? 'has-in-cart' : ''}`}
+                          type="button"
+                          aria-label={isMaxInCart ? 'Đã đạt giới hạn số lượng trong kho' : `Thêm ${product.name} vào giỏ hàng`}
+                          disabled={isMaxInCart}
+                          onClick={(e) => handleAddToCart(product, e)}
+                        >
+                          {justAddedId === product.id ? (
+                            <>
+                              <Check size={16} strokeWidth={2.5} className="quick-add-check-icon" />
+                              <span>Đã thêm! ({inCartQty || 1})</span>
+                            </>
+                          ) : isMaxInCart ? (
+                            <span>Đã đạt tối đa ({inCartQty})</span>
+                          ) : inCartQty > 0 ? (
+                            <>
+                              <Plus size={15} />
+                              <span>Thêm tiếp (đang có {inCartQty})</span>
+                            </>
+                          ) : (
+                            <>
+                              <Plus size={15} />
+                              <span>Thêm vào giỏ</span>
+                            </>
+                          )}
+                        </button>
+                      )}
+                    </div>
+                    <div className="product-meta">
+                      <span>{product.category}</span>
+                      {isOutOfStock ? (
+                        <span className="product-status-label out" title="Sản phẩm tạm hết hàng">
+                          <AlertCircle size={11} /> Hết hàng
+                        </span>
+                      ) : isLowStock ? (
+                        <span className="product-status-label low" title={`Kho chỉ còn ${product.quantity} sản phẩm`}>
+                          <AlertTriangle size={11} /> Sắp hết ({product.quantity})
+                        </span>
+                      ) : (
+                        <span className="product-rating">Funi chọn</span>
+                      )}
+                    </div>
+                    <h3>{product.name}</h3>
+                    <div className="product-price-row">
+                      <strong>{formatPrice(product.price)}</strong>
+                      {product.oldPrice && <del>{formatPrice(product.oldPrice)}</del>}
+                    </div>
+                  </article>
+                )
+              })}
             </div>
           ) : (
             <div className="empty-results">
@@ -1262,7 +1326,7 @@ function App() {
                         <div className="quantity-control">
                           <button type="button" aria-label={`Giảm số lượng ${product.name}`} onClick={() => updateQuantity(product.id, -1)}><Minus size={13} /></button>
                           <span>{cart[product.id]}</span>
-                          <button type="button" aria-label={`Tăng số lượng ${product.name}`} onClick={() => updateQuantity(product.id, 1)}><Plus size={13} /></button>
+                          <button type="button" aria-label={`Tăng số lượng ${product.name}`} disabled={product.quantity !== undefined && (cart[product.id] || 0) >= product.quantity} title={product.quantity !== undefined && (cart[product.id] || 0) >= product.quantity ? "Đã đạt số lượng tồn kho tối đa" : "Tăng số lượng"} onClick={() => updateQuantity(product.id, 1)}><Plus size={13} /></button>
                         </div>
                       </div>
                     </div>
