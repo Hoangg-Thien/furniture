@@ -26,6 +26,11 @@ public class OrderRepository {
     @PostConstruct
     public void syncOrderTimezoneAndFixes() {
         try {
+            jdbcTemplate.execute("ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS payment_method VARCHAR(50) DEFAULT 'COD'");
+        } catch (Exception ex) {
+            System.err.println("Notice: Could not alter table add payment_method: " + ex.getMessage());
+        }
+        try {
             jdbcTemplate.execute("ALTER TABLE public.orders ALTER COLUMN order_date TYPE TIMESTAMP(0)");
         } catch (Exception ex) {
             System.err.println("Notice: Could not alter order_date type to TIMESTAMP(0): " + ex.getMessage());
@@ -89,12 +94,13 @@ public class OrderRepository {
         }
     }
 
-    public Long insertOrder(Long customerId, BigDecimal finalTotal, Long voucherId, BigDecimal discount, String shippingAddress) {
+    public Long insertOrder(Long customerId, BigDecimal finalTotal, Long voucherId, BigDecimal discount, String shippingAddress, String paymentMethod) {
         KeyHolder keyHolder = new GeneratedKeyHolder();
+        String pMethod = (paymentMethod != null && !paymentMethod.trim().isEmpty()) ? paymentMethod.trim().toUpperCase() : "COD";
         jdbcTemplate.update(connection -> {
             PreparedStatement ps = connection.prepareStatement(
-                    "INSERT INTO public.orders (customer_id, order_date, status, total_amount, voucher_id, discount_amount, shipping_address) " +
-                            "VALUES (?, date_trunc('second', CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh'), 'PENDING', ?, ?, ?, ?)",
+                    "INSERT INTO public.orders (customer_id, order_date, status, total_amount, voucher_id, discount_amount, shipping_address, payment_method) " +
+                            "VALUES (?, date_trunc('second', CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh'), 'PENDING', ?, ?, ?, ?, ?)",
                     new String[] { "id" });
             ps.setLong(1, customerId);
             ps.setBigDecimal(2, finalTotal);
@@ -105,6 +111,7 @@ public class OrderRepository {
             }
             ps.setBigDecimal(4, discount != null ? discount : BigDecimal.ZERO);
             ps.setString(5, shippingAddress);
+            ps.setString(6, pMethod);
             return ps;
         }, keyHolder);
 
@@ -113,6 +120,10 @@ public class OrderRepository {
             generatedId = (Number) keyHolder.getKeys().get("id");
         }
         return generatedId != null ? generatedId.longValue() : null;
+    }
+
+    public Long insertOrder(Long customerId, BigDecimal finalTotal, Long voucherId, BigDecimal discount, String shippingAddress) {
+        return insertOrder(customerId, finalTotal, voucherId, discount, shippingAddress, "COD");
     }
 
     public void incrementVoucherUsedQuantity(Long voucherId) {
@@ -142,7 +153,8 @@ public class OrderRepository {
                        to_char(o.approved_at, 'YYYY-MM-DD"T"HH24:MI:SS') || '+07:00' AS approved_at,
                        COALESCE(c.full_name, 'Khách hàng') AS full_name,
                        COALESCE(c.phone, '') AS phone,
-                       COALESCE(o.shipping_address, c.address, '') AS address
+                       COALESCE(o.shipping_address, c.address, '') AS address,
+                       COALESCE(o.payment_method, 'COD') AS payment_method
                 FROM public.orders o
                 LEFT JOIN public.customers c ON c.id = o.customer_id
                 LEFT JOIN public.vouchers v ON v.id = o.voucher_id
@@ -175,7 +187,8 @@ public class OrderRepository {
                        to_char(o.approved_at, 'YYYY-MM-DD"T"HH24:MI:SS') || '+07:00' AS approved_at,
                        COALESCE(c.full_name, 'Khách hàng') AS full_name,
                        COALESCE(c.phone, '') AS phone,
-                       COALESCE(o.shipping_address, c.address, '') AS address
+                       COALESCE(o.shipping_address, c.address, '') AS address,
+                       COALESCE(o.payment_method, 'COD') AS payment_method
                 FROM public.orders o
                 LEFT JOIN public.customers c ON c.id = o.customer_id
                 WHERE o.id = ?

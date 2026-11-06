@@ -6005,3 +6005,383 @@
 .account-select:focus {
   border-color: var(--forest);
 }
+
+/* ==================== BANKING & VIETQR PAYMENT STYLES ==================== */
+.payment-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.payment-badge-tag {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+.payment-badge-tag.cash {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+}
+.payment-badge-tag.qr {
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+}
+.order-payment-icon.banking-icon {
+  background: #f0fdf4;
+  color: #059669;
+  border-color: #bbf7d0;
+}
+.radio-uncheck {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1.5px solid #cbd5e1;
+  background: #fff;
+  transition: all 0.2s ease;
+}
+
+/* Banking VietQR Card (Step 2) */
+.banking-qr-card {
+  margin-top: 6px;
+  margin-bottom: 22px;
+  border: 1.5px solid #86efac;
+  background: #fcfdfa;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(5, 150, 105, 0.08);
+  animation: qr-slide-down 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes qr-slide-down {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.banking-qr-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  background: #f0fdf4;
+  border-bottom: 1px solid #dcfce7;
+}
+.banking-qr-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #065f46;
+}
+.banking-qr-title h4 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: #065f46;
+}
+.banking-qr-title p {
+  margin: 2px 0 0;
+  font-size: 10px;
+  color: #047857;
+}
+.napas-badge {
+  font-size: 10px;
+  font-weight: 800;
+  color: #1e3a8a;
+  background: #dbeafe;
+  padding: 3px 8px;
+  border-radius: 4px;
+  letter-spacing: 0.04em;
+}
+
+.banking-qr-card-body {
+  display: grid;
+  grid-template-columns: 210px 1fr;
+  gap: 20px;
+  padding: 18px;
+  align-items: center;
+}
+@media (max-width: 680px) {
+  .banking-qr-card-body {
+    grid-template-columns: 1fr;
+    justify-items: center;
+  }
+}
+
+.banking-qr-frame {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.banking-qr-img-wrap {
+  width: 190px;
+  height: 190px;
+  padding: 8px;
+  background: #ffffff;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  display: grid;
+  place-items: center;
+}
+.banking-qr-code-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.banking-qr-caption {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 9.5px;
+  font-weight: 600;
+  color: #059669;
+}
+.banking-download-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  color: var(--forest);
+  text-decoration: underline;
+  cursor: pointer;
+}
+.banking-download-btn:hover {
+  color: #059669;
+}
+
+.banking-details-box {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.bank-detail-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed #e2e8f0;
+  font-size: 11.5px;
+}
+.detail-lbl {
+  color: #64748b;
+  font-size: 11px;
+}
+.detail-val {
+  color: #1e293b;
+  font-size: 12px;
+}
+.detail-val.highlight-val {
+  font-family: monospace;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: 0.06em;
+  font-size: 13.5px;
+}
+.detail-val.amount-val {
+  color: #047857;
+  font-weight: 800;
+  font-size: 13.5px;
+}
+.detail-val.memo-val {
+  font-family: monospace;
+  font-weight: 800;
+  color: #1d4ed8;
+  font-size: 13px;
+  background: #eff6ff;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.detail-val-action {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.copy-field-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 8px;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: #475569;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.copy-field-btn:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+.copied-text {
+  color: #059669;
+  font-weight: 700;
+}
+
+.banking-notice-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 4px;
+  padding: 8px 10px;
+  background: #eff6ff;
+  border-radius: 4px;
+  border-left: 3px solid #3b82f6;
+  font-size: 10px;
+  line-height: 1.5;
+  color: #1e40af;
+}
+.banking-notice-box .notice-icon {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+/* Step 3 Banking Success Card */
+.order-banking-status-tag {
+  display: inline-block;
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  color: #047857;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+}
+.order-banking-status-tag.cod {
+  color: #475569;
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+}
+
+.payment-method-badge.qr-badge {
+  color: #047857;
+}
+
+.banking-success-box {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.banking-success-qr-wrap {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 16px;
+  padding: 14px;
+  background: #f8fafc;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  align-items: center;
+}
+@media (max-width: 580px) {
+  .banking-success-qr-wrap {
+    grid-template-columns: 1fr;
+    justify-items: center;
+  }
+}
+
+.banking-qr-img-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.banking-qr-img {
+  width: 130px;
+  height: 130px;
+  object-fit: contain;
+  background: #fff;
+  padding: 5px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+}
+.banking-qr-sub {
+  font-size: 8.5px;
+  color: #64748b;
+  text-align: center;
+}
+
+.banking-success-info-list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  width: 100%;
+}
+.banking-info-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+}
+.b-label {
+  color: #64748b;
+}
+.b-val {
+  color: #0f172a;
+}
+.b-val-copy {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.b-val-copy button {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  font-size: 9px;
+  color: #475569;
+  cursor: pointer;
+}
+.b-val-copy button:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.btn-confirm-transferred {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid #059669;
+  background: #059669;
+  color: #ffffff;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(5, 150, 105, 0.25);
+}
+.btn-confirm-transferred:hover {
+  background: #047857;
+  border-color: #047857;
+}
+
+.transferred-notice-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-radius: 6px;
+  color: #065f46;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
+}

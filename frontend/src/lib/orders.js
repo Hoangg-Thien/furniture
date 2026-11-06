@@ -67,6 +67,7 @@ export async function createOrder({
   voucherId = null,
   discountAmount = 0,
   items,
+  paymentMethod = 'COD',
 }) {
   const apiBaseUrl = getApiBaseUrl()
   try {
@@ -88,6 +89,7 @@ export async function createOrder({
         voucherId,
         discountAmount,
         items,
+        paymentMethod,
       }),
     })
 

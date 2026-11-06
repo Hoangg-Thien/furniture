@@ -26,6 +26,9 @@ import {
   Tag,
   Sparkles,
   UserCheck,
+  Landmark,
+  QrCode,
+  Download,
   RefreshCw,
 } from 'lucide-react'
 import { createOrder, saveOrderToLocalHistory, fetchOrderById } from '../../lib/orders'
@@ -37,12 +40,30 @@ import { getAllProvinces, getDistricts, getWards, splitSavedAddress } from '../l
 
 const formatPrice = (price) => `${new Intl.NumberFormat('vi-VN').format(price)}₫`
 
-// Chỉ hỗ trợ COD
-const PAYMENT_METHOD = {
-  id: 'cod',
-  label: 'Thanh toán khi nhận hàng (COD)',
-  desc: 'Trả tiền mặt trực tiếp cho shipper khi nhận được hàng. Không cần thanh toán trước.',
+export const BANKING_CONFIG = {
+  bankId: 'MB',
+  bankName: 'MB Bank (Ngân hàng TMCP Quân Đội)',
+  accountNo: '0988686868',
+  accountName: 'CTY NOI THAT FUNISTORE',
+  template: 'compact2',
 }
+
+export const PAYMENT_METHODS = [
+  {
+    id: 'cod',
+    label: 'Thanh toán khi nhận hàng (COD)',
+    badge: 'Tiền mặt',
+    desc: 'Trả tiền mặt trực tiếp cho nhân viên giao hàng sau khi nhận và kiểm tra kiện hàng.',
+  },
+  {
+    id: 'banking',
+    label: 'Chuyển khoản ngân hàng (VietQR / Banking)',
+    badge: 'Quét mã QR',
+    desc: 'Quét mã VietQR bằng app ngân hàng bất kỳ (MB, Vietcombank, Techcombank, MoMo...). Nhanh chóng & an toàn.',
+  },
+]
+
+const PAYMENT_METHOD = PAYMENT_METHODS[0]
 
 const SHIPPING_FEE = 35000
 const FREE_SHIP_THRESHOLD = 2000000
@@ -427,6 +448,23 @@ export default function OrderReviewPage({
   const [copied, setCopied] = useState(false)
   const [pendingCancelOrder, setPendingCancelOrder] = useState(null)
   const [cancelSuccessMsg, setCancelSuccessMsg] = useState('')
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(() => initialOrder?.paymentMethod?.id || 'cod')
+  const [copiedField, setCopiedField] = useState(null)
+  const [hasTransferred, setHasTransferred] = useState(false)
+
+  function handleCopyText(text, fieldName) {
+    if (!text) return
+    try {
+      if (navigator?.clipboard?.writeText) {
+        navigator.clipboard.writeText(String(text))
+      }
+    } catch (err) {
+      console.warn('Clipboard write error:', err)
+    }
+    setCopiedField(fieldName)
+    window.clearTimeout(window.__copyTimer)
+    window.__copyTimer = window.setTimeout(() => setCopiedField(null), 2000)
+  }
 
   // State quản lý Voucher áp dụng cho đơn hàng
   const [appliedVoucher, setAppliedVoucher] = useState(null)
@@ -600,6 +638,7 @@ export default function OrderReviewPage({
     }))
 
     // Gửi request tới backend Spring Boot để lưu vào Supabase PostgreSQL
+    const chosenPaymentMethodObj = PAYMENT_METHODS.find((p) => p.id === selectedPaymentMethod) || PAYMENT_METHODS[0]
     const { order: backendOrder, error: apiError } = await createOrder({
       customerId: currentUser?.customerId || null,
       userId: currentUser?.userId || null,
@@ -613,6 +652,7 @@ export default function OrderReviewPage({
       voucherId: appliedVoucher?.id || null,
       discountAmount: discountAmount,
       items: payloadItems,
+      paymentMethod: selectedPaymentMethod === 'banking' ? 'BANK_TRANSFER' : 'COD',
     })
 
     setSubmitting(false)
@@ -658,7 +698,7 @@ export default function OrderReviewPage({
         district: form.district.trim(),
         city: form.city.trim(),
       },
-      paymentMethod: PAYMENT_METHOD,
+      paymentMethod: chosenPaymentMethodObj,
       orderDate: new Date().toISOString(),
     }
 
@@ -1060,19 +1100,114 @@ export default function OrderReviewPage({
                 {/* Phương thức thanh toán */}
                 <div className="order-success-card info-card">
                   <div className="card-heading-row">
-                    <CreditCard size={18} className="card-heading-icon" />
+                    {paymentMethod?.id === 'banking' || currentOrder?.payment_method === 'BANK_TRANSFER' ? (
+                      <QrCode size={18} className="card-heading-icon text-emerald" />
+                    ) : (
+                      <CreditCard size={18} className="card-heading-icon" />
+                    )}
                     <h3>Phương thức thanh toán</h3>
+                    {paymentMethod?.id === 'banking' || currentOrder?.payment_method === 'BANK_TRANSFER' ? (
+                      <span className="order-banking-status-tag">Chuyển khoản VietQR</span>
+                    ) : (
+                      <span className="order-banking-status-tag cod">Thu tiền COD</span>
+                    )}
                   </div>
 
-                  <div className="payment-method-box">
-                    <div className="payment-method-badge">
-                      <ShieldCheck size={16} />
-                      <strong>Thanh toán khi nhận hàng (COD)</strong>
+                  {paymentMethod?.id === 'banking' || currentOrder?.payment_method === 'BANK_TRANSFER' ? (
+                    <div className="payment-method-box banking-success-box">
+                      <div className="payment-method-badge qr-badge">
+                        <QrCode size={16} />
+                        <strong>Chuyển khoản ngân hàng (VietQR)</strong>
+                      </div>
+                      <p className="payment-method-desc">
+                        Đơn hàng đã được lưu. Nếu chưa thanh toán ở bước trước, bạn vui lòng quét mã VietQR bên dưới để hoàn tất.
+                      </p>
+
+                      {/* Khung QR và thông tin chuyển khoản chính thức */}
+                      {(() => {
+                        const finalMemo = 'FUNI ' + (activeOrderNumber ? activeOrderNumber.replace(/^FUNI-/, '') : 'DONHANG')
+                        const successQrUrl = `https://img.vietqr.io/image/${BANKING_CONFIG.bankId}-${BANKING_CONFIG.accountNo}-${BANKING_CONFIG.template}.png?amount=${activeTotal}&addInfo=${encodeURIComponent(finalMemo)}&accountName=${encodeURIComponent(BANKING_CONFIG.accountName)}`
+
+                        return (
+                          <div className="banking-success-qr-wrap">
+                            <div className="banking-qr-img-box">
+                              <img
+                                src={successQrUrl}
+                                alt="Mã VietQR đơn hàng"
+                                className="banking-qr-img"
+                              />
+                              <span className="banking-qr-sub">Quét bằng ứng dụng ngân hàng</span>
+                            </div>
+                            <div className="banking-success-info-list">
+                              <div className="banking-info-item">
+                                <span className="b-label">Ngân hàng:</span>
+                                <span className="b-val font-semibold">{BANKING_CONFIG.bankName}</span>
+                              </div>
+                              <div className="banking-info-item">
+                                <span className="b-label">Số tài khoản:</span>
+                                <div className="b-val-copy">
+                                  <strong>{BANKING_CONFIG.accountNo}</strong>
+                                  <button type="button" onClick={() => handleCopyText(BANKING_CONFIG.accountNo, 'stk-success')}>
+                                    {copiedField === 'stk-success' ? <Check size={12} color="#059669" /> : <Copy size={12} />}
+                                    <span>{copiedField === 'stk-success' ? 'Đã chép' : 'Chép'}</span>
+                                  </button>
+                                </div>
+                              </div>
+                              <div className="banking-info-item">
+                                <span className="b-label">Chủ tài khoản:</span>
+                                <span className="b-val font-semibold">{BANKING_CONFIG.accountName}</span>
+                              </div>
+                              <div className="banking-info-item">
+                                <span className="b-label">Số tiền:</span>
+                                <div className="b-val-copy">
+                                  <strong className="text-emerald">{formatPrice(activeTotal)}</strong>
+                                  <button type="button" onClick={() => handleCopyText(String(activeTotal), 'amt-success')}>
+                                    {copiedField === 'amt-success' ? <Check size={12} color="#059669" /> : <Copy size={12} />}
+                                    <span>{copiedField === 'amt-success' ? 'Đã chép' : 'Chép'}</span>
+                                  </button>
+                                </div>
+                              </div>
+                              <div className="banking-info-item">
+                                <span className="b-label">Nội dung CK:</span>
+                                <div className="b-val-copy">
+                                  <strong className="text-blue">{finalMemo}</strong>
+                                  <button type="button" onClick={() => handleCopyText(finalMemo, 'memo-success')}>
+                                    {copiedField === 'memo-success' ? <Check size={12} color="#059669" /> : <Copy size={12} />}
+                                    <span>{copiedField === 'memo-success' ? 'Đã chép' : 'Chép'}</span>
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })()}
+
+                      {!hasTransferred ? (
+                        <button
+                          type="button"
+                          className="btn-confirm-transferred"
+                          onClick={() => setHasTransferred(true)}
+                        >
+                          <CheckCircle2 size={16} /> Tôi đã chuyển khoản xong
+                        </button>
+                      ) : (
+                        <div className="transferred-notice-badge">
+                          <CheckCircle2 size={16} color="#059669" />
+                          <span>Đã ghi nhận! FuniStore sẽ kiểm tra và xác nhận thanh toán sớm nhất.</span>
+                        </div>
+                      )}
                     </div>
-                    <p className="payment-method-desc">
-                      Bạn thanh toán tiền mặt trực tiếp cho nhân viên giao hàng sau khi nhận và kiểm tra kiện hàng.
-                    </p>
-                  </div>
+                  ) : (
+                    <div className="payment-method-box">
+                      <div className="payment-method-badge">
+                        <ShieldCheck size={16} />
+                        <strong>Thanh toán khi nhận hàng (COD)</strong>
+                      </div>
+                      <p className="payment-method-desc">
+                        Bạn thanh toán tiền mặt trực tiếp cho nhân viên giao hàng sau khi nhận và kiểm tra kiện hàng.
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 {/* Cam kết của Nếp */}
@@ -1335,23 +1470,199 @@ export default function OrderReviewPage({
                   </div>
                 </div>
 
+                {/* Danh sách lựa chọn phương thức thanh toán */}
                 <div className="order-payment-methods">
-                  <div className="order-payment-option selected order-payment-cod-only">
+                  {/* 1. COD */}
+                  <div
+                    className={`order-payment-option ${selectedPaymentMethod === 'cod' ? 'selected' : ''}`}
+                    onClick={() => setSelectedPaymentMethod('cod')}
+                    role="button"
+                    tabIndex={0}
+                  >
                     <span className="order-payment-icon">
                       <Truck size={20} strokeWidth={1.7} />
                     </span>
                     <div className="order-payment-info">
-                      <strong>{PAYMENT_METHOD.label}</strong>
-                      <span>{PAYMENT_METHOD.desc}</span>
+                      <div className="payment-title-row">
+                        <strong>Thanh toán khi nhận hàng (COD)</strong>
+                        <span className="payment-badge-tag cash">Tiền mặt</span>
+                      </div>
+                      <span>Trả tiền mặt trực tiếp cho nhân viên giao hàng sau khi nhận và đồng kiểm kiện hàng.</span>
                     </div>
                     <span className="order-payment-check">
-                      <CheckCircle2 size={18} />
+                      {selectedPaymentMethod === 'cod' ? (
+                        <CheckCircle2 size={18} />
+                      ) : (
+                        <span className="radio-uncheck" />
+                      )}
                     </span>
                   </div>
-                  <p className="order-cod-notice">
-                    Hiện tại FuniStore chỉ hỗ trợ thanh toán COD. Các phương thức khác sẽ sớm được bổ sung.
-                  </p>
+
+                  {/* 2. Banking / VietQR */}
+                  <div
+                    className={`order-payment-option ${selectedPaymentMethod === 'banking' ? 'selected' : ''}`}
+                    onClick={() => setSelectedPaymentMethod('banking')}
+                    role="button"
+                    tabIndex={0}
+                  >
+                    <span className="order-payment-icon banking-icon">
+                      <QrCode size={20} strokeWidth={1.7} />
+                    </span>
+                    <div className="order-payment-info">
+                      <div className="payment-title-row">
+                        <strong>Chuyển khoản ngân hàng (VietQR / Banking)</strong>
+                        <span className="payment-badge-tag qr">Quét mã QR</span>
+                      </div>
+                      <span>Quét mã VietQR bằng app ngân hàng bất kỳ (MB, Vietcombank, Techcombank, MoMo...). Nhanh chóng & an toàn.</span>
+                    </div>
+                    <span className="order-payment-check">
+                      {selectedPaymentMethod === 'banking' ? (
+                        <CheckCircle2 size={18} />
+                      ) : (
+                        <span className="radio-uncheck" />
+                      )}
+                    </span>
+                  </div>
                 </div>
+
+                {/* Khung quét mã QR Banking khi chọn phương thức chuyển khoản */}
+                {selectedPaymentMethod === 'banking' && (() => {
+                  const step2Fee = subtotal >= FREE_SHIP_THRESHOLD ? 0 : SHIPPING_FEE
+                  const step2Discount = appliedVoucher ? Number(appliedVoucher.discountAmount || 0) : 0
+                  const step2Total = Math.max(0, subtotal - step2Discount + step2Fee)
+                  const step2Memo = 'FUNI ' + (form.phone ? form.phone.trim().replace(/\s+/g, '') : 'THANHTOAN')
+                  const qrUrl = `https://img.vietqr.io/image/${BANKING_CONFIG.bankId}-${BANKING_CONFIG.accountNo}-${BANKING_CONFIG.template}.png?amount=${step2Total}&addInfo=${encodeURIComponent(step2Memo)}&accountName=${encodeURIComponent(BANKING_CONFIG.accountName)}`
+
+                  return (
+                    <div className="banking-qr-card">
+                      <div className="banking-qr-card-header">
+                        <div className="banking-qr-title">
+                          <Landmark size={18} strokeWidth={1.8} />
+                          <div>
+                            <h4>Mã QR chuyển khoản ngân hàng (VietQR)</h4>
+                            <p>Mở ứng dụng ngân hàng bất kỳ để quét mã thanh toán tự động</p>
+                          </div>
+                        </div>
+                        <span className="napas-badge">Napas 247</span>
+                      </div>
+
+                      <div className="banking-qr-card-body">
+                        {/* Cột trái: Ảnh QR Code */}
+                        <div className="banking-qr-frame">
+                          <div className="banking-qr-img-wrap">
+                            <img
+                              src={qrUrl}
+                              alt="Mã QR thanh toán VietQR FuniStore"
+                              className="banking-qr-code-img"
+                            />
+                          </div>
+                          <div className="banking-qr-caption">
+                            <Sparkles size={13} />
+                            <span>Tự động điền đúng số tiền & nội dung</span>
+                          </div>
+                          <a
+                            href={qrUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="banking-download-btn"
+                          >
+                            <ExternalLink size={13} /> Mở ảnh QR lớn
+                          </a>
+                        </div>
+
+                        {/* Cột phải: Chi tiết tài khoản & nút sao chép */}
+                        <div className="banking-details-box">
+                          <div className="bank-detail-row">
+                            <span className="detail-lbl">Ngân hàng:</span>
+                            <span className="detail-val font-semibold">{BANKING_CONFIG.bankName}</span>
+                          </div>
+
+                          <div className="bank-detail-row">
+                            <span className="detail-lbl">Số tài khoản:</span>
+                            <div className="detail-val-action">
+                              <span className="detail-val highlight-val">{BANKING_CONFIG.accountNo}</span>
+                              <button
+                                type="button"
+                                className="copy-field-btn"
+                                onClick={() => handleCopyText(BANKING_CONFIG.accountNo, 'accNo')}
+                              >
+                                {copiedField === 'accNo' ? (
+                                  <>
+                                    <Check size={12} color="#059669" />
+                                    <span className="copied-text">Đã chép</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Copy size={12} />
+                                    <span>Sao chép</span>
+                                  </>
+                                )}
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="bank-detail-row">
+                            <span className="detail-lbl">Chủ tài khoản:</span>
+                            <span className="detail-val font-semibold">{BANKING_CONFIG.accountName}</span>
+                          </div>
+
+                          <div className="bank-detail-row">
+                            <span className="detail-lbl">Số tiền cần chuyển:</span>
+                            <div className="detail-val-action">
+                              <span className="detail-val amount-val">{formatPrice(step2Total)}</span>
+                              <button
+                                type="button"
+                                className="copy-field-btn"
+                                onClick={() => handleCopyText(String(step2Total), 'amount')}
+                              >
+                                {copiedField === 'amount' ? (
+                                  <>
+                                    <Check size={12} color="#059669" />
+                                    <span className="copied-text">Đã chép</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Copy size={12} />
+                                    <span>Sao chép</span>
+                                  </>
+                                )}
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="bank-detail-row">
+                            <span className="detail-lbl">Nội dung chuyển khoản:</span>
+                            <div className="detail-val-action">
+                              <span className="detail-val memo-val">{step2Memo}</span>
+                              <button
+                                type="button"
+                                className="copy-field-btn"
+                                onClick={() => handleCopyText(step2Memo, 'memo')}
+                              >
+                                {copiedField === 'memo' ? (
+                                  <>
+                                    <Check size={12} color="#059669" />
+                                    <span className="copied-text">Đã chép</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Copy size={12} />
+                                    <span>Sao chép</span>
+                                  </>
+                                )}
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="banking-notice-box">
+                            <AlertCircle size={14} className="notice-icon" />
+                            <span>Vui lòng giữ nguyên <strong>Nội dung chuyển khoản</strong> để hệ thống tự động nhận diện và kích hoạt đơn hàng nhanh nhất.</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })()}
 
                 <div className="order-recap-card">
                   <div className="order-recap-heading">
