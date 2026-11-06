@@ -14,12 +14,11 @@ export async function loadProducts() {
     const rows = await response.json()
     if (Array.isArray(rows)) {
       const mapped = rows.map((row) => {
-        // Tìm số lượng dự phòng nếu backend đang chạy bản cũ chưa trả về trường quantity
+        // Tìm số lượng dự phòng theo đúng tồn kho database nếu backend chưa restart
         const matched = DEFAULT_PRODUCTS.find((p) => p.id === row.id)
         const fallbackQty = matched?.quantity ?? 10
 
-        // Chỉ coi là hết hàng nếu backend trả về rõ ràng quantity = 0
-        // Nếu row.quantity bị undefined / null (backend chưa restart), dùng fallbackQty để không bị hết hàng đồng loạt
+        // Ưu tiên số lượng backend trả về, nếu undefined (do backend chưa restart) lấy từ danh sách chuẩn
         const quantity =
           row.quantity !== undefined && row.quantity !== null
             ? Number(row.quantity)
@@ -55,18 +54,14 @@ export async function loadProducts() {
       if (cached) {
         const parsed = JSON.parse(cached)
         if (Array.isArray(parsed) && parsed.length > 0) {
-          // Bỏ qua nếu toàn bộ sản phẩm trong cache cũ bị lưu nhầm quantity = 0
-          const allZero = parsed.every((p) => p.quantity === 0)
-          if (!allZero) {
-            return { products: parsed, error }
-          }
+          return { products: parsed, error }
         }
       }
     } catch {
       // Bỏ qua lỗi parse
     }
 
-    // Fallback 2: Danh sách mặc định từ hệ thống để giao diện không bao giờ bị trắng trơn
+    // Fallback 2: Danh sách mặc định từ hệ thống đồng bộ theo database
     return {
       products: DEFAULT_PRODUCTS,
       error,
@@ -74,25 +69,26 @@ export async function loadProducts() {
   }
 }
 
+// Danh sách sản phẩm mặc định khớp chuẩn 100% với tồn kho trong database sales.sql
 export const DEFAULT_PRODUCTS = [
   { id: 1, name: 'Sofa góc chữ L vải bọc Milan', category: 'Sofa và ghế thư giãn', price: 14500000, badge: '', image: '/images/sofa_goc_chu_L.jpg', quantity: 12 },
-  { id: 2, name: 'Sofa băng 3 chỗ da PU Oslo', category: 'Sofa và ghế thư giãn', price: 9800000, badge: '', image: '/images/sofa_bang3.jpg', quantity: 3 },
-  { id: 3, name: 'Ghế thư giãn bập bênh Relax', category: 'Sofa và ghế thư giãn', price: 4200000, badge: '', image: '/images/ghe-thu-gian.jpg', quantity: 8 },
-  { id: 4, name: 'Bàn ăn gỗ cao su 6 chỗ Nordic', category: 'Bàn ăn', price: 6500000, badge: '', image: '/images/ban_an_6_cho.jpg', quantity: 15 },
-  { id: 5, name: 'Bàn ăn mặt đá ceramic 4 chỗ Venus', category: 'Bàn ăn', price: 7800000, badge: '', image: '/images/ban_an_mat_da.jpg', quantity: 2 },
-  { id: 6, name: 'Ghế ăn gỗ sồi đệm bọc Luna', category: 'Ghế ăn và ghế bar', price: 850000, badge: '', image: '/images/ghe_an_go_soi.jpg', quantity: 20 },
-  { id: 7, name: 'Ghế bar chân sắt Loft', category: 'Ghế ăn và ghế bar', price: 1200000, badge: '', image: '/images/ghe_bar.jpg', quantity: 4 },
-  { id: 8, name: 'Giường ngủ gỗ sồi 1m8 Hana', category: 'Giường ngủ', price: 8900000, badge: '', image: '/images/giuong_go_soi.jpg', quantity: 6 },
-  { id: 9, name: 'Giường bọc nệm 1m6 Royal', category: 'Giường ngủ', price: 7200000, badge: '', image: '/images/giuong_boc_nem.jpg', quantity: 7 },
-  { id: 10, name: 'Tủ quần áo 3 cánh gỗ MDF Alice', category: 'Tủ quần áo và tủ giày', price: 6800000, badge: '', image: '/images/tu_mdf.jpg', quantity: 0 },
-  { id: 11, name: 'Tủ giày thông minh 5 tầng', category: 'Tủ quần áo và tủ giày', price: 2400000, badge: '', image: '/images/tu_5_tang.jpg', quantity: 10 },
-  { id: 12, name: 'Bàn làm việc chân sắt 1m2 Office', category: 'Bàn và ghế văn phòng', price: 1900000, badge: '', image: '/images/ban_sat_office.jpg', quantity: 9 },
-  { id: 13, name: 'Ghế công thái học Ergo', category: 'Bàn và ghế văn phòng', price: 3600000, badge: '', image: '/images/ghe_ergo.jpg', quantity: 14 },
-  { id: 14, name: 'Kệ sách gỗ 5 tầng Bookie', category: 'Kệ sách và kệ tivi', price: 2100000, badge: '', image: '/images/ke_5_tang.jpg', quantity: 5 },
-  { id: 15, name: 'Kệ tivi gỗ óc chó 1m8 Nova', category: 'Kệ sách và kệ tivi', price: 3200000, badge: '', image: '/images/ke_nova.jpg', quantity: 3 },
-  { id: 16, name: 'Đèn chùm pha lê 8 bóng', category: 'Đèn trang trí', price: 5400000, badge: '', image: '/images/den_8_bong.jpg', quantity: 0 },
-  { id: 17, name: 'Đèn sàn thông trụ Arc', category: 'Đèn trang trí', price: 1350000, badge: '', image: '/images/den_tru_erc.jpg', quantity: 11 },
-  { id: 18, name: 'Thảm lông ngắn phòng khách 2x3m', category: 'Thảm và rèm cửa', price: 2800000, badge: '', image: '/images/tham_long_ngan.jpg', quantity: 8 },
-  { id: 19, name: 'Rèm cửa vải chống nắng 2.4m', category: 'Thảm và rèm cửa', price: 1650000, badge: '', image: '/images/rem_chong_nang.jpg', quantity: 18 },
-  { id: 20, name: 'Nệm cao su non 1m6 Dreamy', category: 'Nệm và phụ kiện giường', price: 5900000, badge: '', image: '/images/nem_cao_su.jpg', quantity: 4 },
+  { id: 2, name: 'Sofa băng 3 chỗ da PU Oslo', category: 'Sofa và ghế thư giãn', price: 9800000, badge: '', image: '/images/sofa_bang3.jpg', quantity: 15 },
+  { id: 3, name: 'Ghế thư giãn bập bênh Relax', category: 'Sofa và ghế thư giãn', price: 4200000, badge: '', image: '/images/ghe-thu-gian.jpg', quantity: 20 },
+  { id: 4, name: 'Bàn ăn gỗ cao su 6 chỗ Nordic', category: 'Bàn ăn', price: 6500000, badge: '', image: '/images/ban_an_6_cho.jpg', quantity: 18 },
+  { id: 5, name: 'Bàn ăn mặt đá ceramic 4 chỗ Venus', category: 'Bàn ăn', price: 7800000, badge: '', image: '/images/ban_an_mat_da.jpg', quantity: 10 },
+  { id: 6, name: 'Ghế ăn gỗ sồi đệm bọc Luna', category: 'Ghế ăn và ghế bar', price: 850000, badge: '', image: '/images/ghe_an_go_soi.jpg', quantity: 80 },
+  { id: 7, name: 'Ghế bar chân sắt Loft', category: 'Ghế ăn và ghế bar', price: 1200000, badge: '', image: '/images/ghe_bar.jpg', quantity: 40 },
+  { id: 8, name: 'Giường ngủ gỗ sồi 1m8 Hana', category: 'Giường ngủ', price: 8900000, badge: '', image: '/images/giuong_go_soi.jpg', quantity: 14 },
+  { id: 9, name: 'Giường bọc nệm 1m6 Royal', category: 'Giường ngủ', price: 7200000, badge: '', image: '/images/giuong_boc_nem.jpg', quantity: 12 },
+  { id: 10, name: 'Tủ quần áo 3 cánh gỗ MDF Alice', category: 'Tủ quần áo và tủ giày', price: 6800000, badge: '', image: '/images/tu_mdf.jpg', quantity: 16 },
+  { id: 11, name: 'Tủ giày thông minh 5 tầng', category: 'Tủ quần áo và tủ giày', price: 2400000, badge: '', image: '/images/tu_5_tang.jpg', quantity: 25 },
+  { id: 12, name: 'Bàn làm việc chân sắt 1m2 Office', category: 'Bàn và ghế văn phòng', price: 1900000, badge: '', image: '/images/ban_sat_office.jpg', quantity: 45 },
+  { id: 13, name: 'Ghế công thái học Ergo', category: 'Bàn và ghế văn phòng', price: 3600000, badge: '', image: '/images/ghe_ergo.jpg', quantity: 30 },
+  { id: 14, name: 'Kệ sách gỗ 5 tầng Bookie', category: 'Kệ sách và kệ tivi', price: 2100000, badge: '', image: '/images/ke_5_tang.jpg', quantity: 35 },
+  { id: 15, name: 'Kệ tivi gỗ óc chó 1m8 Nova', category: 'Kệ sách và kệ tivi', price: 3200000, badge: '', image: '/images/ke_nova.jpg', quantity: 22 },
+  { id: 16, name: 'Đèn chùm pha lê 8 bóng', category: 'Đèn trang trí', price: 5400000, badge: '', image: '/images/den_8_bong.jpg', quantity: 10 },
+  { id: 17, name: 'Đèn sàn thông trụ Arc', category: 'Đèn trang trí', price: 1350000, badge: '', image: '/images/den_tru_erc.jpg', quantity: 28 },
+  { id: 18, name: 'Thảm lông ngắn phòng khách 2x3m', category: 'Thảm và rèm cửa', price: 2800000, badge: '', image: '/images/tham_long_ngan.jpg', quantity: 24 },
+  { id: 19, name: 'Rèm cửa vải chống nắng 2.4m', category: 'Thảm và rèm cửa', price: 1650000, badge: '', image: '/images/rem_chong_nang.jpg', quantity: 50 },
+  { id: 20, name: 'Nệm cao su non 1m6 Dreamy', category: 'Nệm và phụ kiện giường', price: 5900000, badge: '', image: '/images/nem_cao_su.jpg', quantity: 20 },
 ]
