@@ -54,8 +54,9 @@ export default function VouchersModal({
     description: '',
     code: '',
     discountPercent: 10,
-    minimumAmount: 5000000,
-    maximumDiscount: 500000,
+    minimumAmount: 0,
+    hasMaxDiscount: false,
+    maximumDiscount: '',
     quantity: 100,
     startDate: new Date().toISOString().slice(0, 10) + ' 00:00:00',
     endDate: '2026-12-31 23:59:59',
@@ -143,7 +144,15 @@ export default function VouchersModal({
       return
     }
     setCreating(true)
-    const res = await createVoucherApi(createForm)
+    const payload = {
+      ...createForm,
+      code: createForm.code.trim().toUpperCase(),
+      discountPercent: Number(createForm.discountPercent),
+      minimumAmount: Number(createForm.minimumAmount) || 0,
+      maximumDiscount: createForm.hasMaxDiscount && createForm.maximumDiscount ? Number(createForm.maximumDiscount) : null,
+      quantity: Number(createForm.quantity) || 100,
+    }
+    const res = await createVoucherApi(payload)
     setCreating(false)
     if (res.voucher) {
       setActionAlert({ type: 'success', message: res.voucher.message })
@@ -152,8 +161,9 @@ export default function VouchersModal({
         description: '',
         code: '',
         discountPercent: 10,
-        minimumAmount: 5000000,
-        maximumDiscount: 500000,
+        minimumAmount: 0,
+        hasMaxDiscount: false,
+    maximumDiscount: '',
         quantity: 100,
         startDate: new Date().toISOString().slice(0, 10) + ' 00:00:00',
         endDate: '2026-12-31 23:59:59',
@@ -337,7 +347,7 @@ export default function VouchersModal({
                           <span className="voucher-ribbon-tag">Hot Funi</span>
                         )}
                         <div className="voucher-discount-val">
-                          {maxDisc > 0 && pct >= 10 ? (
+                          {(!pct || pct <= 0) && maxDisc > 0 ? (
                             <>
                               <span className="unit">Giảm</span>
                               <strong>{formatPrice(maxDisc).replace('₫', '')}</strong>
@@ -373,6 +383,11 @@ export default function VouchersModal({
                             {maxDisc > 0 && pct < 100 && (
                               <span className="voucher-max-hint">
                                 {' '}(Giảm tối đa {formatPrice(maxDisc)})
+                              </span>
+                            )}
+                            {(!maxDisc || maxDisc === 0) && pct > 0 && (
+                              <span className="voucher-max-hint" style={{ color: '#059669', fontWeight: 600 }}>
+                                {' '}(Không giới hạn số tiền giảm)
                               </span>
                             )}
                           </p>
@@ -670,22 +685,42 @@ export default function VouchersModal({
                   </div>
 
                   <div className="form-group">
-                    <label>Mức giảm tối đa (₫)</label>
-                    <input
-                      type="number"
-                      step="50000"
-                      placeholder="500000"
-                      value={createForm.maximumDiscount}
-                      onChange={(e) =>
-                        setCreateForm({
-                          ...createForm,
-                          maximumDiscount: Number(e.target.value),
-                        })
-                      }
-                    />
-                    <small className="field-hint">
-                      VD: 500.000₫ (Nếu đơn hơn 5 triệu giảm 500k)
-                    </small>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 600 }}>
+                      <input
+                        type="checkbox"
+                        checked={!createForm.hasMaxDiscount}
+                        onChange={(e) =>
+                          setCreateForm({
+                            ...createForm,
+                            hasMaxDiscount: !e.target.checked,
+                            maximumDiscount: !e.target.checked ? (createForm.maximumDiscount || 1000000) : ''
+                          })
+                        }
+                      />
+                      <span>Không giới hạn mức giảm tối đa (Giảm đủ {createForm.discountPercent}% giá trị đơn)</span>
+                    </label>
+                    {createForm.hasMaxDiscount && (
+                      <div style={{ marginTop: '8px' }}>
+                        <label style={{ fontSize: '0.85rem' }}>Số tiền giảm tối đa (₫)</label>
+                        <input
+                          type="number"
+                          step="50000"
+                          placeholder="VD: 1000000"
+                          value={createForm.maximumDiscount}
+                          onChange={(e) =>
+                            setCreateForm({
+                              ...createForm,
+                              maximumDiscount: e.target.value ? Number(e.target.value) : '',
+                            })
+                          }
+                          required={createForm.hasMaxDiscount}
+                        />
+                        <small className="field-hint">
+                          Đơn hàng dù tính theo % cao hơn cũng chỉ giảm tối đa số tiền này.
+                        </small>
+                      </div>
+                    )}
+                    
                   </div>
 
                   <div className="form-group">

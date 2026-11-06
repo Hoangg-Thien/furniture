@@ -542,6 +542,25 @@ public class AdminPromotionRepository {
         return extractId(keyHolder);
     }
 
+    public void updateVoucher(Long voucherId, java.math.BigDecimal discountPercent, java.math.BigDecimal minimumAmount, java.math.BigDecimal maximumDiscount, Integer quantity, String status) {
+        String validStatus = status != null ? status.trim().toUpperCase() : "ACTIVE";
+        jdbcTemplate.update("""
+                UPDATE public.vouchers
+                SET discount_percent = ?,
+                    minimum_amount = ?,
+                    maximum_discount = ?,
+                    quantity = ?,
+                    status = ?
+                WHERE id = ?
+                """,
+                discountPercent,
+                minimumAmount != null ? minimumAmount : java.math.BigDecimal.ZERO,
+                maximumDiscount,
+                quantity != null ? quantity : 100,
+                validStatus,
+                voucherId);
+    }
+
     public void updateVoucherStatus(Long voucherId, String status) {
         String validStatus = status != null ? status.trim().toUpperCase() : "ACTIVE";
         jdbcTemplate.update("UPDATE public.vouchers SET status = ? WHERE id = ?", validStatus, voucherId);

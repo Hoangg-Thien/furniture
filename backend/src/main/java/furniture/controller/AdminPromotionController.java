@@ -20,6 +20,7 @@ import furniture.model.admin.promotion.CreateOrderDiscountRequest;
 import furniture.model.admin.promotion.CreateProductDiscountRequest;
 import furniture.model.admin.promotion.CreateProgramRequest;
 import furniture.model.admin.promotion.CreateVoucherRequest;
+import furniture.model.admin.promotion.UpdateVoucherRequest;
 import furniture.model.admin.promotion.OrderDiscountDto;
 import furniture.model.admin.promotion.ProductDiscountDto;
 import furniture.model.admin.promotion.ProgramDetailResponse;
@@ -190,6 +191,18 @@ public class AdminPromotionController {
         try {
             VoucherDto created = adminPromotionService.createVoucher(id, req);
             return ResponseEntity.status(HttpStatus.CREATED).body(created);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PutMapping("/vouchers/{voucherId}")
+    public ResponseEntity<?> updateVoucher(
+            @PathVariable Long voucherId,
+            @RequestBody UpdateVoucherRequest req) {
+        try {
+            VoucherDto updated = adminPromotionService.updateVoucher(voucherId, req);
+            return ResponseEntity.ok(updated);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }

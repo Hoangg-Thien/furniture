@@ -200,9 +200,9 @@ function OrderSummary({
               <Sparkles size={13} className="suggest-sparkle" />
               <span>
                 {Number(suggestedVoucher.minimum_amount || 0) <= subtotal ? (
-                  <>Đủ điều kiện nhận mã <strong>{suggestedVoucher.code}</strong> (Giảm {suggestedVoucher.maximum_discount ? formatPrice(suggestedVoucher.maximum_discount) : `${suggestedVoucher.discount_percent}%`})</>
+                  <>Đủ điều kiện nhận mã <strong>{suggestedVoucher.code}</strong> (Giảm {suggestedVoucher.discount_percent ? `${suggestedVoucher.discount_percent}%${suggestedVoucher.maximum_discount ? ` - Tối đa ${formatPrice(suggestedVoucher.maximum_discount)}` : ''}` : formatPrice(suggestedVoucher.maximum_discount)})</>
                 ) : (
-                  <>Gợi ý mã <strong>{suggestedVoucher.code}</strong>: Mua thêm {formatPrice(Number(suggestedVoucher.minimum_amount || 0) - subtotal)} để giảm {suggestedVoucher.maximum_discount ? formatPrice(suggestedVoucher.maximum_discount) : `${suggestedVoucher.discount_percent}%`}</>
+                  <>Gợi ý mã <strong>{suggestedVoucher.code}</strong>: Mua thêm {formatPrice(Number(suggestedVoucher.minimum_amount || 0) - subtotal)} để giảm {suggestedVoucher.discount_percent ? `${suggestedVoucher.discount_percent}%${suggestedVoucher.maximum_discount ? ` - Tối đa ${formatPrice(suggestedVoucher.maximum_discount)}` : ''}` : formatPrice(suggestedVoucher.maximum_discount)}</>
                 )}
               </span>
             </div>

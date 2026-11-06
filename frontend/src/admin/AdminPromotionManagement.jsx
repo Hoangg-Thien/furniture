@@ -23,7 +23,10 @@ import {
   ChevronRight,
   SlidersHorizontal,
   Ticket,
-  ShoppingBag
+  ShoppingBag,
+  Copy,
+  Sparkles,
+  Check
 } from 'lucide-react'
 import { getApiBaseUrl, getApiHeaders } from '../lib/apiConfig'
 
@@ -85,24 +88,53 @@ export default function AdminPromotionManagement({ currentUser }) {
   })
   const [submittingOrderDiscount, setSubmittingOrderDiscount] = useState(false)
 
+  // Top-Level Main View: 'programs' | 'vouchers'
+  const [mainView, setMainView] = useState('programs')
+
+  // All Vouchers State (Centralized Voucher Hub)
+  const [allVouchers, setAllVouchers] = useState([])
+  const [loadingVouchers, setLoadingVouchers] = useState(false)
+  const [voucherSearch, setVoucherSearch] = useState('')
+  const [voucherStatusFilter, setVoucherStatusFilter] = useState('ALL')
+  const [copiedCode, setCopiedCode] = useState(null)
+
+  // Edit Voucher Modal
+  const [editingVoucher, setEditingVoucher] = useState(null)
+  const [editVoucherForm, setEditVoucherForm] = useState({
+    discountPercent: 10,
+    minimumAmount: 0,
+    hasMaxDiscount: false,
+    maximumDiscount: '',
+    quantity: 100,
+    status: 'ACTIVE'
+  })
+  const [submittingEditVoucher, setSubmittingEditVoucher] = useState(false)
+
+  // Quick Create Voucher Modal
+  const [showQuickCreateVoucherModal, setShowQuickCreateVoucherModal] = useState(false)
+  const [quickVoucherTargetProgramId, setQuickVoucherTargetProgramId] = useState('')
+
   // Voucher form
   const [voucherForm, setVoucherForm] = useState({
     code: '',
     discountPercent: 10,
-    minimumAmount: 5000000,
-    maximumDiscount: 1000000,
+    minimumAmount: 0,
+    hasMaxDiscount: false,
+    maximumDiscount: '',
     quantity: 100,
     status: 'ACTIVE'
   })
   const [submittingVoucher, setSubmittingVoucher] = useState(false)
+
+
 
   // Delete program confirmation
   const [deletingProgram, setDeletingProgram] = useState(null)
   const [deleteError, setDeleteError] = useState('')
   const [submittingDelete, setSubmittingDelete] = useState(false)
 
-  const modalOpen = showProgramModal || showDetailModal || !!deletingProgram
-  const saving = submittingProgram || submittingDelete || submittingVoucher || submittingProductDiscount || submittingOrderDiscount
+  const modalOpen = showProgramModal || showDetailModal || !!deletingProgram || !!editingVoucher || showQuickCreateVoucherModal
+  const saving = submittingProgram || submittingDelete || submittingVoucher || submittingProductDiscount || submittingOrderDiscount || submittingEditVoucher
   useEffect(() => () => clearTimeout(toastTimer.current), [])
 
   useEffect(() => {
@@ -118,6 +150,8 @@ export default function AdminPromotionManagement({ currentUser }) {
         setShowProgramModal(false)
         setShowDetailModal(false)
         setDeletingProgram(null)
+        setEditingVoucher(null)
+        setShowQuickCreateVoucherModal(false)
       }
       if (event.key === 'Tab') {
         const items = focusable()
@@ -205,9 +239,29 @@ export default function AdminPromotionManagement({ currentUser }) {
     }
   }
 
+  // Fetch all vouchers for Central Hub
+  const fetchAllVouchers = async () => {
+    setLoadingVouchers(true)
+    try {
+      const baseUrl = getApiBaseUrl()
+      const res = await fetch(`${baseUrl}/api/admin/promotions/vouchers`, {
+        headers: getApiHeaders()
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setAllVouchers(Array.isArray(data) ? data : [])
+      }
+    } catch (err) {
+      console.error('Lỗi tải danh sách voucher toàn hệ thống:', err)
+    } finally {
+      setLoadingVouchers(false)
+    }
+  }
+
   useEffect(() => {
     fetchPrograms()
     fetchProducts()
+    fetchAllVouchers()
   }, [])
 
   useEffect(() => { setPage(1) }, [searchKeyword, statusFilter, timeFilter, pageSize])
@@ -406,8 +460,9 @@ export default function AdminPromotionManagement({ currentUser }) {
       setVoucherForm({
         code: `${data.program.name.slice(0, 4).toUpperCase().replace(/[^A-Z]/g, '')}${Math.floor(10 + Math.random() * 90)}`,
         discountPercent: 10,
-        minimumAmount: 5000000,
-        maximumDiscount: 1000000,
+        minimumAmount: 0,
+        hasMaxDiscount: false,
+        maximumDiscount: '',
         quantity: 100,
         status: 'ACTIVE'
       })
@@ -524,9 +579,90 @@ export default function AdminPromotionManagement({ currentUser }) {
     }
   }
 
-  // Create Voucher
-  const handleCreateVoucher = async (e) => {
+  // Copy voucher code helper
+  const handleCopyCode = async (code) => {
+    if (!code) return
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(code)
+      }
+      setCopiedCode(code)
+      setTimeout(() => setCopiedCode(null), 2000)
+    } catch {
+      showToast(`Mã voucher: ${code}`)
+    }
+  }
+
+  // Open Quick Create Voucher (from Central Hub)
+  const handleOpenQuickCreateVoucher = () => {
+    const activeProg = programs.find(p => p.status === 'ACTIVE') || programs[0]
+    setQuickVoucherTargetProgramId(activeProg ? String(activeProg.id) : '')
+    setVoucherForm({
+      code: `FUNI${Math.floor(10 + Math.random() * 90)}`,
+      discountPercent: 10,
+      minimumAmount: 0,
+      hasMaxDiscount: false,
+      maximumDiscount: '',
+      quantity: 100,
+      status: 'ACTIVE'
+    })
+    setShowQuickCreateVoucherModal(true)
+  }
+
+  // Open Edit Voucher Modal
+  const handleOpenEditVoucher = (voucher) => {
+    setEditingVoucher(voucher)
+    const hasMax = voucher.maximumDiscount && Number(voucher.maximumDiscount) > 0
+    setEditVoucherForm({
+      discountPercent: voucher.discountPercent || 10,
+      minimumAmount: voucher.minimumAmount || 0,
+      hasMaxDiscount: !!hasMax,
+      maximumDiscount: hasMax ? voucher.maximumDiscount : '',
+      quantity: voucher.quantity || 100,
+      status: voucher.status || 'ACTIVE'
+    })
+  }
+
+  // Submit Edit Voucher
+  const handleUpdateVoucher = async (e) => {
     e.preventDefault()
+    if (!editingVoucher) return
+    setSubmittingEditVoucher(true)
+    try {
+      const baseUrl = getApiBaseUrl()
+      const payload = {
+        discountPercent: Number(editVoucherForm.discountPercent),
+        minimumAmount: Number(editVoucherForm.minimumAmount) || 0,
+        maximumDiscount: editVoucherForm.hasMaxDiscount && editVoucherForm.maximumDiscount ? Number(editVoucherForm.maximumDiscount) : null,
+        quantity: Number(editVoucherForm.quantity) || 100,
+        status: editVoucherForm.status
+      }
+      const res = await fetch(`${baseUrl}/api/admin/promotions/vouchers/${editingVoucher.id}`, {
+        method: 'PUT',
+        headers: getApiHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify(payload)
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Lỗi cập nhật voucher.')
+      showToast(`Đã cập nhật mã voucher ${editingVoucher.code} thành công!`)
+      setEditingVoucher(null)
+      refreshDetail()
+      fetchAllVouchers()
+    } catch (err) {
+      showToast(err.message, 'error')
+    } finally {
+      setSubmittingEditVoucher(false)
+    }
+  }
+
+  // Create Voucher (Supports both detail modal and quick create)
+  const handleCreateVoucher = async (e, customProgramId = null) => {
+    e.preventDefault()
+    const targetProgId = customProgramId || activeProgramId
+    if (!targetProgId) {
+      showToast('Vui lòng chọn chiến dịch áp dụng voucher.', 'error')
+      return
+    }
     if (!voucherForm.code.trim()) {
       showToast('Mã voucher không được để trống.', 'error')
       return
@@ -538,12 +674,12 @@ export default function AdminPromotionManagement({ currentUser }) {
         code: voucherForm.code.trim().toUpperCase(),
         discountPercent: Number(voucherForm.discountPercent),
         minimumAmount: Number(voucherForm.minimumAmount) || 0,
-        maximumDiscount: voucherForm.maximumDiscount ? Number(voucherForm.maximumDiscount) : null,
+        maximumDiscount: voucherForm.hasMaxDiscount && voucherForm.maximumDiscount ? Number(voucherForm.maximumDiscount) : null,
         quantity: Number(voucherForm.quantity) || 50,
         status: voucherForm.status
       }
 
-      const res = await fetch(`${baseUrl}/api/admin/promotions/${activeProgramId}/vouchers`, {
+      const res = await fetch(`${baseUrl}/api/admin/promotions/${targetProgId}/vouchers`, {
         method: 'POST',
         headers: getApiHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(payload)
@@ -551,7 +687,10 @@ export default function AdminPromotionManagement({ currentUser }) {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Lỗi phát hành voucher.')
       showToast(`Đã phát hành mã Voucher ${data.code} thành công!`)
+      setShowQuickCreateVoucherModal(false)
       refreshDetail()
+      fetchAllVouchers()
+      fetchPrograms()
     } catch (err) {
       showToast(err.message, 'error')
     } finally {
@@ -572,6 +711,7 @@ export default function AdminPromotionManagement({ currentUser }) {
       if (!res.ok) throw new Error('Không thể cập nhật trạng thái voucher.')
       showToast(`Voucher ${voucher.code} đã chuyển sang ${newStatus}!`)
       refreshDetail()
+      fetchAllVouchers()
     } catch (err) {
       showToast(err.message, 'error')
     }
@@ -579,6 +719,7 @@ export default function AdminPromotionManagement({ currentUser }) {
 
   // Delete Voucher
   const handleDeleteVoucher = async (voucherId) => {
+    if (!window.confirm('Bạn có chắc chắn muốn xóa mã voucher này?')) return
     try {
       const baseUrl = getApiBaseUrl()
       const res = await fetch(`${baseUrl}/api/admin/promotions/vouchers/${voucherId}`, {
@@ -589,6 +730,8 @@ export default function AdminPromotionManagement({ currentUser }) {
       if (!res.ok) throw new Error(data.error || 'Không thể xóa voucher.')
       showToast('Đã xóa voucher thành công!')
       refreshDetail()
+      fetchAllVouchers()
+      fetchPrograms()
     } catch (err) {
       showToast(err.message, 'error')
     }
@@ -613,9 +756,15 @@ export default function AdminPromotionManagement({ currentUser }) {
           <h1 className="admin-page-title">Khuyến mãi & voucher</h1>
           <p className="admin-page-subtitle">Quản lý chiến dịch, thiết lập ưu đãi và chăm sóc khách hàng.</p>
         </div>
-        <button className="btn-admin btn-admin-primary" onClick={handleOpenCreateProgram}>
-          <Plus size={17} /><span>Tạo chiến dịch</span>
-        </button>
+        {mainView === 'programs' ? (
+          <button className="btn-admin btn-admin-primary" onClick={handleOpenCreateProgram}>
+            <Plus size={17} /><span>Tạo chiến dịch</span>
+          </button>
+        ) : (
+          <button className="btn-admin btn-admin-primary" onClick={handleOpenQuickCreateVoucher}>
+            <Plus size={17} /><span>Phát hành Voucher mới</span>
+          </button>
+        )}
       </div>
 
       <div className="admin-stats-grid" aria-label="Tổng quan khuyến mãi" aria-busy={loading}>
@@ -633,6 +782,57 @@ export default function AdminPromotionManagement({ currentUser }) {
         ))}
       </div>
 
+      {/* Top View Switcher */}
+      <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
+        <button
+          type="button"
+          onClick={() => setMainView('programs')}
+          style={{
+            padding: '0.65rem 1.25rem',
+            borderRadius: '8px',
+            border: mainView === 'programs' ? '2px solid #376757' : '1px solid #cbd5e1',
+            background: mainView === 'programs' ? '#edf5ef' : '#fff',
+            color: mainView === 'programs' ? '#376757' : '#64748b',
+            fontWeight: 700,
+            fontSize: '0.92rem',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            transition: 'all 0.15s ease'
+          }}
+        >
+          <Layers size={18} />
+          <span>Quản lý Chiến dịch ({programs.length})</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setMainView('vouchers')
+            fetchAllVouchers()
+          }}
+          style={{
+            padding: '0.65rem 1.25rem',
+            borderRadius: '8px',
+            border: mainView === 'vouchers' ? '2px solid #376757' : '1px solid #cbd5e1',
+            background: mainView === 'vouchers' ? '#edf5ef' : '#fff',
+            color: mainView === 'vouchers' ? '#376757' : '#64748b',
+            fontWeight: 700,
+            fontSize: '0.92rem',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            transition: 'all 0.15s ease'
+          }}
+        >
+          <Ticket size={18} />
+          <span>Kho Voucher Toàn Hệ Thống ({allVouchers.length || kpiStats.totalVouchers})</span>
+        </button>
+      </div>
+
+      {mainView === 'programs' && (
       <section className="promotion-list-panel" aria-label="Danh sách chiến dịch">
         <div className="promotion-panel-heading">
           <div className="promotion-panel-title"><h2>Chiến dịch của bạn</h2><span className="promotion-count">{programs.length}</span></div>
@@ -715,6 +915,229 @@ export default function AdminPromotionManagement({ currentUser }) {
           <div className="promotion-pagination-controls"><label>Số dòng <select aria-label="Số dòng mỗi trang" value={pageSize} onChange={e => setPageSize(Number(e.target.value))}><option value="10">10</option><option value="20">20</option><option value="50">50</option></select></label><button className="btn-action" aria-label="Trang trước" disabled={currentPage <= 1} onClick={() => setPage(currentPage - 1)}><ChevronLeft size={16} /></button><span>{currentPage} / {totalPages}</span><button className="btn-action" aria-label="Trang sau" disabled={currentPage >= totalPages} onClick={() => setPage(currentPage + 1)}><ChevronRight size={16} /></button></div>
         </div>
       </section>
+      )}
+
+      {/* SECTION B: KHO VOUCHER TOÀN HỆ THỐNG */}
+      {mainView === 'vouchers' && (
+        <section className="promotion-list-panel" aria-label="Kho voucher toàn hệ thống">
+          <div className="promotion-panel-heading">
+            <div className="promotion-panel-title">
+              <h2>Kho Voucher Toàn Hệ Thống</h2>
+              <span className="promotion-count">{allVouchers.length}</span>
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <button
+                className="promotion-refresh"
+                onClick={fetchAllVouchers}
+                disabled={loadingVouchers}
+                title="Tải lại danh sách"
+                aria-label="Tải lại danh sách"
+              >
+                <RefreshCw size={15} className={loadingVouchers ? 'animate-spin' : ''} />
+                <span>Làm mới</span>
+              </button>
+              <button
+                className="btn-admin btn-admin-primary"
+                onClick={handleOpenQuickCreateVoucher}
+                style={{ fontSize: '0.82rem', padding: '0.45rem 0.85rem' }}
+              >
+                <Plus size={15} />
+                <span>Phát hành Voucher mới</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="promotion-status-tabs" role="group" aria-label="Lọc theo trạng thái voucher">
+            {[
+              ['ALL', 'Tất cả'],
+              ['ACTIVE', 'Đang hoạt động'],
+              ['INACTIVE', 'Đã tạm dừng'],
+              ['EXPIRED', 'Đã hết hạn']
+            ].map(([value, label]) => {
+              const count = value === 'ALL'
+                ? allVouchers.length
+                : value === 'EXPIRED'
+                ? allVouchers.filter(v => v.isExpired).length
+                : allVouchers.filter(v => v.status === value && !v.isExpired).length
+              return (
+                <button
+                  key={value}
+                  aria-pressed={voucherStatusFilter === value}
+                  className={voucherStatusFilter === value ? 'active' : ''}
+                  onClick={() => setVoucherStatusFilter(value)}
+                >
+                  {label}<span>{count}</span>
+                </button>
+              )
+            })}
+          </div>
+
+          <div className="promotion-filter-bar">
+            <div className="promotion-search-field" style={{ flex: 1 }}>
+              <Search size={17} />
+              <input
+                type="search"
+                placeholder="Tìm mã voucher (VD: FUNI50), tên chiến dịch..."
+                aria-label="Tìm kiếm voucher"
+                value={voucherSearch}
+                onChange={e => setVoucherSearch(e.target.value)}
+              />
+            </div>
+            {voucherSearch && (
+              <button className="promotion-clear-filter" onClick={() => setVoucherSearch('')}>
+                <X size={14} /> Xóa tìm kiếm
+              </button>
+            )}
+          </div>
+
+          <div className="table-responsive promotion-table-scroll">
+            <table className="admin-table promotion-table">
+              <thead>
+                <tr>
+                  <th>Mã Voucher & Chiến dịch</th>
+                  <th style={{ textAlign: 'center' }}>% Giảm</th>
+                  <th>Đơn tối thiểu</th>
+                  <th>Mức giảm tối đa</th>
+                  <th style={{ textAlign: 'center', width: '130px' }}>Lượt dùng</th>
+                  <th>Thời hạn</th>
+                  <th style={{ textAlign: 'center' }}>Trạng thái</th>
+                  <th style={{ textAlign: 'center', width: '120px' }}>Thao tác</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loadingVouchers ? (
+                  <tr>
+                    <td colSpan="8">
+                      <div className="promotion-empty" role="status">
+                        <RefreshCw size={24} className="animate-spin" />
+                        <h3>Đang tải kho voucher...</h3>
+                      </div>
+                    </td>
+                  </tr>
+                ) : displayedVouchers.length === 0 ? (
+                  <tr>
+                    <td colSpan="8">
+                      <div className="promotion-empty">
+                        <Ticket size={36} strokeWidth={1.4} style={{ opacity: 0.4 }} />
+                        <h3>Chưa tìm thấy voucher nào</h3>
+                        <p>{voucherSearch ? 'Thử tìm với từ khóa khác' : 'Chưa có voucher nào được phát hành trong hệ thống.'}</p>
+                        <button className="btn-admin btn-admin-primary" onClick={handleOpenQuickCreateVoucher}>
+                          <Plus size={15} /> Phát hành voucher ngay
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  displayedVouchers.map((v) => {
+                    const usedPercent = v.quantity > 0 ? Math.round((v.usedQuantity / v.quantity) * 100) : 0
+                    const hasLimit = v.maximumDiscount && Number(v.maximumDiscount) > 0
+                    return (
+                      <tr key={v.id}>
+                        <td>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <Gift size={16} style={{ color: '#059669' }} />
+                              <span style={{ fontWeight: 700, fontSize: '0.95rem', color: '#0f172a', letterSpacing: '0.5px' }}>
+                                {v.code}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => handleCopyCode(v.code)}
+                                title="Sao chép mã"
+                                style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: '2px', color: copiedCode === v.code ? '#059669' : '#94a3b8' }}
+                              >
+                                {copiedCode === v.code ? <Check size={14} /> : <Copy size={14} />}
+                              </button>
+                            </div>
+                            <span style={{ fontSize: '0.78rem', color: '#64748b' }}>
+                              Chiến dịch: {v.programName || `Chiến dịch #${v.promotionProgramId}`}
+                            </span>
+                          </div>
+                        </td>
+                        <td style={{ textAlign: 'center' }}>
+                          <span style={{ padding: '0.25rem 0.6rem', background: '#edf3ef', color: '#376757', borderRadius: '4px', fontWeight: 800, fontSize: '0.9rem' }}>
+                            Giảm {v.discountPercent}%
+                          </span>
+                        </td>
+                        <td style={{ fontSize: '0.85rem' }}>
+                          {v.minimumAmount && Number(v.minimumAmount) > 0 ? (
+                            <span>Từ <strong>{formatCurrency(v.minimumAmount)}</strong></span>
+                          ) : (
+                            <span style={{ color: '#64748b' }}>Mọi giá trị đơn hàng</span>
+                          )}
+                        </td>
+                        <td>
+                          {hasLimit ? (
+                            <span style={{ padding: '0.2rem 0.5rem', background: '#fef3c7', color: '#b45309', borderRadius: '4px', fontSize: '0.82rem', fontWeight: 600 }}>
+                              Tối đa: {formatCurrency(v.maximumDiscount)}
+                            </span>
+                          ) : (
+                            <span style={{ padding: '0.2rem 0.5rem', background: '#ecfdf5', color: '#047857', borderRadius: '4px', fontSize: '0.82rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                              <Sparkles size={12} /> Không giới hạn (Đủ {v.discountPercent}%)
+                            </span>
+                          )}
+                        </td>
+                        <td style={{ textAlign: 'center' }}>
+                          <div style={{ fontSize: '0.78rem', fontWeight: 600, color: '#334155' }}>
+                            {v.usedQuantity} / {v.quantity} ({usedPercent}%)
+                          </div>
+                          <div style={{ width: '100%', height: '5px', background: '#e2e8f0', borderRadius: '999px', overflow: 'hidden', marginTop: '3px' }}>
+                            <div
+                              style={{
+                                width: `${Math.min(usedPercent, 100)}%`,
+                                height: '100%',
+                                background: usedPercent >= 90 ? '#ef4444' : '#059669'
+                              }}
+                            />
+                          </div>
+                        </td>
+                        <td style={{ fontSize: '0.82rem', color: '#475569' }}>
+                          <div>{formatDateTime(v.startDate)} – {formatDateTime(v.endDate)}</div>
+                          {v.isExpired ? (
+                            <span style={{ fontSize: '0.74rem', color: '#dc2626', fontWeight: 600 }}>Đã hết hạn</span>
+                          ) : (
+                            <span style={{ fontSize: '0.74rem', color: '#059669', fontWeight: 600 }}>Còn hiệu lực</span>
+                          )}
+                        </td>
+                        <td style={{ textAlign: 'center' }}>
+                          <button
+                            className={`promotion-status-badge status-${v.status.toLowerCase()}`}
+                            onClick={() => handleToggleVoucherStatus(v)}
+                            title="Bấm để bật hoặc tạm dừng voucher"
+                          >
+                            <span />
+                            {v.status === 'ACTIVE' ? 'Đang hoạt động' : 'Tạm dừng'}
+                          </button>
+                        </td>
+                        <td style={{ textAlign: 'center' }}>
+                          <div style={{ display: 'flex', gap: '0.35rem', justifyContent: 'center' }}>
+                            <button
+                              className="btn-action"
+                              style={{ width: '28px', height: '28px' }}
+                              onClick={() => handleOpenEditVoucher(v)}
+                              title="Chỉnh sửa voucher (% giảm, mức trần, số lượng)"
+                            >
+                              <Edit2 size={13} />
+                            </button>
+                            <button
+                              className="btn-action btn-action-danger"
+                              style={{ width: '28px', height: '28px' }}
+                              onClick={() => handleDeleteVoucher(v.id)}
+                              title="Xóa voucher"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
 
       <div className="promotion-guide-heading"><span>MỘT CHIẾN DỊCH, NHIỀU CÁCH ƯU ĐÃI</span><span>Thiết lập sau khi tạo chiến dịch</span></div>
       <div className="promotion-guides">
@@ -1324,17 +1747,39 @@ export default function AdminPromotionManagement({ currentUser }) {
                       </div>
 
                       <div>
-                        <label htmlFor="promotion-field-13" className="admin-form-label" style={{ fontSize: '0.78rem' }}>Giảm tối đa (VNĐ)</label>
-                        <input id="promotion-field-13"
-                          type="number"
-                          min="0"
-                          step="100000"
-                          placeholder="Không giới hạn"
-                          className="admin-form-input"
-                          value={voucherForm.maximumDiscount || ''}
-                          onChange={(e) => setVoucherForm({ ...voucherForm, maximumDiscount: e.target.value })}
-                        />
+                        <label htmlFor="promotion-field-13" className="admin-form-label" style={{ fontSize: '0.78rem' }}>Mức trần giảm giá</label>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.76rem', cursor: 'pointer', color: '#1e293b' }}>
+                            <input
+                              type="checkbox"
+                              checked={!voucherForm.hasMaxDiscount}
+                              onChange={(e) => setVoucherForm({ ...voucherForm, hasMaxDiscount: !e.target.checked, maximumDiscount: !e.target.checked ? (voucherForm.maximumDiscount || '1000000') : '' })}
+                            />
+                            <span style={{ fontWeight: 600, color: '#059669' }}>✨ Không giới hạn (Đủ {voucherForm.discountPercent || 0}%)</span>
+                          </label>
+                          {voucherForm.hasMaxDiscount && (
+                            <input id="promotion-field-13"
+                              type="number"
+                              min="10000"
+                              step="100000"
+                              placeholder="VD: 1000000"
+                              className="admin-form-input"
+                              style={{ fontSize: '0.82rem' }}
+                              value={voucherForm.maximumDiscount || ''}
+                              onChange={(e) => setVoucherForm({ ...voucherForm, maximumDiscount: e.target.value })}
+                              required={voucherForm.hasMaxDiscount}
+                            />
+                          )}
+                        </div>
                       </div>
+                    </div>
+
+                    {/* Live Calculation Preview */}
+                    <div style={{ fontSize: '0.78rem', color: '#475569', background: '#e2e8f0', padding: '0.45rem 0.75rem', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Sparkles size={14} style={{ color: '#d97706', flexShrink: 0 }} />
+                      <span>
+                        <strong>Xem trước:</strong> Đơn hàng 4.000.000₫ áp dụng mã sẽ được <strong>giảm {voucherForm.hasMaxDiscount && voucherForm.maximumDiscount && (4000000 * Number(voucherForm.discountPercent || 0) / 100) > Number(voucherForm.maximumDiscount) ? `${formatCurrency(voucherForm.maximumDiscount)} (chạm mức trần tối đa)` : `${formatCurrency(4000000 * Number(voucherForm.discountPercent || 0) / 100)} (đủ ${voucherForm.discountPercent}%)`}</strong>.
+                      </span>
                     </div>
 
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1400,9 +1845,11 @@ export default function AdminPromotionManagement({ currentUser }) {
                                 </span>
                               </td>
                               <td style={{ fontSize: '0.82rem', color: '#475569' }}>
-                                <div>Đơn từ: <strong>{formatCurrency(v.minimumAmount)}</strong></div>
-                                {v.maximumDiscount && (
-                                  <div>Tối đa: <strong>{formatCurrency(v.maximumDiscount)}</strong></div>
+                                <div>Đơn từ: <strong>{Number(v.minimumAmount) > 0 ? formatCurrency(v.minimumAmount) : 'Mọi đơn hàng'}</strong></div>
+                                {v.maximumDiscount && Number(v.maximumDiscount) > 0 ? (
+                                  <div style={{ color: '#b45309', fontWeight: 600 }}>Tối đa: <strong>{formatCurrency(v.maximumDiscount)}</strong></div>
+                                ) : (
+                                  <div style={{ color: '#059669', fontWeight: 600 }}>✨ Không giới hạn (Đủ {v.discountPercent}%)</div>
                                 )}
                               </td>
                               <td style={{ textAlign: 'center' }}>
@@ -1448,14 +1895,24 @@ export default function AdminPromotionManagement({ currentUser }) {
                                 </button>
                               </td>
                               <td style={{ textAlign: 'center' }}>
-                                <button
-                                  className="btn-action btn-action-danger"
-                                  style={{ width: '28px', height: '28px' }}
-                                  onClick={() => handleDeleteVoucher(v.id)}
-                                  title="Xóa voucher"
-                                >
-                                  <Trash2 size={14} />
-                                </button>
+                                <div style={{ display: 'flex', gap: '0.3rem', justifyContent: 'center' }}>
+                                  <button
+                                    className="btn-action"
+                                    style={{ width: '28px', height: '28px' }}
+                                    onClick={() => handleOpenEditVoucher(v)}
+                                    title="Chỉnh sửa voucher (% giảm, mức trần, số lượng)"
+                                  >
+                                    <Edit2 size={13} />
+                                  </button>
+                                  <button
+                                    className="btn-action btn-action-danger"
+                                    style={{ width: '28px', height: '28px' }}
+                                    onClick={() => handleDeleteVoucher(v.id)}
+                                    title="Xóa voucher"
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+                                </div>
                               </td>
                             </tr>
                           )
@@ -1472,6 +1929,286 @@ export default function AdminPromotionManagement({ currentUser }) {
                 Đóng
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Chỉnh Sửa Voucher */}
+      {editingVoucher && (
+        <div className="admin-modal-overlay">
+          <div className="admin-modal-card" role="dialog" aria-modal="true" style={{ maxWidth: '480px' }}>
+            <div className="admin-modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <div style={{ width: '32px', height: '32px', borderRadius: '6px', background: '#edf3ef', color: '#376757', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Edit2 size={18} />
+                </div>
+                <div>
+                  <h3 className="admin-modal-title">Chỉnh sửa Voucher {editingVoucher.code}</h3>
+                  <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>Cập nhật phần trăm giảm giá & mức trần</p>
+                </div>
+              </div>
+              <button className="admin-modal-close" onClick={() => setEditingVoucher(null)}><X size={18} /></button>
+            </div>
+            <form onSubmit={handleUpdateVoucher}>
+              <div className="admin-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div>
+                  <label className="admin-form-label" style={{ fontSize: '0.82rem' }}>% Giảm Giá (1% - 100%)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="100"
+                    className="admin-form-input"
+                    value={editVoucherForm.discountPercent}
+                    onChange={(e) => setEditVoucherForm({ ...editVoucherForm, discountPercent: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="admin-form-label" style={{ fontSize: '0.82rem' }}>Đơn hàng tối thiểu (VNĐ)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="100000"
+                    className="admin-form-input"
+                    value={editVoucherForm.minimumAmount}
+                    onChange={(e) => setEditVoucherForm({ ...editVoucherForm, minimumAmount: e.target.value })}
+                  />
+                  <small style={{ color: '#64748b', fontSize: '0.75rem' }}>Để 0 nếu áp dụng cho mọi giá trị đơn hàng</small>
+                </div>
+
+                <div>
+                  <label className="admin-form-label" style={{ fontSize: '0.82rem' }}>Mức trần giảm giá tối đa</label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.82rem', cursor: 'pointer', color: '#1e293b' }}>
+                      <input
+                        type="checkbox"
+                        checked={!editVoucherForm.hasMaxDiscount}
+                        onChange={(e) => setEditVoucherForm({
+                          ...editVoucherForm,
+                          hasMaxDiscount: !e.target.checked,
+                          maximumDiscount: !e.target.checked ? (editVoucherForm.maximumDiscount || '1000000') : ''
+                        })}
+                      />
+                      <span style={{ fontWeight: 600, color: '#059669' }}>
+                        ✨ Không giới hạn mức giảm tối đa (Giảm đủ {editVoucherForm.discountPercent || 0}% giá trị đơn)
+                      </span>
+                    </label>
+
+                    {editVoucherForm.hasMaxDiscount && (
+                      <div>
+                        <input
+                          type="number"
+                          min="10000"
+                          step="100000"
+                          placeholder="VD: 1000000"
+                          className="admin-form-input"
+                          value={editVoucherForm.maximumDiscount}
+                          onChange={(e) => setEditVoucherForm({ ...editVoucherForm, maximumDiscount: e.target.value })}
+                          required={editVoucherForm.hasMaxDiscount}
+                        />
+                        <small style={{ color: '#64748b', fontSize: '0.75rem' }}>Số tiền giảm tối đa sẽ không vượt quá hạn mức này</small>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Calculation preview */}
+                <div style={{ fontSize: '0.8rem', color: '#475569', background: '#f1f5f9', padding: '0.55rem 0.8rem', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Sparkles size={14} style={{ color: '#d97706', flexShrink: 0 }} />
+                  <span>
+                    <strong>Cách tính:</strong> Đơn 4.000.000₫ sẽ được giảm <strong>{editVoucherForm.hasMaxDiscount && editVoucherForm.maximumDiscount && (4000000 * Number(editVoucherForm.discountPercent || 0) / 100) > Number(editVoucherForm.maximumDiscount) ? `${formatCurrency(editVoucherForm.maximumDiscount)} (chạm mức trần tối đa)` : `${formatCurrency(4000000 * Number(editVoucherForm.discountPercent || 0) / 100)} (đủ ${editVoucherForm.discountPercent}%)`}</strong>.
+                  </span>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                  <div>
+                    <label className="admin-form-label" style={{ fontSize: '0.82rem' }}>Số lượng phát hành</label>
+                    <input
+                      type="number"
+                      min="1"
+                      className="admin-form-input"
+                      value={editVoucherForm.quantity}
+                      onChange={(e) => setEditVoucherForm({ ...editVoucherForm, quantity: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="admin-form-label" style={{ fontSize: '0.82rem' }}>Trạng thái</label>
+                    <select
+                      className="admin-form-input"
+                      value={editVoucherForm.status}
+                      onChange={(e) => setEditVoucherForm({ ...editVoucherForm, status: e.target.value })}
+                    >
+                      <option value="ACTIVE">Đang hoạt động</option>
+                      <option value="INACTIVE">Tạm dừng</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <div className="admin-modal-footer">
+                <button type="button" className="btn-admin btn-admin-secondary" onClick={() => setEditingVoucher(null)}>Hủy bỏ</button>
+                <button type="submit" className="btn-admin btn-admin-primary" disabled={submittingEditVoucher}>
+                  {submittingEditVoucher ? 'Đang lưu...' : 'Lưu Thay Đổi'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Phát Hành Voucher Mới Nhanh */}
+      {showQuickCreateVoucherModal && (
+        <div className="admin-modal-overlay">
+          <div className="admin-modal-card" role="dialog" aria-modal="true" style={{ maxWidth: '520px' }}>
+            <div className="admin-modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <div style={{ width: '32px', height: '32px', borderRadius: '6px', background: '#edf3ef', color: '#376757', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Ticket size={18} />
+                </div>
+                <div>
+                  <h3 className="admin-modal-title">Phát hành Voucher Ưu Đãi Mới</h3>
+                  <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>Tạo mã giảm giá áp dụng khi khách hàng thanh toán</p>
+                </div>
+              </div>
+              <button className="admin-modal-close" onClick={() => setShowQuickCreateVoucherModal(false)}><X size={18} /></button>
+            </div>
+            <form onSubmit={(e) => handleCreateVoucher(e, quickVoucherTargetProgramId)}>
+              <div className="admin-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div>
+                  <label className="admin-form-label" style={{ fontSize: '0.82rem' }}>Chọn Chiến Dịch Khuyến Mãi Gắn Kèm</label>
+                  <select
+                    className="admin-form-input"
+                    value={quickVoucherTargetProgramId}
+                    onChange={(e) => setQuickVoucherTargetProgramId(e.target.value)}
+                    required
+                  >
+                    <option value="">-- Chọn chiến dịch khuyến mãi --</option>
+                    {programs.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        #{p.id} - {p.name} ({p.status === 'ACTIVE' ? 'Đang kích hoạt' : 'Bản nháp'})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '0.75rem' }}>
+                  <div>
+                    <label className="admin-form-label" style={{ fontSize: '0.82rem' }}>Mã Voucher</label>
+                    <input
+                      type="text"
+                      placeholder="VD: FUNI50"
+                      className="admin-form-input"
+                      style={{ textTransform: 'uppercase', fontWeight: 700 }}
+                      value={voucherForm.code}
+                      onChange={(e) => setVoucherForm({ ...voucherForm, code: e.target.value.toUpperCase() })}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="admin-form-label" style={{ fontSize: '0.82rem' }}>% Giảm Giá (1-100%)</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="100"
+                      className="admin-form-input"
+                      value={voucherForm.discountPercent}
+                      onChange={(e) => setVoucherForm({ ...voucherForm, discountPercent: e.target.value })}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="admin-form-label" style={{ fontSize: '0.82rem' }}>Đơn hàng tối thiểu (VNĐ)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="100000"
+                    placeholder="VD: 0 hoặc 5000000"
+                    className="admin-form-input"
+                    value={voucherForm.minimumAmount}
+                    onChange={(e) => setVoucherForm({ ...voucherForm, minimumAmount: e.target.value })}
+                  />
+                  <small style={{ color: '#64748b', fontSize: '0.75rem' }}>Nhập 0 nếu cho phép áp dụng cho mọi đơn hàng</small>
+                </div>
+
+                <div>
+                  <label className="admin-form-label" style={{ fontSize: '0.82rem' }}>Mức trần giảm giá</label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.82rem', cursor: 'pointer', color: '#1e293b' }}>
+                      <input
+                        type="checkbox"
+                        checked={!voucherForm.hasMaxDiscount}
+                        onChange={(e) => setVoucherForm({
+                          ...voucherForm,
+                          hasMaxDiscount: !e.target.checked,
+                          maximumDiscount: !e.target.checked ? (voucherForm.maximumDiscount || '1000000') : ''
+                        })}
+                      />
+                      <span style={{ fontWeight: 600, color: '#059669' }}>
+                        ✨ Không giới hạn mức giảm tối đa (Giảm đủ {voucherForm.discountPercent || 0}% giá trị đơn)
+                      </span>
+                    </label>
+
+                    {voucherForm.hasMaxDiscount && (
+                      <div>
+                        <input
+                          type="number"
+                          min="10000"
+                          step="100000"
+                          placeholder="VD: 1000000"
+                          className="admin-form-input"
+                          value={voucherForm.maximumDiscount}
+                          onChange={(e) => setVoucherForm({ ...voucherForm, maximumDiscount: e.target.value })}
+                          required={voucherForm.hasMaxDiscount}
+                        />
+                        <small style={{ color: '#64748b', fontSize: '0.75rem' }}>Số tiền giảm tối đa sẽ không vượt quá hạn mức này</small>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Calculation preview */}
+                <div style={{ fontSize: '0.8rem', color: '#475569', background: '#f1f5f9', padding: '0.55rem 0.8rem', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Sparkles size={14} style={{ color: '#d97706', flexShrink: 0 }} />
+                  <span>
+                    <strong>Cách tính:</strong> Đơn 4.000.000₫ sẽ được giảm <strong>{voucherForm.hasMaxDiscount && voucherForm.maximumDiscount && (4000000 * Number(voucherForm.discountPercent || 0) / 100) > Number(voucherForm.maximumDiscount) ? `${formatCurrency(voucherForm.maximumDiscount)} (chạm mức trần tối đa)` : `${formatCurrency(4000000 * Number(voucherForm.discountPercent || 0) / 100)} (đủ ${voucherForm.discountPercent}%)`}</strong>.
+                  </span>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                  <div>
+                    <label className="admin-form-label" style={{ fontSize: '0.82rem' }}>Số lượng phát hành</label>
+                    <input
+                      type="number"
+                      min="1"
+                      className="admin-form-input"
+                      value={voucherForm.quantity}
+                      onChange={(e) => setVoucherForm({ ...voucherForm, quantity: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="admin-form-label" style={{ fontSize: '0.82rem' }}>Trạng thái</label>
+                    <select
+                      className="admin-form-input"
+                      value={voucherForm.status}
+                      onChange={(e) => setVoucherForm({ ...voucherForm, status: e.target.value })}
+                    >
+                      <option value="ACTIVE">Đang hoạt động</option>
+                      <option value="INACTIVE">Tạm dừng</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <div className="admin-modal-footer">
+                <button type="button" className="btn-admin btn-admin-secondary" onClick={() => setShowQuickCreateVoucherModal(false)}>Hủy bỏ</button>
+                <button type="submit" className="btn-admin btn-admin-primary" disabled={submittingVoucher}>
+                  {submittingVoucher ? 'Đang tạo...' : 'Phát Hành Voucher'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

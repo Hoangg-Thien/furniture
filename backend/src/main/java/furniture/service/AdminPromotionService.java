@@ -11,6 +11,7 @@ import furniture.model.admin.promotion.CreateOrderDiscountRequest;
 import furniture.model.admin.promotion.CreateProductDiscountRequest;
 import furniture.model.admin.promotion.CreateProgramRequest;
 import furniture.model.admin.promotion.CreateVoucherRequest;
+import furniture.model.admin.promotion.UpdateVoucherRequest;
 import furniture.model.admin.promotion.OrderDiscountDto;
 import furniture.model.admin.promotion.ProductDiscountDto;
 import furniture.model.admin.promotion.ProgramDetailResponse;
@@ -213,6 +214,38 @@ public class AdminPromotionService {
     }
 
     @Transactional
+    public VoucherDto updateVoucher(Long voucherId, UpdateVoucherRequest req) {
+        VoucherDto existing = promotionRepository.findVoucherById(voucherId);
+        if (existing == null) {
+            throw new IllegalArgumentException("Không tìm thấy voucher với ID: " + voucherId);
+        }
+
+        BigDecimal pct = req.discountPercent() != null ? req.discountPercent() : existing.discountPercent();
+        if (pct.compareTo(BigDecimal.ZERO) <= 0 || pct.compareTo(new BigDecimal("100")) > 0) {
+            throw new IllegalArgumentException("% giảm giá voucher phải lớn hơn 0 và không vượt quá 100%");
+        }
+
+        BigDecimal minAmt = req.minimumAmount() != null ? req.minimumAmount() : existing.minimumAmount();
+        if (minAmt.compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("Giá trị đơn hàng tối thiểu áp dụng voucher phải >= 0");
+        }
+
+        BigDecimal maxDisc = req.maximumDiscount();
+        if (maxDisc != null && maxDisc.compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("Mức giảm tối đa của voucher phải >= 0");
+        }
+
+        Integer qty = req.quantity() != null ? req.quantity() : existing.quantity();
+        if (qty < 1) {
+            throw new IllegalArgumentException("Số lượng phát hành voucher phải từ 1 trở lên");
+        }
+
+        String status = req.status() != null ? req.status() : existing.status();
+
+        promotionRepository.updateVoucher(voucherId, pct, minAmt, maxDisc, qty, status);
+        return promotionRepository.findVoucherById(voucherId);
+    }
+
     public void updateVoucherStatus(Long voucherId, String status) {
         if (!promotionRepository.existsVoucherById(voucherId)) {
             throw new IllegalArgumentException("Không tìm thấy voucher với ID: " + voucherId);
