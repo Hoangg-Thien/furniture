@@ -783,4 +783,8 @@ INSERT INTO orders (id, customer_id, order_date, status, total_amount, discount_
 INSERT INTO order_items (order_id, product_id, quantity, unit_price, amount) VALUES (55, 1, 1, 14500000, 14500000);
 INSERT INTO users (id, username, password_hash, role) VALUES (40, 'thienle123', 'e2f6a965a45b6508077f828ad74e2a600f6bdc75af97d1464cf4b8b5589cbf53', 'CUSTOMER');
 INSERT INTO customers (id, user_id, full_name, email, phone, address) VALUES (26, 40, 'Le Viet Hoang Thien', 'thienle123@gmail.com', '0906787890', '36, duong36, khu lang son');
+INSERT INTO orders (id, customer_id, order_date, status, total_amount, discount_amount) VALUES (56, 26, '2026-11-06 13:15:10', 'PENDING', 12600000, 0);
+INSERT INTO order_items (order_id, product_id, quantity, unit_price, amount) VALUES (56, 1, 1, 14500000, 14500000);
+INSERT INTO order_items (order_id, product_id, quantity, unit_price, amount) VALUES (56, 3, 1, 4200000, 4200000);
+INSERT INTO order_items (order_id, product_id, quantity, unit_price, amount) VALUES (56, 4, 1, 6500000, 6500000);
 COMMIT;
