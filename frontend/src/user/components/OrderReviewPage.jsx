@@ -30,6 +30,7 @@ import {
   QrCode,
   Download,
   RefreshCw,
+  Ticket,
 } from 'lucide-react'
 import { createOrder, saveOrderToLocalHistory, fetchOrderById } from '../../lib/orders'
 import CancelOrderDialog from './CancelOrderDialog'
@@ -37,6 +38,7 @@ import OrderShippingInfo from './OrderShippingInfo'
 import { validateVoucherApi, fetchActiveVouchers } from '../../lib/vouchers'
 import { loadCheckoutDraft, saveCheckoutDraft, clearCheckoutDraft } from '../lib/checkout'
 import { getAllProvinces, getDistricts, getWards, splitSavedAddress } from '../lib/vietnamLocations'
+import VoucherPickerModal, { calculateVoucherDiscount } from './VoucherPickerModal'
 
 const formatPrice = (price) => `${new Intl.NumberFormat('vi-VN').format(price)}₫`
 
@@ -105,21 +107,56 @@ function OrderSummary({
   voucherLoading,
   availableVouchers = [],
 }) {
+  const [pickerOpen, setPickerOpen] = useState(false)
   const discount = appliedVoucher ? appliedVoucher.discountAmount : 0
   const shippingFee = subtotal >= FREE_SHIP_THRESHOLD ? 0 : SHIPPING_FEE
   const total = Math.max(0, subtotal - discount + shippingFee)
 
-  // Gợi ý voucher phù hợp (ưu tiên NEP500K nếu đơn >= 5tr hoặc voucher lớn nhất)
-  const suggestedVoucher = useMemo(() => {
-    if (appliedVoucher || !Array.isArray(availableVouchers) || availableVouchers.length === 0) return null
-    if (subtotal >= 5000000) {
-      const v500 = availableVouchers.find((v) => v.code === 'FUNI500K' || v.code === 'NEP500K')
-      if (v500) return v500
+  // Phân tích và tìm voucher tối ưu nhất
+  const optimalAnalysis = useMemo(() => {
+    if (!Array.isArray(availableVouchers) || availableVouchers.length === 0 || subtotal <= 0) {
+      return { bestEligible: null, nextEligible: null, eligibleCount: 0 }
     }
-    const eligible = availableVouchers.filter((v) => Number(v.minimum_amount || 0) <= subtotal)
-    if (eligible.length > 0) return eligible[0]
-    return availableVouchers.find((v) => Number(v.minimum_amount || 0) > subtotal) || null
-  }, [appliedVoucher, availableVouchers, subtotal])
+
+    const evaluated = availableVouchers.map((v) => {
+      const minAmt = Number(v.minimum_amount || 0)
+      const isEligible = subtotal >= minAmt
+      const savings = isEligible ? calculateVoucherDiscount(v, subtotal) : 0
+      const missing = isEligible ? 0 : Math.max(0, minAmt - subtotal)
+      return { ...v, isEligible, savings, missing }
+    })
+
+    const eligible = evaluated
+      .filter((v) => v.isEligible && v.savings > 0)
+      .sort((a, b) => b.savings - a.savings)
+
+    const ineligible = evaluated
+      .filter((v) => !v.isEligible)
+      .sort((a, b) => a.missing - b.missing)
+
+    return {
+      bestEligible: eligible[0] || null,
+      nextEligible: ineligible[0] || null,
+      eligibleCount: eligible.length,
+    }
+  }, [availableVouchers, subtotal])
+
+  const { bestEligible, nextEligible } = optimalAnalysis
+
+  // Kiểm tra xem voucher hiện tại có phải là voucher tối ưu nhất chưa
+  const isAppliedBest = useMemo(() => {
+    if (!appliedVoucher || !bestEligible) return false
+    return (
+      appliedVoucher.code === bestEligible.code ||
+      Number(appliedVoucher.discountAmount || 0) >= Number(bestEligible.savings || 0)
+    )
+  }, [appliedVoucher, bestEligible])
+
+  // Nếu đang áp dụng 1 voucher kém hơn voucher tối ưu nhất
+  const hasBetterVoucher = useMemo(() => {
+    if (!appliedVoucher || !bestEligible) return false
+    return Number(bestEligible.savings || 0) > Number(appliedVoucher.discountAmount || 0)
+  }, [appliedVoucher, bestEligible])
 
   return (
     <aside className="order-summary-panel">
@@ -165,9 +202,22 @@ function OrderSummary({
 
       {/* Khung Áp Dụng Voucher Khách Hàng */}
       <div className="order-summary-voucher-section">
-        <div className="voucher-section-title">
-          <Tag size={14} />
-          <span>Mã giảm giá FuniStore</span>
+        <div className="voucher-section-title-bar">
+          <div className="voucher-section-title">
+            <Tag size={14} />
+            <span>Mã giảm giá FuniStore</span>
+          </div>
+          {availableVouchers.length > 0 && (
+            <button
+              type="button"
+              className="voucher-browse-all-btn"
+              onClick={() => setPickerOpen(true)}
+              title="Xem danh sách tất cả voucher khả dụng"
+            >
+              <Ticket size={13} />
+              <span>Kho voucher ({availableVouchers.length})</span>
+            </button>
+          )}
         </div>
 
         <div className="voucher-input-action-row">
@@ -192,7 +242,7 @@ function OrderSummary({
               type="button"
               className="voucher-btn voucher-btn--apply"
               disabled={voucherLoading || !voucherInput.trim()}
-              onClick={onApplyVoucher}
+              onClick={() => onApplyVoucher()}
             >
               {voucherLoading ? 'Kiểm tra...' : 'Áp dụng'}
             </button>
@@ -206,6 +256,7 @@ function OrderSummary({
           </div>
         )}
 
+        {/* Khi đã áp dụng voucher */}
         {appliedVoucher && (
           <div className="voucher-msg-alert success">
             <CheckCircle2 size={13} />
@@ -215,30 +266,109 @@ function OrderSummary({
           </div>
         )}
 
-        {!appliedVoucher && suggestedVoucher && (
-          <div className="voucher-suggest-box">
-            <div className="suggest-info">
-              <Sparkles size={13} className="suggest-sparkle" />
+        {/* Thông báo nếu đã dùng mã tốt nhất */}
+        {appliedVoucher && isAppliedBest && (
+          <div className="voucher-best-confirmed">
+            <Sparkles size={12} className="sparkle-gold" />
+            <span>Bạn đang dùng voucher tiết kiệm nhiều nhất cho đơn này!</span>
+          </div>
+        )}
+
+        {/* Gợi ý nâng cấp nếu đang dùng mã thấp hơn */}
+        {appliedVoucher && hasBetterVoucher && bestEligible && (
+          <div className="voucher-upgrade-card">
+            <div className="upgrade-content">
+              <Sparkles size={13} className="sparkle-gold" />
               <span>
-                {Number(suggestedVoucher.minimum_amount || 0) <= subtotal ? (
-                  <>Đủ điều kiện nhận mã <strong>{suggestedVoucher.code}</strong> (Giảm {suggestedVoucher.discount_percent ? `${suggestedVoucher.discount_percent}%${suggestedVoucher.maximum_discount ? ` - Tối đa ${formatPrice(suggestedVoucher.maximum_discount)}` : ''}` : formatPrice(suggestedVoucher.maximum_discount)})</>
-                ) : (
-                  <>Gợi ý mã <strong>{suggestedVoucher.code}</strong>: Mua thêm {formatPrice(Number(suggestedVoucher.minimum_amount || 0) - subtotal)} để giảm {suggestedVoucher.discount_percent ? `${suggestedVoucher.discount_percent}%${suggestedVoucher.maximum_discount ? ` - Tối đa ${formatPrice(suggestedVoucher.maximum_discount)}` : ''}` : formatPrice(suggestedVoucher.maximum_discount)}</>
-                )}
+                Mã <strong>{bestEligible.code}</strong> giảm nhiều hơn! Tiết kiệm thêm{' '}
+                <strong className="text-emerald">
+                  +{formatPrice(bestEligible.savings - (appliedVoucher.discountAmount || 0))}
+                </strong>
               </span>
             </div>
-            {Number(suggestedVoucher.minimum_amount || 0) <= subtotal && (
+            <button
+              type="button"
+              className="voucher-upgrade-btn"
+              onClick={() => onQuickApply(bestEligible.code)}
+            >
+              Đổi mã
+            </button>
+          </div>
+        )}
+
+        {/* Đề xuất voucher tối ưu nhất khi chưa nhập mã */}
+        {!appliedVoucher && bestEligible && (
+          <div className="voucher-optimal-card">
+            <div className="optimal-header">
+              <span className="optimal-badge">
+                <Sparkles size={11} /> ƯU ĐÃI TỐT NHẤT CHO BẠN
+              </span>
               <button
                 type="button"
-                className="suggest-apply-btn"
-                onClick={() => onQuickApply(suggestedVoucher)}
+                className="optimal-see-all-link"
+                onClick={() => setPickerOpen(true)}
+              >
+                Xem tất cả ({availableVouchers.length})
+              </button>
+            </div>
+            <div className="optimal-body">
+              <div className="optimal-ticket-preview">
+                <div className="optimal-code-badge">{bestEligible.code}</div>
+                <div className="optimal-desc">
+                  <span className="optimal-saving-text">
+                    Tiết kiệm <strong>-{formatPrice(bestEligible.savings)}</strong>
+                  </span>
+                  <span className="optimal-condition">
+                    {bestEligible.program_name || `Đơn từ ${formatPrice(bestEligible.minimum_amount)}`}
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="optimal-apply-btn"
+                onClick={() => onQuickApply(bestEligible.code)}
               >
                 Dùng ngay
               </button>
-            )}
+            </div>
+          </div>
+        )}
+
+        {/* Khi chưa có voucher đủ điều kiện nhưng có voucher tiềm năng */}
+        {!appliedVoucher && !bestEligible && nextEligible && (
+          <div className="voucher-suggest-box">
+            <div className="suggest-info">
+              <AlertCircle size={13} className="suggest-sparkle" />
+              <span>
+                Gợi ý mã <strong>{nextEligible.code}</strong>: Mua thêm{' '}
+                <strong className="text-emerald">{formatPrice(nextEligible.missing)}</strong> để được giảm{' '}
+                {nextEligible.discount_percent
+                  ? `${nextEligible.discount_percent}%${nextEligible.maximum_discount ? ` (Tối đa ${formatPrice(nextEligible.maximum_discount)})` : ''}`
+                  : formatPrice(nextEligible.maximum_discount)}
+              </span>
+            </div>
+            <button
+              type="button"
+              className="suggest-apply-btn-outline"
+              onClick={() => setPickerOpen(true)}
+            >
+              Xem kho
+            </button>
           </div>
         )}
       </div>
+
+      <VoucherPickerModal
+        isOpen={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        vouchers={availableVouchers}
+        subtotal={subtotal}
+        appliedVoucher={appliedVoucher}
+        onApplyVoucher={(code) => {
+          onQuickApply(code)
+          setPickerOpen(false)
+        }}
+      />
 
       <div className="order-summary-totals">
         <div className="order-total-row">
