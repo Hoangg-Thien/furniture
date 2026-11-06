@@ -60,16 +60,21 @@ function App() {
 
   const [currentRoute, setCurrentRoute] = useState(() => getCurrentRoute())
   const [adminViewNotice, setAdminViewNotice] = useState(null)
+  const [isAdminPreviewMode, setIsAdminPreviewMode] = useState(false)
 
-  function handleBackToStore() {
+  function handleBackToStore(fromAdmin = false) {
     window.history.pushState(null, '', '/')
     setCurrentRoute('store')
-    if (adminUser && (adminUser.role === 'ADMIN' || adminUser.role === 'STAFF')) {
+    if (fromAdmin && adminUser && (adminUser.role === 'ADMIN' || adminUser.role === 'STAFF')) {
+      setIsAdminPreviewMode(true)
       setAdminViewNotice('Bạn đang xem với vai trò Admin')
       window.scrollTo(0, 0)
       setTimeout(() => {
         setAdminViewNotice(null)
-      }, 6000)
+      }, 5000)
+    } else {
+      setIsAdminPreviewMode(false)
+      setAdminViewNotice(null)
     }
   }
 
@@ -554,6 +559,8 @@ function App() {
     logoutAdminUser()
     window.history.replaceState(null, '', '/admin')
     setAdminUser(null)
+    setIsAdminPreviewMode(false)
+    setAdminViewNotice(null)
   }
 
   if (currentRoute === 'admin') {
@@ -563,7 +570,7 @@ function App() {
       return (
         <AdminLoginPage
           onLoginSuccess={handleAdminLoginSuccess}
-          onBackToStore={handleBackToStore}
+          onBackToStore={() => handleBackToStore(false)}
         />
       )
     }
@@ -572,7 +579,7 @@ function App() {
       <AdminLayout
         currentUser={adminUser}
         onLogout={handleAdminLogout}
-        onBackToStore={handleBackToStore}
+        onBackToStore={() => handleBackToStore(true)}
       />
     )
   }
@@ -583,8 +590,8 @@ function App() {
 
   return (
     <div className="storefront">
-      {/* Toast thông báo: Bạn đang xem với vai trò admin */}
-      {adminViewNotice && (
+      {/* Toast thông báo: Bạn đang xem với vai trò admin (chỉ hiện khi bấm Xem Cửa Hàng từ trang Admin) */}
+      {isAdminPreviewMode && adminViewNotice && (
         <div
           className="admin-view-toast"
           style={{
@@ -633,8 +640,8 @@ function App() {
         </div>
       )}
 
-      {/* Dải thông báo Chế độ xem Quản trị ở đầu trang */}
-      {adminUser && (adminUser.role === 'ADMIN' || adminUser.role === 'STAFF') && (
+      {/* Dải thông báo Chế độ xem Quản trị ở đầu trang (CHỈ HIỂN THỊ KHI CLICK TỪ TRANG ADMIN) */}
+      {isAdminPreviewMode && adminUser && (adminUser.role === 'ADMIN' || adminUser.role === 'STAFF') && (
         <div
           className="admin-store-preview-bar"
           style={{
@@ -669,30 +676,58 @@ function App() {
             </span>
             <span>Bạn đang xem cửa hàng với vai trò <strong>Admin ({adminUser?.fullName || adminUser?.username})</strong></span>
           </div>
-          <button
-            type="button"
-            onClick={() => {
-              window.history.pushState(null, '', '/admin')
-              setCurrentRoute('admin')
-            }}
-            style={{
-              background: '#376757',
-              color: '#fff',
-              border: 'none',
-              padding: '5px 12px',
-              borderRadius: '5px',
-              fontSize: '12px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              boxShadow: '0 2px 5px rgba(0,0,0,0.2)'
-            }}
-          >
-            <span>Quay lại trang Admin</span>
-            <ArrowRight size={13} />
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button
+              type="button"
+              onClick={() => {
+                setIsAdminPreviewMode(false)
+                setAdminViewNotice(null)
+                window.history.pushState(null, '', '/admin')
+                setCurrentRoute('admin')
+              }}
+              style={{
+                background: '#376757',
+                color: '#fff',
+                border: 'none',
+                padding: '5px 12px',
+                borderRadius: '5px',
+                fontSize: '12px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                boxShadow: '0 2px 5px rgba(0,0,0,0.2)'
+              }}
+            >
+              <span>Quay lại trang Admin</span>
+              <ArrowRight size={13} />
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setIsAdminPreviewMode(false)
+                setAdminViewNotice(null)
+              }}
+              style={{
+                background: 'rgba(255,255,255,0.12)',
+                color: '#cbd5e1',
+                border: 'none',
+                padding: '5px 9px',
+                borderRadius: '5px',
+                fontSize: '11px',
+                fontWeight: 500,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '3px'
+              }}
+              title="Tắt thanh xem trước này"
+            >
+              <X size={13} />
+              <span>Thoát xem</span>
+            </button>
+          </div>
         </div>
       )}
       <div className="announcement">
