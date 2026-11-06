@@ -61,7 +61,7 @@ if (typeof window !== 'undefined' && window.fetch) {
             || /^\/api\/auth\/(users|customers)$/.test(apiPath) || apiPath.startsWith('/api/vouchers'))) {
         let user
         try { user = JSON.parse(localStorage.getItem(customerRequest ? 'furniture_customer_user' : 'furniture_admin_user') || 'null') } catch {}
-        if (user?.accessToken && user.apiBaseUrl === getApiBaseUrl()) {
+        if (user?.accessToken) {
           const headers = new Headers(init?.headers || (typeof resource === 'object' && resource?.headers) || {})
           if (!headers.has('Authorization')) headers.set('Authorization', `Bearer ${user.accessToken}`)
           init = { ...init, headers }
