@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useMemo } from 'react'
 import {
   ArrowRight,
+  ShieldCheck,
   ArrowUpDown,
   Check,
   ChevronDown,
@@ -58,10 +59,18 @@ function App() {
   }
 
   const [currentRoute, setCurrentRoute] = useState(() => getCurrentRoute())
+  const [adminViewNotice, setAdminViewNotice] = useState(null)
 
   function handleBackToStore() {
     window.history.pushState(null, '', '/')
     setCurrentRoute('store')
+    if (adminUser && (adminUser.role === 'ADMIN' || adminUser.role === 'STAFF')) {
+      setAdminViewNotice('Bạn đang xem với vai trò Admin')
+      window.scrollTo(0, 0)
+      setTimeout(() => {
+        setAdminViewNotice(null)
+      }, 6000)
+    }
   }
 
   useEffect(() => {
@@ -574,6 +583,118 @@ function App() {
 
   return (
     <div className="storefront">
+      {/* Toast thông báo: Bạn đang xem với vai trò admin */}
+      {adminViewNotice && (
+        <div
+          className="admin-view-toast"
+          style={{
+            position: 'fixed',
+            top: '20px',
+            right: '20px',
+            zIndex: 99999,
+            background: '#0f172a',
+            color: '#fff',
+            padding: '12px 18px',
+            borderRadius: '10px',
+            boxShadow: '0 10px 30px rgba(0,0,0,0.3)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            borderLeft: '4px solid #10b981',
+            animation: 'fadeIn 0.3s ease'
+          }}
+        >
+          <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: '#10b98126', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#10b981' }}>
+            <ShieldCheck size={18} />
+          </div>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: '13.5px', color: '#f8fafc' }}>
+              Bạn đang xem với vai trò Admin
+            </div>
+            <div style={{ fontSize: '11.5px', color: '#94a3b8' }}>
+              {adminUser?.fullName || adminUser?.username ? `Tài khoản: ${adminUser?.fullName || adminUser?.username}` : 'Đang ở chế độ xem trước cửa hàng'}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setAdminViewNotice(null)}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: '#94a3b8',
+              cursor: 'pointer',
+              padding: '4px',
+              marginLeft: '8px'
+            }}
+            title="Đóng thông báo"
+          >
+            <X size={15} />
+          </button>
+        </div>
+      )}
+
+      {/* Dải thông báo Chế độ xem Quản trị ở đầu trang */}
+      {adminUser && (adminUser.role === 'ADMIN' || adminUser.role === 'STAFF') && (
+        <div
+          className="admin-store-preview-bar"
+          style={{
+            background: 'linear-gradient(90deg, #1e293b 0%, #334155 100%)',
+            color: '#f8fafc',
+            padding: '7px 20px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            fontSize: '12.5px',
+            position: 'sticky',
+            top: 0,
+            zIndex: 9999,
+            borderBottom: '1px solid #475569'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                background: '#047857',
+                color: '#fff',
+                padding: '2px 8px',
+                borderRadius: '4px',
+                fontWeight: 700,
+                fontSize: '11px'
+              }}
+            >
+              <ShieldCheck size={12} /> CHẾ ĐỘ QUẢN TRỊ
+            </span>
+            <span>Bạn đang xem cửa hàng với vai trò <strong>Admin ({adminUser?.fullName || adminUser?.username})</strong></span>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              window.history.pushState(null, '', '/admin')
+              setCurrentRoute('admin')
+            }}
+            style={{
+              background: '#376757',
+              color: '#fff',
+              border: 'none',
+              padding: '5px 12px',
+              borderRadius: '5px',
+              fontSize: '12px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              boxShadow: '0 2px 5px rgba(0,0,0,0.2)'
+            }}
+          >
+            <span>Quay lại trang Admin</span>
+            <ArrowRight size={13} />
+          </button>
+        </div>
+      )}
       <div className="announcement">
         <span>Giao hàng miễn phí cho đơn từ 2.000.000₫</span>
         <span className="announcement-note">Thiết kế tử tế, sống an yên</span>

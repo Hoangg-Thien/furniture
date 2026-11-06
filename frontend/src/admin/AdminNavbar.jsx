@@ -269,11 +269,26 @@ export default function AdminNavbar({
         {/* Về trang cửa hàng */}
         <button
           type="button"
-          className="admin-action-icon-btn"
-          title="Xem Cửa hàng FuniStore"
+          className="admin-view-store-btn"
+          title="Xem cửa hàng Funi (Chế độ xem với vai trò Admin)"
           onClick={onBackToStore}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '5px 12px',
+            background: '#edf5ef',
+            border: '1px solid #cce0d2',
+            borderRadius: '6px',
+            color: '#376757',
+            fontSize: '12px',
+            fontWeight: 600,
+            cursor: 'pointer',
+            transition: 'all 0.15s ease'
+          }}
         >
-          <Home size={16} />
+          <Home size={14} />
+          <span>Xem cửa hàng Funi</span>
         </button>
 
         {/* Logout */}
