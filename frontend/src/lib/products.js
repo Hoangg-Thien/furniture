@@ -3,7 +3,7 @@ import { getApiBaseUrl } from './apiConfig.js'
 const CACHE_KEY = 'furniture_cached_products'
 
 /**
- * Tải danh sách sản phẩm từ Backend API với cơ chế tự động cache và fallback
+ * Tải danh sách sản phẩm từ Backend API với cơ chế tự động cache và fallback an toàn
  */
 export async function loadProducts() {
   const apiBaseUrl = getApiBaseUrl()
@@ -13,17 +13,30 @@ export async function loadProducts() {
 
     const rows = await response.json()
     if (Array.isArray(rows)) {
-      const mapped = rows.map((row) => ({
-        id: row.id,
-        name: row.name,
-        category: row.category ?? 'Khác',
-        price: Number(row.price),
-        badge: '',
-        image: row.imageUrl || '',
-        quantity: row.quantity !== undefined && row.quantity !== null ? Number(row.quantity) : 0,
-      }))
+      const mapped = rows.map((row) => {
+        // Tìm số lượng dự phòng nếu backend đang chạy bản cũ chưa trả về trường quantity
+        const matched = DEFAULT_PRODUCTS.find((p) => p.id === row.id)
+        const fallbackQty = matched?.quantity ?? 10
 
-      // Lưu vào cache để nếu mạng chập chờn thì app vẫn luôn hiển thị sản phẩm
+        // Chỉ coi là hết hàng nếu backend trả về rõ ràng quantity = 0
+        // Nếu row.quantity bị undefined / null (backend chưa restart), dùng fallbackQty để không bị hết hàng đồng loạt
+        const quantity =
+          row.quantity !== undefined && row.quantity !== null
+            ? Number(row.quantity)
+            : fallbackQty
+
+        return {
+          id: row.id,
+          name: row.name,
+          category: row.category ?? 'Khác',
+          price: Number(row.price),
+          badge: '',
+          image: row.imageUrl || '',
+          quantity,
+        }
+      })
+
+      // Lưu vào cache
       try {
         localStorage.setItem(CACHE_KEY, JSON.stringify(mapped))
       } catch {
@@ -42,7 +55,11 @@ export async function loadProducts() {
       if (cached) {
         const parsed = JSON.parse(cached)
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return { products: parsed, error }
+          // Bỏ qua nếu toàn bộ sản phẩm trong cache cũ bị lưu nhầm quantity = 0
+          const allZero = parsed.every((p) => p.quantity === 0)
+          if (!allZero) {
+            return { products: parsed, error }
+          }
         }
       }
     } catch {
@@ -57,7 +74,7 @@ export async function loadProducts() {
   }
 }
 
-const DEFAULT_PRODUCTS = [
+export const DEFAULT_PRODUCTS = [
   { id: 1, name: 'Sofa góc chữ L vải bọc Milan', category: 'Sofa và ghế thư giãn', price: 14500000, badge: '', image: '/images/sofa_goc_chu_L.jpg', quantity: 12 },
   { id: 2, name: 'Sofa băng 3 chỗ da PU Oslo', category: 'Sofa và ghế thư giãn', price: 9800000, badge: '', image: '/images/sofa_bang3.jpg', quantity: 3 },
   { id: 3, name: 'Ghế thư giãn bập bênh Relax', category: 'Sofa và ghế thư giãn', price: 4200000, badge: '', image: '/images/ghe-thu-gian.jpg', quantity: 8 },
