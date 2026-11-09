@@ -182,6 +182,7 @@ class AdminOrderServiceTest {
         );
         when(adminOrderRepository.findDetailById(101L)).thenReturn(order);
         when(adminOrderRepository.findVoucherIdByOrderId(101L)).thenReturn(5L);
+        when(adminOrderRepository.hasDeductedStock(101L)).thenReturn(true);
 
         CancelOrderRequest req = new CancelOrderRequest("Khách hàng đổi ý mua mẫu khác");
         adminOrderService.cancelOrder(101L, req);

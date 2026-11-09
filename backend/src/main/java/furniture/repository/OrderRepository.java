@@ -93,8 +93,8 @@ public class OrderRepository {
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
             PreparedStatement ps = connection.prepareStatement(
-                    "INSERT INTO public.orders (customer_id, order_date, status, total_amount, voucher_id, discount_amount, shipping_address) " +
-                            "VALUES (?, date_trunc('second', CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh'), 'PENDING', ?, ?, ?, ?)",
+                    "INSERT INTO public.orders (customer_id, order_date, status, total_amount, voucher_id, discount_amount, shipping_address, stock_deducted) " +
+                            "VALUES (?, date_trunc('second', CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh'), 'PENDING', ?, ?, ?, ?, TRUE)",
                     new String[] { "id" });
             ps.setLong(1, customerId);
             ps.setBigDecimal(2, finalTotal);
@@ -130,8 +130,7 @@ public class OrderRepository {
     public void insertOrderItem(Long orderId, Long productId, Integer quantity, BigDecimal unitPrice, BigDecimal amount) {
         jdbcTemplate.update(
                 "INSERT INTO public.order_items (order_id, product_id, quantity, unit_price, amount) " +
-                        "VALUES (?, ?, ?, ?, ?) " +
-                        "ON CONFLICT (order_id, product_id) DO UPDATE SET quantity = EXCLUDED.quantity, amount = EXCLUDED.amount",
+                        "VALUES (?, ?, ?, ?, ?)",
                 orderId, productId, quantity, unitPrice, amount);
     }
 
@@ -199,6 +198,29 @@ public class OrderRepository {
         return jdbcTemplate.update(
                 "UPDATE public.orders SET status = 'CANCELLED' WHERE id = ? AND status = 'PENDING'",
                 id);
+    }
+
+    public boolean deductProductStock(Long productId, int quantity) {
+        return jdbcTemplate.update("""
+                UPDATE public.products SET quantity = quantity - ?
+                WHERE id = ? AND quantity >= ? AND COALESCE(is_active, TRUE) = TRUE
+                """, quantity, productId, quantity) == 1;
+    }
+
+    public void restoreOrderStock(Long orderId) {
+        jdbcTemplate.update("""
+                UPDATE public.products p SET quantity = quantity +
+                    (SELECT oi.quantity FROM public.order_items oi WHERE oi.order_id = ? AND oi.product_id = p.id)
+                WHERE p.id IN (SELECT product_id FROM public.order_items WHERE order_id = ?)
+                  AND EXISTS (SELECT 1 FROM public.orders WHERE id = ? AND stock_deducted = TRUE)
+                """, orderId, orderId, orderId);
+    }
+
+    public void restoreOrderVoucher(Long orderId) {
+        jdbcTemplate.update("""
+                UPDATE public.vouchers SET used_quantity = used_quantity - 1
+                WHERE used_quantity > 0 AND id = (SELECT voucher_id FROM public.orders WHERE id = ?)
+                """, orderId);
     }
 }
 

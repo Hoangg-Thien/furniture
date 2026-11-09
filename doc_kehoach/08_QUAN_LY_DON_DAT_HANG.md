@@ -16,6 +16,9 @@
              └──► [CANCELLED: Khách hủy / Hết hàng trong kho]
   ```
 - **Quy tắc & Ràng buộc nghiệp vụ**:
+  - Khi khách đặt đơn thành công (`PENDING`), trừ ngay số lượng khỏi `products.quantity` trong cùng transaction. Không đủ hàng hoặc sản phẩm ngừng bán thì từ chối toàn bộ đơn; lỗi lưu đơn sẽ hoàn tác phần trừ kho.
+  - Duyệt, giao và hoàn tất đơn không trừ kho thêm lần nữa. Khi hủy qua khách hàng hoặc admin, chỉ hoàn kho nếu đơn đã trừ kho (`orders.stock_deducted = TRUE`), và chỉ hoàn một lần.
+  - Migration `order_stock.sql` tự chạy khi khởi động. Đơn cũ mặc định `stock_deducted = FALSE`; không tự trừ bù hoặc cộng trả hàng chưa từng trừ. Cần đối soát tồn thực tế cho dữ liệu cũ.
   - Khi chuyển sang `CONFIRMED`, hệ thống bắt buộc phải gán mã `staff_id` của nhân viên chịu trách nhiệm đơn hàng.
   - Khi đơn hàng bị HỦY (`CANCELLED`):
     - Tự động hoàn trả số lượng sản phẩm về kho (`products.quantity = quantity + item.quantity`).

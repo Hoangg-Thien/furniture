@@ -331,6 +331,11 @@ public class AdminOrderRepository {
         );
     }
 
+    public boolean hasDeductedStock(Long orderId) {
+        return Boolean.TRUE.equals(jdbcTemplate.queryForObject(
+                "SELECT stock_deducted FROM public.orders WHERE id = ?", Boolean.class, orderId));
+    }
+
     public void restoreVoucherUsedQuantity(Long voucherId) {
         if (voucherId != null) {
             jdbcTemplate.update(

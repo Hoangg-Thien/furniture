@@ -5,7 +5,9 @@ import java.time.LocalDateTime;
 import java.time.Year;
 import java.time.format.DateTimeFormatter;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 
@@ -28,7 +30,7 @@ public class OrderService {
 
     @Transactional
     public OrderResponse createOrder(CreateOrderRequest req) {
-        if (req.items() == null || req.items().isEmpty()) {
+        if (req == null || req.items() == null || req.items().isEmpty()) {
             throw new IllegalArgumentException("Đơn hàng phải có ít nhất 1 sản phẩm.");
         }
 
@@ -40,6 +42,23 @@ public class OrderService {
 
         if (resolvedCustomerId == null || resolvedCustomerId <= 0) {
             throw new IllegalArgumentException("Không xác định được khách hàng. Vui lòng đăng nhập lại trước khi đặt hàng.");
+        }
+
+        var productIds = new HashSet<Long>();
+        for (OrderItemDto item : req.items()) {
+            if (item == null || item.productId() == null || item.productId() <= 0
+                    || item.quantity() == null || item.quantity() <= 0) {
+                throw new IllegalArgumentException("Sản phẩm và số lượng đặt hàng không hợp lệ.");
+            }
+            if (!productIds.add(item.productId())) {
+                throw new IllegalArgumentException("Mỗi sản phẩm chỉ được xuất hiện một lần trong đơn hàng.");
+            }
+        }
+        // Cùng thứ tự khóa sản phẩm để các giỏ nhiều mặt hàng không khóa chéo nhau.
+        for (OrderItemDto item : req.items().stream().sorted(Comparator.comparing(OrderItemDto::productId)).toList()) {
+            if (!orderRepository.deductProductStock(item.productId(), item.quantity())) {
+                throw new IllegalArgumentException("Sản phẩm #" + item.productId() + " không đủ tồn kho hoặc đã ngừng bán. Vui lòng cập nhật giỏ hàng.");
+            }
         }
 
         // 2. Cập nhật thông tin số điện thoại / địa chỉ vào bảng customers
@@ -160,8 +179,13 @@ public class OrderService {
         return Map.of("order", order, "items", items);
     }
 
+    @Transactional
     public boolean cancelOrder(Long id) {
         int updated = orderRepository.cancelOrder(id);
+        if (updated > 0) {
+            orderRepository.restoreOrderStock(id);
+            orderRepository.restoreOrderVoucher(id);
+        }
         return updated > 0;
     }
 

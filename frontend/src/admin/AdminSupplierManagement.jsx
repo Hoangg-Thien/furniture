@@ -413,12 +413,16 @@ export default function AdminSupplierManagement({ currentUser }) {
         setReceiptFormError(`Dòng #${i + 1}: Vui lòng chọn sản phẩm nội thất cần nhập.`)
         return
       }
-      if (!item.quantity || Number(item.quantity) <= 0) {
-        setReceiptFormError(`Dòng #${i + 1}: Số lượng nhập phải lớn hơn 0.`)
+      if (!Number.isInteger(Number(item.quantity)) || Number(item.quantity) <= 0) {
+        setReceiptFormError(`Dòng #${i + 1}: Số lượng nhập phải là số nguyên lớn hơn 0.`)
         return
       }
       if (item.unitPrice === '' || Number(item.unitPrice) < 0) {
         setReceiptFormError(`Dòng #${i + 1}: Đơn giá vốn nhập không hợp lệ.`)
+        return
+      }
+      if (receiptForm.items.slice(0, i).some((other) => String(other.productId) === String(item.productId))) {
+        setReceiptFormError(`Dòng #${i + 1}: Sản phẩm đã có trong phiếu, vui lòng gộp số lượng vào một dòng.`)
         return
       }
     }
@@ -1122,17 +1126,29 @@ export default function AdminSupplierManagement({ currentUser }) {
                               </h4>
 
                               {rc.status === 'PENDING' && (
-                                <button
-                                  type="button"
-                                  className="admin-btn admin-btn-primary"
-                                  style={{ padding: '5px 12px', fontSize: '0.82rem', background: '#059669', borderColor: '#059669' }}
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    handleUpdateReceiptStatus(rc.id, 'COMPLETED')
-                                  }}
-                                >
-                                  <Check size={14} /> <span>Duyệt nhập &amp; Cộng tồn kho</span>
-                                </button>
+                                <div style={{ display: 'flex', gap: '8px' }}>
+                                  <button
+                                    type="button"
+                                    className="admin-btn admin-btn-outline"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      handleUpdateReceiptStatus(rc.id, 'CANCELLED')
+                                    }}
+                                  >
+                                    Hủy phiếu
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="admin-btn admin-btn-primary"
+                                    style={{ padding: '5px 12px', fontSize: '0.82rem', background: '#059669', borderColor: '#059669' }}
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      handleUpdateReceiptStatus(rc.id, 'COMPLETED')
+                                    }}
+                                  >
+                                    <Check size={14} /> <span>Duyệt nhập &amp; Cộng tồn kho</span>
+                                  </button>
+                                </div>
                               )}
                             </div>
 
@@ -1243,6 +1259,9 @@ export default function AdminSupplierManagement({ currentUser }) {
                       <option value="COMPLETED">COMPLETED (Hoàn tất &amp; Tự động cộng tồn kho)</option>
                       <option value="PENDING">PENDING (Lưu tạm chờ kiểm đếm thực tế)</option>
                     </select>
+                    <p style={{ fontSize: '0.82rem', color: 'var(--admin-text-muted)' }}>
+                      Chỉ hoàn tất khi đã nhận và kiểm đủ hàng. Phiếu hoàn tất hoặc đã hủy sẽ bị khóa.
+                    </p>
                   </div>
 
                   <div className="form-group" style={{ marginBottom: 0 }}>

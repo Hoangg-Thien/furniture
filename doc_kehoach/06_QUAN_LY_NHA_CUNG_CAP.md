@@ -7,6 +7,18 @@
 
 ## 1. MỤC TIÊU & NGHIỆP VỤ CỐT LÕI
 
+### Quy trình sử dụng trong đồ án
+
+1. Quản trị viên tạo sản phẩm ở mục Sản phẩm; hàng chưa có trong kho để tồn ban đầu bằng 0.
+2. Quản trị viên hoặc nhân viên kho thêm nhà cung cấp với tên và thông tin liên hệ.
+3. Bấm nhập kho tại nhà cung cấp, chọn sản phẩm đã có, số lượng nguyên dương và đơn giá nhập không âm. Mỗi sản phẩm chỉ có một dòng; giá nhập không thay đổi giá bán.
+4. Chưa nhận đủ hàng: lưu `PENDING`, chưa cộng kho. Đã nhận và kiểm đủ hàng: lưu `COMPLETED` hoặc duyệt phiếu đang chờ, hệ thống cộng kho đúng một lần.
+5. Trong Lịch sử, mở phiếu đang chờ để duyệt nhập hoặc hủy. Phiếu `COMPLETED` và `CANCELLED` không được chuyển sang trạng thái khác. Nhà cung cấp có phiếu nhập không được xóa.
+
+Ví dụ: sofa tồn 0, lập phiếu chờ 5 chiếc × 3.000.000đ thì tồn vẫn 0, tổng phiếu 15.000.000đ. Duyệt phiếu thì tồn thành 5; gửi lại yêu cầu duyệt không tăng thêm tồn.
+
+Kiểm thử luồng và transaction nằm trong `backend/src/test/java/furniture/PurchaseReceiptTest.java`, gồm kiểm tra dữ liệu, hủy/khóa phiếu, duyệt đồng thời và rollback nếu cập nhật kho lỗi. Các test này dùng H2 cục bộ, không dùng database thật.
+
 - Quản lý danh bạ đối tác cung cấp nội thất trong bảng `suppliers`: Xưởng mộc gia công gỗ sồi/óc chó, nhà máy đá nhân tạo/ceramic, công ty phụ kiện ray trượt bản lề, nhà cung cấp da bò và vải nỉ.
 - Thông tin lưu trữ: Tên đơn vị, Người đại diện, Số điện thoại, Email, Địa chỉ xưởng/kho.
 - **Theo dõi Phiếu nhập kho (`purchase_receipts` & `purchase_receipt_items`)**:

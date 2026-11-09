@@ -6,6 +6,7 @@ import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import org.slf4j.Logger;
@@ -320,24 +321,38 @@ public class AdminSupplierRepository {
         return receiptId;
     }
 
-    public void updateReceiptStatus(Long receiptId, String newStatus) {
-        String status = newStatus != null ? newStatus.trim().toUpperCase() : "PENDING";
+    public boolean productExists(Long id) {
+        return Boolean.TRUE.equals(jdbcTemplate.queryForObject("SELECT EXISTS (SELECT 1 FROM public.products WHERE id = ?)", Boolean.class, id));
+    }
+
+    public boolean staffExists(Long id) {
+        return Boolean.TRUE.equals(jdbcTemplate.queryForObject("SELECT EXISTS (SELECT 1 FROM public.staff WHERE id = ?)", Boolean.class, id));
+    }
+
+    public String getReceiptStatus(Long supplierId, Long receiptId, boolean lock) {
+        var statuses = jdbcTemplate.queryForList(
+                "SELECT status FROM public.purchase_receipts WHERE supplier_id = ? AND id = ?" + (lock ? " FOR UPDATE" : ""),
+                String.class, supplierId, receiptId);
+        if (statuses.isEmpty()) {
+            throw new IllegalArgumentException("Không tìm thấy phiếu nhập kho của nhà cung cấp này.");
+        }
+        return statuses.get(0);
+    }
+
+    public void updateReceiptStatus(Long supplierId, Long receiptId, String newStatus) {
+        String status = newStatus != null ? newStatus.trim().toUpperCase(Locale.ROOT) : "";
         if (!List.of("PENDING", "COMPLETED", "CANCELLED").contains(status)) {
             throw new IllegalArgumentException("Trạng thái không hợp lệ: " + newStatus);
         }
 
-        String currentStatus = jdbcTemplate.queryForObject(
-                "SELECT status FROM public.purchase_receipts WHERE id = ?",
-                String.class,
-                receiptId
-        );
-
-        if (currentStatus == null) {
-            throw new IllegalArgumentException("Không tìm thấy phiếu nhập kho với ID: " + receiptId);
-        }
+        // Khóa phiếu đến cuối transaction để hai yêu cầu duyệt không cùng cộng kho.
+        String currentStatus = getReceiptStatus(supplierId, receiptId, true);
 
         if (currentStatus.equals(status)) {
             return;
+        }
+        if (!"PENDING".equals(currentStatus)) {
+            throw new IllegalArgumentException("Phiếu đã hoàn tất hoặc đã hủy không được thay đổi trạng thái.");
         }
 
         // Cập nhật trạng thái

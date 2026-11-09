@@ -20,7 +20,6 @@ import furniture.model.admin.AdminIdentity;
 import org.springframework.web.bind.annotation.RestController;
 
 import furniture.model.admin.supplier.CreateReceiptRequest;
-import furniture.model.admin.supplier.PurchaseReceiptItemDto;
 import furniture.model.admin.supplier.PurchaseReceiptSummaryDto;
 import furniture.model.admin.supplier.SupplierRequest;
 import furniture.model.admin.supplier.SupplierResponse;
@@ -98,11 +97,14 @@ public class AdminSupplierController {
     }
 
     @GetMapping("/{id}/receipts/{receiptId}/items")
-    public ResponseEntity<List<PurchaseReceiptItemDto>> getReceiptItems(
+    public ResponseEntity<?> getReceiptItems(
             @PathVariable Long id,
             @PathVariable Long receiptId) {
-        List<PurchaseReceiptItemDto> items = adminSupplierService.getReceiptItems(receiptId);
-        return ResponseEntity.ok(items);
+        try {
+            return ResponseEntity.ok(adminSupplierService.getReceiptItems(id, receiptId));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", e.getMessage()));
+        }
     }
 
     @PostMapping("/{id}/receipts")
@@ -131,7 +133,7 @@ public class AdminSupplierController {
             @RequestBody Map<String, String> body) {
         try {
             String status = body.get("status");
-            adminSupplierService.updateReceiptStatus(receiptId, status);
+            adminSupplierService.updateReceiptStatus(id, receiptId, status);
             return ResponseEntity.ok(Map.of("message", "Đã cập nhật trạng thái phiếu nhập"));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));

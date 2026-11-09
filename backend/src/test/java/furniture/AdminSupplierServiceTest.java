@@ -208,6 +208,8 @@ class AdminSupplierServiceTest {
     @DisplayName("TC12 - Tạo phiếu nhập kho mới từ nhà cung cấp thành công")
     void createReceipt_Success() {
         when(adminSupplierRepository.existsById(1L)).thenReturn(true);
+        when(adminSupplierRepository.productExists(1L)).thenReturn(true);
+        when(adminSupplierRepository.staffExists(2L)).thenReturn(true);
 
         CreateReceiptRequest.ReceiptItemRequest item1 = new CreateReceiptRequest.ReceiptItemRequest(1L, 5, new BigDecimal("10000000"));
         CreateReceiptRequest req = new CreateReceiptRequest(2L, "COMPLETED", List.of(item1));

@@ -85,7 +85,7 @@ public class AdminOrderService {
 
         // 1. Hoàn lại số lượng tồn kho cho các sản phẩm trong đơn
         List<OrderItemDto> items = order.items();
-        if (items != null) {
+        if (items != null && adminOrderRepository.hasDeductedStock(orderId)) {
             for (OrderItemDto item : items) {
                 if (item.productId() != null && item.quantity() != null && item.quantity() > 0) {
                     adminOrderRepository.restoreProductStock(item.productId(), item.quantity());

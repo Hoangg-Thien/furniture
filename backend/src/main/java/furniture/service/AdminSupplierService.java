@@ -1,7 +1,9 @@
 package furniture.service;
 
 import java.math.BigDecimal;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.regex.Pattern;
 
 import org.springframework.stereotype.Service;
@@ -86,7 +88,8 @@ public class AdminSupplierService {
         return adminSupplierRepository.findReceiptsBySupplierId(supplierId);
     }
 
-    public List<PurchaseReceiptItemDto> getReceiptItems(Long receiptId) {
+    public List<PurchaseReceiptItemDto> getReceiptItems(Long supplierId, Long receiptId) {
+        adminSupplierRepository.getReceiptStatus(supplierId, receiptId, false);
         return adminSupplierRepository.findReceiptItemsByReceiptId(receiptId);
     }
 
@@ -96,19 +99,44 @@ public class AdminSupplierService {
             throw new IllegalArgumentException("Không tìm thấy nhà cung cấp với ID: " + supplierId);
         }
 
-        if (req.items() == null || req.items().isEmpty()) {
+        if (req == null || req.items() == null || req.items().isEmpty()) {
             throw new IllegalArgumentException("Phiếu nhập kho phải có ít nhất 1 mặt hàng.");
         }
 
+        var productIds = new HashSet<Long>();
+        for (var item : req.items()) {
+            if (item == null || item.productId() == null || item.productId() <= 0) {
+                throw new IllegalArgumentException("Vui lòng chọn sản phẩm hợp lệ cho từng dòng nhập.");
+            }
+            if (!productIds.add(item.productId())) {
+                throw new IllegalArgumentException("Mỗi sản phẩm chỉ được xuất hiện một lần trong phiếu nhập.");
+            }
+            if (item.quantity() == null || item.quantity() <= 0) {
+                throw new IllegalArgumentException("Số lượng nhập phải là số nguyên lớn hơn 0.");
+            }
+            if (item.unitPrice() == null || item.unitPrice().signum() < 0) {
+                throw new IllegalArgumentException("Đơn giá nhập phải lớn hơn hoặc bằng 0.");
+            }
+            if (!adminSupplierRepository.productExists(item.productId())) {
+                throw new IllegalArgumentException("Không tìm thấy sản phẩm với ID: " + item.productId());
+            }
+        }
+
         Long staffId = req.staffId() != null ? req.staffId() : 1L;
-        String status = req.status() != null && !req.status().trim().isEmpty() ? req.status().trim().toUpperCase() : "COMPLETED";
+        if (!adminSupplierRepository.staffExists(staffId)) {
+            throw new IllegalArgumentException("Không tìm thấy nhân viên lập phiếu.");
+        }
+        String status = req.status() == null ? "COMPLETED" : req.status().trim().toUpperCase(Locale.ROOT);
+        if (!List.of("PENDING", "COMPLETED").contains(status)) {
+            throw new IllegalArgumentException("Phiếu mới phải ở trạng thái PENDING hoặc COMPLETED.");
+        }
 
         return adminSupplierRepository.insertPurchaseReceipt(supplierId, staffId, status, req.items());
     }
 
     @Transactional
-    public void updateReceiptStatus(Long receiptId, String status) {
-        adminSupplierRepository.updateReceiptStatus(receiptId, status);
+    public void updateReceiptStatus(Long supplierId, Long receiptId, String status) {
+        adminSupplierRepository.updateReceiptStatus(supplierId, receiptId, status);
     }
 
     private void validateSupplierRequest(SupplierRequest req, Long excludeId) {
