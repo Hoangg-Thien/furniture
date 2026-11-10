@@ -1,0 +1,30 @@
+.admin-dashboard-view .dashboard-muted { color: var(--admin-text-muted); font-size: 12px; line-height: 1.6; }
+.admin-dashboard-view .admin-stats-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.admin-dashboard-view .dashboard-metric { text-align: left; font: inherit; cursor: pointer; }
+.admin-dashboard-view .dashboard-metric:hover { border-color: var(--admin-accent); }
+.admin-dashboard-view .stat-card-value { font-size: clamp(20px, 2vw, 30px); overflow-wrap: anywhere; }
+.admin-dashboard-view .dashboard-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 20px; }
+.admin-dashboard-view .admin-card { min-width: 0; }
+.admin-dashboard-view .dashboard-orders-table { max-width: 100%; overflow-x: auto; }
+.admin-dashboard-view .dashboard-orders-table table { min-width: 700px; }
+.admin-dashboard-view .dashboard-orders-table:focus-visible { outline: 2px solid var(--admin-accent); outline-offset: 3px; }
+.admin-dashboard-view .dashboard-panel-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+.admin-dashboard-view h2 { display: flex; align-items: center; gap: 8px; font-size: 15px; margin: 0; }
+.admin-dashboard-view .dashboard-stock-list { list-style: none; padding: 0; margin: 16px 0; }
+.admin-dashboard-view .dashboard-stock-list li { display: flex; justify-content: space-between; gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--admin-border); font-size: 12px; }
+.admin-dashboard-view .dashboard-stock-list li > div { min-width: 0; overflow-wrap: anywhere; }
+.admin-dashboard-view .dashboard-stock-list span { display: block; margin-top: 5px; }
+.admin-dashboard-view .dashboard-stock-quantity { flex-shrink: 0; text-align: right; }
+.admin-dashboard-view .dashboard-stock-quantity strong { color: #b45309; }
+.admin-dashboard-view .dashboard-stock-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+.admin-dashboard-view .dashboard-empty { padding: 24px 0; font-size: 13px; color: var(--admin-text-muted); }
+.admin-dashboard-view button:focus-visible { outline: 2px solid var(--admin-accent); outline-offset: 3px; }
+@media (max-width: 1200px) {
+  .admin-dashboard-view .admin-stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .admin-dashboard-view .dashboard-grid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 560px) {
+  .admin-dashboard-view .admin-stats-grid { grid-template-columns: minmax(0, 1fr); }
+  .admin-dashboard-view .admin-page-header { align-items: flex-start; flex-direction: column; gap: 16px; }
+  .admin-dashboard-view .admin-header-actions { flex-wrap: wrap; }
+}

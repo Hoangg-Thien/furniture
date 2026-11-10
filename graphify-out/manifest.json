@@ -925,10 +925,10 @@
     "semantic_hash": "3cd77ff795ee266bc7a5e85d98a8a5e8"
   },
   "frontend/src/admin/AdminDashboard.jsx": {
-    "mtime": 1793779282.0889134,
-    "seen": 1794283278.90831,
-    "ast_hash": "5cf97d3960b8cbdca43d30154c301d69",
-    "semantic_hash": "5cf97d3960b8cbdca43d30154c301d69"
+    "mtime": 1794288929.8413732,
+    "seen": 1794289201.455989,
+    "ast_hash": "a8ecc37f8b0bf01628a5174aefc67197",
+    "semantic_hash": "a8ecc37f8b0bf01628a5174aefc67197"
   },
   "frontend/src/admin/AdminDataTable.jsx": {
     "mtime": 1793779282.0889134,
@@ -2283,5 +2283,11 @@
     "seen": 1794284883.3896837,
     "ast_hash": "16611125dfbcf1e7e04aa0611ec069ff",
     "semantic_hash": ""
+  },
+  "qa/harness/dashboard-check.mjs": {
+    "mtime": 1794288931.6933393,
+    "seen": 1794289201.4652116,
+    "ast_hash": "4371b5e5325180b6bf4485d5db4e5176",
+    "semantic_hash": "4371b5e5325180b6bf4485d5db4e5176"
   }
 }

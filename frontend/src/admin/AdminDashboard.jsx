@@ -1,246 +1,143 @@
-import { useState, useEffect } from 'react'
-import {
-  AlertTriangle,
-  ArrowUpRight,
-  Boxes,
-  CheckCircle2,
-  Clock,
-  DollarSign,
-  Package,
-  Plus,
-  Receipt,
-  ShoppingCart,
-  Users
-} from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { AlertTriangle, ArrowUpRight, Package, RefreshCw, ShoppingCart, Wallet } from 'lucide-react'
+import AdminDataTable from './AdminDataTable'
+import { getApiBaseUrl, getApiHeaders } from '../lib/apiConfig'
+import './AdminDashboard.css'
+
+const money = value => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value)
+const statuses = {
+  PENDING: ['Chờ duyệt', 'warning'],
+  CONFIRMED: ['Đã duyệt', 'info'],
+  SHIPPING: ['Đang giao', 'info'],
+  COMPLETED: ['Hoàn tất', 'success'],
+  CANCELLED: ['Đã hủy', 'danger'],
+}
 
 export default function AdminDashboard({ onNavigateModule }) {
-  const [liveStats, setLiveStats] = useState(null)
+  const [attempt, setAttempt] = useState(0)
+  const [state, setState] = useState({ loading: true, error: '', data: null })
 
   useEffect(() => {
-    fetch('/api/admin/statistics/overview')
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (data) setLiveStats(data)
-      })
-      .catch(() => {})
-  }, [])
-
-  const formatCurrency = (val) => {
-    if (val === null || val === undefined) return '0 ₫'
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val)
-  }
-
-  const kpis = [
-    {
-      title: 'Doanh thu tích lũy',
-      value: liveStats?.totalRevenue !== undefined ? formatCurrency(liveStats.totalRevenue) : '452.800.000 ₫',
-      sub: liveStats?.revenueGrowthPercent !== undefined 
-        ? `${liveStats.revenueGrowthPercent >= 0 ? '+' : ''}${liveStats.revenueGrowthPercent}% so với kỳ trước`
-        : '+14.2% so với tháng trước',
-      positive: liveStats?.revenueGrowthPercent !== undefined ? liveStats.revenueGrowthPercent >= 0 : true,
-      icon: DollarSign,
-      bg: '#FEF3C7',
-      color: '#D97706',
-      targetModule: 'reports'
-    },
-    {
-      title: 'Đơn hàng hoàn tất',
-      value: liveStats?.completedOrdersCount !== undefined ? `${liveStats.completedOrdersCount} đơn` : '12 đơn',
-      sub: liveStats?.orderCompletionRate !== undefined 
-        ? `Tỉ lệ hoàn thành: ${liveStats.orderCompletionRate}%` 
-        : 'Cần nhân viên xác nhận ngay',
-      positive: true,
-      icon: ShoppingCart,
-      bg: '#EFF6FF',
-      color: '#3B82F6',
-      targetModule: 'orders'
-    },
-    {
-      title: 'Sản phẩm đã xuất bán',
-      value: liveStats?.totalItemsSold !== undefined ? `${liveStats.totalItemsSold} món` : '184 món',
-      sub: liveStats?.grossProfit !== undefined 
-        ? `Lợi nhuận gộp: ${formatCurrency(liveStats.grossProfit)}` 
-        : 'Sofa chiếm 42% doanh số',
-      positive: true,
-      icon: Package,
-      bg: '#ECFDF5',
-      color: '#10B981',
-      targetModule: 'products'
-    },
-    {
-      title: 'Cảnh báo kho tồn thấp',
-      value: liveStats?.lowStockProductsCount !== undefined ? `${String(liveStats.lowStockProductsCount).padStart(2, '0')} sản phẩm` : '05 sản phẩm',
-      sub: 'Số lượng trong kho < 5 cái',
-      positive: false,
-      icon: AlertTriangle,
-      bg: '#FEF2F2',
-      color: '#EF4444',
-      targetModule: 'products'
+    const controller = new AbortController()
+    async function load() {
+      setState({ loading: true, error: '', data: null })
+      try {
+        const today = new Date(Date.now() + 7 * 60 * 60 * 1000)
+        const toDate = today.toISOString().slice(0, 10)
+        today.setUTCDate(today.getUTCDate() - 29)
+        const fromDate = today.toISOString().slice(0, 10)
+        const paths = [
+          `/api/admin/statistics/overview?fromDate=${fromDate}&toDate=${toDate}`,
+          '/api/admin/orders?page=0&size=5',
+          '/api/admin/products?lowStock=true&status=ACTIVE&page=0&size=5',
+        ]
+        const [overview, orders, products] = await Promise.all(paths.map(async path => {
+          const response = await fetch(`${getApiBaseUrl()}${path}`, { headers: getApiHeaders(), signal: controller.signal })
+          if (!response.ok) throw new Error('Không tải được Dashboard. Vui lòng kiểm tra kết nối và quyền truy cập rồi thử lại.')
+          return response.json()
+        }))
+        if (!overview || !['totalRevenue', 'completedOrdersCount', 'totalItemsSold', 'lowStockProductsCount']
+          .every(key => Number.isFinite(overview[key]) && overview[key] >= 0)
+          || !Array.isArray(orders?.content) || !Array.isArray(products?.content)) {
+          throw new Error('Dữ liệu Dashboard không hợp lệ. Vui lòng thử lại.')
+        }
+        if (!controller.signal.aborted) setState({ loading: false, error: '', data: { overview, orders: orders.content, products: products.content, fromDate, toDate } })
+      } catch (error) {
+        if (!controller.signal.aborted) setState({ loading: false, error: error.message || 'Không thể kết nối máy chủ.', data: null })
+      }
     }
-  ]
+    load()
+    return () => controller.abort()
+  }, [attempt])
 
-  const recentOrders = [
-    { id: '#101', customer: 'Nguyễn Văn An', phone: '0901 234 567', items: 'Sofa Da Ý Chữ L + Bàn Trà', total: '28.500.000 ₫', status: 'PENDING', statusLabel: 'Chờ duyệt', time: '10 phút trước' },
-    { id: '#100', customer: 'Trần Thị Mai', phone: '0912 888 999', items: 'Bộ Bàn Ăn Gỗ Sồi 6 Ghế', total: '14.800.000 ₫', status: 'CONFIRMED', statusLabel: 'Đã duyệt', time: '2 giờ trước' },
-    { id: '#099', customer: 'Lê Hoàng Long', phone: '0988 111 222', items: 'Giường Ngủ Bọc Nỉ King', total: '18.200.000 ₫', status: 'COMPLETED', statusLabel: 'Đã giao', time: 'Hôm qua' },
-  ]
+  const { loading, error, data } = state
+  const metrics = data ? [
+    { title: 'Doanh thu đã thu', value: money(data.overview.totalRevenue), note: 'Từ hóa đơn đã thanh toán', icon: Wallet, module: 'reports' },
+    { title: 'Đơn hàng hoàn tất', value: `${data.overview.completedOrdersCount} đơn`, note: 'Đơn đặt trong 30 ngày gần nhất', icon: ShoppingCart, module: 'orders' },
+    { title: 'Sản phẩm đã bán', value: `${data.overview.totalItemsSold} món`, note: 'Từ các đơn đã hoàn tất trong kỳ', icon: Package, module: 'reports' },
+    { title: 'Sản phẩm sắp hết', value: `${data.overview.lowStockProductsCount} sản phẩm`, note: 'Đang bán, tồn kho hiện tại dưới 5', icon: AlertTriangle, module: 'products' },
+  ] : []
 
-  const lowStockItems = [
-    { name: 'Bàn Ăn Gỗ Sồi Bắc Âu 6G', category: 'Bàn ghế phòng ăn', stock: 2, price: '14.800.000 ₫' },
-    { name: 'Tủ Quần Áo Cánh Kính Đèn LED', category: 'Nội thất phòng ngủ', stock: 3, price: '22.000.000 ₫' },
-    { name: 'Kệ Tivi Gỗ Óc Chó Tự Nhiên', category: 'Nội thất phòng khách', stock: 4, price: '9.500.000 ₫' },
+  const columns = [
+    { key: 'id', label: 'Mã đơn', render: id => <strong>#{id}</strong> },
+    { key: 'customerName', label: 'Khách hàng', render: (name, order) => <div><strong>{name}</strong><div className="dashboard-muted">{order.phone || 'Chưa có số điện thoại'}</div></div> },
+    { key: 'totalItemsCount', label: 'Số món' },
+    { key: 'totalAmount', label: 'Tổng thanh toán', render: money },
+    { key: 'status', label: 'Trạng thái', render: status => {
+      const [label, color] = statuses[status] || [status, 'info']
+      return <span className={`admin-badge admin-badge-${color}`}>{label}</span>
+    } },
+    { key: 'orderDate', label: 'Ngày đặt (GMT+7)', render: date => date?.replace('T', ' ').slice(0, 16) || '—' },
   ]
 
   return (
-    <div className="admin-dashboard-view">
-      {/* Page Header */}
+    <div className="admin-dashboard-view" aria-busy={loading}>
       <div className="admin-page-header">
         <div>
-          <div className="admin-breadcrumb">
-            Hệ thống quản trị &gt; <span>Tổng quan hoạt động</span>
-          </div>
-          <h1 className="admin-page-title">Bảng Điều Khiển Kinh Doanh Showroom</h1>
+          <div className="admin-breadcrumb">Hệ thống quản trị &gt; <span>Tổng quan hoạt động</span></div>
+          <h1 className="admin-page-title">Tổng quan kinh doanh</h1>
+          <p className="admin-page-subtitle">Theo dõi doanh thu, đơn hàng và tồn kho của FuniStore.</p>
         </div>
         <div className="admin-header-actions">
-          <button 
-            className="admin-btn admin-btn-accent"
-            onClick={() => onNavigateModule('products')}
-          >
-            <Plus size={16} />
-            <span>Thêm sản phẩm</span>
+          <button type="button" className="admin-btn admin-btn-outline" disabled={loading} onClick={() => setAttempt(value => value + 1)}>
+            <RefreshCw size={16} className={loading ? 'admin-spin' : ''} /> Làm mới
           </button>
-          <button 
-            className="admin-btn admin-btn-primary"
-            onClick={() => onNavigateModule('orders')}
-          >
-            <ShoppingCart size={16} />
-            <span>Xem đơn đặt hàng</span>
+          <button type="button" className="admin-btn admin-btn-primary" onClick={() => onNavigateModule('reports')}>
+            Xem báo cáo <ArrowUpRight size={16} />
           </button>
         </div>
       </div>
 
-      {/* KPI Cards Grid */}
-      <div className="admin-kpi-grid">
-        {kpis.map((kpi, idx) => {
-          const IconComp = kpi.icon
-          return (
-            <div 
-              key={idx} 
-              className="admin-kpi-card" 
-              style={{ cursor: kpi.targetModule ? 'pointer' : 'default' }}
-              onClick={() => kpi.targetModule && onNavigateModule(kpi.targetModule)}
-            >
-              <div className="admin-kpi-info">
-                <h4>{kpi.title}</h4>
-                <div className="admin-kpi-value">{kpi.value}</div>
-                <div className={`admin-kpi-sub ${kpi.positive ? 'positive' : ''}`}>{kpi.sub}</div>
-              </div>
-              <div className="admin-kpi-icon" style={{ background: kpi.bg, color: kpi.color }}>
-                <IconComp size={22} />
-              </div>
-            </div>
-          )
-        })}
-      </div>
+      {loading && <div className="admin-card" role="status">Đang tải Dashboard...</div>}
+      {error && <div className="admin-card" role="alert">
+        <p>{error}</p>
+        <button type="button" className="admin-btn admin-btn-primary" onClick={() => setAttempt(value => value + 1)}>Thử lại</button>
+      </div>}
 
-      {/* Main Grid: Orders & Low Stock */}
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px' }}>
-        {/* Recent Orders */}
-        <div className="admin-card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
-            <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: 'var(--admin-primary)' }}>
-              Đơn Đặt Hàng Mới Nhất
-            </h3>
-            <button 
-              className="admin-btn admin-btn-outline" 
-              style={{ padding: '6px 12px', fontSize: '0.8rem' }}
-              onClick={() => onNavigateModule('orders')}
-            >
-              Xem tất cả đơn
+      {data && <>
+        <p className="dashboard-muted">30 ngày gần nhất: {data.fromDate.split('-').reverse().join('/')} – {data.toDate.split('-').reverse().join('/')}. Cảnh báo kho thể hiện số lượng hiện tại.</p>
+        <div className="admin-stats-grid">
+          {metrics.map(({ title, value, note, icon: Icon, module }) => (
+            <button type="button" className="admin-stat-card dashboard-metric" key={title} onClick={() => onNavigateModule(module)}>
+              <div className="stat-card-header"><span className="stat-card-title">{title}</span><Icon size={19} /></div>
+              <div className="stat-card-value">{value}</div>
+              <div className="stat-card-footer">{note}</div>
             </button>
-          </div>
-
-          <div className="admin-table-container">
-            <table className="admin-table">
-              <thead>
-                <tr>
-                  <th>Mã đơn</th>
-                  <th>Khách hàng</th>
-                  <th>Sản phẩm nội thất</th>
-                  <th>Tổng thanh toán</th>
-                  <th>Trạng thái</th>
-                  <th>Thời gian</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentOrders.map((order) => (
-                  <tr key={order.id}>
-                    <td style={{ fontWeight: 700, color: 'var(--admin-accent)' }}>{order.id}</td>
-                    <td>
-                      <div style={{ fontWeight: 600 }}>{order.customer}</div>
-                      <div style={{ fontSize: '0.76rem', color: 'var(--admin-text-muted)' }}>{order.phone}</div>
-                    </td>
-                    <td style={{ maxWidth: '200px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {order.items}
-                    </td>
-                    <td style={{ fontWeight: 700 }}>{order.total}</td>
-                    <td>
-                      <span className={`admin-badge admin-badge-${order.status === 'PENDING' ? 'warning' : order.status === 'CONFIRMED' ? 'info' : 'success'}`}>
-                        {order.statusLabel}
-                      </span>
-                    </td>
-                    <td style={{ fontSize: '0.78rem', color: 'var(--admin-text-muted)' }}>{order.time}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          ))}
         </div>
 
-        {/* Low stock alert box */}
-        <div className="admin-card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
-            <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: '#EF4444', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <AlertTriangle size={18} />
-              <span>Sản Phẩm Sắp Hết Kho</span>
-            </h3>
-          </div>
+        <div className="dashboard-grid">
+          <section className="admin-card" aria-labelledby="dashboard-orders-title">
+            <div className="dashboard-panel-heading">
+              <h2 id="dashboard-orders-title">Đơn hàng mới nhất</h2>
+              <button type="button" className="admin-btn admin-btn-outline" onClick={() => onNavigateModule('orders')}>Xem tất cả đơn</button>
+            </div>
+            <p className="dashboard-muted">5 đơn mới nhất, bao gồm khách có tài khoản và khách vãng lai.</p>
+            <div className="dashboard-orders-table" role="region" aria-label="Bảng đơn hàng mới nhất, cuộn ngang để xem đầy đủ" tabIndex={0}>
+              <AdminDataTable columns={columns} data={data.orders} emptyMessage="Chưa có đơn hàng nào." />
+            </div>
+          </section>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {lowStockItems.map((item, idx) => (
-              <div 
-                key={idx} 
-                style={{ 
-                  padding: '12px', 
-                  border: '1px solid var(--admin-border)', 
-                  borderRadius: 'var(--admin-radius-sm)', 
-                  background: 'var(--admin-bg)',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center'
-                }}
-              >
-                <div>
-                  <div style={{ fontWeight: 600, fontSize: '0.88rem', color: 'var(--admin-text-main)' }}>{item.name}</div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--admin-text-muted)' }}>{item.category}</div>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ color: '#EF4444', fontWeight: 700, fontSize: '0.9rem' }}>Còn: {item.stock} cái</div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--admin-accent)', fontWeight: 600 }}>{item.price}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <button 
-            className="admin-btn admin-btn-outline" 
-            style={{ width: '100%', marginTop: '16px', justifyContent: 'center' }}
-            onClick={() => onNavigateModule('suppliers')}
-          >
-            <span>Nhập hàng từ nhà cung cấp</span>
-          </button>
+          <section className="admin-card" aria-labelledby="dashboard-stock-title">
+            <div className="dashboard-panel-heading">
+              <h2 id="dashboard-stock-title"><AlertTriangle size={18} /> Sản phẩm sắp hết kho</h2>
+            </div>
+            <p className="dashboard-muted">Tối đa 5 sản phẩm đang bán có tồn kho dưới 5.</p>
+            {data.products.length === 0 ? <p className="dashboard-empty">Không có sản phẩm đang bán nào tồn dưới 5.</p> : (
+              <ul className="dashboard-stock-list">
+                {data.products.map(product => <li key={product.id}>
+                  <div><strong>{product.name}</strong><span className="dashboard-muted">{product.categoryName || 'Chưa có danh mục'}</span></div>
+                  <div className="dashboard-stock-quantity"><strong>{product.quantity === 0 ? 'Hết hàng' : `Còn ${product.quantity} ${product.unit || 'món'}`}</strong><span>{money(product.sellingPrice)}</span></div>
+                </li>)}
+              </ul>
+            )}
+            <div className="dashboard-stock-actions">
+              <button type="button" className="admin-btn admin-btn-outline" onClick={() => onNavigateModule('products')}>Quản lý sản phẩm</button>
+              <button type="button" className="admin-btn admin-btn-primary" onClick={() => onNavigateModule('suppliers')}>Nhập hàng</button>
+            </div>
+          </section>
         </div>
-      </div>
+      </>}
     </div>
   )
 }
