@@ -19,7 +19,7 @@ import {
   X,
 } from 'lucide-react'
 import { loadProducts } from '../lib/products'
-import { loadCart, saveCart, getProductStock, limitCartToStock } from './lib/cart'
+import { loadCart, saveCart, loadCartExpiresAt, CART_TIMEOUT_MS, getProductStock, limitCartToStock } from './lib/cart'
 import { isCheckoutPath } from './lib/checkout'
 import { fetchOrderById, getLocalOrders } from '../lib/orders'
 import {
@@ -137,6 +137,9 @@ function App() {
 
   const [searchTerm, setSearchTerm] = useState('')
   const [cart, setCart] = useState(loadCart)
+  const syncedCart = useRef(null)
+  const [cartExpiresAt, setCartExpiresAt] = useState(() => loadCartExpiresAt() || (Object.keys(cart).length ? Date.now() + CART_TIMEOUT_MS : 0))
+  const [cartExpired, setCartExpired] = useState(false)
   const [favorites, setFavorites] = useState([])
   const [showFavorites, setShowFavorites] = useState(false)
   const [cartOpen, setCartOpen] = useState(false)
@@ -165,8 +168,40 @@ function App() {
   }, [])
 
   useEffect(() => {
-    saveCart(cart)
-  }, [cart])
+    // Do not echo a storage event over a newer change made in another tab.
+    if (cart !== syncedCart.current) saveCart(cart, cartExpiresAt)
+  }, [cart, cartExpiresAt])
+
+  useEffect(() => {
+    const syncCart = event => {
+      if (event.key !== null && !['furniture_cart', 'furniture_cart_expires_at'].includes(event.key)) return
+      const received = loadCart()
+      syncedCart.current = received
+      setCart(received)
+      setCartExpiresAt(loadCartExpiresAt())
+    }
+    window.addEventListener('storage', syncCart)
+    return () => window.removeEventListener('storage', syncCart)
+  }, [])
+
+  useEffect(() => {
+    if (Object.keys(cart).length === 0) return
+    const expire = () => {
+      if (Date.now() < cartExpiresAt) return
+      setCart({})
+      setCartExpiresAt(0)
+      setCartExpired(true)
+      setCartToast(null)
+    }
+    const timer = window.setTimeout(expire, Math.max(0, cartExpiresAt - Date.now()))
+    window.addEventListener('focus', expire)
+    document.addEventListener('visibilitychange', expire)
+    return () => {
+      window.clearTimeout(timer)
+      window.removeEventListener('focus', expire)
+      document.removeEventListener('visibilitychange', expire)
+    }
+  }, [cart, cartExpiresAt])
 
   function scrollToSection(sectionId) {
     if (currentRoute === 'orders') {
@@ -426,7 +461,11 @@ function App() {
   const subtotal = cartItems.reduce((sum, product) => sum + product.price * cart[product.id], 0)
 
   function updateQuantity(productId, change) {
+    const now = Date.now()
+    setCartExpiresAt(now + CART_TIMEOUT_MS)
+    setCartExpired(false)
     setCart((currentCart) => {
+      if (cartExpiresAt > 0 && now >= cartExpiresAt) currentCart = {}
       const nextQuantity = (currentCart[productId] || 0) + change
       const nextCart = { ...currentCart }
       if (nextQuantity <= 0) delete nextCart[productId]
@@ -476,6 +515,12 @@ function App() {
   }
 
   function placeOrder() {
+    if (Date.now() >= cartExpiresAt) {
+      setCart({})
+      setCartExpiresAt(0)
+      setCartExpired(true)
+      return
+    }
     window.history.pushState({}, '', '/checkout')
     setCompletedOrder(null)
     setCartOpen(false)
@@ -488,6 +533,8 @@ function App() {
     }
     // Clear cart after successful order
     setCart({})
+    setCartExpiresAt(0)
+    setCartExpired(false)
   }
 
   function handleReorder(items) {
@@ -500,7 +547,11 @@ function App() {
       window.setTimeout(() => setNotice(''), 3000)
       return
     }
+    const now = Date.now()
+    setCartExpiresAt(now + CART_TIMEOUT_MS)
+    setCartExpired(false)
     setCart((prevCart) => {
+      if (cartExpiresAt > 0 && now >= cartExpiresAt) prevCart = {}
       const nextCart = { ...prevCart }
       for (const it of availableItems) {
         const pId = it.productId || it.product_id || it.id
@@ -1107,6 +1158,10 @@ function App() {
               <div><p className="eyebrow">GIỎ HÀNG CỦA BẠN</p><h2 id="cart-title">Món đã chọn <span>({cartCount})</span></h2></div>
               <button className="icon-button close-cart" type="button" aria-label="Đóng giỏ hàng" onClick={() => setCartOpen(false)}><X size={21} /></button>
             </div>
+            <p className="cart-expiry-notice" role="status">
+              {cartExpired ? 'Giỏ hàng đã được xóa sau 5 phút không cập nhật. Bạn có thể chọn lại sản phẩm.'
+                : 'Giỏ hàng tự xóa sau 5 phút không thêm hàng hoặc đổi số lượng. Sản phẩm chưa được giữ chỗ.'}
+            </p>
             {cartItems.length ? (
               <>
                 <div className="cart-items">
@@ -1139,7 +1194,7 @@ function App() {
                   <ShoppingBag size={32} strokeWidth={1.5} />
                 </div>
                 <h3>Giỏ hàng đang trống</h3>
-                <p>Thêm một món đồ bạn thích, FuniStore giữ giúp bạn ở đây.</p>
+                <p>Thêm một món đồ bạn thích để tiếp tục mua sắm.</p>
                 <button type="button" onClick={() => setCartOpen(false)}>Tiếp tục khám phá</button>
               </div>
             )}
@@ -1290,6 +1345,7 @@ function App() {
           key={currentUser?.customerId || 'guest'}
           cartItems={cartItems}
           cart={cart}
+          cartExpiresAt={cartExpiresAt}
           subtotal={subtotal}
           currentUser={currentUser}
           catalogProducts={products}

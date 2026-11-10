@@ -43,6 +43,40 @@ try {
   assert(result.schema.some(table => table.table_name === 'product_audit_logs'))
   assert.equal((await db.query("SELECT relrowsecurity FROM pg_class WHERE oid='public.product_audit_logs'::regclass")).rows[0].relrowsecurity, true)
   assert.equal(Number((await db.query('SELECT COUNT(*) AS count FROM product_audit_logs')).rows[0].count), 0, 'Startup must not invent historical product changes')
+  assert.equal((await db.query("SELECT relrowsecurity FROM pg_class WHERE oid='public.admin_activity_notifications'::regclass")).rows[0].relrowsecurity, true)
+  assert.equal(Number((await db.query('SELECT COUNT(*) AS count FROM admin_activity_notifications')).rows[0].count), 0, 'Startup must not invent staff activities')
+  const base = 'http://127.0.0.1:18081'
+  const adminHeaders = { ...await adminApiHeaders(base), 'Content-Type': 'application/json' }
+  const username = `notification_${Date.now()}`
+  const staffResponse = await fetch(`${base}/api/admin/staff`, { method: 'POST', headers: adminHeaders,
+    body: JSON.stringify({ username, password: 'QaPass123!', fullName: 'Notification QA', staffType: 'WAREHOUSE' }) })
+  assert.equal(staffResponse.status, 201)
+  const login = await fetch(`${base}/api/auth/admin/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password: 'QaPass123!' }) })
+  const staffHeaders = { Authorization: `Bearer ${(await login.json()).accessToken}`, 'Content-Type': 'application/json' }
+  const created = await fetch(`${base}/api/admin/suppliers`, { method: 'POST', headers: staffHeaders, body: JSON.stringify({ name: 'Notification supplier' }) })
+  assert.equal(created.status, 201)
+  const supplier = await created.json()
+  // The response can arrive before afterCompletion finishes writing the activity.
+  let feed = []
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const response = await fetch(`${base}/api/admin/notifications/activities`, { headers: adminHeaders })
+    assert.equal(response.status, 200)
+    feed = await response.json()
+    if (feed.length) break
+    await new Promise(resolve => setTimeout(resolve, 50))
+  }
+  assert.equal(feed.length, 1)
+  assert.equal(feed[0].actorUsername, username)
+  assert.equal(feed[0].title, 'Thêm nhà cung cấp')
+  assert.equal((await fetch(`${base}/api/admin/notifications/activities`, { headers: staffHeaders })).status, 403)
+  assert.equal((await fetch(`${base}/api/admin/products?lowStock=true`, { headers: staffHeaders })).status, 200)
+  const migration = fs.readFileSync(path.join(root, 'backend/src/main/resources/admin_activity.sql'), 'utf8')
+  await db.exec(migration)
+  assert.equal(Number((await db.query('SELECT COUNT(*) AS count FROM admin_activity_notifications')).rows[0].count), 1)
+  await db.exec('CREATE ROLE notification_client NOLOGIN; GRANT USAGE ON SCHEMA public TO notification_client; GRANT SELECT ON admin_activity_notifications TO notification_client; SET ROLE notification_client')
+  try { assert.equal(Number((await db.query('SELECT COUNT(*) AS count FROM admin_activity_notifications')).rows[0].count), 0) }
+  finally { await db.exec('RESET ROLE') }
+  result.notifications = { activity: feed[0].title, supplierId: supplier.id, staffFeedStatus: 403, rls: 'PASS', repeatMigration: 'PASS' }
   assert.equal((await db.query("SELECT COUNT(*)::int AS count FROM staff WHERE staff_type NOT IN ('SALES', 'WAREHOUSE', 'CONTENT')")).rows[0].count, 0)
   assert.equal((await db.query("SELECT COUNT(*)::int AS count FROM admin_sessions WHERE expires_at NOT BETWEEN CURRENT_TIMESTAMP + INTERVAL '479' MINUTE AND CURRENT_TIMESTAMP + INTERVAL '481' MINUTE")).rows[0].count, 0, 'Session expiry must use database time')
 } catch (e) { result.error = e.message; process.exitCode = 1 }

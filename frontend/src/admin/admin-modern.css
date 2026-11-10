@@ -51,7 +51,10 @@
 .admin-shell .admin-navbar-actions { gap: 12px; }
 .admin-shell .admin-action-icon-btn { width: 32px; height: 32px; border: 0; background: transparent; border-radius: 6px; color: #7a858a; }
 .admin-shell .admin-action-icon-btn:hover { background: #f1f5f2; color: #244d41; }
-.admin-shell .admin-unread-badge { top: -1px; right: 0; width: 15px; height: 15px; font-size: 11px; background: #b47154; }
+.admin-shell .admin-notif-bell-btn { width: 44px; height: 44px; border: 1px solid #d7e3dc; background: #edf3ef; border-radius: 12px; color: #244d41; transition: background .2s, border-color .2s, box-shadow .2s; }
+.admin-shell .admin-notif-bell-btn.has-unread { background: #fff4df; border-color: #dfbb7a; color: #854315; box-shadow: 0 0 0 3px #fcf3e5; }
+.admin-shell .admin-notif-bell-btn:hover, .admin-shell .admin-notif-bell-btn[aria-expanded="true"] { background: #e2ece6; border-color: #9eb6a7; color: #244d41; }
+.admin-shell .admin-unread-badge { top: -6px; right: -6px; width: auto; min-width: 23px; height: 23px; padding: 0 4px; border-radius: 12px; font-size: 11px; background: #b42318; }
 .admin-shell .admin-profile-pill { border: 0; border-left: 1px solid var(--admin-border); background: transparent; border-radius: 0; padding: 0 8px 0 20px; gap: 9px; cursor: default; }
 .admin-shell .admin-profile-avatar { background: #e9efeb; color: #376757; border-radius: 8px; width: 32px; height: 32px; font-size: 12px; font-weight: 600; }
 .admin-shell .admin-profile-name { font-size: 12px; font-weight: 600; }
@@ -71,7 +74,8 @@
 .admin-search-backdrop .admin-global-search-modal { animation: none; }
 .admin-search-result-row { width: 100%; text-align: left; font: inherit; color: inherit; }
 .admin-shell .admin-notif-item { width: 100%; text-align: left; border-top: 0; border-left: 0; border-right: 0; background: #fff; }
-.admin-shell .admin-notif-item.unread { background: #f6f9f7; }
+.admin-shell .admin-notif-item.unread { background: #edf4ef; box-shadow: inset 3px 0 #376757; }
+.admin-shell .admin-notif-item-body { min-width: 0; padding-right: 12px; overflow-wrap: anywhere; }
 .admin-shell .admin-modal-card { border: 1px solid var(--admin-border); max-height: calc(100dvh - 40px); overflow-y: auto; }
 
 /* Promotion management */

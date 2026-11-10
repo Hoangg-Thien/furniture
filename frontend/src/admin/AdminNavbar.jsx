@@ -9,6 +9,7 @@ import {
   RefreshCw,
   Search,
   ShoppingCart,
+  UserRound,
   XCircle
 } from 'lucide-react'
 import { getApiBaseUrl, getApiHeaders } from '../lib/apiConfig'
@@ -26,7 +27,7 @@ export default function AdminNavbar({
   const username = currentUser?.username || 'Admin'
   const role = currentUser?.role || 'ADMIN'
   const canReadOrders = canAccessModule(currentUser, 'orders')
-  const monitorStock = role === 'ADMIN' || currentUser?.staffType === 'WAREHOUSE'
+  const monitorStock = role === 'ADMIN' || role === 'STAFF'
   const storageKey = `funi_notifications_admin_${currentUser?.id ?? currentUser?.userId ?? username}`
 
   // Trạng thái Dropdown Thông báo
@@ -50,12 +51,29 @@ export default function AdminNavbar({
         const baseUrl = getApiBaseUrl()
         // shortcut: preview five orders per status, use server events for a full cancellation history.
         const paths = [canReadOrders ? 'orders?status=PENDING&size=5' : null,
-          monitorStock ? 'products?lowStock=true&size=5' : null,
-          canReadOrders ? 'orders?status=CANCELLED&size=5' : null]
+          monitorStock ? 'products?lowStock=true&size=100' : null,
+          canReadOrders ? 'orders?status=CANCELLED&size=5' : null,
+          role === 'ADMIN' ? 'notifications/activities' : null]
         const responses = await Promise.all(paths.map(path => path ? fetch(`${baseUrl}/api/admin/${path}`, { headers: getApiHeaders(), signal: controller.signal }) : null))
         if (responses.some(response => response && !response.ok)) throw new Error('Unavailable')
-        const [orders, products, cancelledOrders] = await Promise.all(responses.map(response => response ? response.json() : { content: [] }))
+        const [orders, products, cancelledOrders, activities] = await Promise.all(responses.map(response => response ? response.json() : { content: [] }))
+        const stockProducts = [...(products.content || [])]
+        for (let page = 1; page < products.totalPages; page++) {
+          const response = await fetch(`${baseUrl}/api/admin/products?lowStock=true&size=100&page=${page}`, { headers: getApiHeaders(), signal: controller.signal })
+          if (!response.ok) throw new Error('Unavailable')
+          const next = await response.json()
+          stockProducts.push(...(next.content || []))
+        }
         const items = [
+          ...stockProducts.filter(product => Number.isFinite(product.quantity) && product.quantity < 5).map(product => ({
+            id: `stock-${product.id}-${product.quantity}`, title: product.quantity === 0 ? 'Sản phẩm đã hết hàng' : 'Sản phẩm sắp hết hàng', desc: `${product.name} · Còn ${product.quantity} sản phẩm`,
+            time: 'Bấm để kiểm tra thông tin tồn kho', icon: AlertTriangle, color: '#92400e', bg: '#fff4df', module: 'products', recordId: product.id
+          })),
+          ...(role === 'ADMIN' ? activities : []).map(activity => ({
+            id: `activity-${activity.id}`, title: activity.title, desc: `Nhân viên ${activity.actorUsername}`,
+            time: new Date(activity.createdAt).toLocaleString('vi-VN'), icon: UserRound, color: '#376757', bg: '#edf3ef',
+            module: activity.module, recordId: ['products', 'orders'].includes(activity.module) ? activity.recordId : null
+          })),
           ...(orders.content || []).map(order => ({
             id: `order-${order.id}`, title: `Đơn hàng #${order.id} chờ xác nhận`,
             desc: `${order.customerName || 'Khách hàng'} · ${new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(order.totalAmount || 0)}`,
@@ -66,10 +84,6 @@ export default function AdminNavbar({
             id: `cancelled-order-${order.id}`, title: `Đơn hàng #${order.id} đã được hủy`,
             desc: `${order.customerName || 'Khách hàng'} · Bấm để xem chi tiết đơn đã hủy`,
             icon: XCircle, color: '#b42318', bg: '#fef3f2', module: 'orders', recordId: order.id
-          })),
-          ...(products.content || []).filter(product => Number.isFinite(product.quantity) && product.quantity < 5).map(product => ({
-            id: `stock-${product.id}-${product.quantity}`, title: product.quantity === 0 ? 'Sản phẩm đã hết hàng' : 'Sản phẩm sắp hết hàng', desc: `${product.name} · Còn ${product.quantity} sản phẩm`,
-            time: 'Bấm để kiểm tra thông tin tồn kho', icon: AlertTriangle, color: '#a28150', bg: '#faf5e9', module: 'products', recordId: product.id
           }))
         ]
         if (!controller.signal.aborted) setNotifications(items.map(item => ({ ...item, unread: !readNotificationIds.current.has(item.id) })))
@@ -83,7 +97,7 @@ export default function AdminNavbar({
     load()
     const timer = setInterval(() => { if (!document.hidden) load() }, 30000)
     return () => { controller.abort(); clearInterval(timer) }
-  }, [refreshVersion, storageKey, canReadOrders, monitorStock])
+  }, [refreshVersion, storageKey, canReadOrders, monitorStock, role])
 
   const notifRef = useRef(null)
 
@@ -166,7 +180,7 @@ export default function AdminNavbar({
         <div className="admin-notif-dropdown-wrapper" ref={notifRef}>
           <button
             type="button"
-            className="admin-action-icon-btn admin-notif-bell-btn"
+            className={`admin-action-icon-btn admin-notif-bell-btn ${unreadCount > 0 ? 'has-unread' : ''}`}
             title="Thông báo hệ thống"
             aria-label={`Thông báo hệ thống, ${unreadCount} chưa đọc`}
             onClick={() => {
@@ -176,9 +190,9 @@ export default function AdminNavbar({
             aria-expanded={showNotifications}
             aria-controls="admin-notifications-panel"
           >
-            <Bell size={18} />
+            <Bell size={22} strokeWidth={2} />
             {unreadCount > 0 && (
-              <span className="admin-unread-badge">{unreadCount}</span>
+              <span className="admin-unread-badge" aria-hidden="true">{unreadCount > 99 ? '99+' : unreadCount}</span>
             )}
           </button>
 
@@ -210,6 +224,7 @@ export default function AdminNavbar({
                   <p>Chưa tải được thông báo. Vui lòng thử lại.</p>
                   <button type="button" className="admin-btn admin-btn-outline" disabled={notificationsLoading} onClick={() => setRefreshVersion(value => value + 1)}><RefreshCw size={14} /> Thử lại</button>
                 </div>}
+                {notificationsLoading && notifications.length === 0 && <p className="admin-search-status" role="status">Đang tải thông báo...</p>}
                 {!notificationsLoading && !notificationsError && notifications.length === 0 && <p className="admin-search-status">Không có hoạt động nào cần xử lý.</p>}
                 {notifications.map((item) => {
                   const IconComp = item.icon
@@ -243,10 +258,10 @@ export default function AdminNavbar({
                   className="admin-notif-view-all"
                   onClick={() => {
                     setShowNotifications(false)
-                    if (onNavigateModule) onNavigateModule('orders')
+                    if (onNavigateModule) onNavigateModule(canReadOrders ? 'orders' : 'products')
                   }}
                 >
-                  Xem danh sách đơn hàng mới
+                  {canReadOrders ? 'Xem danh sách đơn hàng mới' : 'Xem danh sách sản phẩm'}
                 </button>
               </div>
             </div>

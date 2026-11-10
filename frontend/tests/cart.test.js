@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { beforeEach, afterEach, test } from 'node:test'
-import { loadCart, saveCart, getProductStock, limitCartToStock } from '../src/user/lib/cart.js'
+import { loadCart, saveCart, loadCartExpiresAt, CART_TIMEOUT_MS, getProductStock, limitCartToStock } from '../src/user/lib/cart.js'
 
 beforeEach(() => {
   const storage = new Map()
@@ -10,6 +10,51 @@ beforeEach(() => {
   }
 })
 afterEach(() => { delete globalThis.localStorage })
+
+test('cart expires exactly 30 minutes after its last update and cannot reappear on reload', t => {
+  t.mock.method(Date, 'now', () => 1000000)
+  saveCart({ 1: 2 })
+  const expiresAt = loadCartExpiresAt()
+  assert.equal(expiresAt, Date.now() + CART_TIMEOUT_MS)
+  Date.now.mock.mockImplementation(() => expiresAt - 1)
+  assert.deepEqual(loadCart(), { 1: 2 })
+  assert.equal(loadCartExpiresAt(), expiresAt, 'Reading does not extend the deadline')
+  Date.now.mock.mockImplementation(() => expiresAt)
+  assert.deepEqual(loadCart(), {})
+  assert.equal(localStorage.getItem('furniture_cart'), '{}')
+  assert.equal(loadCartExpiresAt(), 0)
+  assert.deepEqual(loadCart(), {})
+})
+
+test('user changes renew the deadline, while stock synchronization preserves it', t => {
+  t.mock.method(Date, 'now', () => 1000000)
+  saveCart({ 1: 2 })
+  const originalDeadline = loadCartExpiresAt()
+  Date.now.mock.mockImplementation(() => 1000000 + 5 * 60 * 1000)
+  saveCart({ 1: 1 }, originalDeadline)
+  assert.equal(loadCartExpiresAt(), originalDeadline)
+  saveCart({ 1: 2 })
+  assert.equal(loadCartExpiresAt(), Date.now() + CART_TIMEOUT_MS)
+  assert.ok(loadCartExpiresAt() > originalDeadline)
+})
+
+test('legacy carts receive a deadline only once, without losing valid quantities', t => {
+  t.mock.method(Date, 'now', () => 1000000)
+  localStorage.setItem('furniture_cart', '{"1":2}')
+  assert.deepEqual(loadCart(), { 1: 2 })
+  const expiresAt = loadCartExpiresAt()
+  Date.now.mock.mockImplementation(() => 1000000 + 60 * 1000)
+  assert.deepEqual(loadCart(), { 1: 2 })
+  assert.equal(loadCartExpiresAt(), expiresAt)
+})
+
+test('malformed deadlines cannot keep an abandoned cart alive', () => {
+  for (const expiresAt of ['broken', 'Infinity', '-1', '0', '1.5', String(Number.MAX_SAFE_INTEGER)]) {
+    localStorage.setItem('furniture_cart', '{"1":2}')
+    localStorage.setItem('furniture_cart_expires_at', expiresAt)
+    assert.deepEqual(loadCart(), {})
+  }
+})
 
 test('cart quantities survive reloading from browser storage', () => {
   saveCart({ 1: 2, 6: 3 })
@@ -66,4 +111,12 @@ test('unavailable browser storage does not prevent shopping', () => {
   }
   assert.deepEqual(loadCart(), {})
   assert.doesNotThrow(() => saveCart({ 1: 2 }))
+})
+
+test('a legacy cart remains readable when browser storage rejects writes', () => {
+  globalThis.localStorage = {
+    getItem: key => key === 'furniture_cart' ? '{"1":2}' : null,
+    setItem: () => { throw new Error('full') },
+  }
+  assert.deepEqual(loadCart(), { 1: 2 })
 })

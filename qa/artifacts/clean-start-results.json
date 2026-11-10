@@ -3,30 +3,36 @@
     {
       "route": "/api/products",
       "status": 200,
-      "response": "[]"
+      "response": "[{\"id\":1,\"name\":\"Sofa goc chu L vai boc Milan\",\"description\":\"Sofa goc 3m, khung go soi, vai boc chong tham\",\"category\":\"Sofa va ghe thu gian\",\"price\":14500000.00,\"imageUrl\":\"https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=900&q=85\",\"quantity\":12},{\"id\":2,\"name\":\"Sofa bang 3 cho da PU Oslo\",\"description\":\"Sofa bang dai 2m1, da PU cao cap\",\"category\":\"Sofa va ghe thu gian\",\"price\":9800000.00,\"imageUrl\":\"https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?auto=format&fit=crop&w=900&q=85\",\"quantity\":15},{\"id\":3,\"name\":\"Ghe thu gian boc benh Relax\",\"description\":\"Ghe thu gian ngat lung, boc vai benh\",\"category\":\"Sofa va ghe thu gian\",\"price\":4200000.00,\"imageUrl\":\"https://images.unsplash.com/photo-1567538096630-e0c55bd6374c?auto=format&fit=crop&w=900&q=85\",\"quantity\":20},{\"id\":4,\"name\":\"Ban an go cao su 6 cho Nordic\",\"description\":\"Ban an chu nhat 1m6, go cao su tu nhien\",\"category\":\"Ban an\",\"price\":6500000.00,\"imageUrl\":\"https://images.unsplash.com/photo-1577140917170-285929fb55b7?auto=format&fit=crop&w=900&q=85\",\"quantity\":18},{\"id\":5,\"name\":\"Ban an mat da ceramic 4 cho Venus\",\"description\":\"Ban an mat da ceramic 1m2, chan thep son tinh dien\""
     },
     {
       "route": "/api/admin/categories",
-      "status": 500,
-      "response": "{\"timestamp\":\"2026-10-28 16:35:39\",\"status\":500,\"error\":\"Internal Server Error\",\"path\":\"/api/admin/categories\"}"
+      "status": 200,
+      "response": "[{\"id\":1,\"name\":\"Sofa va ghe thu gian\",\"description\":\"Sofa goc, sofa bang, ghe thu gian phong khach\",\"productCount\":3,\"isActive\":true},{\"id\":2,\"name\":\"Ban an\",\"description\":\"Ban an go, ban an mat da cac kich thuoc\",\"productCount\":2,\"isActive\":true},{\"id\":3,\"name\":\"Ghe an va ghe bar\",\"description\":\"Ghe an, ghe bar, ghe quay bar\",\"productCount\":2,\"isActive\":true},{\"id\":4,\"name\":\"Giuong ngu\",\"description\":\"Giuong go, giuong boc nem, giuong ngu thong minh\",\"productCount\":2,\"isActive\":true},{\"id\":5,\"name\":\"Tu quan ao va tu giay\",\"description\":\"Tu quan ao canh mo, canh lua, tu giay\",\"productCount\":2,\"isActive\":true},{\"id\":6,\"name\":\"Ban va ghe van phong\",\"description\":\"Ban lam viec, ghe cong thai hoc\",\"productCount\":2,\"isActive\":true},{\"id\":7,\"name\":\"Ke sach va ke tivi\",\"description\":\"Ke sach, ke tivi, tu trung bay\",\"productCount\":2,\"isActive\":true},{\"id\":8,\"name\":\"Den trang tri\",\"description\":\"Den chum, den san, den ban, den tuong\",\"productCount\":2,\"isActive\":true},{\"id\":9,\"name\":\"Tham va rem cua\",\"description\":\"Tham trai san, rem vai, rem cuon\",\"productCount\":2,\"isActive\":true},{\"id\":10,\"name\":\"Nem va phu kien giuong\",\"description\":\"Nem cao su, nem lo xo, goi, chan ga\",\"productCount\":1,"
     },
     {
       "route": "/api/admin/products",
       "status": 200,
-      "response": "{\"content\":[],\"page\":0,\"size\":10,\"totalElements\":0,\"totalPages\":1,\"first\":true,\"last\":true}"
+      "response": "{\"content\":[{\"id\":20,\"name\":\"Nem cao su non 1m6 Dreamy\",\"categoryId\":10,\"categoryName\":\"Nem va phu kien giuong\",\"unit\":\"cai\",\"sellingPrice\":5900000.00,\"imageUrl\":\"https://images.unsplash.com/photo-1631049307264-da0ec9d70304?auto=format&fit=crop&w=900&q=85\",\"quantity\":20,\"isActive\":true,\"createdAt\":\"2026-11-10T10:31:11.887\"},{\"id\":19,\"name\":\"Rem cua vai chong nang 2.4m\",\"categoryId\":9,\"categoryName\":\"Tham va rem cua\",\"unit\":\"bo\",\"sellingPrice\":1650000.00,\"imageUrl\":\"https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=900&q=85\",\"quantity\":50,\"isActive\":true,\"createdAt\":\"2026-11-10T10:31:11.887\"},{\"id\":18,\"name\":\"Tham long ngan phong khach 2x3m\",\"categoryId\":9,\"categoryName\":\"Tham va rem cua\",\"unit\":\"tam\",\"sellingPrice\":2800000.00,\"imageUrl\":\"https://images.unsplash.com/photo-1600121848594-d8644e57abab?auto=format&fit=crop&w=900&q=85\",\"quantity\":24,\"isActive\":true,\"createdAt\":\"2026-11-10T10:31:11.887\"},{\"id\":17,\"name\":\"Den san thong tru Arc\",\"categoryId\":8,\"categoryName\":\"Den trang tri\",\"unit\":\"cai\",\"sellingPrice\":1350000.00,\"imageUrl\":\"https://images.unsplash.com/photo-1507473885765-e6ed057f782c?auto=format&fit=crop&w=900&q=85&sat=-40\",\"quantity\":28,\"i"
     },
     {
       "route": "/api/admin/invoices",
-      "status": 500,
-      "response": "{\"timestamp\":\"2026-10-28 16:35:39\",\"status\":500,\"error\":\"Internal Server Error\",\"path\":\"/api/admin/invoices\"}"
+      "status": 200,
+      "response": "{\"content\":[],\"page\":0,\"size\":10,\"totalElements\":0,\"totalPages\":0,\"first\":true,\"last\":true}"
     },
     {
       "route": "/api/auth/login",
-      "status": 401,
-      "response": "{\"error\":\"Tên đăng nhập hoặc mật khẩu không chính xác\"}"
+      "status": 200,
+      "response": "{\"userId\":1,\"customerId\":null,\"username\":\"admin01\",\"fullName\":null,\"email\":null,\"phone\":null,\"address\":null,\"role\":\"ADMIN\",\"message\":\"Đăng nhập thành công!\",\"accessToken\":\"[redacted]\"}"
     }
   ],
   "schema": [
+    {
+      "table_name": "admin_activity_notifications"
+    },
+    {
+      "table_name": "admin_sessions"
+    },
     {
       "table_name": "admins"
     },
@@ -43,6 +49,9 @@
       "table_name": "customers"
     },
     {
+      "table_name": "invoices"
+    },
+    {
       "table_name": "order_discounts"
     },
     {
@@ -52,7 +61,13 @@
       "table_name": "orders"
     },
     {
+      "table_name": "product_audit_logs"
+    },
+    {
       "table_name": "product_discounts"
+    },
+    {
+      "table_name": "product_images"
     },
     {
       "table_name": "products"
@@ -81,8 +96,15 @@
   ],
   "counts": [
     {
-      "users": 0,
-      "products": 0
+      "users": 36,
+      "products": 20
     }
-  ]
+  ],
+  "notifications": {
+    "activity": "Thêm nhà cung cấp",
+    "supplierId": 11,
+    "staffFeedStatus": 403,
+    "rls": "PASS",
+    "repeatMigration": "PASS"
+  }
 }

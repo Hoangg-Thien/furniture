@@ -69,6 +69,7 @@ public class SalesDatabaseInitializer implements CommandLineRunner {
             if (alreadyPopulated) {
                 new ResourceDatabasePopulator(new ClassPathResource("staff_permissions.sql")).populate(conn);
                 new ResourceDatabasePopulator(new ClassPathResource("product_audit.sql")).populate(conn);
+                new ResourceDatabasePopulator(new ClassPathResource("admin_activity.sql")).populate(conn);
                 new ResourceDatabasePopulator(new ClassPathResource("order_shipping.sql")).populate(conn);
                 new ResourceDatabasePopulator(new ClassPathResource("order_stock.sql")).populate(conn);
                 new ResourceDatabasePopulator(new ClassPathResource("guest_checkout.sql")).populate(conn);
@@ -138,6 +139,7 @@ public class SalesDatabaseInitializer implements CommandLineRunner {
             st.execute("ALTER TABLE public.categories ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT true");
             new ResourceDatabasePopulator(new ClassPathResource("staff_permissions.sql")).populate(conn);
             new ResourceDatabasePopulator(new ClassPathResource("product_audit.sql")).populate(conn);
+            new ResourceDatabasePopulator(new ClassPathResource("admin_activity.sql")).populate(conn);
             new ResourceDatabasePopulator(new ClassPathResource("order_shipping.sql")).populate(conn);
             new ResourceDatabasePopulator(new ClassPathResource("order_stock.sql")).populate(conn);
             new ResourceDatabasePopulator(new ClassPathResource("guest_checkout.sql")).populate(conn);

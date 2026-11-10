@@ -13,6 +13,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.ByteArrayResource;
+import java.nio.charset.StandardCharsets;
+import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -24,8 +27,12 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.server.ResponseStatusException;
 import furniture.config.AdminAccessInterceptor;
+import furniture.config.AdminActivityInterceptor;
+import furniture.controller.AdminNotificationController;
+import furniture.repository.AdminActivityRepository;
 import furniture.controller.AdminSessionController;
 import furniture.model.LoginRequest;
 import furniture.model.admin.product.ProductDetailDto;
@@ -47,11 +54,13 @@ class AdminPermissionsTest {
     @RestController
     static class Probe {
         @RequestMapping({"/api/admin/**", "/api/vouchers/**", "/api/auth/users", "/api/auth/customers", "/api/orders/**", "/api/auth/me", "/api/auth/update/**"})
-        public Map<String, String> probe() { return Map.of("result", "OK"); }
+        public ResponseEntity<?> probe(@RequestParam(defaultValue = "200") int code) {
+            return ResponseEntity.status(code).body(Map.of("result", "OK"));
+        }
     }
 
     @BeforeEach
-    void setup() {
+    void setup() throws Exception {
         database = new EmbeddedDatabaseBuilder().generateUniqueName(true).setType(EmbeddedDatabaseType.H2).build();
         jdbc = new JdbcTemplate(database);
         jdbc.execute("CREATE TABLE users (id BIGINT PRIMARY KEY, username VARCHAR(50), password_hash VARCHAR(100), role VARCHAR(20), is_active BOOLEAN DEFAULT TRUE)");
@@ -64,11 +73,18 @@ class AdminPermissionsTest {
         jdbc.execute("CREATE TABLE orders (id BIGINT PRIMARY KEY, customer_id BIGINT)");
         jdbc.execute("INSERT INTO orders VALUES (1, 50), (2, 51)");
         migrate();
+        // shortcut: H2 does not support RLS, verify that statement on PostgreSQL.
+        String activityMigration = new ClassPathResource("admin_activity.sql").getContentAsString(StandardCharsets.UTF_8)
+                .replace("ALTER TABLE public.admin_activity_notifications ENABLE ROW LEVEL SECURITY;", "");
+        var activitySchema = new ResourceDatabasePopulator(new ByteArrayResource(activityMigration.getBytes(StandardCharsets.UTF_8)));
+        activitySchema.execute(database);
+        activitySchema.execute(database);
         jdbc.update("UPDATE staff SET staff_type = 'WAREHOUSE' WHERE user_id = 3");
         jdbc.update("UPDATE staff SET staff_type = 'CONTENT' WHERE user_id = 4");
         sessions = new AdminSessionService(jdbc, new AuthService(new AuthRepository(jdbc)));
-        mvc = MockMvcBuilders.standaloneSetup(new Probe(), new AdminSessionController(sessions))
-                .addInterceptors(new AdminAccessInterceptor(sessions, jdbc)).build();
+        var activities = new AdminActivityRepository(jdbc);
+        mvc = MockMvcBuilders.standaloneSetup(new Probe(), new AdminSessionController(sessions), new AdminNotificationController(activities))
+                .addInterceptors(new AdminAccessInterceptor(sessions, jdbc), new AdminActivityInterceptor(activities)).build();
     }
 
     @AfterEach
@@ -76,6 +92,54 @@ class AdminPermissionsTest {
 
     private void migrate() { new ResourceDatabasePopulator(new ClassPathResource("staff_permissions.sql")).execute(database); }
     private String token(int id) { return (String) sessions.login(new LoginRequest("user" + id, "testpass")).get("accessToken"); }
+
+    @Test
+    void staffActivitiesArePersistedOnlyForSuccessfulWritesAndOnlyAdminsCanReadThem() throws Exception {
+        String content = "Bearer " + token(4);
+        String warehouse = "Bearer " + token(3);
+        String sales = "Bearer " + token(2);
+        mvc.perform(put("/api/admin/products/1/content").header("Authorization", content)).andExpect(status().isOk());
+        mvc.perform(delete("/api/admin/products/1/images/2").header("Authorization", content)).andExpect(status().isOk());
+        mvc.perform(post("/api/admin/suppliers").header("Authorization", warehouse)).andExpect(status().isOk());
+        mvc.perform(put("/api/admin/suppliers/7").header("Authorization", warehouse)).andExpect(status().isOk());
+        mvc.perform(post("/api/admin/suppliers/7/receipts").header("Authorization", warehouse)).andExpect(status().isOk());
+        mvc.perform(patch("/api/admin/suppliers/7/receipts/8/status").header("Authorization", warehouse)).andExpect(status().isOk());
+        mvc.perform(put("/api/admin/orders/3/confirm").header("Authorization", sales)).andExpect(status().isOk());
+        mvc.perform(post("/api/admin/invoices/preview-calculation").header("Authorization", sales)).andExpect(status().isOk());
+        mvc.perform(put("/api/admin/products/1/content").param("code", "400").header("Authorization", content)).andExpect(status().isBadRequest());
+        mvc.perform(put("/api/admin/products/1/content").param("code", "500").header("Authorization", content)).andExpect(status().isInternalServerError());
+        mvc.perform(post("/api/admin/products").header("Authorization", content)).andExpect(status().isForbidden());
+        mvc.perform(get("/api/admin/products").header("Authorization", content)).andExpect(status().isOk());
+        mvc.perform(put("/api/admin/products/1").header("Authorization", "Bearer " + token(1))).andExpect(status().isOk());
+        var items = new AdminActivityRepository(jdbc).findRecent();
+        assertEquals(7, items.size());
+        assertEquals("Xác nhận đơn hàng #3", items.get(0).title());
+        assertEquals("user2", items.get(0).actorUsername());
+        assertEquals("orders", items.get(0).module());
+        assertEquals(3L, items.get(0).recordId());
+        assertEquals("Xóa ảnh sản phẩm #1", items.get(5).title());
+        assertNull(items.get(5).recordId(), "Deleted records must not open a missing detail");
+        jdbc.update("UPDATE users SET username = 'renamed' WHERE id = 2");
+        mvc.perform(get("/api/admin/notifications/activities").header("Authorization", "Bearer " + token(1)))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$[0].actorUsername").value("user2"));
+        for (String staffBearer : List.of(sales, warehouse, content)) {
+            mvc.perform(get("/api/admin/notifications/activities").header("Authorization", staffBearer)).andExpect(status().isForbidden());
+            mvc.perform(get("/api/admin/products").param("lowStock", "true").header("Authorization", staffBearer)).andExpect(status().isOk());
+        }
+        mvc.perform(get("/api/admin/notifications/activities")).andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/admin/notifications/activities").header("Authorization", "Bearer " + sessions.issueToken(5L))).andExpect(status().isForbidden());
+    }
+
+    @Test
+    void activityPreviewIsBoundedAndNewestFirst() {
+        var activities = new AdminActivityRepository(jdbc);
+        for (int id = 1; id <= 55; id++) activities.record(2L, "products", (long) id, "Updated product " + id);
+        var items = activities.findRecent();
+        assertEquals(50, items.size());
+        assertEquals(55L, items.get(0).recordId());
+        assertEquals(6L, items.get(49).recordId());
+    }
 
     @Test
     void migrationIsRepeatableAndPreservesExistingStaffAssignments() {

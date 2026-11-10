@@ -872,6 +872,17 @@
   border-bottom: 1px solid var(--line, #e7e3dc); 
   flex-shrink: 0;
 }
+.cart-expiry-notice {
+  margin: 14px 0;
+  padding: 12px 14px;
+  border: 1px solid #dfcba8;
+  border-radius: 8px;
+  background: #faf3e6;
+  color: #70491f;
+  font-size: 12px;
+  line-height: 1.6;
+  flex-shrink: 0;
+}
 .cart-header .eyebrow {
   margin: 0 0 6px 0;
   font-size: 11px;

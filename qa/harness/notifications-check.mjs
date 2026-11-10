@@ -35,6 +35,9 @@ try {
   let quantity = 2
   let offline = false
   let notificationRequests = 0
+  let activityRequests = 0
+  let paginateStock = false
+  const activities = []
   const imageUrl = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"/>'
   await context.route('https://**', route => route.fulfill({ contentType: 'text/css', body: '' }))
   await context.route('**/api/**', async route => {
@@ -42,13 +45,20 @@ try {
     const path = url.pathname
     let body = { content: [] }
     if (path === '/api/orders' || path.startsWith('/api/admin/')) notificationRequests++
+    if (path === '/api/admin/notifications/activities') activityRequests++
     if (offline && (path === '/api/orders' || path.startsWith('/api/admin/'))) return route.fulfill({ status: 500, json: { error: 'offline' } })
     if (path === '/api/products') body = [{ id: 9, name: 'Test chair', category: 'Chair', price: 100000, imageUrl, quantity: 10 }]
     else if (path === '/api/orders') body = orders.filter(order => String(order.customer_id) === url.searchParams.get('customerId'))
     else if (/^\/api\/orders\/\d+$/.test(path)) body = { order: { ...orders.find(order => order.id === Number(path.split('/').at(-1))), address: 'Đà Nẵng', approved_at: '2026-11-04T10:00:00+07:00' }, items: [] }
     else if (path === '/api/admin/orders') body = { content: orders.filter(order => !url.searchParams.has('status') || order.status === url.searchParams.get('status')).map(order => ({ ...order, customerName: 'Test customer' })), totalPages: 1, page: 0 }
     else if (/^\/api\/admin\/orders\/\d+$/.test(path)) body = { ...orders.find(order => order.id === Number(path.split('/').at(-1))), customerName: 'Test customer', items: [], subtotal: 100000, finalTotal: 100000 }
-    else if (path === '/api/admin/products') body = { content: [{ id: 9, name: 'Test chair', quantity, unitPrice: 100000, categoryName: 'Chair', isActive: true }], totalPages: 1, page: 0 }
+    else if (path === '/api/admin/notifications/activities') body = activities
+    else if (path === '/api/admin/products') {
+      const extraPage = paginateStock && url.searchParams.get('page') === '1'
+      const extraProducts = Array.from({ length: 6 }, (_, index) => ({ id: index + 10, name: `Low chair ${index}`, quantity: 1, isActive: true }))
+      body = { content: extraPage ? [...extraProducts, { id: 20, name: 'Unknown stock', quantity: null, isActive: false }, { id: 21, name: 'Enough stock', quantity: 5, isActive: true }]
+        : [{ id: 9, name: 'Test chair', quantity, unitPrice: 100000, categoryName: 'Chair', isActive: true }], totalPages: paginateStock ? 2 : 1, page: extraPage ? 1 : 0 }
+    }
     else if (path === '/api/admin/products/9') body = { id: 9, name: 'Test chair', quantity, sellingPrice: 100000, categoryId: 1, isActive: true, description: 'Test product' }
     else if (path === '/api/admin/categories') body = [{ id: 1, name: 'Chair' }]
     await route.fulfill({ json: body })
@@ -152,14 +162,49 @@ try {
   await page.locator('.admin-modal-backdrop .modal-close-btn').click()
   await page.reload()
   await adminBell(2).waitFor()
+  activities.push({ id: 1, actorUsername: 'content-staff', title: 'Cập nhật sản phẩm #9', module: 'products', recordId: 9, createdAt: '2026-11-10T10:00:00Z' })
+  await page.evaluate(() => window.tickNotifications())
+  await adminBell(3).click()
+  await page.screenshot({ path: fileURLToPath(new URL('../artifacts/notifications-admin.png', import.meta.url)), animations: 'disabled' })
+  await page.locator('.admin-notif-item').filter({ hasText: 'Nhân viên content-staff' }).click()
+  await page.waitForURL('**/admin/products')
+  await page.getByText('Cập nhật thông tin cho sản phẩm #9', { exact: true }).waitFor()
+  await page.locator('.admin-modal-backdrop .modal-close-btn').click()
+  await page.reload()
+  await adminBell(2).waitFor()
+  await adminBell(2).click()
+  assert.equal(await page.locator('.admin-notif-item.unread').filter({ hasText: 'Nhân viên content-staff' }).count(), 0)
+  await page.keyboard.press('Escape')
   notificationRequests = 0
   await page.evaluate(() => {
     Object.defineProperty(document, 'hidden', { configurable: true, value: true })
     window.tickNotifications()
   })
   assert.equal(notificationRequests, 0, 'hidden tabs must not poll')
+  await page.evaluate(() => Object.defineProperty(document, 'hidden', { configurable: true, value: false }))
+  paginateStock = true
+  for (const [index, staffType] of ['SALES', 'WAREHOUSE', 'CONTENT'].entries()) {
+    await page.evaluate(user => localStorage.setItem('furniture_admin_user', JSON.stringify(user)), {
+      id: 20 + index, role: 'STAFF', staffType, staffId: 20 + index, accessToken: 'qa-mock-token', apiBaseUrl: 'http://localhost:8080', username: `${staffType}-staff`,
+    })
+    activityRequests = 0
+    await page.goto(url('/admin/products'))
+    await adminBell(staffType === 'CONTENT' ? 7 : 9).click()
+    assert.equal(await page.locator('.admin-notif-item').filter({ hasText: /Sản phẩm (đã hết hàng|sắp hết hàng)/ }).count(), 7, `${staffType} sees every low-stock page`)
+    assert.equal(await page.locator('.admin-notif-item').filter({ hasText: 'content-staff' }).count(), 0)
+    assert.equal(activityRequests, 0, 'staff must not request the admin-only activity feed')
+    if (staffType === 'CONTENT') {
+      await page.getByRole('button', { name: 'Xem danh sách sản phẩm', exact: true }).waitFor()
+      await page.setViewportSize({ width: 390, height: 844 })
+      const bounds = await page.locator('#admin-notifications-panel').boundingBox()
+      assert.ok(bounds.x >= 0 && bounds.x + bounds.width <= 390, 'staff notification panel fits mobile')
+      await page.screenshot({ path: fileURLToPath(new URL('../artifacts/notifications-staff-mobile.png', import.meta.url)), animations: 'disabled' })
+    }
+    await page.keyboard.press('Escape')
+    await page.setViewportSize({ width: 1440, height: 1000 })
+  }
   assert.deepEqual(errors, [])
-  console.log('PASS admin notifications: exact order/product, cancellation after reading pending, persistent reads, retry, hidden tab')
+  console.log('PASS admin/staff notifications: activity feed, permissions, all stock pages and staff roles, exact details, persistent reads, retry, keyboard, mobile, hidden tab')
 } finally {
   await browser.close()
   await server.close()

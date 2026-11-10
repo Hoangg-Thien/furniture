@@ -267,6 +267,7 @@ function OrderSummary({
 export default function OrderReviewPage({
   cartItems,
   cart,
+  cartExpiresAt,
   subtotal,
   currentUser,
   catalogProducts = [],
@@ -575,6 +576,10 @@ export default function OrderReviewPage({
 
   async function handlePlaceOrder() {
     if (submitting) return
+    if (Date.now() >= cartExpiresAt) {
+      setSubmitError('Giỏ hàng đã hết hạn sau 30 phút không cập nhật. Vui lòng chọn lại sản phẩm.')
+      return
+    }
     if (cartItems.length === 0) {
       setSubmitError('Vui lòng thêm sản phẩm vào giỏ trước khi đặt hàng.')
       return
@@ -1180,6 +1185,10 @@ export default function OrderReviewPage({
 
         <div className="order-page-body">
           <div className="order-form-area">
+            <p className="cart-expiry-notice" role="status">
+              {cartItems.length === 0 ? 'Giỏ hàng đang trống hoặc đã hết hạn. Vui lòng quay lại và chọn lại sản phẩm.'
+                : 'Giỏ hàng tự xóa sau 30 phút không thêm hàng hoặc đổi số lượng. Nhập thông tin giao hàng không gia hạn giỏ.'}
+            </p>
             {step === 1 && (
               <section className="order-form-section" aria-label="Thông tin giao hàng">
                 <div className="order-section-heading">
@@ -1440,7 +1449,7 @@ export default function OrderReviewPage({
                   type="button"
                   className="order-place-btn"
                   onClick={handlePlaceOrder}
-                  disabled={submitting}
+                  disabled={submitting || cartItems.length === 0}
                 >
                   <CheckCircle2 size={16} /> {submitting ? 'Đang lưu vào hệ thống...' : 'Đặt hàng ngay'}
                 </button>

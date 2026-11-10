@@ -12,12 +12,17 @@ import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 @Configuration
 public class WebMvcConfig implements WebMvcConfigurer {
     private final AdminAccessInterceptor adminAccess;
+    private final AdminActivityInterceptor adminActivity;
 
-    public WebMvcConfig(AdminAccessInterceptor adminAccess) { this.adminAccess = adminAccess; }
+    public WebMvcConfig(AdminAccessInterceptor adminAccess, AdminActivityInterceptor adminActivity) {
+        this.adminAccess = adminAccess;
+        this.adminActivity = adminActivity;
+    }
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(adminAccess).addPathPatterns("/api/**");
+        registry.addInterceptor(adminActivity).addPathPatterns("/api/admin/**");
     }
 
     @Override
