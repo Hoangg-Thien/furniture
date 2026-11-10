@@ -33,6 +33,7 @@ import CancelOrderDialog from './CancelOrderDialog'
 import OrderShippingInfo from './OrderShippingInfo'
 import { validateVoucherApi, fetchActiveVouchers } from '../../lib/vouchers'
 import { loadCheckoutDraft, saveCheckoutDraft, clearCheckoutDraft } from '../lib/checkout'
+import { CART_TIMEOUT_MS } from '../lib/cart'
 import { getAllProvinces, getDistricts, getWards, splitSavedAddress } from '../lib/vietnamLocations'
 
 const formatPrice = (price) => `${new Intl.NumberFormat('vi-VN').format(price)}₫`
@@ -577,7 +578,7 @@ export default function OrderReviewPage({
   async function handlePlaceOrder() {
     if (submitting) return
     if (Date.now() >= cartExpiresAt) {
-      setSubmitError('Giỏ hàng đã hết hạn sau 30 phút không cập nhật. Vui lòng chọn lại sản phẩm.')
+      setSubmitError(`Giỏ hàng đã hết hạn sau ${CART_TIMEOUT_MS / 60000} phút không cập nhật. Vui lòng chọn lại sản phẩm.`)
       return
     }
     if (cartItems.length === 0) {
@@ -1187,7 +1188,7 @@ export default function OrderReviewPage({
           <div className="order-form-area">
             <p className="cart-expiry-notice" role="status">
               {cartItems.length === 0 ? 'Giỏ hàng đang trống hoặc đã hết hạn. Vui lòng quay lại và chọn lại sản phẩm.'
-                : 'Giỏ hàng tự xóa sau 30 phút không thêm hàng hoặc đổi số lượng. Nhập thông tin giao hàng không gia hạn giỏ.'}
+                : `Giỏ hàng tự xóa sau ${CART_TIMEOUT_MS / 60000} phút không thêm hàng hoặc đổi số lượng. Nhập thông tin giao hàng không gia hạn giỏ.`}
             </p>
             {step === 1 && (
               <section className="order-form-section" aria-label="Thông tin giao hàng">

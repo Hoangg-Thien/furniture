@@ -37,6 +37,7 @@ try {
   let notificationRequests = 0
   let activityRequests = 0
   let paginateStock = false
+  let checkStockLabels = false
   const activities = []
   const imageUrl = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"/>'
   await context.route('https://**', route => route.fulfill({ contentType: 'text/css', body: '' }))
@@ -58,6 +59,9 @@ try {
       const extraProducts = Array.from({ length: 6 }, (_, index) => ({ id: index + 10, name: `Low chair ${index}`, quantity: 1, isActive: true }))
       body = { content: extraPage ? [...extraProducts, { id: 20, name: 'Unknown stock', quantity: null, isActive: false }, { id: 21, name: 'Enough stock', quantity: 5, isActive: true }]
         : [{ id: 9, name: 'Test chair', quantity, unitPrice: 100000, categoryName: 'Chair', isActive: true }], totalPages: paginateStock ? 2 : 1, page: extraPage ? 1 : 0 }
+      if (checkStockLabels && !url.searchParams.has('lowStock')) body = {
+        content: [0, 1, 4, 5].map(quantity => ({ id: 30 + quantity, name: `Stock boundary ${quantity}`, quantity, unit: 'chiếc', isActive: true })), totalPages: 1, page: 0,
+      }
     }
     else if (path === '/api/admin/products/9') body = { id: 9, name: 'Test chair', quantity, sellingPrice: 100000, categoryId: 1, isActive: true, description: 'Test product' }
     else if (path === '/api/admin/categories') body = [{ id: 1, name: 'Chair' }]
@@ -204,6 +208,16 @@ try {
     await page.setViewportSize({ width: 1440, height: 1000 })
   }
   assert.deepEqual(errors, [])
+  checkStockLabels = true
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  for (const [quantity, expected] of [[0, '0 (Đã hết)'], [1, '1 (Sắp hết)'], [4, '4 (Sắp hết)'], [5, '5 chiếc']]) {
+    const row = page.locator('.admin-table tbody tr').filter({ hasText: `Stock boundary ${quantity}` })
+    await row.waitFor()
+    assert.equal((await row.locator('.stock-pill').innerText()).trim(), expected)
+    if (quantity === 0) assert.equal(await row.locator('.stock-pill').getAttribute('title'), 'Sản phẩm đã hết hàng')
+  }
+  assert.deepEqual(errors, [])
+  console.log('PASS admin product stock labels: zero is Đã hết, 1–4 are Sắp hết, 5 is normal')
   console.log('PASS admin/staff notifications: activity feed, permissions, all stock pages and staff roles, exact details, persistent reads, retry, keyboard, mobile, hidden tab')
 } finally {
   await browser.close()

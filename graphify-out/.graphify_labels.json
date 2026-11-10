@@ -1,8 +1,6 @@
 {
   "8": "OrderReviewPage",
   "11": "bigdecimal",
-  "14": "org.springframework.web.bind.annotation.GetMapping",
-  "17": "start.mjs",
   "21": "AdminPermissionsTest.java",
   "32": "admin-redesign-check.mjs",
   "34": "AdminProductManagement",
@@ -10,9 +8,5 @@
   "37": "serve-apk.js",
   "41": "extra-api-tests.mjs",
   "42": "ExampleInstrumentedTest.java",
-  "54": "CreateReceiptRequest.java",
-  "64": "gradlew",
-  "66": "com.getcapacitor.BridgeActivity",
-  "67": "model/ProductImageDto.java",
-  "69": "capacitor.build.gradle"
+  "54": "CreateReceiptRequest.java"
 }

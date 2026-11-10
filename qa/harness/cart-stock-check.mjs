@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { fileURLToPath } from 'node:url'
 import { createServer } from '../../frontend/node_modules/vite/dist/node/index.js'
 import { chromium } from 'file:///C:/Users/LENOVO/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright/index.mjs'
+import { CART_TIMEOUT_MS } from '../../frontend/src/user/lib/cart.js'
 
 const server = await createServer({ root: fileURLToPath(new URL('../../frontend', import.meta.url)), server: { host: '127.0.0.1', port: 0 } })
 await server.listen()
@@ -37,7 +38,7 @@ try {
   assert.equal(await page.getByRole('button', { name: 'Thêm Ghế hết hàng vào giỏ hàng', exact: true }).isDisabled(), true)
   assert.equal(await page.getByRole('button', { name: 'Thêm Ghế chưa xác nhận vào giỏ hàng', exact: true }).isDisabled(), true)
   await add.evaluate(button => { for (let i = 0; i < 20; i++) button.click() })
-  await page.waitForFunction(() => JSON.parse(localStorage.getItem('furniture_cart'))?.['1'] === 2)
+  await page.waitForFunction(() => JSON.parse(localStorage.getItem('furniture_cart'))?.items?.['1'] === 2)
   assert.equal(await add.isDisabled(), true)
   await page.getByRole('button', { name: /Mở giỏ hàng/ }).click()
   const plus = page.getByRole('button', { name: 'Tăng số lượng Ghế giới hạn', exact: true })
@@ -47,15 +48,15 @@ try {
   await plus.click()
   assert.equal(await plus.isDisabled(), true)
   assert.equal((await page.locator('.quantity-control span').innerText()).trim(), '2')
-  await page.evaluate(() => localStorage.setItem('furniture_cart', JSON.stringify({ 1: 99, 2: 3, 999: 1 })))
+  await page.evaluate(timeout => localStorage.setItem('furniture_cart', JSON.stringify({ items: { 1: 99, 2: 3, 999: 1 }, expiresAt: Date.now() + timeout })), CART_TIMEOUT_MS)
   await page.reload({ waitUntil: 'domcontentloaded' })
-  await page.waitForFunction(() => JSON.stringify(JSON.parse(localStorage.getItem('furniture_cart'))) === '{"1":2}')
+  await page.waitForFunction(() => JSON.stringify(JSON.parse(localStorage.getItem('furniture_cart')).items) === '{"1":2}')
   stock = 1
   await page.evaluate(() => window.dispatchEvent(new Event('focus')))
-  await page.waitForFunction(() => JSON.parse(localStorage.getItem('furniture_cart'))?.['1'] === 1)
+  await page.waitForFunction(() => JSON.parse(localStorage.getItem('furniture_cart'))?.items?.['1'] === 1)
   stock = 0
   await page.evaluate(() => window.dispatchEvent(new Event('focus')))
-  await page.waitForFunction(() => localStorage.getItem('furniture_cart') === '{}')
+  await page.waitForFunction(() => JSON.stringify(JSON.parse(localStorage.getItem('furniture_cart')).items) === '{}')
   assert.equal(await add.isDisabled(), true)
   stock = 2
   await page.evaluate(() => {
@@ -64,7 +65,7 @@ try {
   await page.goto(new URL('/orders', url).href, { waitUntil: 'domcontentloaded' })
   await page.getByRole('button', { name: 'Mua Lại', exact: true }).click()
   await page.locator('.cart-item').waitFor()
-  await page.waitForFunction(() => JSON.parse(localStorage.getItem('furniture_cart'))?.['1'] === 2)
+  await page.waitForFunction(() => JSON.parse(localStorage.getItem('furniture_cart'))?.items?.['1'] === 2)
   assert.equal(await plus.isDisabled(), true)
   offline = true
   await page.evaluate(() => window.dispatchEvent(new Event('focus')))

@@ -1159,8 +1159,8 @@ function App() {
               <button className="icon-button close-cart" type="button" aria-label="Đóng giỏ hàng" onClick={() => setCartOpen(false)}><X size={21} /></button>
             </div>
             <p className="cart-expiry-notice" role="status">
-              {cartExpired ? 'Giỏ hàng đã được xóa sau 5 phút không cập nhật. Bạn có thể chọn lại sản phẩm.'
-                : 'Giỏ hàng tự xóa sau 5 phút không thêm hàng hoặc đổi số lượng. Sản phẩm chưa được giữ chỗ.'}
+              {cartExpired ? `Giỏ hàng đã được xóa sau ${CART_TIMEOUT_MS / 60000} phút không cập nhật. Bạn có thể chọn lại sản phẩm.`
+                : `Giỏ hàng tự xóa sau ${CART_TIMEOUT_MS / 60000} phút không thêm hàng hoặc đổi số lượng. Sản phẩm chưa được giữ chỗ.`}
             </p>
             {cartItems.length ? (
               <>

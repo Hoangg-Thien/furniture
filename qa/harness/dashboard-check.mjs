@@ -77,12 +77,12 @@ try {
   assert.equal(requests.length, 3)
   assert.match(await page.locator('.dashboard-metric').first().innerText(), /1\.250\.000/)
   assert.equal(await page.locator('.admin-table tbody tr').count(), 5)
-  for (const label of ['Khách vãng lai', 'Chờ duyệt', 'Đã duyệt', 'Đang giao', 'Hoàn tất', 'Đã hủy', 'Còn 3 bộ', 'Hết hàng']) {
+  for (const label of ['Khách vãng lai', 'Chờ duyệt', 'Đã duyệt', 'Đang giao', 'Hoàn tất', 'Đã hủy', 'Còn 3 bộ', 'Đã hết']) {
     assert((await page.locator('.admin-dashboard-view').textContent()).includes(label), label)
   }
   fs.mkdirSync(new URL('../runtime/dashboard', import.meta.url), { recursive: true })
   await page.screenshot({ path: 'qa/runtime/dashboard/desktop.png', fullPage: true, animations: 'disabled' })
-  for (const [name, target] of [['Doanh thu đã thu', 'reports'], ['Đơn hàng hoàn tất', 'orders'], ['Sản phẩm sắp hết', 'products'], ['Xem tất cả đơn', 'orders'], ['Nhập hàng', 'suppliers']]) {
+  for (const [name, target] of [['Doanh thu đã thu', 'reports'], ['Đơn hàng hoàn tất', 'orders'], ['Tồn kho thấp', 'products'], ['Xem tất cả đơn', 'orders'], ['Nhập hàng', 'suppliers']]) {
     await page.getByRole('button', { name: new RegExp(`^${name}`) }).click()
     assert.equal(await page.locator('#navigation').innerText(), target)
   }

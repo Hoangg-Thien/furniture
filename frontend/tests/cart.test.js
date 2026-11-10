@@ -11,7 +11,7 @@ beforeEach(() => {
 })
 afterEach(() => { delete globalThis.localStorage })
 
-test('cart expires exactly 30 minutes after its last update and cannot reappear on reload', t => {
+test('cart expires exactly at the configured deadline and cannot reappear on reload', t => {
   t.mock.method(Date, 'now', () => 1000000)
   saveCart({ 1: 2 })
   const expiresAt = loadCartExpiresAt()
@@ -21,7 +21,7 @@ test('cart expires exactly 30 minutes after its last update and cannot reappear 
   assert.equal(loadCartExpiresAt(), expiresAt, 'Reading does not extend the deadline')
   Date.now.mock.mockImplementation(() => expiresAt)
   assert.deepEqual(loadCart(), {})
-  assert.equal(localStorage.getItem('furniture_cart'), '{}')
+  assert.deepEqual(JSON.parse(localStorage.getItem('furniture_cart')).items, {})
   assert.equal(loadCartExpiresAt(), 0)
   assert.deepEqual(loadCart(), {})
 })
@@ -30,12 +30,33 @@ test('user changes renew the deadline, while stock synchronization preserves it'
   t.mock.method(Date, 'now', () => 1000000)
   saveCart({ 1: 2 })
   const originalDeadline = loadCartExpiresAt()
-  Date.now.mock.mockImplementation(() => 1000000 + 5 * 60 * 1000)
+  Date.now.mock.mockImplementation(() => 1000000 + Math.floor(CART_TIMEOUT_MS / 2))
   saveCart({ 1: 1 }, originalDeadline)
   assert.equal(loadCartExpiresAt(), originalDeadline)
   saveCart({ 1: 2 })
   assert.equal(loadCartExpiresAt(), Date.now() + CART_TIMEOUT_MS)
   assert.ok(loadCartExpiresAt() > originalDeadline)
+})
+
+test('reducing the timeout keeps an existing cart and caps its old deadline once', t => {
+  t.mock.method(Date, 'now', () => 1000000)
+  localStorage.setItem('furniture_cart', '{"1":2}')
+  localStorage.setItem('furniture_cart_expires_at', String(Date.now() + 30 * 60 * 1000))
+  assert.deepEqual(loadCart(), { 1: 2 })
+  const deadline = loadCartExpiresAt()
+  assert.equal(deadline, Date.now() + CART_TIMEOUT_MS)
+  Date.now.mock.mockImplementation(() => 1000000 + 1000)
+  assert.deepEqual(loadCart(), { 1: 2 })
+  assert.equal(loadCartExpiresAt(), deadline)
+})
+
+test('items and their deadline are saved in one atomic storage write', () => {
+  const writes = []
+  const original = localStorage.setItem
+  localStorage.setItem = (key, value) => { writes.push([key, JSON.parse(value)]); original(key, value) }
+  const deadline = Date.now() + CART_TIMEOUT_MS
+  saveCart({ 1: 2 }, deadline)
+  assert.deepEqual(writes, [['furniture_cart', { items: { 1: 2 }, expiresAt: deadline }]])
 })
 
 test('legacy carts receive a deadline only once, without losing valid quantities', t => {

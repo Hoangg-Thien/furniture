@@ -46,7 +46,7 @@ export default function AdminGlobalSearchModal({ currentUser, onClose, onNavigat
           icon: Armchair,
           title: p.name,
           subtitle: `Mã SP: #${p.id} • Giá: ${new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(p.sellingPrice)}`,
-          badge: p.quantity < 5 ? 'Tồn thấp' : 'Còn hàng',
+          badge: p.quantity === 0 ? 'Đã hết' : p.quantity < 5 ? 'Sắp hết' : 'Còn hàng',
           badgeColor: p.quantity < 5 ? 'danger' : 'success'
         }) },
         { path: 'orders', size: 4, map: o => ({

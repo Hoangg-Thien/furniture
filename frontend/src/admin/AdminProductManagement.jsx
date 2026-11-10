@@ -522,7 +522,7 @@ export default function AdminProductManagement({ currentUser, notificationTarget
             setSelectedLowStock(nextStock)
             fetchProducts(0, selectedCategory, searchKeyword, nextStock, selectedStatus)
           }}
-          title="Bấm để lọc nhanh sản phẩm sắp hết hàng"
+          title="Bấm để lọc sản phẩm tồn kho thấp hoặc đã hết"
         >
           <div className="inv-stat-icon" style={{ background: '#FEF2F2', color: '#DC2626' }}>
             <AlertTriangle size={22} />
@@ -627,7 +627,7 @@ export default function AdminProductManagement({ currentUser, notificationTarget
               }}
             >
               <option value="ALL">Tất cả mức tồn</option>
-              <option value="LOW_STOCK">⚠️ Sắp hết hàng (&lt; 5)</option>
+              <option value="LOW_STOCK">⚠️ Tồn kho thấp (&lt; 5)</option>
             </select>
           </div>
 
@@ -718,7 +718,7 @@ export default function AdminProductManagement({ currentUser, notificationTarget
             )}
             {selectedLowStock === 'LOW_STOCK' && (
               <span className="inv-chip" style={{ background: '#FEF2F2', borderColor: '#FECACA', color: '#DC2626' }}>
-                <span>⚠️ Sắp hết hàng (&lt; 5)</span>
+                <span>⚠️ Tồn kho thấp (&lt; 5)</span>
                 <button
                   type="button"
                   onClick={() => {
@@ -890,9 +890,9 @@ export default function AdminProductManagement({ currentUser, notificationTarget
                       {/* Stock Quantity */}
                       <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
                         {isLow ? (
-                          <span className="stock-pill low" title="Cảnh báo: Sản phẩm sắp hết hàng!">
+                          <span className="stock-pill low" title={p.quantity === 0 ? 'Sản phẩm đã hết hàng' : 'Cảnh báo: Sản phẩm sắp hết hàng!'}>
                             <AlertTriangle size={12} />
-                            <span>{p.quantity} (Sắp hết)</span>
+                            <span>{p.quantity} ({p.quantity === 0 ? 'Đã hết' : 'Sắp hết'})</span>
                           </span>
                         ) : (
                           <span className="stock-pill normal">
@@ -1151,7 +1151,7 @@ export default function AdminProductManagement({ currentUser, notificationTarget
                       onChange={(e) => setProductForm({ ...productForm, quantity: e.target.value })}
                       required
                     />
-                    <small className="form-hint">Dưới 5 chiếc hệ thống sẽ tự động kích hoạt cảnh báo sắp hết.</small>
+                    <small className="form-hint">Tồn kho 0: Đã hết. Còn từ 1 đến 4 chiếc: Sắp hết.</small>
                   </div>
                 </div>
 

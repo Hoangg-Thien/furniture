@@ -55,7 +55,7 @@ export default function AdminDashboard({ onNavigateModule }) {
     { title: 'Doanh thu đã thu', value: money(data.overview.totalRevenue), note: 'Từ hóa đơn đã thanh toán', icon: Wallet, module: 'reports' },
     { title: 'Đơn hàng hoàn tất', value: `${data.overview.completedOrdersCount} đơn`, note: 'Đơn đặt trong 30 ngày gần nhất', icon: ShoppingCart, module: 'orders' },
     { title: 'Sản phẩm đã bán', value: `${data.overview.totalItemsSold} món`, note: 'Từ các đơn đã hoàn tất trong kỳ', icon: Package, module: 'reports' },
-    { title: 'Sản phẩm sắp hết', value: `${data.overview.lowStockProductsCount} sản phẩm`, note: 'Đang bán, tồn kho hiện tại dưới 5', icon: AlertTriangle, module: 'products' },
+    { title: 'Tồn kho thấp', value: `${data.overview.lowStockProductsCount} sản phẩm`, note: 'Đang bán, tồn kho hiện tại dưới 5, gồm cả đã hết', icon: AlertTriangle, module: 'products' },
   ] : []
 
   const columns = [
@@ -120,14 +120,14 @@ export default function AdminDashboard({ onNavigateModule }) {
 
           <section className="admin-card" aria-labelledby="dashboard-stock-title">
             <div className="dashboard-panel-heading">
-              <h2 id="dashboard-stock-title"><AlertTriangle size={18} /> Sản phẩm sắp hết kho</h2>
+              <h2 id="dashboard-stock-title"><AlertTriangle size={18} /> Sản phẩm tồn kho thấp</h2>
             </div>
             <p className="dashboard-muted">Tối đa 5 sản phẩm đang bán có tồn kho dưới 5.</p>
             {data.products.length === 0 ? <p className="dashboard-empty">Không có sản phẩm đang bán nào tồn dưới 5.</p> : (
               <ul className="dashboard-stock-list">
                 {data.products.map(product => <li key={product.id}>
                   <div><strong>{product.name}</strong><span className="dashboard-muted">{product.categoryName || 'Chưa có danh mục'}</span></div>
-                  <div className="dashboard-stock-quantity"><strong>{product.quantity === 0 ? 'Hết hàng' : `Còn ${product.quantity} ${product.unit || 'món'}`}</strong><span>{money(product.sellingPrice)}</span></div>
+                  <div className="dashboard-stock-quantity"><strong>{product.quantity === 0 ? 'Đã hết' : `Còn ${product.quantity} ${product.unit || 'món'}`}</strong><span>{money(product.sellingPrice)}</span></div>
                 </li>)}
               </ul>
             )}

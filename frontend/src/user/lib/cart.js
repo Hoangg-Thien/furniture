@@ -1,13 +1,9 @@
 const CART_KEY = 'furniture_cart'
 const CART_EXPIRY_KEY = 'furniture_cart_expires_at'
 export const CART_TIMEOUT_MS = 5 * 60 * 1000
+
 export function loadCartExpiresAt() {
-  try {
-    const expiresAt = Number(localStorage.getItem(CART_EXPIRY_KEY))
-    return Number.isSafeInteger(expiresAt) && expiresAt > 0 && expiresAt <= Date.now() + CART_TIMEOUT_MS ? expiresAt : 0
-  } catch {
-    return 0
-  }
+  return readCart().expiresAt
 }
 
 export function getProductStock(product) {
@@ -25,32 +21,39 @@ export function limitCartToStock(cart, products) {
 }
 
 export function loadCart() {
+  return readCart().items
+}
+
+function readCart() {
   try {
     const saved = JSON.parse(localStorage.getItem(CART_KEY) || '{}')
-    if (!saved || typeof saved !== 'object' || Array.isArray(saved)) return {}
-    const cart = Object.fromEntries(Object.entries(saved).filter(([id, quantity]) =>
+    if (!saved || typeof saved !== 'object' || Array.isArray(saved)) return { items: {}, expiresAt: 0 }
+    const legacy = !Object.hasOwn(saved, 'items')
+    const items = legacy ? saved : saved.items
+    if (!items || typeof items !== 'object' || Array.isArray(items)) return { items: {}, expiresAt: 0 }
+    const cart = Object.fromEntries(Object.entries(items).filter(([id, quantity]) =>
       /^[1-9]\d*$/.test(id) && Number.isSafeInteger(quantity) && quantity > 0
     ))
-    if (Object.keys(cart).length === 0) return {}
-    // Existing carts receive their first deadline once, when this version loads them.
-    if (localStorage.getItem(CART_EXPIRY_KEY) === null) {
-      saveCart(cart)
-      return cart
-    }
-    if (loadCartExpiresAt() <= Date.now()) {
+    if (Object.keys(cart).length === 0) return { items: {}, expiresAt: 0 }
+    const now = Date.now()
+    const rawExpiry = legacy ? localStorage.getItem(CART_EXPIRY_KEY) : saved.expiresAt
+    const expiresAt = legacy && rawExpiry === null ? now + CART_TIMEOUT_MS : Number(rawExpiry)
+    if (!Number.isSafeInteger(expiresAt) || Number.isNaN(new Date(expiresAt).getTime()) || expiresAt <= now) {
       saveCart({})
-      return {}
+      return { items: {}, expiresAt: 0 }
     }
-    return cart
+    // Shortening the policy caps the old deadline once without discarding its items.
+    const deadline = Math.min(expiresAt, now + CART_TIMEOUT_MS)
+    if (legacy || deadline !== expiresAt) saveCart(cart, deadline)
+    return { items: cart, expiresAt: deadline }
   } catch {
-    return {}
+    return { items: {}, expiresAt: 0 }
   }
 }
 
 export function saveCart(cart, expiresAt = Date.now() + CART_TIMEOUT_MS) {
   try {
-    localStorage.setItem(CART_EXPIRY_KEY, String(Object.keys(cart).length ? expiresAt : 0))
-    localStorage.setItem(CART_KEY, JSON.stringify(cart))
+    localStorage.setItem(CART_KEY, JSON.stringify({ items: cart, expiresAt: Object.keys(cart).length ? expiresAt : 0 }))
   } catch {
     // Shopping remains available if browser storage is blocked or full.
   }
