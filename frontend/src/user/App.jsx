@@ -283,20 +283,23 @@ function App() {
           window.history.replaceState({}, '', '/')
           return
         }
-        setOrderOpen(Boolean(currentUser?.customerId))
-        if (!currentUser?.customerId) setAuthOpen(true)
+        setOrderOpen(true)
         return
       }
       if (window.location.pathname.includes('/order-success')) {
         const urlParams = new URLSearchParams(window.location.search)
         const orderIdParam = urlParams.get('id')
+        const guestToken = new URLSearchParams(window.location.hash.slice(1)).get('token')
+        setOrderOpen(false)
+        setCompletedOrder(null)
 
         if (orderIdParam) {
           try {
-            const { order, items, error } = await fetchOrderById(orderIdParam)
+            const { order, items, error } = await fetchOrderById(orderIdParam, guestToken)
             if (cancelled) return
-            if (order && !error && currentUser?.customerId && String(order.customer_id) === String(currentUser.customerId)) {
+            if (order && !error) {
               const liveOrder = {
+                guestToken,
                 orderNumber: order.orderCode || orderIdParam,
                 orderId: order.id,
                 id: order.id,
@@ -348,10 +351,12 @@ function App() {
           if (saved) {
             setCompletedOrder(saved)
             setOrderOpen(true)
+            return
           }
         } catch (err) {
           console.error('Cannot restore order:', err)
         }
+        setNotice('Không thể mở đơn hàng. Vui lòng kiểm tra kết nối và dùng đầy đủ liên kết đơn hàng đã lưu.')
       }
     }
 
@@ -462,16 +467,10 @@ function App() {
   }
 
   function placeOrder() {
-    if (currentUser) {
-      window.history.pushState({}, '', '/checkout')
-      setCompletedOrder(null)
-      setCartOpen(false)
-      setOrderOpen(true)
-    } else {
-      setNotice('Vui lòng đăng nhập tài khoản để hoàn tất đặt hàng.')
-      setAuthOpen(true)
-      window.setTimeout(() => setNotice(''), 4000)
-    }
+    window.history.pushState({}, '', '/checkout')
+    setCompletedOrder(null)
+    setCartOpen(false)
+    setOrderOpen(true)
   }
 
   function handleOrderSuccess(orderData) {

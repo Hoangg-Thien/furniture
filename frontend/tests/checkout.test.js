@@ -46,6 +46,16 @@ test('invalid drafts cannot restore success or overwrite shipping fields with ob
   assert.deepEqual(loadCheckoutDraft(4), { form: { phone: '0901234567' }, step: 1, useDefaultAccountInfo: false })
 })
 
+test('guest draft survives refresh separately from account drafts and clears after success', () => {
+  saveCheckoutDraft(null, { form: { fullName: 'Guest', phone: '0901234567' }, step: 2, useDefaultAccountInfo: false })
+  saveCheckoutDraft(4, { form: { fullName: 'Account' }, step: 1 })
+  assert.equal(loadCheckoutDraft(undefined).form.fullName, 'Guest')
+  assert.equal(loadCheckoutDraft(null).step, 2)
+  clearCheckoutDraft(null)
+  assert.equal(loadCheckoutDraft(null), null)
+  assert.equal(loadCheckoutDraft(4).form.fullName, 'Account')
+})
+
 test('blocked browser storage does not crash checkout', () => {
   globalThis.sessionStorage = {
     getItem: () => { throw new Error('blocked') },

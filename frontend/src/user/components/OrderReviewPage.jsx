@@ -28,7 +28,7 @@ import {
   UserCheck,
   RefreshCw,
 } from 'lucide-react'
-import { createOrder, saveOrderToLocalHistory, fetchOrderById } from '../../lib/orders'
+import { createOrder, saveOrderToLocalHistory, fetchOrderById, getOrderUrl } from '../../lib/orders'
 import CancelOrderDialog from './CancelOrderDialog'
 import OrderShippingInfo from './OrderShippingInfo'
 import { validateVoucherApi, fetchActiveVouchers } from '../../lib/vouchers'
@@ -307,7 +307,7 @@ export default function OrderReviewPage({
     if (!orderKey) return
     setIsRefreshingStatus(true)
     try {
-      const { order, error } = await fetchOrderById(orderKey)
+      const { order, error } = await fetchOrderById(orderKey, orderSnapshot?.guestToken || initialOrder?.guestToken)
       if (order && !error && order.status) {
         setLiveStatus(order.status)
         setOrderSnapshot((prev) => ({
@@ -575,8 +575,8 @@ export default function OrderReviewPage({
 
   async function handlePlaceOrder() {
     if (submitting) return
-    if (!currentUser?.customerId || cartItems.length === 0) {
-      setSubmitError('Vui lòng đăng nhập và thêm sản phẩm vào giỏ trước khi đặt hàng.')
+    if (cartItems.length === 0) {
+      setSubmitError('Vui lòng thêm sản phẩm vào giỏ trước khi đặt hàng.')
       return
     }
     const shippingErrors = validateShipping()
@@ -625,30 +625,35 @@ export default function OrderReviewPage({
     const assignedOrderNumber = backendOrder?.orderCode || orderNumber
 
     const currentOrderSnapshot = {
-      customerId: currentUser.customerId,
-      userId: currentUser.userId,
+      customerId: currentUser?.customerId || null,
+      userId: currentUser?.userId || null,
+      guestToken: backendOrder.guestToken,
       orderNumber: assignedOrderNumber,
       orderId: backendOrder?.orderId || null,
       id: backendOrder?.orderId || null,
-      items: cartItems.map((p) => ({
-        id: p.id,
-        name: p.name,
-        category: p.category,
-        price: p.price,
-        image: p.image,
-        quantity: cart[p.id] || 1,
-        lineTotal: p.price * (cart[p.id] || 1),
-      })),
-      subtotal,
-      discountAmount,
+      items: cartItems.map((p) => {
+        const saved = backendOrder.items.find((item) => String(item.productId) === String(p.id))
+        const price = Number(saved.unitPrice)
+        return {
+          id: p.id,
+          name: p.name,
+          category: p.category,
+          price,
+          image: p.image,
+          quantity: saved.quantity,
+          lineTotal: price * saved.quantity,
+        }
+      }),
+      subtotal: Number(backendOrder.subtotal),
+      discountAmount: Number(backendOrder.discountAmount),
       appliedVoucher: appliedVoucher ? {
         id: appliedVoucher.id,
         code: appliedVoucher.code,
         discountAmount: appliedVoucher.discountAmount,
         programName: appliedVoucher.programName,
       } : null,
-      shippingFee: fee,
-      total: finalTotal,
+      shippingFee: Number(backendOrder.shippingFee),
+      total: Number(backendOrder.totalAmount),
       status: 'PENDING',
       shippingInfo: {
         fullName: form.fullName.trim(),
@@ -677,7 +682,7 @@ export default function OrderReviewPage({
     saveOrderToLocalHistory(currentOrderSnapshot)
 
     // Cập nhật browser URL
-    const orderUrl = `/order-success?id=${assignedOrderNumber}`
+    const orderUrl = getOrderUrl(currentOrderSnapshot)
     window.history.pushState({ orderId: assignedOrderNumber }, '', orderUrl)
 
     onOrderSuccess?.(currentOrderSnapshot)
@@ -941,6 +946,17 @@ export default function OrderReviewPage({
 
             <OrderShippingInfo order={{ ...currentOrder, status: activeStatus }} />
 
+            {currentOrder.guestToken && (
+              <div className="order-success-card">
+                <p>Bạn đã đặt hàng không cần tài khoản. Hãy lưu liên kết để xem trạng thái hoặc hủy đơn khi còn chờ duyệt.</p>
+                <button type="button" className="order-btn-view-history"
+                  onClick={() => handleCopyCode(`${window.location.origin}${getOrderUrl(currentOrder)}`)}>
+                  <Copy size={16} /> {copied ? 'Đã sao chép' : 'Sao chép liên kết đơn hàng'}
+                </button>
+                <p>Chỉ chia sẻ liên kết này với người bạn tin tưởng vì liên kết cho phép xem thông tin đơn hàng.</p>
+              </div>
+            )}
+
             {/* Layout 2 cột sang trọng */}
             <div className="order-success-grid-layout">
               {/* CỘT TRÁI: Danh sách sản phẩm & Tổng tiền */}
@@ -1097,7 +1113,7 @@ export default function OrderReviewPage({
                   <XCircle size={16} /> Hủy đơn hàng
                 </button>
               )}
-              {onOpenMyOrders && (
+              {currentUser?.customerId && onOpenMyOrders && (
                 <button
                   type="button"
                   className="order-btn-view-history"
@@ -1174,6 +1190,7 @@ export default function OrderReviewPage({
                   </div>
                 </div>
 
+                {!currentUser && <p className="catalog-note">Mua hàng không cần đăng nhập. Điền thông tin nhận hàng để tiếp tục.</p>}
                 {currentUser && (
                   <div className="order-use-default-box">
                     <label className="order-use-default-label">

@@ -74,11 +74,32 @@ public class OrderRepository {
         return ids.isEmpty() ? null : ids.get(0);
     }
 
-    public Long findFirstCustomerId() {
-        List<Long> ids = jdbcTemplate.query(
-                "SELECT id FROM public.customers ORDER BY id ASC LIMIT 1",
-                (rs, rowNum) -> rs.getLong("id"));
-        return ids.isEmpty() ? null : ids.get(0);
+    public Long insertGuestCustomer(String fullName, String phone, String address) {
+        KeyHolder keyHolder = new GeneratedKeyHolder();
+        jdbcTemplate.update(connection -> {
+            PreparedStatement ps = connection.prepareStatement(
+                    "INSERT INTO public.customers (full_name, phone, address) VALUES (?, ?, ?)", new String[] { "id" });
+            ps.setString(1, fullName);
+            ps.setString(2, phone);
+            ps.setString(3, address);
+            return ps;
+        }, keyHolder);
+        if (keyHolder.getKey() == null) throw new IllegalStateException("Không thể lưu thông tin khách hàng");
+        return keyHolder.getKey().longValue();
+    }
+
+    public BigDecimal findProductPrice(Long productId) {
+        return jdbcTemplate.queryForObject("SELECT selling_price FROM public.products WHERE id = ?", BigDecimal.class, productId);
+    }
+
+    public String findVoucherCode(Long voucherId) {
+        List<String> codes = jdbcTemplate.query("SELECT code FROM public.vouchers WHERE id = ?", (rs, row) -> rs.getString("code"), voucherId);
+        if (codes.isEmpty()) throw new IllegalArgumentException("Voucher không tồn tại");
+        return codes.get(0);
+    }
+
+    public void saveGuestToken(Long orderId, String tokenHash) {
+        jdbcTemplate.update("UPDATE public.orders SET guest_token_hash = ? WHERE id = ?", tokenHash, orderId);
     }
 
     public void updateCustomerContact(Long customerId, String phone, String address) {
@@ -117,12 +138,16 @@ public class OrderRepository {
 
     public void incrementVoucherUsedQuantity(Long voucherId) {
         if (voucherId != null && voucherId > 0) {
-            try {
-                jdbcTemplate.update(
-                        "UPDATE public.vouchers SET used_quantity = used_quantity + 1 WHERE id = ? AND used_quantity < quantity",
-                        voucherId);
-            } catch (Exception ex) {
-                System.err.println("Notice: could not increment voucher used_quantity: " + ex.getMessage());
+            int updated = jdbcTemplate.update("""
+                    UPDATE public.vouchers SET used_quantity = used_quantity + 1
+                    WHERE id = ? AND used_quantity < quantity AND status = 'ACTIVE'
+                      AND start_date <= CURRENT_TIMESTAMP AND end_date >= CURRENT_TIMESTAMP
+                      AND EXISTS (SELECT 1 FROM public.promotion_programs pp
+                          WHERE pp.id = promotion_program_id AND pp.status = 'ACTIVE'
+                            AND pp.start_date <= CURRENT_TIMESTAMP AND pp.end_date >= CURRENT_TIMESTAMP)
+                    """, voucherId);
+            if (updated != 1) {
+                throw new IllegalArgumentException("Voucher không còn hiệu lực hoặc đã hết lượt dùng. Vui lòng chọn lại.");
             }
         }
     }

@@ -10,7 +10,7 @@ CREATE TABLE "users" (
 
 CREATE TABLE "customers" (
   "id" BIGSERIAL PRIMARY KEY,
-  "user_id" BIGINT UNIQUE NOT NULL,
+  "user_id" BIGINT UNIQUE,
   "full_name" VARCHAR(150) NOT NULL,
   "email" VARCHAR(150) UNIQUE,
   "phone" VARCHAR(20),

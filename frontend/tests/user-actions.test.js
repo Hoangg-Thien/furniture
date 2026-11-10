@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { beforeEach, afterEach, test } from 'node:test'
-import { fetchOrders, getLocalOrders, cancelOrderApi, saveOrderToLocalHistory } from '../src/lib/orders.js'
+import { createOrder, fetchOrders, fetchOrderById, getLocalOrders, cancelOrderApi, saveOrderToLocalHistory, getOrderUrl } from '../src/lib/orders.js'
 import { getCurrentUser } from '../src/lib/auth.js'
 import { loadProducts } from '../src/lib/products.js'
 import { splitSavedAddress } from '../src/user/lib/vietnamLocations.js'
@@ -38,6 +38,33 @@ test('order history never requests all system orders without a customer', async 
   const result = await fetchOrders(null)
   assert.deepEqual(result.orders, [])
   assert.ok(result.error)
+})
+
+test('guest creation works without account IDs and retains the server result', async () => {
+  const order = { orderId: 42, guestToken: 'secret', totalAmount: 35010 }
+  globalThis.fetch = async (url, init) => {
+    assert.match(url, /\/api\/orders$/)
+    const payload = JSON.parse(init.body)
+    assert.equal(payload.customerId, null)
+    assert.equal(payload.userId, null)
+    assert.equal(payload.fullName, 'Guest')
+    return { ok: true, json: async () => order }
+  }
+  assert.deepEqual(await createOrder({ customerId: null, userId: null, fullName: 'Guest', items: [{ productId: 1, quantity: 1 }] }), { order, error: null })
+})
+
+test('guest links keep credentials in the fragment and send them only in the order header', async () => {
+  const order = { orderNumber: 'FUNI-2026-000042', guestToken: 'secret' }
+  assert.equal(getOrderUrl(order), '/order-success?id=FUNI-2026-000042#token=secret')
+  assert.equal(getOrderUrl({ id: 42 }), '/order-success?id=42')
+  globalThis.fetch = async (url, init) => {
+    assert.doesNotMatch(url, /secret/)
+    assert.equal(init.headers['X-Order-Token'], 'secret')
+    return { ok: true, json: async () => ({ order: { id: 42 }, items: [] }) }
+  }
+  assert.equal((await fetchOrderById(order.orderNumber, order.guestToken)).order.id, 42)
+  assert.equal((await cancelOrderApi(order.orderNumber, order.guestToken)).success, true)
+  assert.deepEqual(getLocalOrders(null), [])
 })
 
 test('an empty server history stays empty instead of resurrecting cached orders', async () => {

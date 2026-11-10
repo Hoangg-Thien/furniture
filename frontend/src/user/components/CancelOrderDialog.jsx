@@ -30,7 +30,7 @@ export default function CancelOrderDialog({ order, onClose, onCancelled }) {
     setLoading(true)
     setError('')
     try {
-      const result = await cancelOrderApi(order.orderId || order.id || order.orderNumber)
+      const result = await cancelOrderApi(order.orderId || order.id || order.orderNumber, order.guestToken)
       if (result.success) {
         onCancelled(order)
       } else {

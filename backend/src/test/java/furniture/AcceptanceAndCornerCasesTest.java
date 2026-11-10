@@ -195,6 +195,7 @@ class AcceptanceAndCornerCasesTest {
 
         when(adminOrderRepository.findDetailById(orderId)).thenReturn(order);
         when(adminOrderRepository.findVoucherIdByOrderId(orderId)).thenReturn(55L);
+        when(adminOrderRepository.hasDeductedStock(orderId)).thenReturn(true);
 
         CancelOrderRequest cancelReq = new CancelOrderRequest("Khách hàng đổi ý, yêu cầu hủy đơn");
         orderService.cancelOrder(orderId, cancelReq);

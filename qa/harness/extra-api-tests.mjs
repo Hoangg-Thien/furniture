@@ -42,7 +42,7 @@ await check('Supplier empty delete', 'DELETE', `/api/admin/suppliers/${emptySup.
 await check('Promotion edit', 'PUT', `/api/admin/promotions/${prog.id}`, { name: prog.name, startDate: '2026-01-01T00:00:00', endDate: '2027-12-31T23:59:59', status: 'ACTIVE', description: 'QA edited' })
 const pd = await check('Promotion product discount create', 'POST', `/api/admin/promotions/${prog.id}/product-discounts`, { productId: p.id, discountPercent: 20 }, [201])
 const od = await check('Promotion order discount create', 'POST', `/api/admin/promotions/${prog.id}/order-discounts`, { minimumAmount: 0, discountPercent: 10 }, [201])
-const orderBody = { userId: user.userId, customerId: user.customerId, fullName: 'QA Receiver First', phone: '0901234567', address: 'QA first shipping address', items: [{ productId: p.id, quantity: 1, unitPrice: 100000 }] }
+const orderBody = { userId: user.userId, customerId: user.customerId, fullName: 'QA Receiver First', phone: '0901234567', address: 'QA first shipping address', district: 'QA District', city: 'QA City', items: [{ productId: p.id, quantity: 1, unitPrice: 100000 }] }
 const a = await check('Order for shipping and promotion verification', 'POST', '/api/orders', orderBody)
 const aFirst = (await req('GET', `/api/orders/${a.orderId}`)).data
 record('Order stores recipient full name', aFirst.order.full_name === orderBody.fullName, { expected: orderBody.fullName, actual: aFirst.order.full_name })
@@ -66,8 +66,8 @@ const exhausted = await req('POST', '/api/orders', { ...orderBody, voucherId: v.
 record('Order rejects exhausted voucher even bypassing validation', [400, 409, 422].includes(exhausted.status), { ...exhausted })
 await sql('UPDATE vouchers SET used_quantity=0 WHERE id=$1', [v.id])
 const guest = await req('POST', '/api/orders', { ...orderBody, customerId: null, userId: null, address: 'QA guest' })
-const guestCustomer = guest.data.orderId ? (await sql('SELECT customer_id FROM orders WHERE id=$1', [guest.data.orderId]))[0].customer_id : null
-record('Order without identity must not use first customer', [400, 401, 403].includes(guest.status), { ...guest, actualCustomerId: guestCustomer })
+const guestCustomer = guest.data.orderId ? (await sql('SELECT o.customer_id, c.user_id FROM orders o JOIN customers c ON c.id = o.customer_id WHERE o.id=$1', [guest.data.orderId]))[0] : null
+record('Guest order has a separate contact without an account', guest.status === 200 && guestCustomer?.user_id === null && guest.data.guestToken?.length === 43, { ...guest, guestCustomer })
 const dup = await req('POST', '/api/orders', { ...orderBody, items: [{ productId: p.id, quantity: 1, unitPrice: 100000 }, { productId: p.id, quantity: 2, unitPrice: 100000 }] })
 const dupRow = (await sql('SELECT SUM(quantity) AS qty, SUM(amount) AS amount FROM order_items WHERE order_id=$1', [dup.data.orderId]))[0]
 record('Duplicate product rows preserve total quantity', Number(dupRow.qty) === 3 || [400, 422].includes(dup.status), { ...dup, storedItems: dupRow, expectedQty: 3 })

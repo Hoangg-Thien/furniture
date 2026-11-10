@@ -33,8 +33,11 @@ public class OrderController {
 
     @PostMapping
     public ResponseEntity<?> createOrder(@RequestBody CreateOrderRequest req,
-            @RequestAttribute(AdminIdentity.ATTRIBUTE) AdminIdentity identity) {
-        if ("CUSTOMER".equals(identity.role()) &&
+            @RequestAttribute(value = AdminIdentity.ATTRIBUTE, required = false) AdminIdentity identity) {
+        if (identity == null && (req.customerId() != null || req.userId() != null)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Khách vãng lai không được đặt hàng bằng tài khoản người khác");
+        }
+        if (identity != null && "CUSTOMER".equals(identity.role()) &&
                 ((req.userId() != null && !req.userId().equals(identity.userId()))
                 || identity.customerId() == null || !identity.customerId().equals(req.customerId()))) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Không được đặt hàng bằng tài khoản người khác");
@@ -49,7 +52,7 @@ public class OrderController {
         } catch (Exception ex) {
             ex.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", "Lỗi lưu đơn hàng vào database: " + ex.getMessage()));
+                    .body(Map.of("error", "Không thể lưu đơn hàng. Vui lòng thử lại sau."));
         }
     }
 

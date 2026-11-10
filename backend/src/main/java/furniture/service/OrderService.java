@@ -1,9 +1,10 @@
 package furniture.service;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.time.Year;
-import java.time.format.DateTimeFormatter;
+import java.security.SecureRandom;
+import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -17,6 +18,8 @@ import org.springframework.transaction.annotation.Transactional;
 import furniture.model.CreateOrderRequest;
 import furniture.model.OrderItemDto;
 import furniture.model.OrderResponse;
+import furniture.model.ValidateVoucherRequest;
+import furniture.util.PasswordUtil;
 import furniture.repository.OrderRepository;
 
 @Service
@@ -24,8 +27,12 @@ public class OrderService {
 
     private final OrderRepository orderRepository;
 
-    public OrderService(OrderRepository orderRepository) {
+    private final VoucherService vouchers;
+    private final SecureRandom random = new SecureRandom();
+
+    public OrderService(OrderRepository orderRepository, VoucherService vouchers) {
         this.orderRepository = orderRepository;
+        this.vouchers = vouchers;
     }
 
     @Transactional
@@ -33,17 +40,26 @@ public class OrderService {
         if (req == null || req.items() == null || req.items().isEmpty()) {
             throw new IllegalArgumentException("Đơn hàng phải có ít nhất 1 sản phẩm.");
         }
-
-        // 1. Xác định customer_id hợp lệ
-        Long resolvedCustomerId = req.customerId();
-        if (resolvedCustomerId == null || resolvedCustomerId <= 0) {
-            resolvedCustomerId = orderRepository.findCustomerIdByUserId(req.userId());
+        String fullName = requiredText(req.fullName(), 150, "họ tên");
+        String phone = requiredText(req.phone(), 20, "số điện thoại").replaceAll("\\s+", "");
+        if (!phone.matches("(0|\\+84)\\d{8,10}")) {
+            throw new IllegalArgumentException("Số điện thoại không hợp lệ.");
         }
+        String address = requiredText(req.address(), 500, "địa chỉ");
+        String district = requiredText(req.district(), 150, "quận/huyện");
+        String city = requiredText(req.city(), 150, "tỉnh/thành phố");
+        String ward = req.ward() == null ? "" : req.ward().trim();
+        if (ward.length() > 150) throw new IllegalArgumentException("Phường/xã quá dài.");
+        String fullAddress = address + (ward.isEmpty() ? "" : ", " + ward) + ", " + district + ", " + city;
 
-        if (resolvedCustomerId == null || resolvedCustomerId <= 0) {
-            throw new IllegalArgumentException("Không xác định được khách hàng. Vui lòng đăng nhập lại trước khi đặt hàng.");
+        boolean guest = req.customerId() == null && req.userId() == null;
+        Long customerId = req.customerId();
+        if (!guest && (customerId == null || customerId <= 0)) {
+            customerId = orderRepository.findCustomerIdByUserId(req.userId());
         }
-
+        if (!guest && (customerId == null || customerId <= 0)) {
+            throw new IllegalArgumentException("Không xác định được khách hàng. Vui lòng đăng nhập lại.");
+        }
         var productIds = new HashSet<Long>();
         for (OrderItemDto item : req.items()) {
             if (item == null || item.productId() == null || item.productId() <= 0
@@ -54,84 +70,61 @@ public class OrderService {
                 throw new IllegalArgumentException("Mỗi sản phẩm chỉ được xuất hiện một lần trong đơn hàng.");
             }
         }
-        // Cùng thứ tự khóa sản phẩm để các giỏ nhiều mặt hàng không khóa chéo nhau.
+        BigDecimal subtotal = BigDecimal.ZERO;
+        List<OrderItemDto> pricedItems = new ArrayList<>();
+        // Khóa cùng thứ tự; đọc giá sau khi trừ kho để giá không đổi giữa lúc tính và lưu.
         for (OrderItemDto item : req.items().stream().sorted(Comparator.comparing(OrderItemDto::productId)).toList()) {
             if (!orderRepository.deductProductStock(item.productId(), item.quantity())) {
                 throw new IllegalArgumentException("Sản phẩm #" + item.productId() + " không đủ tồn kho hoặc đã ngừng bán. Vui lòng cập nhật giỏ hàng.");
             }
+            BigDecimal price = orderRepository.findProductPrice(item.productId());
+            pricedItems.add(new OrderItemDto(item.productId(), item.quantity(), price));
+            subtotal = subtotal.add(price.multiply(BigDecimal.valueOf(item.quantity())));
         }
-
-        // 2. Cập nhật thông tin số điện thoại / địa chỉ vào bảng customers
-        String fullAddress = req.address() != null ? req.address().trim() : "";
-        if (req.ward() != null && !req.ward().trim().isEmpty()) {
-            fullAddress += (fullAddress.isEmpty() ? "" : ", ") + req.ward().trim();
-        }
-        if (req.district() != null && !req.district().trim().isEmpty()) {
-            fullAddress += (fullAddress.isEmpty() ? "" : ", ") + req.district().trim();
-        }
-        if (req.city() != null && !req.city().trim().isEmpty()) {
-            fullAddress += (fullAddress.isEmpty() ? "" : ", ") + req.city().trim();
-        }
-
-        orderRepository.updateCustomerContact(resolvedCustomerId, req.phone(), fullAddress);
-
-        // 3. Tính toán tổng số tiền
-        BigDecimal computedTotal = BigDecimal.ZERO;
-        for (OrderItemDto item : req.items()) {
-            if (item.productId() != null && item.quantity() != null && item.quantity() > 0) {
-                BigDecimal price = item.unitPrice() != null ? item.unitPrice() : BigDecimal.ZERO;
-                computedTotal = computedTotal.add(price.multiply(BigDecimal.valueOf(item.quantity())));
+        BigDecimal discount = BigDecimal.ZERO;
+        if (req.voucherId() != null) {
+            try {
+                var voucher = vouchers.validateVoucher(new ValidateVoucherRequest(orderRepository.findVoucherCode(req.voucherId()), subtotal));
+                discount = ((BigDecimal) voucher.get("discountAmount")).min(subtotal);
+            } catch (IllegalStateException ex) {
+                throw new IllegalArgumentException(ex.getMessage());
             }
+            orderRepository.incrementVoucherUsedQuantity(req.voucherId());
         }
-
-        BigDecimal discount = (req.discountAmount() != null && req.discountAmount().compareTo(BigDecimal.ZERO) > 0)
-                ? req.discountAmount()
-                : BigDecimal.ZERO;
-
-        BigDecimal finalTotal;
-        if (req.totalAmount() != null && req.totalAmount().compareTo(BigDecimal.ZERO) > 0) {
-            finalTotal = req.totalAmount();
+        BigDecimal shippingFee = subtotal.compareTo(new BigDecimal("2000000")) >= 0 ? BigDecimal.ZERO : new BigDecimal("35000");
+        BigDecimal finalTotal = subtotal.subtract(discount).add(shippingFee);
+        if (subtotal.compareTo(new BigDecimal("9999999999999.99")) > 0
+                || finalTotal.compareTo(new BigDecimal("9999999999999.99")) > 0) {
+            throw new IllegalArgumentException("Giá trị đơn hàng vượt quá giới hạn cho phép.");
+        }
+        if (guest) {
+            customerId = orderRepository.insertGuestCustomer(fullName, phone, fullAddress);
         } else {
-            BigDecimal shippingFee = (computedTotal.compareTo(new BigDecimal("2000000")) >= 0)
-                    ? BigDecimal.ZERO
-                    : new BigDecimal("35000");
-            finalTotal = computedTotal.subtract(discount).add(shippingFee);
+            orderRepository.updateCustomerContact(customerId, phone, fullAddress);
         }
-
-        if (finalTotal.compareTo(BigDecimal.ZERO) < 0) {
-            finalTotal = BigDecimal.ZERO;
+        Long orderId = orderRepository.insertOrder(customerId, finalTotal, req.voucherId(), discount, fullAddress);
+        if (orderId == null) throw new IllegalStateException("Không thể tạo mã đơn hàng trong database.");
+        String guestToken = null;
+        if (guest) {
+            byte[] bytes = new byte[32];
+            random.nextBytes(bytes);
+            guestToken = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+            orderRepository.saveGuestToken(orderId, PasswordUtil.hash(guestToken));
         }
-
-        // 4. Lưu đơn hàng
-        Long orderId = orderRepository.insertOrder(resolvedCustomerId, finalTotal, req.voucherId(), discount, fullAddress);
-        if (orderId == null) {
-            throw new IllegalStateException("Không thể tạo mã đơn hàng trong database.");
+        for (OrderItemDto item : pricedItems) {
+            orderRepository.insertOrderItem(orderId, item.productId(), item.quantity(), item.unitPrice(),
+                    item.unitPrice().multiply(BigDecimal.valueOf(item.quantity())));
         }
-
-        // Cập nhật lượt dùng voucher
-        orderRepository.incrementVoucherUsedQuantity(req.voucherId());
-
-        // 5. Lưu order_items
-        for (OrderItemDto item : req.items()) {
-            if (item.productId() == null || item.quantity() == null || item.quantity() <= 0) {
-                continue;
-            }
-            BigDecimal price = item.unitPrice() != null ? item.unitPrice() : BigDecimal.ZERO;
-            BigDecimal amount = price.multiply(BigDecimal.valueOf(item.quantity()));
-            orderRepository.insertOrderItem(orderId, item.productId(), item.quantity(), price, amount);
-        }
-
-        // 6. Ghi đồng bộ sales.sql
-        appendToSalesSql(orderId, resolvedCustomerId, finalTotal, req.items());
-
         String orderCode = "FUNI-" + Year.now().getValue() + "-" + String.format("%06d", orderId);
+        return new OrderResponse(orderId, orderCode, "PENDING", finalTotal,
+                "Đặt hàng thành công và đã lưu vào cơ sở dữ liệu!", guestToken, subtotal, discount, shippingFee, pricedItems);
+    }
 
-        return new OrderResponse(
-                orderId,
-                orderCode,
-                "PENDING",
-                finalTotal,
-                "Đặt hàng thành công và đã lưu vào cơ sở dữ liệu!");
+    private static String requiredText(String value, int maxLength, String label) {
+        if (value == null || value.isBlank() || value.trim().length() > maxLength) {
+            throw new IllegalArgumentException("Vui lòng nhập " + label + " hợp lệ (tối đa " + maxLength + " ký tự).");
+        }
+        return value.trim();
     }
 
     public List<Map<String, Object>> getOrders(Long customerId) {
@@ -189,51 +182,4 @@ public class OrderService {
         return updated > 0;
     }
 
-    private synchronized void appendToSalesSql(Long orderId, Long customerId, BigDecimal totalAmount, List<OrderItemDto> items) {
-        try {
-            java.nio.file.Path[] candidates = new java.nio.file.Path[] {
-                java.nio.file.Paths.get("../database/sales.sql"),
-                java.nio.file.Paths.get("database/sales.sql"),
-                java.nio.file.Paths.get("furniture/database/sales.sql"),
-                java.nio.file.Paths.get("c:/Users/Lenovo/OneDrive/Desktop/SE_project/furniture/database/sales.sql")
-            };
-            java.nio.file.Path targetPath = null;
-            for (java.nio.file.Path p : candidates) {
-                if (java.nio.file.Files.exists(p)) {
-                    targetPath = p;
-                    break;
-                }
-            }
-            if (targetPath != null) {
-                String now = LocalDateTime.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
-                StringBuilder sb = new StringBuilder();
-                sb.append(String.format(
-                    "INSERT INTO orders (id, customer_id, order_date, status, total_amount, discount_amount) " +
-                    "VALUES (%d, %d, '%s', 'PENDING', %s, 0);\n",
-                    orderId, customerId, now, totalAmount.toPlainString()));
-
-                for (OrderItemDto item : items) {
-                    if (item.productId() == null || item.quantity() == null) continue;
-                    BigDecimal price = item.unitPrice() != null ? item.unitPrice() : BigDecimal.ZERO;
-                    BigDecimal amount = price.multiply(BigDecimal.valueOf(item.quantity()));
-                    sb.append(String.format(
-                        "INSERT INTO order_items (order_id, product_id, quantity, unit_price, amount) " +
-                        "VALUES (%d, %d, %d, %s, %s);\n",
-                        orderId, item.productId(), item.quantity(), price.toPlainString(), amount.toPlainString()));
-                }
-
-                String currentContent = java.nio.file.Files.readString(targetPath);
-                String newContent;
-                if (currentContent.contains("COMMIT;")) {
-                    newContent = currentContent.replace("COMMIT;", sb.toString() + "COMMIT;");
-                } else {
-                    newContent = currentContent + "\n" + sb.toString();
-                }
-                java.nio.file.Files.writeString(targetPath, newContent);
-            }
-        } catch (Exception ex) {
-            System.err.println("Warning: Could not append order to sales.sql: " + ex.getMessage());
-        }
-    }
 }
-

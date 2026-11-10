@@ -23,11 +23,11 @@ async function api(path, method = 'GET', body, expected = 200) {
 const [customer] = await sql('SELECT id, address FROM public.customers ORDER BY id LIMIT 1')
 const [staff] = await sql('SELECT id FROM public.staff ORDER BY id LIMIT 1')
 const [product] = await sql('SELECT id FROM public.products ORDER BY id LIMIT 1')
-const destination = '123 Lê Lợi, Đà Nẵng'
+const destination = '123 Lê Lợi, Hải Châu, Đà Nẵng'
 try {
   await sql('UPDATE public.customers SET address = $1 WHERE id = $2', [destination, customer.id])
   const created = await api('/orders', 'POST', {
-    customerId: customer.id, fullName: 'QA shipping', phone: '0901234567', address: '123 Lê Lợi', city: 'Đà Nẵng',
+    customerId: customer.id, fullName: 'QA shipping', phone: '0901234567', address: '123 Lê Lợi', district: 'Hải Châu', city: 'Đà Nẵng',
     totalAmount: 100000, items: [{ productId: product.id, quantity: 1, unitPrice: 100000 }],
   })
   const order = { id: created.orderId }
@@ -76,7 +76,7 @@ try {
   assert.equal((await sql('SELECT id FROM public.invoices WHERE order_id = $1', [order.id])).length, 1)
   // Recover a historical completed order without reapplying its expired voucher.
   const historical = await api('/orders', 'POST', {
-    customerId: customer.id, fullName: 'QA invoice', phone: '0901234567', address: '123 Le Loi', city: 'HCM',
+    customerId: customer.id, fullName: 'QA invoice', phone: '0901234567', address: '123 Le Loi', district: 'Quận 1', city: 'HCM',
     totalAmount: 100000, items: [{ productId: product.id, quantity: 1, unitPrice: 100000 }],
   })
   await api('/admin/invoices', 'POST', { orderId: historical.orderId, paymentMethod: 'CASH' }, 400)

@@ -75,7 +75,7 @@ try {
   await check('Customer session and order ownership prevent shared API bypasses', async () => {
     const customer = await api('/api/auth/register', { method: 'POST', status: 201, body: { username: `perm_customer_${suffix}`, password: 'QaPass123!', fullName: 'Permission customer' } })
     const other = await api('/api/auth/register', { method: 'POST', status: 201, body: { username: `perm_other_${suffix}`, password: 'QaPass123!', fullName: 'Other customer' } })
-    const orderBody = { userId: customer.userId, customerId: customer.customerId, fullName: 'Permission customer', phone: '0901234567', address: '123 QA', items: [{ productId: product.id, quantity: 1, unitPrice: 100000 }] }
+    const orderBody = { userId: customer.userId, customerId: customer.customerId, fullName: 'Permission customer', phone: '0901234567', address: '123 QA', district: 'Quận 1', city: 'TP. Hồ Chí Minh', items: [{ productId: product.id, quantity: 1, unitPrice: 100000 }] }
     await api('/api/orders', { token: other.accessToken, method: 'POST', body: orderBody, status: 403 })
     const order = await api('/api/orders', { token: customer.accessToken, method: 'POST', body: orderBody })
     await api(`/api/orders/${order.orderId}`, { token: customer.accessToken })

@@ -8,6 +8,11 @@ function orderKey(order) {
   return String(value ?? '').replace(/^FUNI-\d{4}-0*/, '')
 }
 
+export function getOrderUrl(order) {
+  const id = order.orderNumber || order.orderCode || order.orderId || order.id
+  return `/order-success?id=${encodeURIComponent(id)}${order.guestToken ? `#token=${encodeURIComponent(order.guestToken)}` : ''}`
+}
+
 function readStoredOrders() {
   const orders = new Map()
   for (const key of [...HISTORY_KEYS, ...LAST_ORDER_KEYS]) {
@@ -131,7 +136,7 @@ export async function fetchOrders(customerId) {
   return { orders: getLocalOrders(customerId), error: 'Không tải được đơn hàng mới nhất. Đang hiển thị dữ liệu đã lưu trên thiết bị.' }
 }
 
-export async function fetchOrderById(id) {
+export async function fetchOrderById(id, guestToken) {
   const apiBaseUrl = getApiBaseUrl()
   let queryId = id
   if (typeof id === 'string' && id.startsWith('FUNI-')) {
@@ -139,7 +144,9 @@ export async function fetchOrderById(id) {
     if (match) queryId = parseInt(match[1], 10)
   }
   try {
-    const response = await fetch(`${apiBaseUrl}/api/orders/${queryId}`)
+    const response = await fetch(`${apiBaseUrl}/api/orders/${queryId}`, {
+      headers: guestToken ? { 'X-Order-Token': guestToken } : {},
+    })
     if (response.ok) {
       const data = await response.json()
       return { order: data.order, items: data.items, error: null }
@@ -150,7 +157,7 @@ export async function fetchOrderById(id) {
   return { order: null, items: [], error: 'Không tìm thấy đơn hàng' }
 }
 
-export async function cancelOrderApi(id) {
+export async function cancelOrderApi(id, guestToken) {
   const apiBaseUrl = getApiBaseUrl()
   let queryId = id
   if (typeof id === 'string' && id.startsWith('FUNI-')) {
@@ -160,7 +167,7 @@ export async function cancelOrderApi(id) {
   try {
     const response = await fetch(`${apiBaseUrl}/api/orders/${queryId}/cancel`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(guestToken ? { 'X-Order-Token': guestToken } : {}) },
     })
     const data = await response.json()
     if (response.ok) {

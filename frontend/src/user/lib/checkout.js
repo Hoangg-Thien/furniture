@@ -2,11 +2,10 @@ export function isCheckoutPath(pathname) {
   return pathname.toLowerCase().replace(/\/+$/, '') === '/checkout'
 }
 
-const draftKey = (customerId) => `furniture_checkout_${customerId}`
+const draftKey = (customerId) => `furniture_checkout_${customerId || 'guest'}`
 const FORM_FIELDS = ['fullName', 'phone', 'address', 'ward', 'district', 'city']
 
 export function loadCheckoutDraft(customerId) {
-  if (!customerId) return null
   try {
     const draft = JSON.parse(sessionStorage.getItem(draftKey(customerId)) || 'null')
     if (!draft || !draft.form || Array.isArray(draft.form) || typeof draft.form !== 'object') return null
@@ -20,14 +19,12 @@ export function loadCheckoutDraft(customerId) {
 }
 
 export function saveCheckoutDraft(customerId, draft) {
-  if (!customerId) return
   try {
     sessionStorage.setItem(draftKey(customerId), JSON.stringify(draft))
   } catch { /* Checkout remains usable when browser storage is unavailable. */ }
 }
 
 export function clearCheckoutDraft(customerId) {
-  if (!customerId) return
   try {
     sessionStorage.removeItem(draftKey(customerId))
   } catch { /* Nothing to clear if browser storage is unavailable. */ }
