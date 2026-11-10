@@ -1980,6 +1980,17 @@
   "surprises": [
     {
       "source": "load()",
+      "target": "getApiBaseUrl()",
+      "source_files": [
+        "frontend/src/admin/ProductAuditDialog.jsx",
+        "frontend/src/lib/apiConfig.js"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "calls",
+      "why": "bridges separate communities; peripheral node `load()` unexpectedly reaches hub `getApiBaseUrl()`"
+    },
+    {
+      "source": "load()",
       "target": "fetchOrders()",
       "source_files": [
         "frontend/src/user/components/NotificationsMenu.jsx",
@@ -2001,17 +2012,6 @@
       "why": "bridges separate communities; peripheral node `api()` unexpectedly reaches hub `adminApiHeaders()`"
     },
     {
-      "source": "load()",
-      "target": "getApiBaseUrl()",
-      "source_files": [
-        "frontend/src/admin/ProductAuditDialog.jsx",
-        "frontend/src/lib/apiConfig.js"
-      ],
-      "confidence": "EXTRACTED",
-      "relation": "calls",
-      "why": "bridges separate communities; peripheral node `load()` unexpectedly reaches hub `getApiBaseUrl()`"
-    },
-    {
       "source": "loadVouchers()",
       "target": "fetchActiveVouchers()",
       "source_files": [
@@ -2023,11 +2023,11 @@
       "why": "bridges separate communities; peripheral node `loadVouchers()` unexpectedly reaches hub `fetchActiveVouchers()`"
     },
     {
-      "source": "AcceptanceAndCornerCasesTest",
-      "target": "AdminCategoryRepository",
+      "source": "AdminPromotionService",
+      "target": "AdminProductRepository",
       "source_files": [
-        "backend/src/test/java/furniture/AcceptanceAndCornerCasesTest.java",
-        "backend/src/main/java/furniture/repository/AdminCategoryRepository.java"
+        "backend/src/main/java/furniture/service/AdminPromotionService.java",
+        "backend/src/main/java/furniture/repository/AdminProductRepository.java"
       ],
       "confidence": "EXTRACTED",
       "relation": "references",
