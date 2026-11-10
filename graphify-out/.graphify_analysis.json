@@ -1873,6 +1873,17 @@
   "surprises": [
     {
       "source": "load()",
+      "target": "getApiBaseUrl()",
+      "source_files": [
+        "frontend/src/admin/ProductAuditDialog.jsx",
+        "frontend/src/lib/apiConfig.js"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "calls",
+      "why": "bridges separate communities; peripheral node `load()` unexpectedly reaches hub `getApiBaseUrl()`"
+    },
+    {
+      "source": "load()",
       "target": "fetchOrders()",
       "source_files": [
         "frontend/src/user/components/NotificationsMenu.jsx",
@@ -1881,17 +1892,6 @@
       "confidence": "EXTRACTED",
       "relation": "calls",
       "why": "bridges separate communities; peripheral node `load()` unexpectedly reaches hub `fetchOrders()`"
-    },
-    {
-      "source": "loadVouchers()",
-      "target": "fetchActiveVouchers()",
-      "source_files": [
-        "frontend/src/user/components/OrderReviewPage.jsx",
-        "frontend/src/lib/vouchers.js"
-      ],
-      "confidence": "EXTRACTED",
-      "relation": "calls",
-      "why": "bridges separate communities; peripheral node `loadVouchers()` unexpectedly reaches hub `fetchActiveVouchers()`"
     },
     {
       "source": "api()",
@@ -1905,22 +1905,22 @@
       "why": "bridges separate communities; peripheral node `api()` unexpectedly reaches hub `adminApiHeaders()`"
     },
     {
-      "source": "load()",
-      "target": "getApiBaseUrl()",
+      "source": "loadVouchers()",
+      "target": "fetchActiveVouchers()",
       "source_files": [
-        "frontend/src/admin/ProductAuditDialog.jsx",
-        "frontend/src/lib/apiConfig.js"
+        "frontend/src/user/components/OrderReviewPage.jsx",
+        "frontend/src/lib/vouchers.js"
       ],
       "confidence": "EXTRACTED",
       "relation": "calls",
-      "why": "bridges separate communities; peripheral node `load()` unexpectedly reaches hub `getApiBaseUrl()`"
+      "why": "bridges separate communities; peripheral node `loadVouchers()` unexpectedly reaches hub `fetchActiveVouchers()`"
     },
     {
       "source": "AcceptanceAndCornerCasesTest",
-      "target": "AdminInvoiceRepository",
+      "target": "AdminCategoryRepository",
       "source_files": [
         "backend/src/test/java/furniture/AcceptanceAndCornerCasesTest.java",
-        "backend/src/main/java/furniture/repository/AdminInvoiceRepository.java"
+        "backend/src/main/java/furniture/repository/AdminCategoryRepository.java"
       ],
       "confidence": "EXTRACTED",
       "relation": "references",
