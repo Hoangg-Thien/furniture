@@ -17,7 +17,7 @@ public class ProductRepository {
 
     public List<ProductResponse> findAllActiveProducts() {
         return jdbcTemplate.query("""
-                SELECT p.id, p.name, p.description, p.selling_price, p.image_url,
+                SELECT p.id, p.name, p.description, p.selling_price, p.image_url, p.quantity,
                        COALESCE(c.name, 'Khác') AS category_name
                 FROM public.products p
                 LEFT JOIN public.categories c ON c.id = p.category_id
@@ -29,7 +29,8 @@ public class ProductRepository {
                 resultSet.getString("description"),
                 resultSet.getString("category_name"),
                 resultSet.getBigDecimal("selling_price"),
-                resultSet.getString("image_url")));
+                resultSet.getString("image_url"),
+                resultSet.getInt("quantity")));
     }
 }
 

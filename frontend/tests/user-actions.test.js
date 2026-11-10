@@ -135,6 +135,25 @@ test('an empty product catalog does not show cached or demo products', async () 
   assert.equal(localStorage.getItem('furniture_cached_products'), '[]')
 })
 
+test('catalog carries live inventory, including sold-out products', async () => {
+  globalThis.fetch = async () => ({ ok: true, json: async () => [
+    { id: 1, name: 'Sofa', price: 100, quantity: 2 },
+    { id: 2, name: 'Chair', price: 100, quantity: 0 },
+    { id: 3, name: 'Unknown', price: 100 },
+  ] })
+  const result = await loadProducts()
+  assert.equal(result.error, null)
+  assert.deepEqual(result.products.map(product => product.quantity), [2, 0, null])
+})
+
+test('an offline catalog does not pass old cached inventory off as current', async () => {
+  localStorage.setItem('furniture_cached_products', JSON.stringify([{ id: 1, name: 'Sofa', quantity: 99 }]))
+  globalThis.fetch = async () => { throw new Error('offline') }
+  const result = await loadProducts()
+  assert.ok(result.error)
+  assert.equal(result.products[0].quantity, null)
+})
+
 test('saved address separates street from existing administrative selections', () => {
   assert.deepEqual(splitSavedAddress('123 Nguyễn Huệ, Phường Bến Nghé, Quận 1, TP. Hồ Chí Minh'), {
     address: '123 Nguyễn Huệ', ward: 'Phường Bến Nghé', district: 'Quận 1', city: 'TP. Hồ Chí Minh',

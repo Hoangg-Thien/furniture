@@ -43,7 +43,7 @@ try {
     let body = { content: [] }
     if (path === '/api/orders' || path.startsWith('/api/admin/')) notificationRequests++
     if (offline && (path === '/api/orders' || path.startsWith('/api/admin/'))) return route.fulfill({ status: 500, json: { error: 'offline' } })
-    if (path === '/api/products') body = [{ id: 9, name: 'Test chair', category: 'Chair', price: 100000, imageUrl }]
+    if (path === '/api/products') body = [{ id: 9, name: 'Test chair', category: 'Chair', price: 100000, imageUrl, quantity: 10 }]
     else if (path === '/api/orders') body = orders.filter(order => String(order.customer_id) === url.searchParams.get('customerId'))
     else if (/^\/api\/orders\/\d+$/.test(path)) body = { order: { ...orders.find(order => order.id === Number(path.split('/').at(-1))), address: 'Đà Nẵng', approved_at: '2026-11-04T10:00:00+07:00' }, items: [] }
     else if (path === '/api/admin/orders') body = { content: orders.filter(order => !url.searchParams.has('status') || order.status === url.searchParams.get('status')).map(order => ({ ...order, customerName: 'Test customer' })), totalPages: 1, page: 0 }

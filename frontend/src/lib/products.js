@@ -20,6 +20,7 @@ export async function loadProducts() {
         price: Number(row.price),
         badge: '',
         image: row.imageUrl || '',
+        quantity: Number.isSafeInteger(row.quantity) && row.quantity >= 0 ? row.quantity : null,
       }))
 
       // Lưu vào cache để nếu mạng chập chờn thì app vẫn luôn hiển thị sản phẩm
@@ -41,7 +42,7 @@ export async function loadProducts() {
       if (cached) {
         const parsed = JSON.parse(cached)
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return { products: parsed, error }
+          return { products: parsed.map(product => ({ ...product, quantity: null })), error }
         }
       }
     } catch {

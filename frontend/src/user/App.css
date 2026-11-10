@@ -802,6 +802,10 @@
   50% { transform: scale(1.03); }
   100% { transform: scale(1); }
 }
+.product-stock { margin: 4px 0 8px; color: var(--muted, #687067); font-size: 12px; }
+.quick-add:disabled, .quantity-control button:disabled, .checkout-button:disabled { cursor: not-allowed; opacity: .65; }
+.quick-add:disabled:hover { transform: none; }
+
 .quick-add-check-icon {
   animation: check-pop 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }

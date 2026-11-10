@@ -19,7 +19,7 @@ import {
   X,
 } from 'lucide-react'
 import { loadProducts } from '../lib/products'
-import { loadCart, saveCart } from './lib/cart'
+import { loadCart, saveCart, getProductStock, limitCartToStock } from './lib/cart'
 import { isCheckoutPath } from './lib/checkout'
 import { fetchOrderById, getLocalOrders } from '../lib/orders'
 import {
@@ -252,19 +252,27 @@ function App() {
 
   useEffect(() => {
     let cancelled = false
+    let requestVersion = 0
 
-    loadProducts().then(({ products: loadedProducts, error }) => {
-      if (cancelled) return
-      if (Array.isArray(loadedProducts)) {
-        setProducts(loadedProducts)
-      }
-      setCatalogError(error?.message ?? '')
-    })
+    function refreshProducts() {
+      const version = ++requestVersion
+      loadProducts().then(({ products: loadedProducts, error }) => {
+        if (cancelled || version !== requestVersion) return
+        if (Array.isArray(loadedProducts)) {
+          setProducts(loadedProducts)
+          if (!error) setCart(currentCart => limitCartToStock(currentCart, loadedProducts))
+        }
+        setCatalogError(error?.message ?? '')
+      })
+    }
+    refreshProducts()
+    window.addEventListener('focus', refreshProducts)
 
     return () => {
       cancelled = true
+      window.removeEventListener('focus', refreshProducts)
     }
-  }, [])
+  }, [cartOpen, completedOrder?.orderId])
 
   useEffect(() => {
     return () => {
@@ -423,12 +431,13 @@ function App() {
       const nextCart = { ...currentCart }
       if (nextQuantity <= 0) delete nextCart[productId]
       else nextCart[productId] = nextQuantity
-      return nextCart
+      return limitCartToStock(nextCart, products)
     })
   }
 
   function handleAddToCart(product, event) {
     if (event) event.stopPropagation()
+    if ((cart[product.id] || 0) >= getProductStock(product)) return
     updateQuantity(product.id, 1)
 
     // 1. Phản hồi trực quan ngay trên nút
@@ -446,7 +455,7 @@ function App() {
     }, 600)
 
     // 3. Thông báo nổi Toast Notification
-    const newQuantity = (cart[product.id] || 0) + 1
+    const newQuantity = Math.min((cart[product.id] || 0) + 1, getProductStock(product))
     setCartToast({
       product,
       quantity: newQuantity,
@@ -484,10 +493,10 @@ function App() {
   function handleReorder(items) {
     if (!items || items.length === 0) return
     const availableItems = items.filter((item) =>
-      products.some((product) => String(product.id) === String(item.productId || item.product_id || item.id))
+      products.some((product) => String(product.id) === String(item.productId || item.product_id || item.id) && getProductStock(product) > 0)
     )
     if (availableItems.length === 0) {
-      setNotice('Các sản phẩm trong đơn này hiện không còn được bán.')
+      setNotice('Các sản phẩm trong đơn này đã hết hàng, ngừng bán hoặc chưa xác nhận được tồn kho.')
       window.setTimeout(() => setNotice(''), 3000)
       return
     }
@@ -499,11 +508,11 @@ function App() {
           nextCart[pId] = (nextCart[pId] || 0) + Math.max(1, Number(it.quantity) || 1)
         }
       }
-      return nextCart
+      return limitCartToStock(nextCart, products)
     })
     setNotice(availableItems.length < items.length
-      ? 'Đã thêm vào giỏ các sản phẩm còn bán; một số sản phẩm không còn trong danh mục.'
-      : 'Đã thêm sản phẩm từ đơn hàng vào giỏ!')
+      ? 'Đã thêm các sản phẩm còn hàng vào giỏ, với số lượng không vượt tồn kho hiện tại.'
+      : 'Đã cập nhật giỏ hàng theo tồn kho hiện tại; số lượng mua lại không vượt quá số còn hàng.')
     window.setTimeout(() => setNotice(''), 3000)
     setCartOpen(true)
   }
@@ -921,7 +930,7 @@ function App() {
 
           {catalogError && (
             <p className="catalog-note" role="status">
-              Chưa tải được sản phẩm từ backend; đang hiển thị dữ liệu mẫu.
+              Chưa tải được tồn kho mới nhất. Vui lòng tải lại trang để xác nhận số lượng trước khi mua.
             </p>
           )}
 
@@ -951,9 +960,14 @@ function App() {
                       className={`quick-add ${justAddedId === product.id ? 'is-added' : ''} ${cart[product.id] > 0 ? 'has-in-cart' : ''}`}
                       type="button"
                       aria-label={`Thêm ${product.name} vào giỏ hàng`}
+                      disabled={(cart[product.id] || 0) >= getProductStock(product)}
                       onClick={(e) => handleAddToCart(product, e)}
                     >
-                      {justAddedId === product.id ? (
+                      {getProductStock(product) === 0 ? (
+                        <span>{product.quantity == null ? 'Chưa xác nhận tồn kho' : 'Hết hàng'}</span>
+                      ) : (cart[product.id] || 0) >= getProductStock(product) ? (
+                        <span>Đã đủ {getProductStock(product)} trong giỏ</span>
+                      ) : justAddedId === product.id ? (
                         <>
                           <Check size={16} strokeWidth={2.5} className="quick-add-check-icon" />
                           <span>Đã thêm! ({cart[product.id] || 1})</span>
@@ -976,6 +990,7 @@ function App() {
                     <span className="product-rating">Funi chọn</span>
                   </div>
                   <h3>{product.name}</h3>
+                  <p className="product-stock">{product.quantity == null ? 'Chưa xác nhận tồn kho' : product.quantity === 0 ? 'Hết hàng' : `Còn ${product.quantity} sản phẩm`}</p>
                   <div className="product-price-row">
                     <strong>{formatPrice(product.price)}</strong>
                     {product.oldPrice && <del>{formatPrice(product.oldPrice)}</del>}
@@ -1105,8 +1120,9 @@ function App() {
                         <div className="quantity-control">
                           <button type="button" aria-label={`Giảm số lượng ${product.name}`} onClick={() => updateQuantity(product.id, -1)}><Minus size={13} /></button>
                           <span>{cart[product.id]}</span>
-                          <button type="button" aria-label={`Tăng số lượng ${product.name}`} onClick={() => updateQuantity(product.id, 1)}><Plus size={13} /></button>
+                          <button type="button" aria-label={`Tăng số lượng ${product.name}`} disabled={cart[product.id] >= getProductStock(product)} onClick={() => updateQuantity(product.id, 1)}><Plus size={13} /></button>
                         </div>
+                        <small>{product.quantity == null ? 'Chưa xác nhận tồn kho' : `Tối đa ${product.quantity} sản phẩm theo tồn kho hiện tại`}</small>
                       </div>
                     </div>
                   ))}
@@ -1114,7 +1130,7 @@ function App() {
                 <div className="cart-summary">
                   <div className="subtotal"><span>Tạm tính</span><strong>{formatPrice(subtotal)}</strong></div>
                   <p>Phí giao hàng sẽ được xác nhận khi đặt hàng.</p>
-                  <button className="checkout-button" type="button" onClick={placeOrder}>Tiếp tục đặt hàng <ArrowRight size={17} /></button>
+                  <button className="checkout-button" type="button" disabled={cartItems.some(product => cart[product.id] > getProductStock(product))} onClick={placeOrder}>Tiếp tục đặt hàng <ArrowRight size={17} /></button>
                 </div>
               </>
             ) : (

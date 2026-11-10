@@ -4,6 +4,8 @@ Bộ kiểm thử này không sửa mã nghiệp vụ. Các request ghi chạy t
 
 ## Chạy lại trên máy hiện tại
 
+Giới hạn tồn kho: `node qa/harness/cart-stock-check.mjs` tự bật Vite và giả lập API để kiểm tra tồn 2 chỉ thêm tối đa 2, nút tăng/giảm, hàng hết/chưa xác nhận, giỏ đã lưu vượt giới hạn, cập nhật khi quay lại tab, mua lại và mất kết nối. Không ghi database. API tồn kho được kiểm tra bằng `ProductStockTest`; chống bán vượt kho/rollback bằng `OrderStockTest`.
+
 Dashboard: chạy `node qa/harness/dashboard-check.mjs`. Script tự bật Vite và dùng API giả lập để kiểm tra dữ liệu/KPI, header phiên admin, khoảng 30 ngày theo GMT+7, đơn khách vãng lai, trạng thái đơn, tồn kho, điều hướng, loading, lỗi/thử lại, dữ liệu rỗng và bố cục 320–1440px. Không ghi database; ảnh kiểm tra ở `qa/runtime/dashboard/`.
 
 Nhật ký sản phẩm: sau khi bật `node qa/harness/start.mjs`, chạy `node qa/harness/product-audit-check.mjs`. Script kiểm tra API/giao diện Admin với backend thật và PGlite: diff/no-op, người sửa, album/upload, rollback khi log lỗi, quyền đọc, RLS, cursor, thử lại, keyboard và mobile. Kết quả/ảnh tại `qa/artifacts/product-audit/`. Test transaction H2 nằm trong `ProductAuditTest.java`; kiểm tra database trống cũng xác nhận bảng audit có RLS và không tạo lịch sử giả.

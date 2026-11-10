@@ -132,7 +132,7 @@ try {
     else if (path.endsWith('/complete')) { status = 'COMPLETED'; body = { message: 'Completed' } }
     else if (path.endsWith('/ship')) { status = 'SHIPPING'; body = { message: 'Shipping' } }
     else if (path.endsWith('/cancel')) { status = 'CANCELLED'; body = { message: 'Cancelled' } }
-    else if (path === '/api/products') body = [{ id: 9, name: 'Test chair', price: 100000, category: 'Chair', imageUrl }]
+    else if (path === '/api/products') body = [{ id: 9, name: 'Test chair', price: 100000, category: 'Chair', imageUrl, quantity: 10 }]
     else if (path === '/api/admin/staff') body = { content: [{ id: 1, fullName: 'Test staff' }] }
     else if (path.endsWith('/counts')) body = { total: 1, pending: status === 'PENDING' ? 1 : 0, confirmed: status === 'CONFIRMED' ? 1 : 0, shipping: status === 'SHIPPING' ? 1 : 0, completed: status === 'COMPLETED' ? 1 : 0, cancelled: status === 'CANCELLED' ? 1 : 0 }
     else if (path === '/api/admin/orders') body = { content: !new URL(route.request().url()).searchParams.has('status') || new URL(route.request().url()).searchParams.get('status') === status ? [order()] : [], page: 0, totalPages: 1, totalElements: 1 }
