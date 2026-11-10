@@ -32,14 +32,17 @@ public class AdminStatisticsService {
     }
 
     public DashboardOverviewDto getOverview(LocalDate fromDate, LocalDate toDate) {
+        validateDateRange(fromDate, toDate);
         return statisticsRepository.getOverview(fromDate, toDate);
     }
 
     public List<DailyRevenuePointDto> getDailyRevenueTrend(LocalDate fromDate, LocalDate toDate) {
+        validateDateRange(fromDate, toDate);
         return statisticsRepository.getDailyRevenueTrend(fromDate, toDate);
     }
 
     public List<CategoryRevenueDto> getCategoryRevenueShare(LocalDate fromDate, LocalDate toDate) {
+        validateDateRange(fromDate, toDate);
         return statisticsRepository.getCategoryRevenueShare(fromDate, toDate);
     }
 
@@ -56,6 +59,7 @@ public class AdminStatisticsService {
     }
 
     public byte[] exportSalesExcel(LocalDate fromDate, LocalDate toDate) {
+        validateDateRange(fromDate, toDate);
         List<Map<String, Object>> records = statisticsRepository.getSalesExportRecords(fromDate, toDate);
 
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -238,6 +242,14 @@ public class AdminStatisticsService {
         }
 
         return baos.toByteArray();
+    }
+
+    private void validateDateRange(LocalDate fromDate, LocalDate toDate) {
+        LocalDate start = fromDate != null ? fromDate : LocalDate.now().minusDays(29);
+        LocalDate end = toDate != null ? toDate : LocalDate.now();
+        if (start.isAfter(end)) {
+            throw new IllegalArgumentException("Ngày bắt đầu không được sau ngày kết thúc");
+        }
     }
 
     private String escapeXml(String text) {

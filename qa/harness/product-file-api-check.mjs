@@ -1,0 +1,41 @@
+import assert from 'node:assert/strict'
+import { adminApiHeaders } from './admin-auth.mjs'
+
+const base = 'http://127.0.0.1:18080'
+const headers = await adminApiHeaders(base)
+const categories = await (await fetch(`${base}/api/admin/categories`, { headers })).json()
+const created = await fetch(`${base}/api/admin/products`, { method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' },
+  body: JSON.stringify({ name: `Uploaded sofa ${Date.now()}`, categoryId: categories[0].id, unit: 'Bộ',
+    sellingPrice: 5000000, quantity: 2, isActive: true, imageUrl: 'https://example.test/broken.jpg' }) })
+assert.equal(created.status, 201)
+const product = await created.json()
+const path = `/api/admin/products/${product.id}`
+const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a7S8AAAAASUVORK5CYII=', 'base64')
+const form = new FormData()
+form.append('files', new Blob([png], { type: 'image/png' }), 'sofa.png')
+const uploaded = await fetch(`${base}${path}/images?makePrimary=true`, { method: 'POST', headers, body: form })
+assert.equal(uploaded.status, 200, await uploaded.clone().text())
+const images = await uploaded.json()
+assert.equal(images.filter(image => image.isPrimary).length, 1)
+const local = images.find(image => image.isPrimary)
+assert(local.imageUrl.startsWith('/uploads/products/'))
+assert(images.some(image => image.imageUrl === product.imageUrl && !image.isPrimary), 'Original URL must remain in gallery')
+const detail = await (await fetch(`${base}${path}`, { headers })).json()
+assert.equal(detail.imageUrl, local.imageUrl)
+const served = await fetch(`${base}${local.imageUrl}`)
+assert.equal(served.status, 200, 'Uploaded file must be served by Spring Boot')
+assert.equal(served.headers.get('content-type'), 'image/png')
+assert.deepEqual(Buffer.from(await served.arrayBuffer()), png)
+const catalog = await (await fetch(`${base}/api/products`)).json()
+assert.equal(catalog.find(row => row.id === product.id).imageUrl, local.imageUrl)
+const fake = new FormData()
+fake.append('files', new Blob(['<html>fake image</html>'], { type: 'image/png' }), 'fake.png')
+const rejected = await fetch(`${base}${path}/images?makePrimary=true`, { method: 'POST', headers, body: fake })
+assert.equal(rejected.status, 400)
+const after = await (await fetch(`${base}${path}`, { headers })).json()
+assert.equal(after.imageUrl, local.imageUrl)
+assert.equal(after.images.length, images.length)
+const tooLarge = new FormData()
+tooLarge.append('files', new Blob([Buffer.alloc(5 * 1024 * 1024 + 1)], { type: 'image/png' }), 'big.png')
+assert.equal((await fetch(`${base}${path}/images`, { method: 'POST', headers, body: tooLarge })).status, 413)
+console.log('PASS real PostgreSQL/API: upload + primary, original URL preserved, public file serving, catalog, fake image rollback and 5 MB limit')

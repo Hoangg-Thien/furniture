@@ -27,6 +27,7 @@ import {
 import { getApiBaseUrl, getApiHeaders } from '../lib/apiConfig'
 import { canManageProducts, canEditProductContent } from '../lib/adminPermissions'
 import ProductAuditDialog from './ProductAuditDialog'
+import { productImageUrl, validateProductImage } from '../lib/productImages'
 
 export default function AdminProductManagement({ currentUser, notificationTarget }) {
   const manageProducts = canManageProducts(currentUser)
@@ -62,6 +63,7 @@ export default function AdminProductManagement({ currentUser, notificationTarget
   })
   const [productFormError, setProductFormError] = useState('')
   const [submittingProduct, setSubmittingProduct] = useState(false)
+  const [productImageFile, setProductImageFile] = useState(null)
 
   // Gallery Modal
   const [showGalleryModal, setShowGalleryModal] = useState(false)
@@ -167,6 +169,7 @@ export default function AdminProductManagement({ currentUser, notificationTarget
       isActive: true
     })
     setProductFormError('')
+    setProductImageFile(null)
     setShowProductModal(true)
   }
 
@@ -184,6 +187,7 @@ export default function AdminProductManagement({ currentUser, notificationTarget
       isActive: prod.isActive !== false
     })
     setProductFormError('')
+    setProductImageFile(null)
     setShowProductModal(true)
 
     // Tải thêm description chi tiết
@@ -276,6 +280,23 @@ export default function AdminProductManagement({ currentUser, notificationTarget
         throw new Error(data.error || 'Lưu sản phẩm thất bại')
       }
 
+      if (productImageFile) {
+        // Giữ ID đã lưu để thử lại tải ảnh không tạo trùng sản phẩm mới.
+        setEditingProduct(data)
+        const formData = new FormData()
+        formData.append('files', productImageFile)
+        try {
+          const upload = await fetch(`${baseUrl}/api/admin/products/${data.id}/images?makePrimary=true`, {
+            method: 'POST', headers: getApiHeaders(), body: formData
+          })
+          const images = await upload.json()
+          if (!upload.ok) throw new Error(images.error || 'Vui lòng thử lại.')
+        } catch (error) {
+          fetchProducts(page)
+          throw new Error(`Đã lưu sản phẩm #${data.id}, nhưng tải ảnh thất bại: ${error.message}`)
+        }
+      }
+
       showToast(
         isEdit
           ? `Đã cập nhật sản phẩm "${data.name}" thành công!`
@@ -334,6 +355,10 @@ export default function AdminProductManagement({ currentUser, notificationTarget
 
     setUploadingFiles(true)
     try {
+      for (const file of files) {
+        const validation = validateProductImage(file)
+        if (validation) throw new Error(validation)
+      }
       const formData = new FormData()
       for (let i = 0; i < files.length; i++) {
         formData.append('files', files[i])
@@ -841,7 +866,8 @@ export default function AdminProductManagement({ currentUser, notificationTarget
                       <td style={{ textAlign: 'center' }}>
                         {p.imageUrl ? (
                           <img
-                            src={p.imageUrl}
+                            key={p.imageUrl}
+                            src={productImageUrl(p.imageUrl)}
                             alt={p.name}
                             className="product-thumb-img"
                             onError={(e) => {
@@ -1157,16 +1183,37 @@ export default function AdminProductManagement({ currentUser, notificationTarget
 
                 {/* Default Image URL */}
                 <div className="form-group">
-                  <label className="form-label">Đường dẫn ảnh đại diện chính (URL)</label>
+                  <label htmlFor="product-image-url" className="form-label">Đường dẫn ảnh đại diện chính (URL)</label>
                   <input
-                    type="url"
+                    id="product-image-url"
+                    type={productForm.imageUrl.startsWith('/') ? 'text' : 'url'}
                     className="form-input"
                     placeholder="https://example.com/sofa-leather.jpg (hoặc tải album ảnh sau)"
                     value={productForm.imageUrl}
                     disabled={!editContent}
                     onChange={(e) => setProductForm({ ...productForm, imageUrl: e.target.value })}
                   />
-                  <small className="form-hint">Bạn cũng có thể tải nhiều ảnh trực tiếp qua chức năng "Album ảnh" bên ngoài.</small>
+                  <small className="form-hint">Có thể dùng URL hoặc chọn file bên dưới. Nếu có cả hai, file tải lên sẽ làm ảnh chính.</small>
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="product-image-file" className="form-label">Ảnh sản phẩm từ máy tính</label>
+                  <input
+                    id="product-image-file"
+                    type="file"
+                    className="form-input"
+                    accept="image/jpeg,image/png,image/webp,image/gif"
+                    disabled={!editContent || submittingProduct}
+                    onChange={e => {
+                      const file = e.target.files?.[0]
+                      setProductImageFile(null)
+                      const validation = file ? validateProductImage(file) : ''
+                      setProductFormError(validation)
+                      if (validation) e.target.value = ''
+                      else setProductImageFile(file || null)
+                    }}
+                  />
+                  <small className="form-hint">JPG, PNG, WEBP hoặc GIF, tối đa 5 MB. File được lưu trên máy chủ và ưu tiên làm ảnh đại diện.</small>
                 </div>
 
                 {/* Description */}
@@ -1258,14 +1305,14 @@ export default function AdminProductManagement({ currentUser, notificationTarget
                     Tải nhiều ảnh từ máy tính (Phối cảnh, chất liệu, bản vẽ kích thước...)
                   </strong>
                   <span style={{ fontSize: '0.78rem', color: 'var(--admin-text-muted)' }}>
-                    Hỗ trợ định dạng JPG, PNG, WEBP. Chọn nhiều ảnh cùng lúc.
+                    JPG, PNG, WEBP hoặc GIF, tối đa 5 MB mỗi ảnh. Chọn nhiều ảnh cùng lúc.
                   </span>
 
                   <input
                     ref={fileInputRef}
                     type="file"
                     multiple
-                    accept="image/*"
+                    accept="image/jpeg,image/png,image/webp,image/gif"
                     onChange={handleFileUpload}
                     style={{ display: 'none' }}
                   />
@@ -1340,7 +1387,7 @@ export default function AdminProductManagement({ currentUser, notificationTarget
                   <div className="gallery-grid">
                     {galleryImages.map((img) => (
                       <div key={img.id} className={`gallery-item-card ${img.isPrimary ? 'primary' : ''}`}>
-                        <img src={img.imageUrl} alt="Góc chụp" className="gallery-img" />
+                        <img src={productImageUrl(img.imageUrl)} alt="Góc chụp" className="gallery-img" />
 
                         {/* Primary Badge */}
                         {img.isPrimary && (

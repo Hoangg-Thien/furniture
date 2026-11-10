@@ -1,7 +1,8 @@
 package furniture.service;
 
 import java.io.IOException;
-import java.io.InputStream;
+import java.io.BufferedInputStream;
+import java.net.URLConnection;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -34,20 +35,29 @@ public class FileStorageService {
             throw new IllegalArgumentException("File tải lên không có dữ liệu");
         }
 
-        String originalFilename = file.getOriginalFilename();
-        String extension = "";
-        if (originalFilename != null && originalFilename.contains(".")) {
-            extension = originalFilename.substring(originalFilename.lastIndexOf(".")).toLowerCase();
+        if (file.getSize() > 5 * 1024 * 1024) {
+            throw new IllegalArgumentException("Mỗi ảnh không được vượt quá 5 MB");
         }
 
-        String fileName = UUID.randomUUID().toString() + extension;
-        Path targetLocation = this.uploadDir.resolve(fileName);
-
-        try (InputStream inputStream = file.getInputStream()) {
+        try (BufferedInputStream inputStream = new BufferedInputStream(file.getInputStream())) {
+            inputStream.mark(32);
+            String type = URLConnection.guessContentTypeFromStream(inputStream);
+            byte[] header = inputStream.readNBytes(12);
+            inputStream.reset();
+            boolean webp = header.length == 12 && new String(header, 0, 4, java.nio.charset.StandardCharsets.US_ASCII).equals("RIFF")
+                    && new String(header, 8, 4, java.nio.charset.StandardCharsets.US_ASCII).equals("WEBP");
+            String extension = webp ? ".webp" : switch (type == null ? "" : type) {
+                case "image/jpeg" -> ".jpg";
+                case "image/png" -> ".png";
+                case "image/gif" -> ".gif";
+                default -> throw new IllegalArgumentException("Chỉ chấp nhận file ảnh JPG, PNG, WEBP hoặc GIF");
+            };
+            String fileName = UUID.randomUUID() + extension;
+            Path targetLocation = this.uploadDir.resolve(fileName);
             Files.copy(inputStream, targetLocation, StandardCopyOption.REPLACE_EXISTING);
             return "/uploads/products/" + fileName;
         } catch (IOException ex) {
-            throw new RuntimeException("Không thể lưu file ảnh " + fileName, ex);
+            throw new RuntimeException("Không thể lưu file ảnh, vui lòng thử lại", ex);
         }
     }
 }

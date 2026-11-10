@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from 'react'
+import { productImageUrl } from '../../lib/productImages'
 import {
   ArrowLeft,
   ArrowRight,
@@ -114,7 +115,7 @@ function OrderSummary({
             <div className="order-item-img-wrap">
               {product.image ? (
                 <img
-                  src={product.image}
+                  src={productImageUrl(product.image)}
                   alt={product.name}
                   onError={(e) => {
                     e.currentTarget.style.display = 'none'
@@ -732,7 +733,7 @@ export default function OrderReviewPage({
           trimmed.startsWith('/') ||
           trimmed.startsWith('data:')
         ) {
-          return trimmed
+          return productImageUrl(trimmed)
         }
       }
 
@@ -978,7 +979,7 @@ export default function OrderReviewPage({
                       <div className="order-success-item-thumb">
                         {item.image ? (
                           <img
-                            src={item.image}
+                            src={productImageUrl(item.image)}
                             alt={item.name}
                             onError={(e) => {
                               e.currentTarget.style.display = 'none'

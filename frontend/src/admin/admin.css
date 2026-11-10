@@ -3723,6 +3723,24 @@
   gap: 20px;
 }
 
+.admin-reports-view .admin-kpi-card {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.admin-reports-view .admin-kpi-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.admin-reports-view .admin-kpi-title {
+  font-size: 0.84rem;
+  color: var(--admin-text-muted);
+}
+
 .admin-reports-filter-bar {
   background: var(--admin-card-bg, #ffffff);
   border: 1px solid var(--admin-border);

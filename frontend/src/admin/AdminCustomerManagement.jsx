@@ -24,6 +24,7 @@ import {
   X
 } from 'lucide-react'
 import { getApiBaseUrl, getApiHeaders } from '../lib/apiConfig'
+import { productImageUrl } from '../lib/productImages'
 
 export default function AdminCustomerManagement({ currentUser }) {
   const [customers, setCustomers] = useState([])
@@ -848,7 +849,7 @@ export default function AdminCustomerManagement({ currentUser }) {
                                   <div key={idx} className="order-item-row">
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                       {it.image_url ? (
-                                        <img src={it.image_url} alt="" className="item-thumb" />
+                                        <img src={productImageUrl(it.image_url)} alt="" className="item-thumb" />
                                       ) : (
                                         <div className="item-thumb placeholder">
                                           <Armchair size={16} />
@@ -905,7 +906,7 @@ export default function AdminCustomerManagement({ currentUser }) {
                                   <td>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                                       {item.imageUrl ? (
-                                        <img src={item.imageUrl} alt="" className="item-thumb" />
+                                        <img src={productImageUrl(item.imageUrl)} alt="" className="item-thumb" />
                                       ) : (
                                         <div className="item-thumb placeholder">
                                           <Armchair size={16} />

@@ -3,6 +3,8 @@ package furniture;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -41,6 +43,17 @@ class AdminStatisticsServiceTest {
     @BeforeEach
     void setUp() {
         adminStatisticsService = new AdminStatisticsService(adminStatisticsRepository);
+    }
+
+    @Test
+    void reversedDateRangesAreRejectedBeforeQuerying() {
+        LocalDate start = LocalDate.of(2026, 11, 10);
+        LocalDate end = start.minusDays(1);
+        assertThrows(IllegalArgumentException.class, () -> adminStatisticsService.getOverview(start, end));
+        assertThrows(IllegalArgumentException.class, () -> adminStatisticsService.getDailyRevenueTrend(start, end));
+        assertThrows(IllegalArgumentException.class, () -> adminStatisticsService.getCategoryRevenueShare(start, end));
+        assertThrows(IllegalArgumentException.class, () -> adminStatisticsService.exportSalesExcel(start, end));
+        verifyNoInteractions(adminStatisticsRepository);
     }
 
     @Test

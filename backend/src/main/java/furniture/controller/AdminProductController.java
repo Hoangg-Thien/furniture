@@ -125,9 +125,10 @@ public class AdminProductController {
     public ResponseEntity<?> uploadImages(
             @PathVariable Long id,
             @RequestParam("files") List<MultipartFile> files,
+            @RequestParam(defaultValue = "false") boolean makePrimary,
             @RequestAttribute(AdminIdentity.ATTRIBUTE) AdminIdentity identity) {
         try {
-            List<ProductImageDto> images = adminProductService.uploadProductImages(id, files, identity.userId());
+            List<ProductImageDto> images = adminProductService.uploadProductImages(id, files, identity.userId(), makePrimary);
             return ResponseEntity.ok(images);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", e.getMessage()));

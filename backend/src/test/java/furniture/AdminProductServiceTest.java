@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.mock.web.MockMultipartFile;
 
 import furniture.model.admin.PageResponse;
 import furniture.model.admin.product.ProductDetailDto;
@@ -51,6 +52,34 @@ class AdminProductServiceTest {
         adminProductService = new AdminProductService(
                 adminProductRepository, adminCategoryRepository, fileStorageService, org.mockito.Mockito.mock(furniture.repository.ProductAuditRepository.class)
         );
+    }
+
+    @Test
+    void uploadedFileCanReplaceExternalMainImageWithoutDeletingTheOldImage() {
+        var oldImage = new ProductImageDto(1L, "https://example.com/old.jpg", true, 1);
+        var product = new ProductDetailDto(1L, "Sofa", 1L, "Sofa", "Bộ", BigDecimal.TEN,
+                oldImage.imageUrl(), 1, true, null, List.of(oldImage));
+        var file = new MockMultipartFile("files", "sofa.png", "image/png", new byte[]{1});
+        when(adminProductRepository.findDetailById(1L)).thenReturn(product);
+        when(fileStorageService.storeFile(file)).thenReturn("/uploads/products/new.png");
+        when(adminProductRepository.insertProductImage(1L, "/uploads/products/new.png", false, 2)).thenReturn(2L);
+        adminProductService.uploadProductImages(1L, List.of(file), 1L, true);
+        verify(adminProductRepository).setPrimaryImage(1L, 2L);
+        verify(adminProductRepository, never()).deleteProductImage(any(), any());
+    }
+
+    @Test
+    void replacingLegacyMainImageAlsoPreservesItsUrlInTheGallery() {
+        var product = new ProductDetailDto(1L, "Sofa", 1L, "Sofa", "Bộ", BigDecimal.TEN,
+                "https://example.com/legacy.jpg", 1, true, null, List.of());
+        var file = new MockMultipartFile("files", "sofa.png", "image/png", new byte[]{1});
+        when(adminProductRepository.findDetailById(1L)).thenReturn(product);
+        when(fileStorageService.storeFile(file)).thenReturn("/uploads/products/new.png");
+        when(adminProductRepository.insertProductImage(1L, product.imageUrl(), false, 1)).thenReturn(1L);
+        when(adminProductRepository.insertProductImage(1L, "/uploads/products/new.png", true, 2)).thenReturn(2L);
+        adminProductService.uploadProductImages(1L, List.of(file), 1L, true);
+        verify(adminProductRepository).insertProductImage(1L, product.imageUrl(), false, 1);
+        verify(adminProductRepository).setPrimaryImage(1L, 2L);
     }
 
     @Test

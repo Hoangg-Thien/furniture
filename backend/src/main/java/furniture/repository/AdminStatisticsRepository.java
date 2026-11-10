@@ -31,14 +31,14 @@ public class AdminStatisticsRepository {
     }
 
     public DashboardOverviewDto getOverview(LocalDate fromDate, LocalDate toDate) {
-        LocalDateTime start = fromDate != null ? fromDate.atStartOfDay() : LocalDate.now().minusDays(30).atStartOfDay();
-        LocalDateTime end = toDate != null ? toDate.atTime(23, 59, 59) : LocalDateTime.now();
+        LocalDateTime start = fromDate != null ? fromDate.atStartOfDay() : LocalDate.now().minusDays(29).atStartOfDay();
+        LocalDateTime end = (toDate != null ? toDate : LocalDate.now()).plusDays(1).atStartOfDay();
 
         // Doanh thu chỉ ghi nhận từ hóa đơn đã thanh toán.
         BigDecimal invoiceRevenue = jdbcTemplate.queryForObject("""
                 SELECT COALESCE(SUM(final_amount), 0)
                 FROM public.invoices
-                WHERE payment_status = 'PAID' AND payment_date BETWEEN ? AND ?
+                WHERE payment_status = 'PAID' AND payment_date >= ? AND payment_date < ?
                 """, BigDecimal.class, start, end);
 
         BigDecimal totalRevenue = invoiceRevenue;
@@ -47,14 +47,13 @@ public class AdminStatisticsRepository {
 
         // 2. Tính % tăng trưởng so với kỳ trước (same duration)
         long days = java.time.Duration.between(start, end).toDays();
-        if (days <= 0) days = 30;
         LocalDateTime prevStart = start.minusDays(days);
         LocalDateTime prevEnd = start;
 
         BigDecimal prevRevenue = jdbcTemplate.queryForObject("""
                 SELECT COALESCE(SUM(final_amount), 0)
                 FROM public.invoices
-                WHERE payment_status = 'PAID' AND payment_date BETWEEN ? AND ?
+                WHERE payment_status = 'PAID' AND payment_date >= ? AND payment_date < ?
                 """, BigDecimal.class, prevStart, prevEnd);
 
         Double growthPercent = 0.0;
@@ -72,7 +71,7 @@ public class AdminStatisticsRepository {
                     COUNT(*) AS total_orders,
                     COUNT(*) FILTER (WHERE status = 'COMPLETED') AS completed_orders
                 FROM public.orders
-                WHERE order_date BETWEEN ? AND ?
+                WHERE order_date >= ? AND order_date < ?
                 """, start, end);
 
         long totalOrders = ((Number) orderStats.get("total_orders")).longValue();
@@ -86,7 +85,7 @@ public class AdminStatisticsRepository {
                 SELECT COALESCE(SUM(oi.quantity), 0)
                 FROM public.order_items oi
                 JOIN public.orders o ON o.id = oi.order_id
-                WHERE o.status = 'COMPLETED' AND o.order_date BETWEEN ? AND ?
+                WHERE o.status = 'COMPLETED' AND o.order_date >= ? AND o.order_date < ?
                 """, Long.class, start, end);
         if (itemsSold == null) itemsSold = 0L;
 
@@ -108,7 +107,7 @@ public class AdminStatisticsRepository {
         BigDecimal purchaseCost = jdbcTemplate.queryForObject("""
                 SELECT COALESCE(SUM(total_amount), 0)
                 FROM public.purchase_receipts
-                WHERE status = 'COMPLETED' AND receipt_date BETWEEN ? AND ?
+                WHERE status = 'COMPLETED' AND receipt_date >= ? AND receipt_date < ?
                 """, BigDecimal.class, start, end);
         if (purchaseCost == null) purchaseCost = BigDecimal.ZERO;
 
@@ -129,8 +128,8 @@ public class AdminStatisticsRepository {
     }
 
     public List<DailyRevenuePointDto> getDailyRevenueTrend(LocalDate fromDate, LocalDate toDate) {
-        LocalDateTime start = fromDate != null ? fromDate.atStartOfDay() : LocalDate.now().minusDays(30).atStartOfDay();
-        LocalDateTime end = toDate != null ? toDate.atTime(23, 59, 59) : LocalDateTime.now();
+        LocalDateTime start = fromDate != null ? fromDate.atStartOfDay() : LocalDate.now().minusDays(29).atStartOfDay();
+        LocalDateTime end = (toDate != null ? toDate : LocalDate.now()).plusDays(1).atStartOfDay();
 
         // Map ngày -> Daily data
         Map<String, BigDecimal> salesMap = new TreeMap<>();
@@ -143,7 +142,7 @@ public class AdminStatisticsRepository {
                        SUM(final_amount) AS revenue,
                        COUNT(*) AS cnt
                 FROM public.invoices
-                WHERE payment_status = 'PAID' AND payment_date BETWEEN ? AND ?
+                WHERE payment_status = 'PAID' AND payment_date >= ? AND payment_date < ?
                 GROUP BY r_day
                 ORDER BY r_day ASC
                 """, start, end);
@@ -163,7 +162,7 @@ public class AdminStatisticsRepository {
                 SELECT TO_CHAR(receipt_date, 'YYYY-MM-DD') AS r_day,
                        SUM(total_amount) AS cost
                 FROM public.purchase_receipts
-                WHERE status = 'COMPLETED' AND receipt_date BETWEEN ? AND ?
+                WHERE status = 'COMPLETED' AND receipt_date >= ? AND receipt_date < ?
                 GROUP BY r_day
                 ORDER BY r_day ASC
                 """, start, end);
@@ -195,8 +194,8 @@ public class AdminStatisticsRepository {
     }
 
     public List<CategoryRevenueDto> getCategoryRevenueShare(LocalDate fromDate, LocalDate toDate) {
-        LocalDateTime start = fromDate != null ? fromDate.atStartOfDay() : LocalDate.now().minusDays(90).atStartOfDay();
-        LocalDateTime end = toDate != null ? toDate.atTime(23, 59, 59) : LocalDateTime.now();
+        LocalDateTime start = fromDate != null ? fromDate.atStartOfDay() : LocalDate.now().minusDays(29).atStartOfDay();
+        LocalDateTime end = (toDate != null ? toDate : LocalDate.now()).plusDays(1).atStartOfDay();
 
         String sql = """
                 SELECT c.id AS cat_id, c.name AS cat_name,
@@ -205,7 +204,8 @@ public class AdminStatisticsRepository {
                 FROM public.categories c
                 LEFT JOIN public.products p ON p.category_id = c.id
                 LEFT JOIN public.order_items oi ON oi.product_id = p.id
-                LEFT JOIN public.orders o ON o.id = oi.order_id AND o.status = 'COMPLETED' AND o.order_date BETWEEN ? AND ?
+                    AND oi.order_id IN (SELECT id FROM public.orders
+                        WHERE status = 'COMPLETED' AND order_date >= ? AND order_date < ?)
                 GROUP BY c.id, c.name
                 ORDER BY cat_revenue DESC, c.id ASC
                 """;
@@ -268,7 +268,7 @@ public class AdminStatisticsRepository {
         String sql = """
                 SELECT p.id, p.name, p.image_url, COALESCE(p.unit, 'cái') AS unit,
                        p.quantity AS current_stock, p.selling_price,
-                       COALESCE(EXTRACT(DAY FROM (CURRENT_TIMESTAMP - MAX(o.order_date))), 999)::bigint AS days_idle
+                       EXTRACT(DAY FROM ((CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh') - MAX(o.order_date)))::bigint AS days_idle
                 FROM public.products p
                 LEFT JOIN public.order_items oi ON oi.product_id = p.id
                 LEFT JOIN public.orders o ON o.id = oi.order_id AND o.status = 'COMPLETED'
@@ -285,7 +285,7 @@ public class AdminStatisticsRepository {
                 rs.getString("unit"),
                 rs.getInt("current_stock"),
                 rs.getBigDecimal("selling_price"),
-                rs.getLong("days_idle")
+                rs.getObject("days_idle", Long.class)
         ), max);
     }
 
@@ -314,8 +314,8 @@ public class AdminStatisticsRepository {
     }
 
     public List<Map<String, Object>> getSalesExportRecords(LocalDate fromDate, LocalDate toDate) {
-        LocalDateTime start = fromDate != null ? fromDate.atStartOfDay() : LocalDate.now().minusDays(30).atStartOfDay();
-        LocalDateTime end = toDate != null ? toDate.atTime(23, 59, 59) : LocalDateTime.now();
+        LocalDateTime start = fromDate != null ? fromDate.atStartOfDay() : LocalDate.now().minusDays(29).atStartOfDay();
+        LocalDateTime end = (toDate != null ? toDate : LocalDate.now()).plusDays(1).atStartOfDay();
 
         String sql = """
                 SELECT
@@ -335,7 +335,7 @@ public class AdminStatisticsRepository {
                 LEFT JOIN public.customers c ON c.id = o.customer_id
                 LEFT JOIN public.staff st ON st.id = COALESCE(i.staff_id, o.staff_id)
                 LEFT JOIN public.users u ON u.id = st.user_id
-                WHERE i.payment_status = 'PAID' AND i.payment_date BETWEEN ? AND ?
+                WHERE i.payment_status = 'PAID' AND i.payment_date >= ? AND i.payment_date < ?
                 ORDER BY txn_date DESC, o.id DESC
                 """;
 

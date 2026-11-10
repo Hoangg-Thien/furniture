@@ -1,38 +1,37 @@
 import { useState, useEffect } from 'react'
+import { getApiBaseUrl, getApiHeaders } from '../lib/apiConfig'
+import { productImageUrl } from '../lib/productImages'
 import {
-  BarChart3,
-  Calendar,
-  ChevronDown,
   Download,
-  Filter,
   Flame,
   Layers,
-  LineChart,
   Package,
   PackageCheck,
   PackageX,
-  PieChart,
   RefreshCw,
-  Search,
   Tag,
   TrendingDown,
   TrendingUp,
-  Truck,
   Wallet
 } from 'lucide-react'
 
-export default function AdminReportsManagement({ currentUser }) {
+function reportDate(daysAgo = 0) {
+  const date = new Date(Date.now() + 7 * 60 * 60 * 1000)
+  date.setUTCDate(date.getUTCDate() - daysAgo)
+  return date.toISOString().slice(0, 10)
+}
+
+export default function AdminReportsManagement() {
   // Bộ lọc thời gian
   const [dateRangePreset, setDateRangePreset] = useState('30days')
-  const [fromDate, setFromDate] = useState(() => {
-    const d = new Date()
-    d.setDate(d.getDate() - 30)
-    return d.toISOString().split('T')[0]
-  })
-  const [toDate, setToDate] = useState(() => new Date().toISOString().split('T')[0])
+  const [fromDate, setFromDate] = useState(() => reportDate(29))
+  const [toDate, setToDate] = useState(() => reportDate())
 
   // Trạng thái dữ liệu
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [attempt, setAttempt] = useState(0)
+  const invalidRange = !fromDate || !toDate || fromDate > toDate
   const [overview, setOverview] = useState(null)
   const [revenueTrend, setRevenueTrend] = useState([])
   const [categoryShare, setCategoryShare] = useState([])
@@ -46,63 +45,68 @@ export default function AdminReportsManagement({ currentUser }) {
   // Đổi preset
   const handlePresetChange = (preset) => {
     setDateRangePreset(preset)
-    const today = new Date()
-    const todayStr = today.toISOString().split('T')[0]
+    const todayStr = reportDate()
     setToDate(todayStr)
 
     if (preset === 'today') {
       setFromDate(todayStr)
     } else if (preset === '7days') {
-      const d = new Date()
-      d.setDate(d.getDate() - 7)
-      setFromDate(d.toISOString().split('T')[0])
+      setFromDate(reportDate(6))
     } else if (preset === '30days') {
-      const d = new Date()
-      d.setDate(d.getDate() - 30)
-      setFromDate(d.toISOString().split('T')[0])
+      setFromDate(reportDate(29))
     } else if (preset === 'month') {
-      const firstDay = new Date(today.getFullYear(), today.getMonth(), 1)
-      setFromDate(firstDay.toISOString().split('T')[0])
+      setFromDate(`${todayStr.slice(0, 7)}-01`)
     }
   }
 
   // Tải dữ liệu từ Backend
-  const loadData = async () => {
-    setLoading(true)
-    try {
-      const params = `?fromDate=${fromDate}&toDate=${toDate}`
-      
-      const [ovRes, trendRes, catRes, topRes, deadRes, voucherRes] = await Promise.all([
-        fetch(`/api/admin/statistics/overview${params}`).then((r) => r.ok ? r.json() : null),
-        fetch(`/api/admin/statistics/revenue-trend${params}`).then((r) => r.ok ? r.json() : []),
-        fetch(`/api/admin/statistics/category-share${params}`).then((r) => r.ok ? r.json() : []),
-        fetch(`/api/admin/statistics/top-products?limit=6`).then((r) => r.ok ? r.json() : []),
-        fetch(`/api/admin/statistics/dead-stock?limit=6`).then((r) => r.ok ? r.json() : []),
-        fetch(`/api/admin/statistics/voucher-efficiency`).then((r) => r.ok ? r.json() : [])
-      ])
-
-      if (ovRes) setOverview(ovRes)
-      if (Array.isArray(trendRes)) setRevenueTrend(trendRes)
-      if (Array.isArray(catRes)) setCategoryShare(catRes)
-      if (Array.isArray(topRes)) setTopProducts(topRes)
-      if (Array.isArray(deadRes)) setDeadStock(deadRes)
-      if (Array.isArray(voucherRes)) setVoucherReport(voucherRes)
-    } catch (err) {
-      console.error('Lỗi khi tải dữ liệu thống kê:', err)
-    } finally {
-      setLoading(false)
-    }
-  }
-
   useEffect(() => {
+    const controller = new AbortController()
+    if (invalidRange) {
+      return () => controller.abort()
+    }
+    async function loadData() {
+      setLoading(true)
+      setError('')
+      setHoveredTrendPoint(null)
+      try {
+        const params = `?fromDate=${fromDate}&toDate=${toDate}`
+        const paths = [`overview${params}`, `revenue-trend${params}`, `category-share${params}`,
+          'top-products?limit=6', 'dead-stock?limit=6', 'voucher-efficiency']
+        const [ovRes, trendRes, catRes, topRes, deadRes, voucherRes] = await Promise.all(paths.map(async path => {
+          const response = await fetch(`${getApiBaseUrl()}/api/admin/statistics/${path}`, {
+            headers: getApiHeaders(), signal: controller.signal
+          })
+          if (!response.ok) throw new Error('Không tải được báo cáo. Vui lòng kiểm tra kết nối và quyền truy cập rồi thử lại.')
+          return response.json()
+        }))
+        if (!ovRes || typeof ovRes !== 'object' || !Number.isFinite(ovRes.totalRevenue)
+            || ![trendRes, catRes, topRes, deadRes, voucherRes].every(Array.isArray)) {
+          throw new Error('Dữ liệu báo cáo không hợp lệ. Vui lòng thử lại.')
+        }
+        if (controller.signal.aborted) return
+        setOverview(ovRes)
+        setRevenueTrend(trendRes)
+        setCategoryShare(catRes)
+        setTopProducts(topRes)
+        setDeadStock(deadRes)
+        setVoucherReport(voucherRes)
+      } catch (err) {
+        if (!controller.signal.aborted) setError(err.message || 'Không thể kết nối máy chủ.')
+      } finally {
+        if (!controller.signal.aborted) setLoading(false)
+      }
+    }
     loadData()
-  }, [fromDate, toDate])
+    return () => controller.abort()
+  }, [fromDate, toDate, invalidRange, attempt])
 
   // Xuất file Excel
   const handleExportExcel = async () => {
+    if (invalidRange) return
     try {
       setExporting(true)
-      const res = await fetch(`/api/admin/statistics/export-excel?fromDate=${fromDate}&toDate=${toDate}`)
+      const res = await fetch(`${getApiBaseUrl()}/api/admin/statistics/export-excel?fromDate=${fromDate}&toDate=${toDate}`, { headers: getApiHeaders() })
       if (!res.ok) throw new Error('Không thể tạo file báo cáo Excel')
       const blob = await res.blob()
       const url = window.URL.createObjectURL(blob)
@@ -133,7 +137,7 @@ export default function AdminReportsManagement({ currentUser }) {
   const categoryPalette = ['#0F766E', '#3B82F6', '#8B5CF6', '#F59E0B', '#EC4899', '#10B981', '#64748B']
 
   return (
-    <div className="admin-reports-view">
+    <div className="admin-reports-view" aria-busy={loading && !invalidRange}>
       {/* Header trang & bộ lọc thời gian */}
       <div className="admin-page-header">
         <div>
@@ -147,8 +151,8 @@ export default function AdminReportsManagement({ currentUser }) {
         <div className="admin-header-actions">
           <button
             className="admin-btn admin-btn-secondary"
-            onClick={loadData}
-            disabled={loading}
+            onClick={() => setAttempt(value => value + 1)}
+            disabled={loading || invalidRange}
             title="Làm mới số liệu"
           >
             <RefreshCw size={16} className={loading ? 'admin-spin' : ''} />
@@ -158,7 +162,7 @@ export default function AdminReportsManagement({ currentUser }) {
           <button
             className="admin-btn admin-btn-accent"
             onClick={handleExportExcel}
-            disabled={exporting}
+            disabled={exporting || loading || invalidRange || !!error}
           >
             <Download size={16} />
             <span>{exporting ? 'Đang xuất file...' : 'Xuất Báo Cáo Excel'}</span>
@@ -197,9 +201,11 @@ export default function AdminReportsManagement({ currentUser }) {
 
         <div className="admin-custom-dates">
           <div className="admin-date-input-wrap">
-            <span className="admin-date-label">Từ ngày:</span>
+            <label htmlFor="reports-from-date" className="admin-date-label">Từ ngày:</label>
             <input
+              id="reports-from-date"
               type="date"
+              max={toDate}
               className="admin-input-date"
               value={fromDate}
               onChange={(e) => {
@@ -209,9 +215,11 @@ export default function AdminReportsManagement({ currentUser }) {
             />
           </div>
           <div className="admin-date-input-wrap">
-            <span className="admin-date-label">Đến ngày:</span>
+            <label htmlFor="reports-to-date" className="admin-date-label">Đến ngày:</label>
             <input
+              id="reports-to-date"
               type="date"
+              min={fromDate}
               className="admin-input-date"
               value={toDate}
               onChange={(e) => {
@@ -223,6 +231,10 @@ export default function AdminReportsManagement({ currentUser }) {
         </div>
       </div>
 
+      {invalidRange ? <p role="alert">Vui lòng chọn đủ ngày và đảm bảo ngày bắt đầu không sau ngày kết thúc.</p>
+        : loading ? <p role="status">Đang tải báo cáo...</p>
+        : error ? <div role="alert"><p>{error}</p><button className="admin-btn admin-btn-secondary" onClick={() => setAttempt(value => value + 1)}>Thử lại</button></div>
+        : <>
       {/* Grid thẻ KPI số liệu */}
       <div className="admin-kpi-grid">
         {/* Doanh thu */}
@@ -246,7 +258,7 @@ export default function AdminReportsManagement({ currentUser }) {
         {/* Lợi nhuận gộp */}
         <div className="admin-kpi-card">
           <div className="admin-kpi-top">
-            <span className="admin-kpi-title">Lợi Nhuận Gộp (Tạm Tính)</span>
+            <span className="admin-kpi-title">Chênh Lệch Thu / Nhập Hàng</span>
             <div className="admin-kpi-icon" style={{ backgroundColor: '#FEF3C7', color: '#D97706' }}>
               <TrendingUp size={20} />
             </div>
@@ -255,7 +267,7 @@ export default function AdminReportsManagement({ currentUser }) {
             {formatCurrency(overview?.grossProfit)}
           </div>
           <div className="admin-kpi-sub">
-            Giá vốn nhập: <strong>{formatCurrency(overview?.totalPurchaseCost)}</strong>
+            Chi phí nhập kho trong kỳ: <strong>{formatCurrency(overview?.totalPurchaseCost)}</strong>
           </div>
         </div>
 
@@ -294,7 +306,7 @@ export default function AdminReportsManagement({ currentUser }) {
         <div className="admin-chart-box">
           <div className="admin-chart-header">
             <div>
-              <h3 className="admin-chart-title">Xu Hướng Doanh Thu & Giá Vốn Hàng Ngày</h3>
+              <h3 className="admin-chart-title">Xu Hướng Doanh Thu & Chi Phí Nhập Hàng Ngày</h3>
               <p className="admin-chart-desc">So sánh doanh thu bán ra với chi phí nhập kho theo ngày</p>
             </div>
             <div className="admin-chart-legend">
@@ -411,6 +423,7 @@ export default function AdminReportsManagement({ currentUser }) {
 
       {/* Vùng Báo Cáo Chuyên Sâu dạng Tabs */}
       <div className="admin-reports-detail-section">
+        <p>Top bán chạy và hiệu quả voucher: số liệu tích lũy toàn thời gian. Tồn kho: số liệu hiện tại.</p>
         <div className="admin-reports-tab-nav">
           <button
             className={`admin-report-tab ${activeTab === 'topSelling' ? 'active' : ''}`}
@@ -467,7 +480,7 @@ export default function AdminReportsManagement({ currentUser }) {
                         <td>
                           <div className="admin-product-cell">
                             {p.imageUrl ? (
-                              <img src={p.imageUrl} alt={p.productName} className="admin-product-thumb" />
+                              <img src={productImageUrl(p.imageUrl)} alt={p.productName} className="admin-product-thumb" />
                             ) : (
                               <div className="admin-product-placeholder">
                                 <Package size={18} />
@@ -523,7 +536,7 @@ export default function AdminReportsManagement({ currentUser }) {
                   {deadStock.length === 0 ? (
                     <tr>
                       <td colSpan="7" style={{ textAlign: 'center', padding: '24px', color: '#64748B' }}>
-                        Kho hàng đang lưu thông rất tốt, không có hàng tồn ứ đọng trên 60 ngày!
+                        Không có sản phẩm đang bán còn tồn kho.
                       </td>
                     </tr>
                   ) : (
@@ -534,7 +547,7 @@ export default function AdminReportsManagement({ currentUser }) {
                           <td>
                             <div className="admin-product-cell">
                               {item.imageUrl ? (
-                                <img src={item.imageUrl} alt={item.productName} className="admin-product-thumb" />
+                                <img src={productImageUrl(item.imageUrl)} alt={item.productName} className="admin-product-thumb" />
                               ) : (
                                 <div className="admin-product-placeholder">
                                   <Package size={18} />
@@ -558,7 +571,7 @@ export default function AdminReportsManagement({ currentUser }) {
                           </td>
                           <td style={{ textAlign: 'center' }}>
                             <span className="admin-badge admin-badge-warning">
-                              {item.daysSinceLastSold ? `${item.daysSinceLastSold} ngày` : 'Chưa từng bán'}
+                              {item.daysSinceLastSold == null ? 'Chưa từng bán' : `${item.daysSinceLastSold} ngày`}
                             </span>
                           </td>
                           <td style={{ textAlign: 'center' }}>
@@ -639,6 +652,7 @@ export default function AdminReportsManagement({ currentUser }) {
           </div>
         )}
       </div>
+      </>}
     </div>
   )
 }

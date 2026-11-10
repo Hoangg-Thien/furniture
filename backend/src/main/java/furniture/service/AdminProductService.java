@@ -1,7 +1,6 @@
 package furniture.service;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -116,7 +115,7 @@ public class AdminProductService {
     }
 
     @Transactional
-    public List<ProductImageDto> uploadProductImages(Long productId, List<MultipartFile> files, Long actorUserId) {
+    public List<ProductImageDto> uploadProductImages(Long productId, List<MultipartFile> files, Long actorUserId, boolean makePrimary) {
         Map<String, Object> before = audit.snapshot(productId);
         ProductDetailDto product = getProductDetail(productId);
 
@@ -128,24 +127,30 @@ public class AdminProductService {
         int currentCount = currentImages != null ? currentImages.size() : 0;
         boolean hasPrimary = currentImages != null && currentImages.stream().anyMatch(img -> Boolean.TRUE.equals(img.isPrimary()));
 
-        List<String> savedUrls = new ArrayList<>();
+        if (makePrimary && product.imageUrl() != null && !product.imageUrl().isBlank()
+                && (currentImages == null || currentImages.stream().noneMatch(img -> product.imageUrl().equals(img.imageUrl())))) {
+            adminProductRepository.insertProductImage(productId, product.imageUrl(), false, ++currentCount);
+        }
+
+        Long firstImageId = null;
         for (int i = 0; i < files.size(); i++) {
             MultipartFile file = files.get(i);
             if (file == null || file.isEmpty()) continue;
 
             String fileUrl = fileStorageService.storeFile(file);
-            savedUrls.add(fileUrl);
-
-            boolean isPrimary = (!hasPrimary && i == 0);
+            boolean isPrimary = !hasPrimary && firstImageId == null;
             int displayOrder = currentCount + i + 1;
 
-            adminProductRepository.insertProductImage(productId, fileUrl, isPrimary, displayOrder);
+            Long imageId = adminProductRepository.insertProductImage(productId, fileUrl, isPrimary, displayOrder);
+            if (firstImageId == null) firstImageId = imageId;
 
             if (isPrimary && (product.imageUrl() == null || product.imageUrl().trim().isEmpty())) {
                 adminProductRepository.updateProductImageUrl(productId, fileUrl);
             }
         }
 
+        if (firstImageId == null) throw new IllegalArgumentException("Vui lòng chọn file ảnh có dữ liệu");
+        if (makePrimary) adminProductRepository.setPrimaryImage(productId, firstImageId);
         audit.record(productId, actorUserId, before);
         return adminProductRepository.findImagesByProductId(productId);
     }

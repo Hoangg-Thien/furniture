@@ -1,4 +1,5 @@
 import { getApiBaseUrl } from './apiConfig.js'
+import { productImageUrl } from './productImages.js'
 
 const CACHE_KEY = 'furniture_cached_products'
 
@@ -19,7 +20,7 @@ export async function loadProducts() {
         category: row.category ?? 'Khác',
         price: Number(row.price),
         badge: '',
-        image: row.imageUrl || '',
+        image: productImageUrl(row.imageUrl),
         quantity: Number.isSafeInteger(row.quantity) && row.quantity >= 0 ? row.quantity : null,
       }))
 

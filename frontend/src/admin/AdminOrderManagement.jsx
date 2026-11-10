@@ -29,6 +29,7 @@ import {
 } from 'lucide-react'
 import { getApiBaseUrl, getApiHeaders } from '../lib/apiConfig'
 import { canProcessOrders } from '../lib/adminPermissions'
+import { productImageUrl } from '../lib/productImages'
 
 export default function AdminOrderManagement({ currentUser, notificationTarget }) {
   const processOrders = canProcessOrders(currentUser)
@@ -962,7 +963,7 @@ export default function AdminOrderManagement({ currentUser, notificationTarget }
                             <td>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                 <img
-                                  src={item.imageUrl || 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=120&q=80'}
+                                  src={productImageUrl(item.imageUrl) || 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=120&q=80'}
                                   alt=""
                                   style={{ width: '40px', height: '40px', borderRadius: '6px', objectFit: 'cover', border: '1px solid #E2E8F0' }}
                                 />

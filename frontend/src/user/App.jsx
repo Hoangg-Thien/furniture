@@ -19,6 +19,7 @@ import {
   X,
 } from 'lucide-react'
 import { loadProducts } from '../lib/products'
+import { productImageUrl } from '../lib/productImages'
 import { loadCart, saveCart, loadCartExpiresAt, CART_TIMEOUT_MS, getProductStock, limitCartToStock } from './lib/cart'
 import { isCheckoutPath } from './lib/checkout'
 import { fetchOrderById, getLocalOrders } from '../lib/orders'
@@ -353,7 +354,7 @@ function App() {
                 items: (items || []).map((it) => ({
                   id: it.product_id,
                   name: it.product_name,
-                  image: it.image_url,
+                  image: productImageUrl(it.image_url),
                   category: it.category_name,
                   quantity: it.quantity,
                   price: Number(it.unit_price || 0),

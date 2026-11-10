@@ -28,6 +28,7 @@ import {
   Clock
 } from 'lucide-react'
 import { getApiBaseUrl, getApiHeaders } from '../lib/apiConfig'
+import { productImageUrl } from '../lib/productImages'
 
 export default function AdminInvoiceManagement({ currentUser }) {
   const [invoices, setInvoices] = useState([])
@@ -949,7 +950,7 @@ export default function AdminInvoiceManagement({ currentUser }) {
                               <tr key={idx}>
                                 <td>
                                   <div className="inv-mini-item">
-                                    {it.imageUrl && <img src={it.imageUrl} alt="" className="inv-mini-thumb" />}
+                                    {it.imageUrl && <img src={productImageUrl(it.imageUrl)} alt="" className="inv-mini-thumb" />}
                                     <span>{it.productName}</span>
                                   </div>
                                 </td>

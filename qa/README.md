@@ -4,6 +4,10 @@ Bộ kiểm thử này không sửa mã nghiệp vụ. Các request ghi chạy t
 
 ## Chạy lại trên máy hiện tại
 
+Ảnh sản phẩm: chạy `node qa/harness/product-file-check.mjs` để kiểm tra chọn file ngay trong form thêm/sửa, ưu tiên file hơn URL, chặn định dạng sai, thử lại tải ảnh không tạo trùng sản phẩm và hiển thị ảnh từ backend. Sau khi bật `start.mjs`, chạy `node qa/harness/product-file-api-check.mjs` để kiểm tra API thật, giữ URL cũ trong album, phục vụ file, chặn giả ảnh và giới hạn 5 MB. File JPG/PNG/WEBP/GIF tối đa 5 MB được lưu trong `uploads/products` trên máy chủ; cần giữ thư mục này khi triển khai và sao lưu. Test backend nằm trong `FileStorageServiceTest` và `AdminProductServiceTest`.
+
+Báo cáo admin: chạy `node qa/harness/reports-check.mjs` để kiểm tra kết nối backend/header phiên, bộ lọc GMT+7, KPI/biểu đồ/tab, tải Excel, khoảng ngày sai, lỗi/thử lại và dữ liệu rỗng. Script dùng API giả lập, không ghi database. Kiểm thử SQL và ranh giới ngày nằm trong `AdminStatisticsRepositoryTest.java`.
+
 Giới hạn tồn kho: `node qa/harness/cart-stock-check.mjs` tự bật Vite và giả lập API để kiểm tra tồn 2 chỉ thêm tối đa 2, nút tăng/giảm, hàng hết/chưa xác nhận, giỏ đã lưu vượt giới hạn, cập nhật khi quay lại tab, mua lại và mất kết nối. Không ghi database. API tồn kho được kiểm tra bằng `ProductStockTest`; chống bán vượt kho/rollback bằng `OrderStockTest`.
 
 Dashboard: chạy `node qa/harness/dashboard-check.mjs`. Script tự bật Vite và dùng API giả lập để kiểm tra dữ liệu/KPI, header phiên admin, khoảng 30 ngày theo GMT+7, đơn khách vãng lai, trạng thái đơn, tồn kho, điều hướng, loading, lỗi/thử lại, dữ liệu rỗng và bố cục 320–1440px. Không ghi database; ảnh kiểm tra ở `qa/runtime/dashboard/`.

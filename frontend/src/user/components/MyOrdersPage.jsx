@@ -17,6 +17,7 @@ import {
 import { fetchOrders, getLocalOrders } from '../../lib/orders'
 import CancelOrderDialog from './CancelOrderDialog'
 import OrderShippingInfo from './OrderShippingInfo'
+import { productImageUrl } from '../../lib/productImages'
 
 const EMPTY_PRODUCTS = []
 
@@ -413,7 +414,7 @@ export default function MyOrdersPage({
                         <div className="shopee-item-img-box">
                           {item.image ? (
                             <img
-                              src={item.image}
+                              src={productImageUrl(item.image)}
                               alt={item.name}
                               onError={(e) => {
                                 e.currentTarget.style.display = 'none'
