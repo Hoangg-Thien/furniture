@@ -1,11 +1,33 @@
 import assert from 'node:assert/strict'
 import { beforeEach, afterEach, test } from 'node:test'
-import { createOrder, fetchOrders, fetchOrderById, getLocalOrders, cancelOrderApi, saveOrderToLocalHistory, getOrderUrl } from '../src/lib/orders.js'
+import { createOrder, previewOrder, fetchOrders, fetchOrderById, getLocalOrders, cancelOrderApi, saveOrderToLocalHistory, getOrderUrl } from '../src/lib/orders.js'
 import { getCurrentUser } from '../src/lib/auth.js'
 import { loadProducts } from '../src/lib/products.js'
 import { splitSavedAddress } from '../src/user/lib/vietnamLocations.js'
+import { getApiBaseUrl } from '../src/lib/apiConfig.js'
 
 const originalFetch = globalThis.fetch
+test('blocked browser storage still uses the configured backend', () => {
+  globalThis.window = {}
+  localStorage.getItem = () => { throw new Error('blocked') }
+  try { assert.equal(getApiBaseUrl(), 'http://localhost:8080') }
+  finally { delete globalThis.window }
+})
+test('checkout preview uses server totals and supports cancellation and server errors', async () => {
+  const controller = new AbortController()
+  const quote = { items: [{ productId: 1, quantity: 1, unitPrice: 100000 }], subtotal: 100000, discountAmount: 20000, shippingFee: 35000, totalAmount: 115000, discountLabel: 'Best offer' }
+  globalThis.fetch = async (url, init) => {
+    assert.equal(url, 'http://localhost:8080/api/orders/preview')
+    assert.equal(init.signal, controller.signal)
+    assert.deepEqual(JSON.parse(init.body), { items: [{ productId: 1, quantity: 1 }], voucherId: null })
+    return { ok: true, json: async () => quote }
+  }
+  assert.deepEqual(await previewOrder([{ productId: 1, quantity: 1 }], null, controller.signal), quote)
+  globalThis.fetch = async () => ({ ok: false, json: async () => ({ error: 'Sold out' }) })
+  await assert.rejects(previewOrder([], null), /Sold out/)
+  globalThis.fetch = async () => ({ ok: true, json: async () => ({ ...quote, totalAmount: null }) })
+  await assert.rejects(previewOrder([], null), /báo giá không hợp lệ/)
+})
 beforeEach(() => {
   const values = new Map()
   globalThis.localStorage = {

@@ -329,7 +329,7 @@ public class AdminSupplierRepository {
         return Boolean.TRUE.equals(jdbcTemplate.queryForObject("SELECT EXISTS (SELECT 1 FROM public.staff WHERE id = ?)", Boolean.class, id));
     }
 
-    public String getReceiptStatus(Long supplierId, Long receiptId, boolean lock) {
+    public String getReceiptStatus(Long supplierId, Long receiptId, boolean lock) throws IllegalArgumentException {
         var statuses = jdbcTemplate.queryForList(
                 "SELECT status FROM public.purchase_receipts WHERE supplier_id = ? AND id = ?" + (lock ? " FOR UPDATE" : ""),
                 String.class, supplierId, receiptId);
@@ -339,7 +339,7 @@ public class AdminSupplierRepository {
         return statuses.get(0);
     }
 
-    public void updateReceiptStatus(Long supplierId, Long receiptId, String newStatus) {
+    public void updateReceiptStatus(Long supplierId, Long receiptId, String newStatus) throws IllegalArgumentException {
         String status = newStatus != null ? newStatus.trim().toUpperCase(Locale.ROOT) : "";
         if (!List.of("PENDING", "COMPLETED", "CANCELLED").contains(status)) {
             throw new IllegalArgumentException("Trạng thái không hợp lệ: " + newStatus);

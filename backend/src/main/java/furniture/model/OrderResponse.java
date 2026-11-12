@@ -13,6 +13,9 @@ public record OrderResponse(
         BigDecimal subtotal,
         BigDecimal discountAmount,
         BigDecimal shippingFee,
-        List<OrderItemDto> items) {
+        List<OrderItemDto> items,
+        Long voucherId,
+        String voucherCode,
+        String discountLabel) {
 }
 

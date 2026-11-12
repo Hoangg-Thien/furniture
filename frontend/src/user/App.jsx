@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useMemo } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import {
   ArrowRight,
   ArrowUpDown,
@@ -37,12 +37,12 @@ import OrderReviewPage from './components/OrderReviewPage'
 import MyOrdersPage from './components/MyOrdersPage'
 import NotificationsMenu from './components/NotificationsMenu'
 import VouchersModal from './components/VouchersModal'
-import AdminLayout from '../admin/AdminLayout'
-import AdminLoginPage from '../admin/AdminLoginPage'
 import NotFoundPage from './components/NotFoundPage'
 import './App.css'
 
 const formatPrice = (price) => `${new Intl.NumberFormat('vi-VN').format(price)}₫`
+const AdminLayout = lazy(() => import('../admin/AdminLayout'))
+const AdminLoginPage = lazy(() => import('../admin/AdminLoginPage'))
 
 function App() {
   // Hệ thống định tuyến:
@@ -363,6 +363,7 @@ function App() {
                 subtotal: (items || []).reduce((sum, it) => sum + Number(it.amount || 0), 0),
                 discount_amount: Number(order.discount_amount || 0),
                 discountAmount: Number(order.discount_amount || 0),
+                discountLabel: order.discount_label,
                 total_amount: Number(order.total_amount || 0),
                 total: Number(order.total_amount || 0),
                 shippingInfo: {
@@ -612,19 +613,23 @@ function App() {
 
     if (!hasAdminAccess) {
       return (
+        <Suspense fallback={<p role="status">Đang tải trang quản trị...</p>}>
         <AdminLoginPage
           onLoginSuccess={handleAdminLoginSuccess}
           onBackToStore={handleBackToStore}
         />
+        </Suspense>
       )
     }
 
     return (
+      <Suspense fallback={<p role="status">Đang tải trang quản trị...</p>}>
       <AdminLayout
         currentUser={adminUser}
         onLogout={handleAdminLogout}
         onBackToStore={handleBackToStore}
       />
+      </Suspense>
     )
   }
 

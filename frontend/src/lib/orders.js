@@ -117,6 +117,20 @@ export async function createOrder({
   }
 }
 
+export async function previewOrder(items, voucherId, signal) {
+  const response = await fetch(`${getApiBaseUrl()}/api/orders/preview`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, signal,
+    body: JSON.stringify({ items, voucherId }),
+  })
+  const data = await response.json()
+  if (!response.ok) throw new Error(data.error || 'Không thể tính tổng đơn hàng. Vui lòng thử lại.')
+  if (!Array.isArray(data.items) || !['subtotal', 'discountAmount', 'shippingFee', 'totalAmount'].every(key =>
+    typeof data[key] === 'number' && Number.isFinite(data[key]) && data[key] >= 0)) {
+    throw new Error('Dữ liệu báo giá không hợp lệ. Vui lòng thử lại.')
+  }
+  return data
+}
+
 export async function fetchOrders(customerId) {
   if (!customerId) return { orders: [], error: 'Vui lòng đăng nhập để xem đơn hàng.' }
   const apiBaseUrl = getApiBaseUrl()
@@ -136,7 +150,7 @@ export async function fetchOrders(customerId) {
   return { orders: getLocalOrders(customerId), error: 'Không tải được đơn hàng mới nhất. Đang hiển thị dữ liệu đã lưu trên thiết bị.' }
 }
 
-export async function fetchOrderById(id, guestToken) {
+export async function fetchOrderById(id, guestToken, signal) {
   const apiBaseUrl = getApiBaseUrl()
   let queryId = id
   if (typeof id === 'string' && id.startsWith('FUNI-')) {
@@ -145,6 +159,7 @@ export async function fetchOrderById(id, guestToken) {
   }
   try {
     const response = await fetch(`${apiBaseUrl}/api/orders/${queryId}`, {
+      signal,
       headers: guestToken ? { 'X-Order-Token': guestToken } : {},
     })
     if (response.ok) {
@@ -152,7 +167,7 @@ export async function fetchOrderById(id, guestToken) {
       return { order: data.order, items: data.items, error: null }
     }
   } catch (err) {
-    console.warn('Backend fetchOrderById error:', err)
+    if (err.name !== 'AbortError') console.warn('Backend fetchOrderById error:', err)
   }
   return { order: null, items: [], error: 'Không tìm thấy đơn hàng' }
 }

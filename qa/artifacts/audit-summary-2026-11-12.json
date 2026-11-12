@@ -1,0 +1,38 @@
+{
+  "date": "2026-11-12",
+  "timezone": "Asia/Bangkok",
+  "environment": "Isolated local PGlite, H2 and headless Chrome; no live Supabase writes",
+  "backendTests": { "passed": 162, "failed": 0 },
+  "frontendTests": { "passed": 52, "failed": 0 },
+  "apiTests": { "passed": 122, "failed": 0 },
+  "extraApiTests": { "passed": 48, "failed": 0 },
+  "browserTests": { "passed": 38, "failed": 0, "uncaughtErrors": 0 },
+  "permissionApiGroups": { "passed": 8, "failed": 0 },
+  "categoryUiGroups": { "passed": 8, "failed": 0 },
+  "additionalPassedChecks": [
+    "guest-checkout-check", "shipping-api-check", "permissions-ui-check",
+    "order-refresh-check", "search-check", "reports-check", "notifications-check",
+    "invoice-ui-check", "admin-login-check", "dashboard-check", "product-images-check",
+    "audit-ui-check", "cart-stock-check", "cart-expiry-check", "clean-start"
+  ],
+  "restartPreservesOrderDateAndTotal": true,
+  "registrationDoesNotEditSeed": true,
+  "lint": { "errors": 0, "warnings": 111 },
+  "build": {
+    "passed": true,
+    "initialJsKbBefore": 769.71,
+    "initialJsKbAfter": 409.65,
+    "initialJsGzipKbBefore": 191.62,
+    "initialJsGzipKbAfter": 118.44,
+    "initialCssKbBefore": 219.88,
+    "initialCssKbAfter": 98.04
+  },
+  "unresolved": [
+    "Seven conflicting statements in existing seed SQL; strict import fails",
+    "Legacy unsalted password hashing and demo credentials",
+    "Historical orders without recipient snapshots",
+    "No order-creation idempotency key",
+    "Single-page server PDF with transliterated text",
+    "Large-data, load, real-device and production checks not performed"
+  ]
+}

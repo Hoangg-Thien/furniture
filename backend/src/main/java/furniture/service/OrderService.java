@@ -2,6 +2,7 @@ package furniture.service;
 
 import java.math.BigDecimal;
 import java.time.Year;
+import java.time.ZoneId;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -18,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import furniture.model.CreateOrderRequest;
 import furniture.model.OrderItemDto;
 import furniture.model.OrderResponse;
+import furniture.model.OrderQuote;
 import furniture.model.ValidateVoucherRequest;
 import furniture.util.PasswordUtil;
 import furniture.repository.OrderRepository;
@@ -60,17 +62,7 @@ public class OrderService {
         if (!guest && (customerId == null || customerId <= 0)) {
             throw new IllegalArgumentException("Không xác định được khách hàng. Vui lòng đăng nhập lại.");
         }
-        var productIds = new HashSet<Long>();
-        for (OrderItemDto item : req.items()) {
-            if (item == null || item.productId() == null || item.productId() <= 0
-                    || item.quantity() == null || item.quantity() <= 0) {
-                throw new IllegalArgumentException("Sản phẩm và số lượng đặt hàng không hợp lệ.");
-            }
-            if (!productIds.add(item.productId())) {
-                throw new IllegalArgumentException("Mỗi sản phẩm chỉ được xuất hiện một lần trong đơn hàng.");
-            }
-        }
-        BigDecimal subtotal = BigDecimal.ZERO;
+        validateItems(req.items());
         List<OrderItemDto> pricedItems = new ArrayList<>();
         // Khóa cùng thứ tự; đọc giá sau khi trừ kho để giá không đổi giữa lúc tính và lưu.
         for (OrderItemDto item : req.items().stream().sorted(Comparator.comparing(OrderItemDto::productId)).toList()) {
@@ -79,30 +71,17 @@ public class OrderService {
             }
             BigDecimal price = orderRepository.findProductPrice(item.productId());
             pricedItems.add(new OrderItemDto(item.productId(), item.quantity(), price));
-            subtotal = subtotal.add(price.multiply(BigDecimal.valueOf(item.quantity())));
         }
-        BigDecimal discount = BigDecimal.ZERO;
-        if (req.voucherId() != null) {
-            try {
-                var voucher = vouchers.validateVoucher(new ValidateVoucherRequest(orderRepository.findVoucherCode(req.voucherId()), subtotal));
-                discount = ((BigDecimal) voucher.get("discountAmount")).min(subtotal);
-            } catch (IllegalStateException ex) {
-                throw new IllegalArgumentException(ex.getMessage());
-            }
-            orderRepository.incrementVoucherUsedQuantity(req.voucherId());
-        }
-        BigDecimal shippingFee = subtotal.compareTo(new BigDecimal("2000000")) >= 0 ? BigDecimal.ZERO : new BigDecimal("35000");
-        BigDecimal finalTotal = subtotal.subtract(discount).add(shippingFee);
-        if (subtotal.compareTo(new BigDecimal("9999999999999.99")) > 0
-                || finalTotal.compareTo(new BigDecimal("9999999999999.99")) > 0) {
-            throw new IllegalArgumentException("Giá trị đơn hàng vượt quá giới hạn cho phép.");
-        }
+        OrderQuote quote = calculateQuote(pricedItems, req.voucherId());
+        BigDecimal subtotal = quote.subtotal();
+        BigDecimal discount = quote.discountAmount();
+        BigDecimal shippingFee = quote.shippingFee();
+        BigDecimal finalTotal = quote.totalAmount();
+        if (quote.voucherId() != null) orderRepository.incrementVoucherUsedQuantity(quote.voucherId());
         if (guest) {
             customerId = orderRepository.insertGuestCustomer(fullName, phone, fullAddress);
-        } else {
-            orderRepository.updateCustomerContact(customerId, phone, fullAddress);
         }
-        Long orderId = orderRepository.insertOrder(customerId, finalTotal, req.voucherId(), discount, fullAddress);
+        Long orderId = orderRepository.insertOrder(customerId, finalTotal, quote.voucherId(), discount, fullAddress, fullName, phone, quote.discountLabel());
         if (orderId == null) throw new IllegalStateException("Không thể tạo mã đơn hàng trong database.");
         String guestToken = null;
         if (guest) {
@@ -115,9 +94,75 @@ public class OrderService {
             orderRepository.insertOrderItem(orderId, item.productId(), item.quantity(), item.unitPrice(),
                     item.unitPrice().multiply(BigDecimal.valueOf(item.quantity())));
         }
-        String orderCode = "FUNI-" + Year.now().getValue() + "-" + String.format("%06d", orderId);
+        String orderCode = "FUNI-" + Year.now(ZoneId.of("Asia/Ho_Chi_Minh")).getValue() + "-" + String.format("%06d", orderId);
         return new OrderResponse(orderId, orderCode, "PENDING", finalTotal,
-                "Đặt hàng thành công và đã lưu vào cơ sở dữ liệu!", guestToken, subtotal, discount, shippingFee, pricedItems);
+                "Đặt hàng thành công và đã lưu vào cơ sở dữ liệu!", guestToken, subtotal, discount, shippingFee, pricedItems, quote.voucherId(), quote.voucherCode(), quote.discountLabel());
+    }
+
+    public OrderQuote previewOrder(CreateOrderRequest req) {
+        validateItems(req == null ? null : req.items());
+        List<OrderItemDto> items = new ArrayList<>();
+        for (var item : req.items()) {
+            items.add(new OrderItemDto(item.productId(), item.quantity(),
+                    orderRepository.findAvailableProductPrice(item.productId(), item.quantity())));
+        }
+        return calculateQuote(items, req.voucherId());
+    }
+
+    private OrderQuote calculateQuote(List<OrderItemDto> items, Long requestedVoucherId) {
+        BigDecimal subtotal = items.stream().map(item -> item.unitPrice().multiply(BigDecimal.valueOf(item.quantity())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        if (subtotal.compareTo(new BigDecimal("9999999999999.99")) > 0) {
+            throw new IllegalArgumentException("Giá trị đơn hàng vượt quá giới hạn cho phép.");
+        }
+        Long voucherId = null;
+        String voucherCode = null;
+        String discountLabel = null;
+        BigDecimal discount = BigDecimal.ZERO;
+        if (requestedVoucherId != null) {
+            try {
+                var voucher = vouchers.validateVoucher(new ValidateVoucherRequest(orderRepository.findVoucherCode(requestedVoucherId), subtotal));
+                discount = ((BigDecimal) voucher.get("discountAmount")).min(subtotal);
+                voucherId = requestedVoucherId;
+                voucherCode = (String) voucher.get("code");
+                discountLabel = "Voucher " + voucherCode;
+            } catch (IllegalStateException ex) {
+                throw new IllegalArgumentException(ex.getMessage());
+            }
+        }
+        BigDecimal shippingFee = subtotal.compareTo(new BigDecimal("2000000")) >= 0 ? BigDecimal.ZERO : new BigDecimal("35000");
+        var promotions = orderRepository.findBestPromotion(items, subtotal);
+        if (!promotions.isEmpty()) {
+            var promotion = promotions.get(0);
+            BigDecimal automaticDiscount = ((BigDecimal) promotion.get("discount_amount")).min(subtotal);
+            if (automaticDiscount.signum() > 0 && automaticDiscount.compareTo(discount) >= 0) {
+                discount = automaticDiscount;
+                discountLabel = (String) promotion.get("discount_label");
+                voucherId = null;
+                voucherCode = null;
+            }
+        }
+        BigDecimal finalTotal = subtotal.subtract(discount).add(shippingFee);
+        if (finalTotal.compareTo(new BigDecimal("9999999999999.99")) > 0) {
+            throw new IllegalArgumentException("Giá trị đơn hàng vượt quá giới hạn cho phép.");
+        }
+        return new OrderQuote(items, subtotal, discount, shippingFee, finalTotal, voucherId, voucherCode, discountLabel);
+    }
+
+    private static void validateItems(List<OrderItemDto> items) {
+        if (items == null || items.isEmpty() || items.size() > 100) {
+            throw new IllegalArgumentException("Đơn hàng phải có từ 1 đến 100 sản phẩm.");
+        }
+        var productIds = new HashSet<Long>();
+        for (OrderItemDto item : items) {
+            if (item == null || item.productId() == null || item.productId() <= 0
+                    || item.quantity() == null || item.quantity() <= 0) {
+                throw new IllegalArgumentException("Sản phẩm và số lượng đặt hàng không hợp lệ.");
+            }
+            if (!productIds.add(item.productId())) {
+                throw new IllegalArgumentException("Mỗi sản phẩm chỉ được xuất hiện một lần trong đơn hàng.");
+            }
+        }
     }
 
     private static String requiredText(String value, int maxLength, String label) {
@@ -147,10 +192,9 @@ public class OrderService {
             itemsByOrderId.computeIfAbsent(oid, k -> new java.util.ArrayList<>()).add(it);
         }
 
-        int currentYear = Year.now().getValue();
         for (Map<String, Object> order : orders) {
             Long orderId = ((Number) order.get("id")).longValue();
-            String orderCode = "FUNI-" + currentYear + "-" + String.format("%06d", orderId);
+            String orderCode = orderCode(order, orderId);
             order.put("orderCode", orderCode);
             order.put("items", itemsByOrderId.getOrDefault(orderId, Collections.emptyList()));
         }
@@ -165,7 +209,7 @@ public class OrderService {
         }
 
         Map<String, Object> order = orders.get(0);
-        String orderCode = "FUNI-" + Year.now().getValue() + "-" + String.format("%06d", id);
+        String orderCode = orderCode(order, id);
         order.put("orderCode", orderCode);
 
         List<Map<String, Object>> items = orderRepository.findOrderItemsByOrderId(id);
@@ -180,6 +224,12 @@ public class OrderService {
             orderRepository.restoreOrderVoucher(id);
         }
         return updated > 0;
+    }
+
+    private static String orderCode(Map<String, Object> order, Long id) {
+        String date = String.valueOf(order.get("order_date"));
+        String year = date.matches("\\d{4}-.*") ? date.substring(0, 4) : "UNKNOWN";
+        return "FUNI-" + year + "-" + String.format("%06d", id);
     }
 
 }

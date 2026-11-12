@@ -2,6 +2,7 @@ package furniture.repository;
 
 import java.math.BigDecimal;
 import java.sql.PreparedStatement;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -12,8 +13,7 @@ import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 
-import jakarta.annotation.PostConstruct;
-
+import furniture.model.OrderItemDto;
 @Repository
 public class OrderRepository {
 
@@ -21,48 +21,6 @@ public class OrderRepository {
 
     public OrderRepository(JdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
-    }
-
-    @PostConstruct
-    public void syncOrderTimezoneAndFixes() {
-        try {
-            jdbcTemplate.execute("ALTER TABLE public.orders ALTER COLUMN order_date TYPE TIMESTAMP(0)");
-        } catch (Exception ex) {
-            System.err.println("Notice: Could not alter order_date type to TIMESTAMP(0): " + ex.getMessage());
-        }
-        try {
-            jdbcTemplate.execute("ALTER TABLE public.orders ALTER COLUMN order_date SET DEFAULT (date_trunc('second', CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh'))");
-        } catch (Exception ex) {
-            System.err.println("Notice: Could not alter default order_date: " + ex.getMessage());
-        }
-        try {
-            jdbcTemplate.execute("UPDATE public.orders SET order_date = date_trunc('second', order_date)");
-            jdbcTemplate.execute("UPDATE public.orders SET order_date = '2026-10-13 13:45:14' WHERE id = 23 AND order_date < '2026-10-13 10:00:00'");
-            jdbcTemplate.execute("UPDATE public.orders SET order_date = '2026-10-12 16:47:52' WHERE id = 22 AND order_date < '2026-10-12 12:00:00'");
-            jdbcTemplate.execute("UPDATE public.orders SET order_date = '2026-10-12 16:46:58' WHERE id = 21 AND order_date < '2026-10-12 12:00:00'");
-        } catch (Exception ex) {
-            System.err.println("Notice: Could not update old orders date: " + ex.getMessage());
-        }
-
-        try {
-            jdbcTemplate.execute("""
-                    UPDATE public.orders o
-                    SET total_amount = (
-                        SELECT COALESCE(SUM(oi.amount), 0) - COALESCE(o.discount_amount, 0)
-                        FROM public.order_items oi
-                        WHERE oi.order_id = o.id
-                    )
-                    WHERE o.voucher_id IS NOT NULL 
-                      AND o.discount_amount > 0
-                      AND o.total_amount < (
-                        SELECT COALESCE(SUM(oi.amount), 0) - COALESCE(o.discount_amount, 0)
-                        FROM public.order_items oi
-                        WHERE oi.order_id = o.id
-                      )
-                    """);
-        } catch (Exception ex) {
-            System.err.println("Notice: Could not correct double discount orders: " + ex.getMessage());
-        }
     }
 
     public Long findCustomerIdByUserId(Long userId) {
@@ -92,7 +50,7 @@ public class OrderRepository {
         return jdbcTemplate.queryForObject("SELECT selling_price FROM public.products WHERE id = ?", BigDecimal.class, productId);
     }
 
-    public String findVoucherCode(Long voucherId) {
+    public String findVoucherCode(Long voucherId) throws IllegalArgumentException {
         List<String> codes = jdbcTemplate.query("SELECT code FROM public.vouchers WHERE id = ?", (rs, row) -> rs.getString("code"), voucherId);
         if (codes.isEmpty()) throw new IllegalArgumentException("Voucher không tồn tại");
         return codes.get(0);
@@ -102,20 +60,13 @@ public class OrderRepository {
         jdbcTemplate.update("UPDATE public.orders SET guest_token_hash = ? WHERE id = ?", tokenHash, orderId);
     }
 
-    public void updateCustomerContact(Long customerId, String phone, String address) {
-        if (phone != null && !phone.trim().isEmpty()) {
-            jdbcTemplate.update(
-                    "UPDATE public.customers SET phone = ?, address = CASE WHEN ? <> '' THEN ? ELSE address END WHERE id = ?",
-                    phone.trim(), address, address, customerId);
-        }
-    }
-
-    public Long insertOrder(Long customerId, BigDecimal finalTotal, Long voucherId, BigDecimal discount, String shippingAddress) {
+    public Long insertOrder(Long customerId, BigDecimal finalTotal, Long voucherId, BigDecimal discount, String shippingAddress,
+            String fullName, String phone, String discountLabel) {
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
             PreparedStatement ps = connection.prepareStatement(
-                    "INSERT INTO public.orders (customer_id, order_date, status, total_amount, voucher_id, discount_amount, shipping_address, stock_deducted) " +
-                            "VALUES (?, date_trunc('second', CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh'), 'PENDING', ?, ?, ?, ?, TRUE)",
+                    "INSERT INTO public.orders (customer_id, order_date, status, total_amount, voucher_id, discount_amount, shipping_address, stock_deducted, recipient_name, recipient_phone, discount_label) " +
+                            "VALUES (?, date_trunc('second', CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh'), 'PENDING', ?, ?, ?, ?, TRUE, ?, ?, ?)",
                     new String[] { "id" });
             ps.setLong(1, customerId);
             ps.setBigDecimal(2, finalTotal);
@@ -126,6 +77,9 @@ public class OrderRepository {
             }
             ps.setBigDecimal(4, discount != null ? discount : BigDecimal.ZERO);
             ps.setString(5, shippingAddress);
+            ps.setString(6, fullName);
+            ps.setString(7, phone);
+            ps.setString(8, discountLabel);
             return ps;
         }, keyHolder);
 
@@ -136,7 +90,46 @@ public class OrderRepository {
         return generatedId != null ? generatedId.longValue() : null;
     }
 
-    public void incrementVoucherUsedQuantity(Long voucherId) {
+    public BigDecimal findAvailableProductPrice(Long productId, int quantity) throws IllegalArgumentException {
+        var prices = jdbcTemplate.queryForList("""
+                SELECT selling_price FROM public.products WHERE id = ?
+                  AND quantity >= ? AND COALESCE(is_active, TRUE) = TRUE
+                """, BigDecimal.class, productId, quantity);
+        if (prices.isEmpty()) throw new IllegalArgumentException("Sản phẩm không đủ tồn kho hoặc đã ngừng bán. Vui lòng cập nhật giỏ hàng.");
+        return prices.get(0);
+    }
+
+    public List<Map<String, Object>> findBestPromotion(List<OrderItemDto> items, BigDecimal subtotal) {
+        String values = items.stream().map(item -> "(CAST(? AS BIGINT), CAST(? AS INTEGER), CAST(? AS NUMERIC))")
+                .collect(Collectors.joining(","));
+        List<Object> params = new ArrayList<>();
+        for (var item : items) {
+            params.add(item.productId());
+            params.add(item.quantity());
+            params.add(item.unitPrice());
+        }
+        params.add(subtotal);
+        params.add(subtotal);
+        return jdbcTemplate.queryForList("""
+                WITH lines(product_id, quantity, unit_price) AS (VALUES %s), candidates AS (
+                    SELECT pp.name AS discount_label,
+                           ROUND(SUM(l.unit_price * l.quantity * pd.discount_percent / 100), 0) AS discount_amount
+                    FROM lines l JOIN public.product_discounts pd ON pd.product_id = l.product_id
+                    JOIN public.promotion_programs pp ON pp.id = pd.promotion_program_id
+                    WHERE pp.status = 'ACTIVE' AND CURRENT_TIMESTAMP BETWEEN pp.start_date AND pp.end_date
+                      AND CURRENT_TIMESTAMP BETWEEN pd.start_date AND pd.end_date
+                    GROUP BY pp.id, pp.name
+                    UNION ALL
+                    SELECT pp.name AS discount_label, ROUND(? * od.discount_percent / 100, 0) AS discount_amount
+                    FROM public.order_discounts od JOIN public.promotion_programs pp ON pp.id = od.promotion_program_id
+                    WHERE pp.status = 'ACTIVE' AND CURRENT_TIMESTAMP BETWEEN pp.start_date AND pp.end_date
+                      AND CURRENT_TIMESTAMP BETWEEN od.start_date AND od.end_date AND od.minimum_amount <= ?
+                ) SELECT discount_label, discount_amount FROM candidates
+                WHERE discount_amount > 0 ORDER BY discount_amount DESC, discount_label LIMIT 1
+                """.formatted(values), params.toArray());
+    }
+
+    public void incrementVoucherUsedQuantity(Long voucherId) throws IllegalArgumentException {
         if (voucherId != null && voucherId > 0) {
             int updated = jdbcTemplate.update("""
                     UPDATE public.vouchers SET used_quantity = used_quantity + 1
@@ -162,10 +155,10 @@ public class OrderRepository {
     public List<Map<String, Object>> findOrders(Long customerId) {
         String sql = """
                 SELECT o.id, o.customer_id, to_char(o.order_date, 'YYYY-MM-DD HH24:MI:SS') AS order_date,
-                       o.status, o.total_amount, o.discount_amount, o.voucher_id, v.code AS voucher_code,
+                       o.status, o.total_amount, o.discount_amount, o.discount_label, o.voucher_id, v.code AS voucher_code,
                        to_char(o.approved_at, 'YYYY-MM-DD"T"HH24:MI:SS') || '+07:00' AS approved_at,
-                       COALESCE(c.full_name, 'Khách hàng') AS full_name,
-                       COALESCE(c.phone, '') AS phone,
+                       COALESCE(o.recipient_name, c.full_name, 'Khách hàng') AS full_name,
+                       COALESCE(o.recipient_phone, c.phone, '') AS phone,
                        COALESCE(o.shipping_address, c.address, '') AS address
                 FROM public.orders o
                 LEFT JOIN public.customers c ON c.id = o.customer_id
@@ -195,13 +188,14 @@ public class OrderRepository {
     public List<Map<String, Object>> findOrderById(Long id) {
         return jdbcTemplate.queryForList("""
                 SELECT o.id, o.customer_id, to_char(o.order_date, 'YYYY-MM-DD HH24:MI:SS') AS order_date,
-                       o.status, o.total_amount, o.discount_amount,
+                       o.status, o.total_amount, o.discount_amount, o.discount_label, o.voucher_id, v.code AS voucher_code,
                        to_char(o.approved_at, 'YYYY-MM-DD"T"HH24:MI:SS') || '+07:00' AS approved_at,
-                       COALESCE(c.full_name, 'Khách hàng') AS full_name,
-                       COALESCE(c.phone, '') AS phone,
+                       COALESCE(o.recipient_name, c.full_name, 'Khách hàng') AS full_name,
+                       COALESCE(o.recipient_phone, c.phone, '') AS phone,
                        COALESCE(o.shipping_address, c.address, '') AS address
                 FROM public.orders o
                 LEFT JOIN public.customers c ON c.id = o.customer_id
+                LEFT JOIN public.vouchers v ON v.id = o.voucher_id
                 WHERE o.id = ?
                 """, id);
     }

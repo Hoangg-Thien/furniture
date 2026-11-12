@@ -51,19 +51,17 @@ public class AdminUserService {
         Long userId = adminUserRepository.insertUser(username, passwordHash, role, true);
 
         // Khởi tạo bản ghi tương ứng trong bảng staff / admins / customers nếu cần
-        try {
-            if ("STAFF".equals(role)) {
-                jdbcTemplate.update(
-                    "INSERT INTO public.staff (user_id, full_name, role) VALUES (?, ?, 'STAFF') ON CONFLICT (user_id) DO NOTHING",
-                    userId, username);
-            } else if ("ADMIN".equals(role)) {
-                jdbcTemplate.update(
-                    "INSERT INTO public.admins (user_id, full_name, role) VALUES (?, ?, 'ADMIN') ON CONFLICT (user_id) DO NOTHING",
-                    userId, username);
-            }
-        } catch (Exception e) {
-            // Log nhưng không làm hỏng flow tạo user
-            System.err.println("Notice: Could not insert supplementary role table record: " + e.getMessage());
+        if ("CUSTOMER".equals(role)) {
+            jdbcTemplate.update("INSERT INTO public.customers (user_id, full_name, role) VALUES (?, ?, 'CUSTOMER')",
+                userId, username);
+        } else if ("STAFF".equals(role)) {
+            jdbcTemplate.update(
+                "INSERT INTO public.staff (user_id, full_name, role) VALUES (?, ?, 'STAFF') ON CONFLICT (user_id) DO NOTHING",
+                userId, username);
+        } else if ("ADMIN".equals(role)) {
+            jdbcTemplate.update(
+                "INSERT INTO public.admins (user_id, full_name, role) VALUES (?, ?, 'ADMIN') ON CONFLICT (user_id) DO NOTHING",
+                userId, username);
         }
 
         return new UserSummaryResponse(userId, username, role, true, LocalDateTime.now());

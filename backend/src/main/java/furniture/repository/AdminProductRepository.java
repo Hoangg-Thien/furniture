@@ -74,7 +74,8 @@ public class AdminProductRepository {
 
     public PageResponse<ProductSummaryDto> searchProducts(
             Long categoryId, String search, Boolean lowStock, Boolean isActive, int page, int size) {
-
+        page = Math.max(0, page);
+        size = Math.max(1, Math.min(size, 100));
         StringBuilder whereClause = new StringBuilder(" WHERE 1=1 ");
         List<Object> params = new ArrayList<>();
 
@@ -105,7 +106,7 @@ public class AdminProductRepository {
         int totalPages = (int) Math.ceil((double) totalElements / size);
         if (totalPages == 0) totalPages = 1;
 
-        int offset = page * size;
+        long offset = (long) page * size;
         String selectSql = """
                 SELECT p.id, p.name, p.category_id, c.name AS category_name,
                        p.unit, p.selling_price, p.image_url, p.quantity, p.is_active, p.created_at
@@ -280,7 +281,8 @@ public class AdminProductRepository {
         return extractId(keyHolder);
     }
 
-    public void setPrimaryImage(Long productId, Long imageId) {
+    // Declared input errors must bypass Spring's persistence exception translation.
+    public void setPrimaryImage(Long productId, Long imageId) throws IllegalArgumentException {
         List<String> imageUrls = jdbcTemplate.queryForList(
                 "SELECT image_url FROM public.product_images WHERE id = ? AND product_id = ?",
                 String.class, imageId, productId);
@@ -299,18 +301,19 @@ public class AdminProductRepository {
         }
     }
 
-    public void deleteProductImage(Long productId, Long imageId) {
+    public void deleteProductImage(Long productId, Long imageId) throws IllegalArgumentException {
         // Kiểm tra xem ảnh sắp xóa có phải là primary không
-        Boolean isPrimary = jdbcTemplate.queryForObject(
+        List<Boolean> primaryFlags = jdbcTemplate.queryForList(
                 "SELECT is_primary FROM public.product_images WHERE id = ? AND product_id = ?",
                 Boolean.class,
                 imageId,
                 productId
         );
+        if (primaryFlags.isEmpty()) throw new IllegalArgumentException("Ảnh không thuộc sản phẩm này");
 
         jdbcTemplate.update("DELETE FROM public.product_images WHERE id = ? AND product_id = ?", imageId, productId);
 
-        if (Boolean.TRUE.equals(isPrimary)) {
+        if (Boolean.TRUE.equals(primaryFlags.get(0))) {
             // Lấy ảnh kế tiếp làm primary nếu còn ảnh
             List<Map<String, Object>> remaining = jdbcTemplate.queryForList(
                     "SELECT id, image_url FROM public.product_images WHERE product_id = ? ORDER BY display_order ASC, id ASC LIMIT 1",

@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useRef } from 'react'
 import { productImageUrl } from '../../lib/productImages'
 import {
   ArrowLeft,
@@ -29,7 +29,7 @@ import {
   UserCheck,
   RefreshCw,
 } from 'lucide-react'
-import { createOrder, saveOrderToLocalHistory, fetchOrderById, getOrderUrl } from '../../lib/orders'
+import { createOrder, previewOrder, saveOrderToLocalHistory, fetchOrderById, getOrderUrl } from '../../lib/orders'
 import CancelOrderDialog from './CancelOrderDialog'
 import OrderShippingInfo from './OrderShippingInfo'
 import { validateVoucherApi, fetchActiveVouchers } from '../../lib/vouchers'
@@ -85,10 +85,13 @@ function OrderSummary({
   voucherError,
   voucherLoading,
   availableVouchers = [],
+  quote,
+  quoteError,
+  onRetryQuote,
 }) {
-  const discount = appliedVoucher ? appliedVoucher.discountAmount : 0
-  const shippingFee = subtotal >= FREE_SHIP_THRESHOLD ? 0 : SHIPPING_FEE
-  const total = Math.max(0, subtotal - discount + shippingFee)
+  const discount = Number(quote?.discountAmount || 0)
+  const shippingFee = quote ? Number(quote.shippingFee) : (subtotal >= FREE_SHIP_THRESHOLD ? 0 : SHIPPING_FEE)
+  const total = quote ? Number(quote.totalAmount) : subtotal + shippingFee
 
   // Gợi ý voucher phù hợp (ưu tiên NEP500K nếu đơn >= 5tr hoặc voucher lớn nhất)
   const suggestedVoucher = useMemo(() => {
@@ -137,7 +140,7 @@ function OrderSummary({
               <span className="order-item-category">{product.category}</span>
               <p className="order-item-name">{product.name}</p>
               <strong className="order-item-price">
-                {formatPrice(product.price * cart[product.id])}
+                {formatPrice(Number(quote?.items.find(item => String(item.productId) === String(product.id))?.unitPrice ?? product.price) * cart[product.id])}
               </strong>
             </div>
           </div>
@@ -191,7 +194,7 @@ function OrderSummary({
           <div className="voucher-msg-alert success">
             <CheckCircle2 size={13} />
             <span>
-              Đã giảm <strong>{formatPrice(appliedVoucher.discountAmount)}</strong> ({appliedVoucher.code})
+              Đã kiểm tra mã {appliedVoucher.code}. Hệ thống chọn ưu đãi giảm nhiều nhất.
             </span>
           </div>
         )}
@@ -222,14 +225,17 @@ function OrderSummary({
       </div>
 
       <div className="order-summary-totals">
+        <p className="order-freeship-hint">Mỗi đơn áp dụng một ưu đãi giảm nhiều nhất; không cộng dồn.</p>
+        {!quote && !quoteError && <p role="status">Đang tính ưu đãi và tổng thanh toán...</p>}
+        {quoteError && <p role="alert">{quoteError} <button type="button" onClick={onRetryQuote}>Thử lại</button></p>}
         <div className="order-total-row">
           <span>Tạm tính</span>
           <span>{formatPrice(subtotal)}</span>
         </div>
-        {appliedVoucher && (
+        {discount > 0 && (
           <div className="order-total-row order-discount-row">
-            <span>Giảm giá Voucher ({appliedVoucher.code})</span>
-            <span className="order-discount-text">-{formatPrice(appliedVoucher.discountAmount)}</span>
+            <span>Ưu đãi tốt nhất: {quote.discountLabel}</span>
+            <span className="order-discount-text">-{formatPrice(discount)}</span>
           </div>
         )}
         <div className="order-total-row">
@@ -287,6 +293,7 @@ export default function OrderReviewPage({
   const [orderSnapshot, setOrderSnapshot] = useState(initialOrder)
   const [liveStatus, setLiveStatus] = useState(initialOrder?.status || 'PENDING')
   const [isRefreshingStatus, setIsRefreshingStatus] = useState(false)
+  const statusRequest = useRef(null)
 
   // Đồng bộ khi initialOrder thay đổi từ component cha (App.jsx fetch live order)
   useEffect(() => {
@@ -307,11 +314,13 @@ export default function OrderReviewPage({
   // Hàm tự động gọi backend lấy trạng thái duyệt đơn mới nhất
   const handleRefreshStatus = async () => {
     const orderKey = orderSnapshot?.orderNumber || orderSnapshot?.id || initialOrder?.orderNumber || initialOrder?.id
-    if (!orderKey) return
+    if (!orderKey || statusRequest.current) return
+    const controller = new AbortController()
+    statusRequest.current = controller
     setIsRefreshingStatus(true)
     try {
-      const { order, error } = await fetchOrderById(orderKey, orderSnapshot?.guestToken || initialOrder?.guestToken)
-      if (order && !error && order.status) {
+      const { order, error } = await fetchOrderById(orderKey, orderSnapshot?.guestToken || initialOrder?.guestToken, controller.signal)
+      if (!controller.signal.aborted && order && !error && order.status) {
         setLiveStatus(order.status)
         setOrderSnapshot((prev) => ({
           ...(prev || {}),
@@ -324,26 +333,31 @@ export default function OrderReviewPage({
     } catch (e) {
       console.warn('Lỗi làm mới trạng thái đơn hàng:', e)
     } finally {
-      setIsRefreshingStatus(false)
+      if (statusRequest.current === controller) statusRequest.current = null
+      if (!controller.signal.aborted) setIsRefreshingStatus(false)
     }
   }
 
   // Tự động kiểm tra và cập nhật trạng thái liên tục theo thời gian thực (Polling mỗi 3.5s)
   useEffect(() => {
-    if (step !== 3) return
+    if (step !== 3 || ['COMPLETED', 'CANCELLED'].includes(liveStatus)) return
     const orderKey = orderSnapshot?.orderNumber || orderSnapshot?.id || initialOrder?.orderNumber || initialOrder?.id
     if (!orderKey) return
 
     // Kiểm tra ngay lập tức
-    handleRefreshStatus()
+    if (!document.hidden) handleRefreshStatus()
 
     // Cập nhật liên tục mỗi 3.5 giây để nhận ngay trạng thái Duyệt từ Admin mà không cần tải lại trang
     const interval = setInterval(() => {
-      handleRefreshStatus()
+      if (!document.hidden) handleRefreshStatus()
     }, 3500)
 
-    return () => clearInterval(interval)
-  }, [step, orderSnapshot?.orderNumber, orderSnapshot?.id, initialOrder?.orderNumber, initialOrder?.id])
+    return () => {
+      clearInterval(interval)
+      statusRequest.current?.abort()
+      statusRequest.current = null
+    }
+  }, [step, liveStatus, orderSnapshot?.orderNumber, orderSnapshot?.id, initialOrder?.orderNumber, initialOrder?.id])
 
   const [orderNumber] = useState(
     () =>
@@ -433,6 +447,28 @@ export default function OrderReviewPage({
 
   // State quản lý Voucher áp dụng cho đơn hàng
   const [appliedVoucher, setAppliedVoucher] = useState(null)
+  const [quoteState, setQuoteState] = useState({})
+  const [quoteAttempt, setQuoteAttempt] = useState(0)
+  const quoteKey = JSON.stringify({
+    items: cartItems.map(p => ({ productId: Number(p.id), quantity: cart[p.id], unitPrice: p.price })),
+    voucherId: appliedVoucher?.id ?? null,
+  })
+  const quote = quoteState.key === quoteKey ? quoteState.quote : null
+  const quoteError = quoteState.key === quoteKey ? quoteState.error : ''
+  const showingOrder = step === 3
+
+  useEffect(() => {
+    if (showingOrder) return
+    const controller = new AbortController()
+    const { items, voucherId } = JSON.parse(quoteKey)
+    setQuoteState({ key: quoteKey })
+    previewOrder(items, voucherId, controller.signal).then(result => {
+      if (!controller.signal.aborted) setQuoteState({ key: quoteKey, quote: result })
+    }).catch(error => {
+      if (!controller.signal.aborted) setQuoteState({ key: quoteKey, error: error.message || 'Không thể tính tổng đơn hàng.' })
+    })
+    return () => controller.abort()
+  }, [quoteKey, quoteAttempt, showingOrder])
   const [voucherInput, setVoucherInput] = useState('')
   const [voucherError, setVoucherError] = useState('')
   const [voucherLoading, setVoucherLoading] = useState(false)
@@ -468,7 +504,7 @@ export default function OrderReviewPage({
     setVoucherLoading(true)
     setVoucherError('')
     try {
-      const res = await validateVoucherApi({ code, subtotal })
+      const res = await validateVoucherApi({ code, subtotal: quote?.subtotal ?? subtotal })
       if (!res.valid) {
         setVoucherError(res.error || 'Mã giảm giá không hợp lệ')
         setAppliedVoucher(null)
@@ -578,6 +614,10 @@ export default function OrderReviewPage({
 
   async function handlePlaceOrder() {
     if (submitting) return
+    if (!quote) {
+      setSubmitError(quoteError || 'Vui lòng chờ tính tổng thanh toán.')
+      return
+    }
     if (Date.now() >= cartExpiresAt) {
       setSubmitError(`Giỏ hàng đã hết hạn sau ${CART_TIMEOUT_MS / 60000} phút không cập nhật. Vui lòng chọn lại sản phẩm.`)
       return
@@ -595,9 +635,8 @@ export default function OrderReviewPage({
     setSubmitting(true)
     setSubmitError('')
 
-    const discountAmount = appliedVoucher ? Number(appliedVoucher.discountAmount || 0) : 0
-    const fee = subtotal >= FREE_SHIP_THRESHOLD ? 0 : SHIPPING_FEE
-    const finalTotal = Math.max(0, subtotal - discountAmount + fee)
+    const discountAmount = Number(quote.discountAmount)
+    const finalTotal = Number(quote.totalAmount)
 
     // Chuẩn bị danh sách sản phẩm gửi lên backend
     const payloadItems = cartItems.map((p) => ({
@@ -653,11 +692,11 @@ export default function OrderReviewPage({
       }),
       subtotal: Number(backendOrder.subtotal),
       discountAmount: Number(backendOrder.discountAmount),
-      appliedVoucher: appliedVoucher ? {
-        id: appliedVoucher.id,
-        code: appliedVoucher.code,
-        discountAmount: appliedVoucher.discountAmount,
-        programName: appliedVoucher.programName,
+      discountLabel: backendOrder.discountLabel,
+      appliedVoucher: backendOrder.voucherId ? {
+        id: backendOrder.voucherId,
+        code: backendOrder.voucherCode,
+        discountAmount: Number(backendOrder.discountAmount),
       } : null,
       shippingFee: Number(backendOrder.shippingFee),
       total: Number(backendOrder.totalAmount),
@@ -1021,7 +1060,7 @@ export default function OrderReviewPage({
                     <div className="breakdown-line discount-line">
                       <span className="order-success-voucher-label">
                         <Tag size={13} style={{ verticalAlign: 'middle', marginRight: 4 }} />
-                        Giảm giá voucher {activeVoucherCode ? `(${activeVoucherCode})` : ''}
+                        {currentOrder.discountLabel || currentOrder.discount_label || (activeVoucherCode ? `Voucher ${activeVoucherCode}` : 'Ưu đãi')}
                       </span>
                       <strong className="order-success-voucher-discount">
                         -{formatPrice(activeDiscountAmount)}
@@ -1075,7 +1114,7 @@ export default function OrderReviewPage({
                     </div>
                     <div className="info-detail-row">
                       <span className="info-label">Thời gian giao:</span>
-                      <span className="info-val green-text">Dự kiến 2 - 4 ngày làm việc</span>
+                      <span className="info-val">{activeStatus === 'PENDING' ? 'Cửa hàng xác nhận sau khi duyệt đơn' : 'Xem trạng thái giao hàng của đơn'}</span>
                     </div>
                   </div>
                 </div>
@@ -1451,7 +1490,7 @@ export default function OrderReviewPage({
                   type="button"
                   className="order-place-btn"
                   onClick={handlePlaceOrder}
-                  disabled={submitting || cartItems.length === 0}
+                  disabled={submitting || !quote || cartItems.length === 0}
                 >
                   <CheckCircle2 size={16} /> {submitting ? 'Đang lưu vào hệ thống...' : 'Đặt hàng ngay'}
                 </button>
@@ -1462,7 +1501,10 @@ export default function OrderReviewPage({
           <OrderSummary
             cartItems={cartItems}
             cart={cart}
-            subtotal={subtotal}
+            subtotal={Number(quote?.subtotal ?? subtotal)}
+            quote={quote}
+            quoteError={quoteError}
+            onRetryQuote={() => setQuoteAttempt(value => value + 1)}
             appliedVoucher={appliedVoucher}
             voucherInput={voucherInput}
             setVoucherInput={setVoucherInput}

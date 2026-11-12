@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { PGlite } from '@electric-sql/pglite'
 import { PGLiteSocketServer } from '@electric-sql/pglite-socket'
 import { spawn } from 'node:child_process'
+import { once } from 'node:events'
 import fs from 'node:fs'
 import path from 'node:path'
 const root = path.resolve(import.meta.dirname, '../..')
@@ -17,7 +18,7 @@ await socket.start()
 const cp = fs.readFileSync(path.join(root, 'qa/artifacts/classpath.txt'), 'utf8').trim()
 const fd = fs.openSync(path.join(root, 'qa/artifacts/clean-start.log'), 'w')
 const javaExecutable = process.env.QA_JAVA || 'C:/Program Files/Java/jdk-26.0.2.1/bin/java.exe'
-const java = spawn(javaExecutable, ['-cp', `${root}/backend/target/classes;${cp}`, 'furniture.Application',
+let java = spawn(javaExecutable, ['-cp', `${root}/backend/target/classes;${cp}`, 'furniture.Application',
   `--spring.config.location=file:${root.replaceAll('\\', '/')}/backend/src/main/resources/application.yaml`,
   '--server.address=127.0.0.1', '--server.port=18081', '--spring.datasource.url=jdbc:postgresql://127.0.0.1:15434/postgres?sslmode=disable&prepareThreshold=0',
   '--spring.datasource.username=postgres', '--spring.datasource.password=qa-local-only',
@@ -79,6 +80,33 @@ try {
   result.notifications = { activity: feed[0].title, supplierId: supplier.id, staffFeedStatus: 403, rls: 'PASS', repeatMigration: 'PASS' }
   assert.equal((await db.query("SELECT COUNT(*)::int AS count FROM staff WHERE staff_type NOT IN ('SALES', 'WAREHOUSE', 'CONTENT')")).rows[0].count, 0)
   assert.equal((await db.query("SELECT COUNT(*)::int AS count FROM admin_sessions WHERE expires_at NOT BETWEEN CURRENT_TIMESTAMP + INTERVAL '479' MINUTE AND CURRENT_TIMESTAMP + INTERVAL '481' MINUTE")).rows[0].count, 0, 'Session expiry must use database time')
+  const seedPath = path.resolve(runtime, '../database/sales.sql')
+  const seedBefore = fs.readFileSync(seedPath, 'utf8')
+  const registration = await fetch(`${base}/api/auth/register`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: `seed_check_${Date.now()}`, password: 'QaPass123!', fullName: 'Seed check' }) })
+  assert.equal(registration.status, 201)
+  assert.equal(fs.readFileSync(seedPath, 'utf8'), seedBefore, 'Registration must not write personal data into seed SQL')
+  await db.exec("UPDATE orders SET order_date='2020-01-02 03:04:05', total_amount=1, discount_amount=10, voucher_id=(SELECT id FROM vouchers ORDER BY id LIMIT 1) WHERE id=23")
+  const args = java.spawnargs.slice(1)
+  const stopped = once(java, 'exit')
+  java.kill()
+  await stopped
+  java = spawn(javaExecutable, args, { cwd: runtime, stdio: ['ignore', fd, fd], windowsHide: true })
+  let restarted = false
+  for (let attempt = 0; attempt < 50; attempt++) {
+    try {
+      const response = await fetch(`${base}/api/products`)
+      if (response.ok) { restarted = true; break }
+    } catch {}
+    await new Promise(resolve => setTimeout(resolve, 500))
+  }
+  assert(restarted, 'Restart must finish')
+  // Wait for the startup runner as well as the web listener.
+  await new Promise(resolve => setTimeout(resolve, 1500))
+  const preserved = (await db.query("SELECT to_char(order_date, 'YYYY-MM-DD HH24:MI:SS') AS date, total_amount FROM orders WHERE id=23")).rows[0]
+  assert.equal(preserved.date, '2020-01-02 03:04:05')
+  assert.equal(Number(preserved.total_amount), 1, 'Startup must not rewrite historical order totals')
+  result.dataPreservation = { registrationDoesNotEditSeed: true, restartPreservesOrderDateAndTotal: true }
 } catch (e) { result.error = e.message; process.exitCode = 1 }
 finally {
   fs.writeFileSync(path.join(root, 'qa/artifacts/clean-start-results.json'), JSON.stringify(result, null, 2))

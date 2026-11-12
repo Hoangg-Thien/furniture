@@ -5,6 +5,7 @@ const browser = await chromium.launch({ executablePath: 'C:/Program Files/Google
 const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } })
 const page = await context.newPage()
 page.setDefaultTimeout(7000)
+await page.route(/^https:\/\/fonts\.(googleapis|gstatic)\.com\//, route => route.abort())
 const errors = []
 const results = []
 page.on('pageerror', e => errors.push(e.message))
@@ -16,7 +17,7 @@ const record = (name, pass, evidence = {}) => {
 async function scenario(name, fn) {
   try { await fn() } catch (e) { record(name, false, { harnessError: e.message }); await page.screenshot({ path: `qa/artifacts/browser-error-${results.length}.png` }).catch(() => {}) }
 }
-await page.goto('http://127.0.0.1:5175')
+await page.goto('http://127.0.0.1:5175', { waitUntil: 'domcontentloaded' })
 await page.locator('.product-card').first().waitFor()
 record('Storefront loads real catalog', await page.locator('.product-card').count() >= 20)
 await scenario('Search, category, price and sorting', async () => {
@@ -97,7 +98,7 @@ await scenario('Order fallback and browser storage', async () => {
   await page.reload()
   await page.locator('.product-card').first().waitFor()
   const cartLabel = await page.getByRole('button', { name: /Mở giỏ hàng/ }).getAttribute('aria-label')
-  record('Cart resets on refresh as documented', cartLabel.includes('0 sản phẩm'), { cartLabel, note: 'README describes memory-only cart; this is a limitation, not a confirmed regression.' })
+  record('Cart survives refresh until expiry', cartLabel.includes('1 sản phẩm'), { cartLabel })
   await page.route('**/api/orders/**/cancel', route => route.abort('failed'))
   const offline = await page.evaluate(async () => {
     const { cancelOrderApi } = await import('/src/lib/orders.js')
@@ -121,9 +122,11 @@ await scenario('Admin login and every module', async () => {
   await page.locator('.admin-login-form button[type="submit"]').click()
   await page.locator('.admin-shell').waitFor()
   record('Admin login through UI', true)
-  const dashboardResponse = await page.request.get('http://127.0.0.1:5175/api/admin/statistics/overview')
-  const realStats = await (await page.request.get('http://127.0.0.1:18080/api/admin/statistics/overview')).json()
-  const shown = await page.locator('.admin-kpi-value').first().innerText()
+  const overview = page.waitForResponse(response => response.url().startsWith('http://127.0.0.1:18080/api/admin/statistics/overview') && response.status() === 200)
+  await page.goto('http://127.0.0.1:5175/admin/dashboard', { waitUntil: 'domcontentloaded' })
+  const dashboardResponse = await overview
+  const realStats = await dashboardResponse.json()
+  const shown = await page.locator('.dashboard-metric .stat-card-value').first().innerText()
   record('Dashboard loads real backend statistics', dashboardResponse.headers()['content-type']?.includes('json') === true,
     { requestedUrl: dashboardResponse.url(), contentType: dashboardResponse.headers()['content-type'], actualBackendRevenue: realStats.totalRevenue, shownRevenue: shown })
   await page.keyboard.press('Control+k')

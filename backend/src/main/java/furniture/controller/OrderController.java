@@ -31,6 +31,15 @@ public class OrderController {
         this.orderService = orderService;
     }
 
+    @PostMapping("/preview")
+    public ResponseEntity<?> previewOrder(@RequestBody CreateOrderRequest req) {
+        try {
+            return ResponseEntity.ok(orderService.previewOrder(req));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
+        }
+    }
+
     @PostMapping
     public ResponseEntity<?> createOrder(@RequestBody CreateOrderRequest req,
             @RequestAttribute(value = AdminIdentity.ATTRIBUTE, required = false) AdminIdentity identity) {

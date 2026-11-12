@@ -37,6 +37,7 @@ export default function AdminProductManagement({ currentUser, notificationTarget
   const [categories, setCategories] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const productRequest = useRef(null)
 
   // Filters & Pagination
   const [searchKeyword, setSearchKeyword] = useState('')
@@ -105,6 +106,9 @@ export default function AdminProductManagement({ currentUser, notificationTarget
     lowStock = selectedLowStock,
     status = selectedStatus
   ) {
+    productRequest.current?.abort()
+    const controller = new AbortController()
+    productRequest.current = controller
     setLoading(true)
     setError(null)
     try {
@@ -117,25 +121,27 @@ export default function AdminProductManagement({ currentUser, notificationTarget
       if (lowStock === 'LOW_STOCK') params.append('lowStock', 'true')
       if (status && status !== 'ALL') params.append('status', status)
 
-      const res = await fetch(`${baseUrl}/api/admin/products?${params.toString()}`)
+      const res = await fetch(`${baseUrl}/api/admin/products?${params.toString()}`, { signal: controller.signal })
       if (!res.ok) {
         throw new Error(`Lỗi máy chủ (${res.status}): Không thể tải danh sách sản phẩm`)
       }
       const data = await res.json()
+      if (controller.signal.aborted) return
       setProducts(data.content || [])
       setTotalPages(data.totalPages || 1)
       setTotalElements(data.totalElements || 0)
       setPage(data.page || 0)
     } catch (err) {
-      setError(err.message || 'Lỗi kết nối máy chủ')
+      if (!controller.signal.aborted) setError(err.message || 'Lỗi kết nối máy chủ')
     } finally {
-      setLoading(false)
+      if (!controller.signal.aborted) setLoading(false)
     }
   }
 
   useEffect(() => {
     fetchCategories()
     fetchProducts(0)
+    return () => productRequest.current?.abort()
   }, [])
 
   // Xử lý filter

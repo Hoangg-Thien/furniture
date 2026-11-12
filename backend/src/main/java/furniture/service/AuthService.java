@@ -52,8 +52,6 @@ public class AuthService {
 
         Long customerId = authRepository.insertCustomer(userId, "CUSTOMER", req.fullName().trim(), email, phone, address);
 
-        appendToSalesSql(userId, customerId, username, passwordHash, req.fullName().trim(), email, phone, address);
-
         return new AuthResponse(
                 userId,
                 customerId,
@@ -147,7 +145,7 @@ public class AuthService {
             if (!PasswordUtil.verify(req.currentPassword(), storedHash)) {
                 throw new SecurityException("Mật khẩu hiện tại không chính xác");
             }
-            String newHash = PasswordUtil.hash(req.newPassword().trim());
+            String newHash = PasswordUtil.hash(req.newPassword());
             authRepository.updatePassword(userId, newHash);
         }
 
@@ -189,46 +187,4 @@ public class AuthService {
         return authRepository.findAllCustomers();
     }
 
-    private synchronized void appendToSalesSql(Long userId, Long customerId, String username, String passwordHash,
-                                                String fullName, String email, String phone, String address) {
-        try {
-            java.nio.file.Path[] candidates = new java.nio.file.Path[] {
-                java.nio.file.Paths.get("../database/sales.sql"),
-                java.nio.file.Paths.get("database/sales.sql"),
-                java.nio.file.Paths.get("furniture/database/sales.sql"),
-                java.nio.file.Paths.get("c:/Users/Lenovo/OneDrive/Desktop/SE_project/furniture/database/sales.sql")
-            };
-            java.nio.file.Path targetPath = null;
-            for (java.nio.file.Path p : candidates) {
-                if (java.nio.file.Files.exists(p)) {
-                    targetPath = p;
-                    break;
-                }
-            }
-            if (targetPath != null) {
-                String emailVal = email != null ? "'" + email.replace("'", "''") + "'" : "NULL";
-                String phoneVal = phone != null ? "'" + phone.replace("'", "''") + "'" : "NULL";
-                String addressVal = address != null ? "'" + address.replace("'", "''") + "'" : "NULL";
-                String fullNameVal = fullName != null ? "'" + fullName.replace("'", "''") + "'" : "''";
-                String userInsert = String.format(
-                    "INSERT INTO users (id, username, password_hash, role) VALUES (%d, '%s', '%s', 'CUSTOMER');\n",
-                    userId, username.replace("'", "''"), passwordHash);
-                String customerInsert = String.format(
-                    "INSERT INTO customers (id, user_id, full_name, email, phone, address) VALUES (%d, %d, %s, %s, %s, %s);\n",
-                    customerId, userId, fullNameVal, emailVal, phoneVal, addressVal);
-
-                String currentContent = java.nio.file.Files.readString(targetPath);
-                String newContent;
-                if (currentContent.contains("COMMIT;")) {
-                    newContent = currentContent.replace("COMMIT;", userInsert + customerInsert + "COMMIT;");
-                } else {
-                    newContent = currentContent + "\n" + userInsert + customerInsert;
-                }
-                java.nio.file.Files.writeString(targetPath, newContent);
-            }
-        } catch (Exception ex) {
-            ex.printStackTrace();
-        }
-    }
 }
-

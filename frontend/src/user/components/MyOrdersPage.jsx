@@ -142,6 +142,7 @@ function normalizeOrders(rawList = [], currentUser = null, catalogProducts = [])
         subtotal,
         discount_amount: discountAmount,
         discountAmount,
+        discountLabel: ord.discount_label || ord.discountLabel,
         voucher_code: voucherCode,
         voucherCode,
         total,
@@ -469,7 +470,7 @@ export default function MyOrdersPage({
                         <div className="shopee-order-voucher-pill">
                           <Tag size={12} />
                           <span>
-                            Voucher {order.voucher_code ? `(${order.voucher_code})` : ''}: -{formatPrice(order.discount_amount || order.discountAmount)}
+                            {order.discountLabel || (order.voucher_code ? `Voucher ${order.voucher_code}` : 'Ưu đãi')}: -{formatPrice(order.discount_amount || order.discountAmount)}
                           </span>
                         </div>
                       )}

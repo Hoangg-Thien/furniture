@@ -2,6 +2,9 @@ package furniture.service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 
@@ -44,7 +47,7 @@ public class VoucherService {
 
     @Transactional
     public Map<String, Object> createVoucher(CreateVoucherRequest req) {
-        if (req.code() == null || req.code().trim().isEmpty()) {
+        if (req == null || req.code() == null || req.code().trim().isEmpty() || req.code().trim().length() > 50) {
             throw new IllegalArgumentException("Mã voucher không được để trống");
         }
         if (req.discountPercent() == null || req.discountPercent().compareTo(BigDecimal.ZERO) <= 0
@@ -64,21 +67,32 @@ public class VoucherService {
         boolean isAutoApprove = Boolean.TRUE.equals(req.autoApprove());
         String initialStatus = isAutoApprove ? "ACTIVE" : "DRAFT";
 
-        String startDate = (req.startDate() != null && !req.startDate().trim().isEmpty())
-                ? req.startDate().trim()
-                : "2026-10-01 00:00:00";
-        String endDate = (req.endDate() != null && !req.endDate().trim().isEmpty())
-                ? req.endDate().trim()
-                : "2026-12-31 23:59:59";
+        LocalDate today = LocalDate.now(ZoneId.of("Asia/Ho_Chi_Minh"));
+        LocalDateTime start;
+        LocalDateTime end;
+        try {
+            start = req.startDate() == null || req.startDate().isBlank() ? today.atStartOfDay()
+                    : LocalDateTime.parse(req.startDate().trim().replace(' ', 'T'));
+            end = req.endDate() == null || req.endDate().isBlank() ? today.plusYears(1).atTime(23, 59, 59)
+                    : LocalDateTime.parse(req.endDate().trim().replace(' ', 'T'));
+        } catch (java.time.format.DateTimeParseException ex) {
+            throw new IllegalArgumentException("Ngày bắt đầu hoặc kết thúc voucher không hợp lệ");
+        }
+        if (end.isBefore(start)) throw new IllegalArgumentException("Ngày kết thúc phải sau ngày bắt đầu");
+        BigDecimal minAmt = req.minimumAmount() != null ? req.minimumAmount() : BigDecimal.ZERO;
+        BigDecimal maxDisc = req.maximumDiscount();
+        if (minAmt.signum() < 0 || (maxDisc != null && maxDisc.signum() < 0)
+                || (req.quantity() != null && req.quantity() <= 0)) {
+            throw new IllegalArgumentException("Giá trị giảm giá không được âm và số lượng phải lớn hơn 0");
+        }
+        int qty = req.quantity() != null ? req.quantity() : 100;
+        String startDate = start.toString();
+        String endDate = end.toString();
 
         Long progId = voucherRepository.insertProgram(progName, progDesc, startDate, endDate, initialStatus);
         if (progId == null) {
             throw new IllegalStateException("Không thể tạo chương trình ưu đãi");
         }
-
-        BigDecimal minAmt = req.minimumAmount() != null ? req.minimumAmount() : BigDecimal.ZERO;
-        BigDecimal maxDisc = req.maximumDiscount();
-        int qty = req.quantity() != null && req.quantity() > 0 ? req.quantity() : 100;
 
         voucherRepository.insertVoucher(progId, cleanCode, req.discountPercent(), minAmt, maxDisc, qty, startDate, endDate);
 
@@ -93,11 +107,12 @@ public class VoucherService {
     }
 
     public Map<String, Object> validateVoucher(ValidateVoucherRequest req) {
-        if (req.code() == null || req.code().trim().isEmpty()) {
+        if (req == null || req.code() == null || req.code().trim().isEmpty()) {
             throw new IllegalArgumentException("Vui lòng nhập mã voucher");
         }
 
         BigDecimal subtotal = req.subtotal() != null ? req.subtotal() : BigDecimal.ZERO;
+        if (subtotal.signum() < 0) throw new IllegalArgumentException("Giá trị đơn hàng không được âm");
         List<Map<String, Object>> rows = voucherRepository.findVoucherWithProgramByCode(req.code());
 
         if (rows.isEmpty()) {
@@ -124,6 +139,10 @@ public class VoucherService {
 
         if (Boolean.TRUE.equals(isExpired)) {
             throw new IllegalStateException("Voucher '" + req.code() + "' đã hết hạn sử dụng.");
+        }
+
+        if (Boolean.TRUE.equals(v.get("is_not_started"))) {
+            throw new IllegalStateException("Voucher chưa đến thời gian áp dụng.");
         }
 
         if (usedQuantity >= quantity) {

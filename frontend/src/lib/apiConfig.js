@@ -6,13 +6,15 @@
  */
 export function getApiBaseUrl() {
   if (typeof window !== 'undefined') {
-    const custom = localStorage.getItem('furniture_custom_api_url')
-    // Nếu trong localStorage lưu link ngrok cũ, tự động xóa để chuyển về localhost theo yêu cầu
-    if (custom && custom.includes('ngrok')) {
-      localStorage.removeItem('furniture_custom_api_url')
-    } else if (custom && custom.trim()) {
-      return custom.trim().replace(/\/+$/, '')
-    }
+    try {
+      const custom = localStorage.getItem('furniture_custom_api_url')
+      // Nếu trong localStorage lưu link ngrok cũ, tự động xóa để chuyển về localhost theo yêu cầu
+      if (custom && custom.includes('ngrok')) {
+        localStorage.removeItem('furniture_custom_api_url')
+      } else if (custom && custom.trim()) {
+        return custom.trim().replace(/\/+$/, '')
+      }
+    } catch { /* Browser storage may be blocked; use the configured backend. */ }
   }
 
   const envUrl = import.meta.env?.VITE_API_BASE_URL

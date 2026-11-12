@@ -96,8 +96,8 @@ public class AdminOrderRepository {
             whereClause.append("""
                      AND (
                         CAST(o.id AS TEXT) LIKE ?
-                        OR LOWER(COALESCE(c.full_name, '')) LIKE LOWER(?)
-                        OR COALESCE(c.phone, '') LIKE ?
+                        OR LOWER(COALESCE(o.recipient_name, c.full_name, '')) LIKE LOWER(?)
+                        OR COALESCE(o.recipient_phone, c.phone, '') LIKE ?
                         OR LOWER(COALESCE(o.shipping_address, c.address, '')) LIKE LOWER(?)
                         OR LOWER(COALESCE(st.full_name, '')) LIKE LOWER(?)
                         OR LOWER(COALESCE(v.code, '')) LIKE LOWER(?)
@@ -136,8 +136,8 @@ public class AdminOrderRepository {
         // Query page
         StringBuilder querySql = new StringBuilder("""
                 SELECT o.id, o.customer_id,
-                       COALESCE(c.full_name, 'Khách hàng #' || o.customer_id) AS customer_name,
-                       COALESCE(c.phone, '') AS phone,
+                       COALESCE(o.recipient_name, c.full_name, 'Khách hàng #' || o.customer_id) AS customer_name,
+                       COALESCE(o.recipient_phone, c.phone, '') AS phone,
                        o.order_date, o.staff_id,
                        COALESCE(st.full_name, u.username, CASE WHEN o.staff_id IS NOT NULL THEN 'Nhân viên #' || o.staff_id ELSE NULL END) AS staff_name,
                        o.total_amount, o.discount_amount, o.status,
@@ -153,7 +153,7 @@ public class AdminOrderRepository {
 
         querySql.append(whereClause);
         querySql.append("""
-                GROUP BY o.id, o.customer_id, c.full_name, c.phone, o.order_date, o.staff_id, st.full_name, u.username, o.total_amount, o.discount_amount, o.status, v.code
+                GROUP BY o.id, o.recipient_name, o.recipient_phone, o.customer_id, c.full_name, c.phone, o.order_date, o.staff_id, st.full_name, u.username, o.total_amount, o.discount_amount, o.status, v.code
                 ORDER BY o.order_date DESC, o.id DESC
                 LIMIT ? OFFSET ?
                 """);
@@ -193,8 +193,8 @@ public class AdminOrderRepository {
     public OrderDetailDto findDetailById(Long id) {
         String sql = """
                 SELECT o.id, o.customer_id,
-                       COALESCE(c.full_name, 'Khách hàng #' || o.customer_id) AS customer_name,
-                       COALESCE(c.phone, '') AS phone,
+                       COALESCE(o.recipient_name, c.full_name, 'Khách hàng #' || o.customer_id) AS customer_name,
+                       COALESCE(o.recipient_phone, c.phone, '') AS phone,
                        COALESCE(o.shipping_address, c.address, '') AS address,
                        o.staff_id,
                        COALESCE(st.full_name, u.username, CASE WHEN o.staff_id IS NOT NULL THEN 'Nhân viên #' || o.staff_id ELSE NULL END) AS staff_name,

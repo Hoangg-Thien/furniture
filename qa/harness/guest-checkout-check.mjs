@@ -31,10 +31,11 @@ await api('/orders', { method: 'POST', body: { ...body, customerId: 1 }, status:
 for (const invalid of [{ fullName: '' }, { phone: 'bad' }, { address: '' }, { city: '' }, { items: [] }]) {
   await api('/orders', { method: 'POST', body: { ...body, ...invalid }, status: 400 })
 }
+const quote = await api('/orders/preview', { method: 'POST', body })
 const first = await create()
 const price = Number(product.selling_price)
-assert.equal(Number(first.totalAmount), price + (price >= 2000000 ? 0 : 35000))
-assert.equal(Number(first.discountAmount), 0)
+assert.equal(Number(first.totalAmount), Number(quote.totalAmount))
+assert.equal(Number(first.discountAmount), Number(quote.discountAmount))
 const second = await create()
 const contacts = await sql('SELECT o.id, o.customer_id, o.guest_token_hash, c.user_id FROM orders o JOIN customers c ON c.id = o.customer_id WHERE o.id IN ($1, $2)', [first.orderId, second.orderId])
 assert.equal(contacts.length, 2)

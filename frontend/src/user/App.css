@@ -2835,6 +2835,7 @@
   .order-thankyou-title { font-size: 22px; }
   .order-thankyou-code-pill {
     flex-direction: column;
+    border-radius: 16px;
     gap: 6px;
     padding: 10px 16px;
   }

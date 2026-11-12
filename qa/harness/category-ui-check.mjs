@@ -19,9 +19,12 @@ let failList = false
 let failSave = false
 let failDelete = false
 let listDelay = 250
+let releaseInitialList
+const initialList = new Promise(resolve => { releaseInitialList = resolve })
 const writes = []
 await page.route('https://fonts.googleapis.com/**', route => route.fulfill({ contentType: 'text/css', body: '' }))
 await page.addInitScript(() => {
+  localStorage.setItem('furniture_custom_api_url', 'http://localhost:8080')
   localStorage.setItem('furniture_admin_user', JSON.stringify({ id: 1, username: 'admin01', role: 'ADMIN', accessToken: 'qa-mock-token', apiBaseUrl: 'http://localhost:8080' }))
 })
 await page.route('**/api/**', async route => {
@@ -31,6 +34,7 @@ await page.route('**/api/**', async route => {
   if (method === 'OPTIONS') return send({})
   if (url.pathname === '/api/admin/categories') {
     if (method === 'GET') {
+      await initialList
       if (listDelay) await new Promise(resolve => setTimeout(resolve, listDelay))
       return send(failList ? { error: 'Unavailable' } : categories, failList ? 503 : 200)
     }
@@ -77,6 +81,7 @@ try {
   await page.goto(`${origin}/admin/categories`, { waitUntil: 'domcontentloaded' })
   await check('Loading state, populated list and global statistics', async () => {
     await page.getByText('Đang tải danh mục loại nội thất...').waitFor()
+    releaseInitialList()
     await rowCount(10)
     assert.deepEqual(await page.locator('.kpi-value').allTextContents(), ['10', '8', '2', '20'])
     await noOverflow()

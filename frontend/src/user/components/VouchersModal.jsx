@@ -548,6 +548,8 @@ export default function VouchersModal({
                                 ? 'Chờ duyệt'
                                 : v.approval_state === 'EXPIRED'
                                 ? 'Đã hết hạn'
+                                : v.approval_state === 'SCHEDULED'
+                                ? 'Chưa đến hạn'
                                 : 'Đã tạm ngừng'}
                             </span>
                           </td>
@@ -560,7 +562,7 @@ export default function VouchersModal({
                               >
                                 Duyệt
                               </button>
-                            ) : v.approval_state === 'ACTIVE' ? (
+                            ) : ['ACTIVE', 'SCHEDULED'].includes(v.approval_state) ? (
                               <button
                                 type="button"
                                 className="table-quick-btn reject"

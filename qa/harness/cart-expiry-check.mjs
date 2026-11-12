@@ -19,6 +19,11 @@ try {
   await page.context().route('https://**', route => route.fulfill({ contentType: 'text/css', body: '' }))
   await page.context().route('**/api/**', route => {
     const path = new URL(route.request().url()).pathname
+    if (path === '/api/orders/preview') {
+      const items = route.request().postDataJSON().items.map(item => ({ ...item, unitPrice: 100000 }))
+      const subtotal = items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0)
+      return route.fulfill({ json: { items, subtotal, discountAmount: 0, shippingFee: 35000, totalAmount: subtotal + 35000 } })
+    }
     if (path === '/api/orders' && route.request().method() === 'POST') orderPosts++
     return route.fulfill({ json: path === '/api/products'
       ? [{ id: 1, name: 'Ghế kiểm tra thời hạn', price: 100000, category: 'Ghế', quantity: stock, imageUrl: 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=' }]

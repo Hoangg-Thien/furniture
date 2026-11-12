@@ -117,7 +117,7 @@ public class AdminInvoiceRepository {
 
         if (search != null && !search.trim().isEmpty()) {
             String p = "%" + search.trim() + "%";
-            whereClause.append(" AND (LOWER(i.invoice_code) LIKE LOWER(?) OR LOWER(c.full_name) LIKE LOWER(?) OR c.phone LIKE ?)");
+            whereClause.append(" AND (LOWER(i.invoice_code) LIKE LOWER(?) OR LOWER(COALESCE(o.recipient_name, c.full_name)) LIKE LOWER(?) OR COALESCE(o.recipient_phone, c.phone) LIKE ?)");
             params.add(p);
             params.add(p);
             params.add(p);
@@ -146,6 +146,7 @@ public class AdminInvoiceRepository {
         String countSql = """
                 SELECT COUNT(*)
                 FROM public.invoices i
+                LEFT JOIN public.orders o ON o.id = i.order_id
                 LEFT JOIN public.customers c ON c.id = i.customer_id
                 """ + whereClause;
 
@@ -157,14 +158,15 @@ public class AdminInvoiceRepository {
 
         StringBuilder querySql = new StringBuilder("""
                 SELECT i.id, i.invoice_code, i.order_id, i.customer_id,
-                       COALESCE(c.full_name, 'Khách hàng #' || i.customer_id) AS customer_name,
-                       COALESCE(c.phone, '') AS phone,
+                       COALESCE(o.recipient_name, c.full_name, 'Khách hàng #' || i.customer_id) AS customer_name,
+                       COALESCE(o.recipient_phone, c.phone, '') AS phone,
                        i.payment_date, i.payment_method, i.payment_status,
                        i.subtotal_amount, i.discount_amount, i.voucher_discount,
                        i.tax_amount, i.final_amount, i.voucher_code,
                        i.staff_id,
                        COALESCE(st.full_name, u.username, CASE WHEN i.staff_id IS NOT NULL THEN 'Nhân viên #' || i.staff_id ELSE NULL END) AS staff_name
                 FROM public.invoices i
+                LEFT JOIN public.orders o ON o.id = i.order_id
                 LEFT JOIN public.customers c ON c.id = i.customer_id
                 LEFT JOIN public.staff st ON st.id = i.staff_id
                 LEFT JOIN public.users u ON u.id = st.user_id
@@ -207,9 +209,9 @@ public class AdminInvoiceRepository {
     public InvoiceDetailDto findDetailById(Long id) {
         String sql = """
                 SELECT i.id, i.invoice_code, i.order_id, i.customer_id,
-                       COALESCE(c.full_name, 'Khách hàng #' || i.customer_id) AS customer_name,
-                       COALESCE(c.phone, '') AS phone,
-                       COALESCE(c.address, '') AS address,
+                       COALESCE(o.recipient_name, c.full_name, 'Khách hàng #' || i.customer_id) AS customer_name,
+                       COALESCE(o.recipient_phone, c.phone, '') AS phone,
+                       COALESCE(o.shipping_address, c.address, '') AS address,
                        COALESCE(c.email, '') AS email,
                        i.staff_id,
                        COALESCE(st.full_name, u.username, CASE WHEN i.staff_id IS NOT NULL THEN 'Nhân viên #' || i.staff_id ELSE NULL END) AS staff_name,
@@ -217,6 +219,7 @@ public class AdminInvoiceRepository {
                        i.subtotal_amount, i.discount_amount, i.voucher_code,
                        i.voucher_discount, i.tax_amount, i.final_amount, i.notes
                 FROM public.invoices i
+                LEFT JOIN public.orders o ON o.id = i.order_id
                 LEFT JOIN public.customers c ON c.id = i.customer_id
                 LEFT JOIN public.staff st ON st.id = i.staff_id
                 LEFT JOIN public.users u ON u.id = st.user_id
@@ -385,8 +388,8 @@ public class AdminInvoiceRepository {
     public List<EligibleOrderDto> findEligibleOrders() {
         String sql = """
                 SELECT o.id,
-                       COALESCE(c.full_name, 'Khách hàng #' || o.customer_id) AS customer_name,
-                       COALESCE(c.phone, '') AS phone,
+                       COALESCE(o.recipient_name, c.full_name, 'Khách hàng #' || o.customer_id) AS customer_name,
+                       COALESCE(o.recipient_phone, c.phone, '') AS phone,
                        o.order_date, o.status, o.total_amount,
                        COALESCE(SUM(oi.quantity), 0) AS total_items_count
                 FROM public.orders o
@@ -394,7 +397,7 @@ public class AdminInvoiceRepository {
                 LEFT JOIN public.order_items oi ON oi.order_id = o.id
                 WHERE o.id NOT IN (SELECT order_id FROM public.invoices)
                   AND o.status = 'COMPLETED'
-                GROUP BY o.id, c.full_name, c.phone, o.order_date, o.status, o.total_amount
+                GROUP BY o.id, o.recipient_name, o.recipient_phone, c.full_name, c.phone, o.order_date, o.status, o.total_amount
                 ORDER BY o.order_date DESC, o.id DESC
                 LIMIT 50
                 """;

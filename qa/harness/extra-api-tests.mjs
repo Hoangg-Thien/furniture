@@ -43,14 +43,18 @@ await check('Promotion edit', 'PUT', `/api/admin/promotions/${prog.id}`, { name:
 const pd = await check('Promotion product discount create', 'POST', `/api/admin/promotions/${prog.id}/product-discounts`, { productId: p.id, discountPercent: 20 }, [201])
 const od = await check('Promotion order discount create', 'POST', `/api/admin/promotions/${prog.id}/order-discounts`, { minimumAmount: 0, discountPercent: 10 }, [201])
 const orderBody = { userId: user.userId, customerId: user.customerId, fullName: 'QA Receiver First', phone: '0901234567', address: 'QA first shipping address', district: 'QA District', city: 'QA City', items: [{ productId: p.id, quantity: 1, unitPrice: 100000 }] }
+const [contactBefore] = await sql('SELECT full_name, phone, address FROM customers WHERE id=$1', [user.customerId])
 const a = await check('Order for shipping and promotion verification', 'POST', '/api/orders', orderBody)
 const aFirst = (await req('GET', `/api/orders/${a.orderId}`)).data
 record('Order stores recipient full name', aFirst.order.full_name === orderBody.fullName, { expected: orderBody.fullName, actual: aFirst.order.full_name })
 await check('Order second shipping address', 'POST', '/api/orders', { ...orderBody, address: 'QA second shipping address', phone: '0912345678' })
 const aAgain = (await req('GET', `/api/orders/${a.orderId}`)).data
 record('Earlier order shipping address remains unchanged', aAgain.order.address === aFirst.order.address, { before: aFirst.order.address, after: aAgain.order.address })
+record('Earlier order recipient phone remains unchanged', aAgain.order.phone === orderBody.phone, { before: orderBody.phone, after: aAgain.order.phone })
+const [contactAfter] = await sql('SELECT full_name, phone, address FROM customers WHERE id=$1', [user.customerId])
+record('Ordering for another recipient does not overwrite account contact', JSON.stringify(contactBefore) === JSON.stringify(contactAfter))
 const calc = (await req('POST', '/api/admin/invoices/preview-calculation', { orderId: a.orderId, includeVat: false })).data
-record('Invoice applies configured product and order promotions', Number(calc.orderDiscount) > 0 || Number(calc.finalAmount) < 135000, { calc, expectedProductDiscount: '20%', expectedOrderDiscount: '10%', reference: 'doc_kehoach/09_QUAN_LY_HOA_DON.md B2-B4' })
+record('Checkout chooses the best single promotion and invoice keeps it', Number(a.discountAmount) === 20000 && Number(a.totalAmount) === 115000 && Number(calc.finalAmount) === 115000, { calc, productDiscount: '20%', orderDiscount: '10%' })
 await check('Promotion product discount delete', 'DELETE', `/api/admin/promotions/${prog.id}/product-discounts/${pd.id}`)
 await check('Promotion order discount delete', 'DELETE', `/api/admin/promotions/${prog.id}/order-discounts/${od.id}`)
 await check('Voucher status inactive', 'PUT', `/api/admin/promotions/vouchers/${v.id}/status?status=INACTIVE`)
@@ -72,7 +76,7 @@ const dup = await req('POST', '/api/orders', { ...orderBody, items: [{ productId
 const dupRow = (await sql('SELECT SUM(quantity) AS qty, SUM(amount) AS amount FROM order_items WHERE order_id=$1', [dup.data.orderId]))[0]
 record('Duplicate product rows preserve total quantity', Number(dupRow.qty) === 3 || [400, 422].includes(dup.status), { ...dup, storedItems: dupRow, expectedQty: 3 })
 const before = Number((await sql('SELECT quantity FROM products WHERE id=$1', [p.id]))[0].quantity)
-await check('Receipt completed can be reverted (probe)', 'PATCH', `/api/admin/suppliers/${s.id}/receipts/${receipt.receiptId}/status`, { status: 'PENDING' })
+await check('Completed receipt cannot be reverted', 'PATCH', `/api/admin/suppliers/${s.id}/receipts/${receipt.receiptId}/status`, { status: 'PENDING' }, [400, 409])
 await check('Receipt reverted then completed (probe)', 'PATCH', `/api/admin/suppliers/${s.id}/receipts/${receipt.receiptId}/status`, { status: 'COMPLETED' })
 const after = Number((await sql('SELECT quantity FROM products WHERE id=$1', [p.id]))[0].quantity)
 record('Receipt status round trip cannot inflate stock', before === after, { before, after, repeatedAddition: after - before })

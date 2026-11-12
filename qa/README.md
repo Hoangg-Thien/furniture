@@ -75,3 +75,5 @@ Backend tự chạy migration `backend/src/main/resources/order_shipping.sql` kh
 - Không dùng file seed gốc làm mục tiêu append của ứng dụng: script sao chép vào cây thư mục QA trước khi khởi động backend.
 - Endpoint SQL điều khiển `15433` chỉ bind `127.0.0.1`, phục vụ truy vấn trạng thái giữa các bước kiểm thử; không triển khai nó ra ngoài.
 - Fixtures có mật khẩu tài khoản QA, không chứa mật khẩu Supabase. Thư mục runtime, cache npm và node_modules được bỏ qua bởi `qa/.gitignore`.
+
+Kết quả rà soát ngày 12/11/2026: [AUDIT-2026-11-12.md](AUDIT-2026-11-12.md). Chạy `node qa/harness/audit-ui-check.mjs` để kiểm tra request chậm, tab ẩn, dừng polling khi đơn kết thúc, hủy request sản phẩm cũ và bỏ phản hồi lỗi thời. Script dùng API giả lập, không ghi database. `clean-start.mjs` kiểm tra thêm việc đăng ký không sửa seed và restart không thay đổi ngày/tổng tiền đơn cũ.

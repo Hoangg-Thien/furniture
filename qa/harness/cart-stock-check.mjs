@@ -17,6 +17,12 @@ try {
   page.on('pageerror', error => errors.push(error.message))
   await page.route('**/api/**', async route => {
     const path = new URL(route.request().url()).pathname
+    if (path === '/api/orders/preview') {
+      if (offline) return route.abort('failed')
+      const items = route.request().postDataJSON().items.map(item => ({ ...item, unitPrice: 100000 }))
+      const subtotal = items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0)
+      return route.fulfill({ json: { items, subtotal, discountAmount: 0, shippingFee: 35000, totalAmount: subtotal + 35000 } })
+    }
     if (path === '/api/products') {
       if (offline) return route.abort('failed')
       return route.fulfill({ json: [

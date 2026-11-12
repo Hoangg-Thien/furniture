@@ -80,6 +80,17 @@ public class AdminUserServiceTest {
     }
 
     @Test
+    void customerCreationIncludesProfileAndProfileFailureIsNotSwallowed() {
+        var request = new CreateUserRequest("new_customer", "pass123456", "CUSTOMER");
+        when(adminUserRepository.insertUser(eq("new_customer"), anyString(), eq("CUSTOMER"), eq(true))).thenReturn(11L);
+        adminUserService.createUser(request);
+        String sql = "INSERT INTO public.customers (user_id, full_name, role) VALUES (?, ?, 'CUSTOMER')";
+        verify(jdbcTemplate).update(sql, 11L, "new_customer");
+        when(jdbcTemplate.update(sql, 11L, "new_customer")).thenThrow(new IllegalStateException("profile failure"));
+        assertThrows(IllegalStateException.class, () -> adminUserService.createUser(request));
+    }
+
+    @Test
     void testCreateUser_Success() {
         CreateUserRequest req = new CreateUserRequest("new_staff", "pass123456", "STAFF");
         when(adminUserRepository.existsByUsername("new_staff")).thenReturn(false);

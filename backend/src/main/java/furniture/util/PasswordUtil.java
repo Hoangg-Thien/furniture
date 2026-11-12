@@ -36,7 +36,8 @@ public class PasswordUtil {
             return true;
         }
         // 3. Fallback so sánh mật khẩu trực tiếp
-        return password.equals(storedHash);
+        return !storedHash.matches("(?i)[0-9a-f]{64}") && !storedHash.startsWith("$2")
+                && password.equals(storedHash);
     }
 }
 
