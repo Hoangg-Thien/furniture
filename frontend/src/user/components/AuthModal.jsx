@@ -96,39 +96,40 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
   return (
     <div className="auth-modal-overlay" onClick={onClose} role="dialog" aria-modal="true">
       <div className="auth-modal-card" onClick={(e) => e.stopPropagation()}>
-        <button
-          className="auth-modal-close"
-          type="button"
-          onClick={onClose}
-          aria-label="Đóng cửa sổ"
-        >
-          <X size={20} />
-        </button>
-
-        <div className="auth-modal-tabs">
+        <div className="auth-modal-header">
+          <div className="auth-modal-tabs">
+            <button
+              type="button"
+              className={mode === 'login' ? 'auth-tab active' : 'auth-tab'}
+              onClick={() => {
+                setMode('login')
+                setError('')
+                setSuccess('')
+              }}
+            >
+              <LogIn size={16} />
+              <span>Đăng nhập</span>
+            </button>
+            <button
+              type="button"
+              className={mode === 'register' ? 'auth-tab active' : 'auth-tab'}
+              onClick={() => {
+                setMode('register')
+                setError('')
+                setSuccess('')
+              }}
+            >
+              <UserPlus size={16} />
+              <span>Đăng ký</span>
+            </button>
+          </div>
           <button
+            className="auth-modal-close"
             type="button"
-            className={mode === 'login' ? 'auth-tab active' : 'auth-tab'}
-            onClick={() => {
-              setMode('login')
-              setError('')
-              setSuccess('')
-            }}
+            onClick={onClose}
+            aria-label="Đóng cửa sổ"
           >
-            <LogIn size={16} />
-            <span>Đăng nhập</span>
-          </button>
-          <button
-            type="button"
-            className={mode === 'register' ? 'auth-tab active' : 'auth-tab'}
-            onClick={() => {
-              setMode('register')
-              setError('')
-              setSuccess('')
-            }}
-          >
-            <UserPlus size={16} />
-            <span>Đăng ký</span>
+            <X size={18} />
           </button>
         </div>
 

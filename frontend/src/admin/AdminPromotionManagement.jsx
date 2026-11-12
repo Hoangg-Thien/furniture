@@ -177,12 +177,18 @@ export default function AdminPromotionManagement({ currentUser }) {
     try {
       const baseUrl = getApiBaseUrl()
       const url = `${baseUrl}/api/admin/promotions`
-      const res = await fetch(url, { headers: getApiHeaders() })
-      if (!res.ok) {
-        throw new Error(`Lỗi tải danh sách khuyến mãi (HTTP ${res.status})`)
+      const [res, voucherRes] = await Promise.all([
+        fetch(url, { headers: getApiHeaders() }),
+        fetch(`${baseUrl}/api/admin/promotions/vouchers`, { headers: getApiHeaders() }),
+      ])
+      if (!res.ok || !voucherRes.ok) {
+        throw new Error(`Lỗi tải danh sách khuyến mãi/voucher (HTTP ${!res.ok ? res.status : voucherRes.status})`)
       }
-      const data = await res.json()
-      if (id === requestId.current) setPrograms(data || [])
+      const [data, vouchers] = await Promise.all([res.json(), voucherRes.json()])
+      if (!Array.isArray(data) || !Array.isArray(vouchers)) throw new Error('Dữ liệu khuyến mãi/voucher không hợp lệ.')
+      if (id === requestId.current) setPrograms(data.map(p => ({ ...p,
+        voucherCodes: vouchers.filter(v => v.promotionProgramId === p.id).map(v => v.code),
+      })))
     } catch (err) {
       console.error(err)
       if (id === requestId.current) setError(err.message || 'Không thể kết nối đến máy chủ.')
@@ -219,7 +225,7 @@ export default function AdminPromotionManagement({ currentUser }) {
     const keyword = normalize(searchKeyword.trim())
     return programs.filter((p) => {
       if (statusFilter !== 'ALL' && p.status !== statusFilter) return false
-      if (keyword && !normalize(`${p.name} ${p.description || ''}`).includes(keyword)) return false
+      if (keyword && !normalize(`${p.name} ${p.description || ''} ${p.voucherCodes.join(' ')}`).includes(keyword)) return false
       if (timeFilter === 'ALL') return true
       const start = new Date(p.startDate)
       const end = new Date(p.endDate)
@@ -652,7 +658,7 @@ export default function AdminPromotionManagement({ currentUser }) {
         <div className="promotion-filter-bar">
           <div className="promotion-search-field">
             <Search size={17} />
-            <input type="search" placeholder="Tìm tên chiến dịch, mô tả..." aria-label="Tìm kiếm chiến dịch" value={searchKeyword} onChange={e => setSearchKeyword(e.target.value)} />
+            <input type="search" placeholder="Tìm chiến dịch, mã voucher, mô tả..." aria-label="Tìm kiếm chiến dịch" value={searchKeyword} onChange={e => setSearchKeyword(e.target.value)} />
           </div>
           <div className="promotion-time-filter"><SlidersHorizontal size={15} />
             <select aria-label="Lọc theo thời gian" value={timeFilter} onChange={e => setTimeFilter(e.target.value)}>
@@ -690,6 +696,7 @@ export default function AdminPromotionManagement({ currentUser }) {
                     <td><div className="promotion-name-cell"><div className={`promotion-row-icon ${isRunning ? 'running' : ''}`}><Tag size={18} strokeWidth={1.6} /></div><div>
                       <button className="promotion-name-button" onClick={() => handleOpenDetailModal(p.id)}>{p.name}</button>
                       <div className="promotion-row-description" title={p.description || ''}>#{String(p.id).padStart(2, '0')} · {p.description || 'Chưa có mô tả'}</div>
+                      {p.voucherCodes.length > 0 && <div className="promotion-row-description" title={p.voucherCodes.join(', ')}>Mã voucher: {p.voucherCodes.join(', ')}</div>}
                     </div></div></td>
                     <td><div className="promotion-date"><Calendar size={13} />{formatDateTime(p.startDate)} – {formatDateTime(p.endDate)}</div><span className={`promotion-schedule ${isRunning ? 'running' : ''}`}>{isRunning ? 'Đang diễn ra' : isExpired ? 'Đã kết thúc' : isUpcoming ? 'Sắp diễn ra' : 'Chưa kích hoạt'}</span></td>
                     <td><div className="promotion-discount-tags">

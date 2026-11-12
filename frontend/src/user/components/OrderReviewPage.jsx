@@ -33,7 +33,7 @@ import { createOrder, previewOrder, saveOrderToLocalHistory, fetchOrderById, get
 import CancelOrderDialog from './CancelOrderDialog'
 import OrderShippingInfo from './OrderShippingInfo'
 import { validateVoucherApi, fetchActiveVouchers } from '../../lib/vouchers'
-import { loadCheckoutDraft, saveCheckoutDraft, clearCheckoutDraft } from '../lib/checkout'
+import { loadCheckoutDraft, saveCheckoutDraft, clearCheckoutDraft, voucherDiscount, suggestedVoucher as findSuggestedVoucher } from '../lib/checkout'
 import { CART_TIMEOUT_MS } from '../lib/cart'
 import { getAllProvinces, getDistricts, getWards, splitSavedAddress } from '../lib/vietnamLocations'
 
@@ -93,17 +93,8 @@ function OrderSummary({
   const shippingFee = quote ? Number(quote.shippingFee) : (subtotal >= FREE_SHIP_THRESHOLD ? 0 : SHIPPING_FEE)
   const total = quote ? Number(quote.totalAmount) : subtotal + shippingFee
 
-  // Gợi ý voucher phù hợp (ưu tiên NEP500K nếu đơn >= 5tr hoặc voucher lớn nhất)
-  const suggestedVoucher = useMemo(() => {
-    if (appliedVoucher || !Array.isArray(availableVouchers) || availableVouchers.length === 0) return null
-    if (subtotal >= 5000000) {
-      const v500 = availableVouchers.find((v) => v.code === 'FUNI500K' || v.code === 'NEP500K')
-      if (v500) return v500
-    }
-    const eligible = availableVouchers.filter((v) => Number(v.minimum_amount || 0) <= subtotal)
-    if (eligible.length > 0) return eligible[0]
-    return availableVouchers.find((v) => Number(v.minimum_amount || 0) > subtotal) || null
-  }, [appliedVoucher, availableVouchers, subtotal])
+  const suggestedVoucher = useMemo(() => appliedVoucher ? null : findSuggestedVoucher(availableVouchers, subtotal),
+    [appliedVoucher, availableVouchers, subtotal])
 
   return (
     <aside className="order-summary-panel">
@@ -158,7 +149,8 @@ function OrderSummary({
           <input
             type="text"
             className="voucher-code-input"
-            placeholder="Nhập mã (VD: FUNI500K)..."
+            placeholder="Nhập mã"
+            aria-label="Mã giảm giá"
             value={voucherInput}
             onChange={(e) => setVoucherInput(e.target.value.toUpperCase())}
             disabled={!!appliedVoucher || voucherLoading}
@@ -205,10 +197,11 @@ function OrderSummary({
               <Sparkles size={13} className="suggest-sparkle" />
               <span>
                 {Number(suggestedVoucher.minimum_amount || 0) <= subtotal ? (
-                  <>Đủ điều kiện nhận mã <strong>{suggestedVoucher.code}</strong> (Giảm {suggestedVoucher.maximum_discount ? formatPrice(suggestedVoucher.maximum_discount) : `${suggestedVoucher.discount_percent}%`})</>
+                  <>Mã <strong>{suggestedVoucher.code}</strong> giảm <strong>{formatPrice(voucherDiscount(suggestedVoucher, subtotal))}</strong> cho đơn này.</>
                 ) : (
-                  <>Gợi ý mã <strong>{suggestedVoucher.code}</strong>: Mua thêm {formatPrice(Number(suggestedVoucher.minimum_amount || 0) - subtotal)} để giảm {suggestedVoucher.maximum_discount ? formatPrice(suggestedVoucher.maximum_discount) : `${suggestedVoucher.discount_percent}%`}</>
+                  <>Mã <strong>{suggestedVoucher.code}</strong>: mua thêm {formatPrice(Number(suggestedVoucher.minimum_amount || 0) - subtotal)} để được giảm {suggestedVoucher.discount_percent}%{Number(suggestedVoucher.maximum_discount) > 0 ? `, tối đa ${formatPrice(suggestedVoucher.maximum_discount)}` : ''}.</>
                 )}
+                {suggestedVoucher.program_name && <small className="suggest-program-name">Chiến dịch: {suggestedVoucher.program_name}</small>}
               </span>
             </div>
             {Number(suggestedVoucher.minimum_amount || 0) <= subtotal && (

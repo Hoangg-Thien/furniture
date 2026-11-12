@@ -1463,6 +1463,44 @@
   color: var(--ink);
 }
 
+.auth-modal-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.auth-modal-header .auth-modal-tabs {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+
+.auth-modal-header .auth-modal-close {
+  position: static;
+  flex: 0 0 40px;
+  height: 40px;
+  padding: 0;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  background: var(--paper);
+}
+
+.auth-modal-header .auth-modal-close:focus-visible {
+  outline: 2px solid var(--forest);
+  outline-offset: 3px;
+}
+
+@media (max-width: 380px) {
+  .auth-modal-header .auth-tab {
+    gap: 4px;
+    padding-inline: 4px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+}
+
 .auth-modal-tabs {
   display: flex;
   background: var(--paper);
@@ -2164,6 +2202,7 @@
 
 /* ── Order Summary Panel ── */
 .order-summary-panel {
+  min-width: 0;
   position: sticky;
   top: 88px;
   background: #fff;
@@ -2196,21 +2235,28 @@
 }
 .order-summary-item {
   display: flex;
+  align-items: center;
+  min-width: 0;
   gap: 12px;
 }
 .order-item-img-wrap {
   position: relative;
-  flex-shrink: 0;
+  flex: 0 0 66px;
+  width: 66px;
+  height: 66px;
+  border-radius: 8px;
+  overflow: hidden;
 }
 .order-item-img-wrap img {
-  width: 66px;
-  height: 80px;
+  display: block;
+  width: 100%;
+  height: 100%;
   object-fit: cover;
 }
 .order-item-qty {
   position: absolute;
-  top: -7px;
-  right: -7px;
+  top: 4px;
+  right: 4px;
   display: grid;
   width: 18px;
   aspect-ratio: 1;
@@ -2222,6 +2268,8 @@
   font-weight: 700;
 }
 .order-item-detail {
+  min-width: 0;
+  overflow-wrap: anywhere;
   display: flex;
   flex-direction: column;
   gap: 3px;
@@ -5632,23 +5680,24 @@
 }
 
 .voucher-input-action-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 8px;
 }
 
 .voucher-code-input {
-  flex: 1;
-  height: 38px;
+  min-width: 0;
+  width: 100%;
+  height: 44px;
   padding: 0 12px;
   border-radius: 8px;
   border: 1px solid #dcd5c7;
   background: #ffffff;
   font-size: 12.5px;
-  font-family: monospace;
-  font-weight: 700;
+  font-family: inherit;
+  font-weight: 500;
   color: #2b251f;
-  text-transform: uppercase;
   outline: none;
   transition: all 0.2s;
 }
@@ -5665,7 +5714,7 @@
 }
 
 .voucher-btn {
-  height: 38px;
+  height: 44px;
   padding: 0 16px;
   border-radius: 8px;
   font-size: 12.5px;
@@ -5729,12 +5778,16 @@
   border: 1px solid #f0e2c8;
   border-radius: 8px;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
 }
 
 .suggest-info {
+  flex: 1 1 150px;
+  min-width: 0;
+  overflow-wrap: anywhere;
   display: flex;
   align-items: center;
   gap: 7px;
@@ -5749,6 +5802,8 @@
 }
 
 .suggest-apply-btn {
+  min-height: 36px;
+  flex-shrink: 0;
   padding: 4px 10px;
   border-radius: 999px;
   border: none;
@@ -5763,6 +5818,17 @@
 
 .suggest-apply-btn:hover {
   background: #b45309;
+}
+
+.suggest-program-name {
+  display: block;
+  margin-top: 4px;
+  font-size: 10px;
+}
+
+@media (max-width: 480px) {
+  .voucher-input-action-row { grid-template-columns: minmax(0, 1fr); }
+  .suggest-apply-btn { width: 100%; }
 }
 
 .order-discount-row {

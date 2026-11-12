@@ -40,6 +40,7 @@ await page.route('**/api/**', async route => {
   const body = method === 'POST' || method === 'PUT' ? route.request().postDataJSON() : null
   const send = (data, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(data) })
   if (method === 'OPTIONS') return send({})
+  if (path === '/api/admin/promotions/vouchers' && method === 'GET') return send(vouchers)
   if (path === '/api/admin/promotions') {
     if (method === 'GET') return send(failList ? { error: 'Unavailable' } : programs, failList ? 503 : 200)
     if (method === 'POST') {
@@ -65,7 +66,7 @@ await page.route('**/api/**', async route => {
   if (/\/product-discounts\/\d+$/.test(path) && method === 'DELETE') { discounts = []; return send({}) }
   if (/\/order-discounts$/.test(path) && method === 'POST') { orderDiscounts.push({ id: 1, ...body }); return send({}) }
   if (/\/order-discounts\/\d+$/.test(path) && method === 'DELETE') { orderDiscounts = []; return send({}) }
-  if (/\/vouchers$/.test(path) && method === 'POST') { const voucher = { id: 1, ...body, usedCount: 0 }; vouchers.push(voucher); return send(voucher) }
+  if (/\/vouchers$/.test(path) && method === 'POST') { const voucher = { id: 1, promotionProgramId: Number(path.split('/')[4]), ...body, usedCount: 0 }; vouchers.push(voucher); return send(voucher) }
   if (/\/vouchers\/\d+\/status$/.test(path)) { vouchers[0].status = body.status; return send({}) }
   if (/\/vouchers\/\d+$/.test(path) && method === 'DELETE') { vouchers = []; return send({}) }
   if (path === '/api/admin/products') return send({ content: url.searchParams.has('lowStock') ? showActivity ? [{ ...product, quantity: 2 }] : [] : [product], totalElements: 1, totalPages: 1 })

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { beforeEach, afterEach, test } from 'node:test'
-import { isCheckoutPath, loadCheckoutDraft, saveCheckoutDraft, clearCheckoutDraft } from '../src/user/lib/checkout.js'
+import { isCheckoutPath, loadCheckoutDraft, saveCheckoutDraft, clearCheckoutDraft, voucherDiscount, suggestedVoucher } from '../src/user/lib/checkout.js'
 
 beforeEach(() => {
   const values = new Map()
@@ -17,6 +17,22 @@ test('checkout URL is recognized on refresh and browser navigation', () => {
   assert.equal(isCheckoutPath('/checkout/'), true)
   assert.equal(isCheckoutPath('/'), false)
   assert.equal(isCheckoutPath('/checkout-invalid'), false)
+})
+
+test('voucher suggestion shows actual savings instead of the cap and chooses the biggest saving', () => {
+  const sale = { code: 'SALE74', discount_percent: 50, minimum_amount: 0, maximum_discount: 1000000 }
+  const smaller = { code: 'OTHER', discount_percent: 10, minimum_amount: 0, maximum_discount: 2000000 }
+  const branded = { code: 'FUNI500K', discount_percent: 10, minimum_amount: 5000000, maximum_discount: 500000 }
+  assert.equal(voucherDiscount(sale, 1200000), 600000)
+  assert.equal(voucherDiscount(sale, 5000000), 1000000)
+  assert.equal(voucherDiscount(branded, 1200000), 0)
+  assert.equal(suggestedVoucher([smaller, sale], 1200000).code, 'SALE74')
+  assert.equal(suggestedVoucher([branded, sale], 5000000).code, 'SALE74')
+  assert.equal(voucherDiscount({ ...sale, maximum_discount: null }, 1200000), 600000)
+  assert.equal(voucherDiscount({ ...sale, maximum_discount: 0 }, 1200000), 600000)
+  assert.equal(suggestedVoucher([], 1200000), null)
+  assert.equal(suggestedVoucher(null, 1200000), null)
+  assert.equal(suggestedVoucher([branded, { ...sale, minimum_amount: 2000000 }], 1000000).code, 'SALE74')
 })
 
 test('shipping details and confirmation step survive reloading the draft', () => {

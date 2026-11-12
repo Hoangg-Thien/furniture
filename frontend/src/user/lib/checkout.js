@@ -2,6 +2,20 @@ export function isCheckoutPath(pathname) {
   return pathname.toLowerCase().replace(/\/+$/, '') === '/checkout'
 }
 
+export function voucherDiscount(voucher, subtotal) {
+  if (subtotal < Number(voucher.minimum_amount || 0)) return 0
+  const discount = Math.round(subtotal * Number(voucher.discount_percent || 0) / 100)
+  const maximum = Number(voucher.maximum_discount)
+  return Math.max(0, Math.min(discount, maximum > 0 ? maximum : subtotal, subtotal))
+}
+
+export function suggestedVoucher(vouchers, subtotal) {
+  if (!Array.isArray(vouchers) || vouchers.length === 0) return null
+  const eligible = vouchers.filter(v => Number(v.minimum_amount || 0) <= subtotal)
+  if (eligible.length) return eligible.reduce((best, v) => voucherDiscount(v, subtotal) > voucherDiscount(best, subtotal) ? v : best)
+  return vouchers.reduce((best, v) => Number(v.minimum_amount) < Number(best.minimum_amount) ? v : best)
+}
+
 const draftKey = (customerId) => `furniture_checkout_${customerId || 'guest'}`
 const FORM_FIELDS = ['fullName', 'phone', 'address', 'ward', 'district', 'city']
 

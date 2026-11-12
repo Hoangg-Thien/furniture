@@ -4,6 +4,8 @@ Bộ kiểm thử này không sửa mã nghiệp vụ. Các request ghi chạy t
 
 ## Chạy lại trên máy hiện tại
 
+Chạy `node qa/harness/checkout-voucher-check.mjs` để kiểm tra checkout ở desktop/tablet/mobile/320px, gợi ý số tiền giảm thực tế, áp dụng/gỡ voucher và tìm chiến dịch admin bằng mã voucher. Script tự mở Vite, dùng API giả lập và không ghi Supabase; ảnh kiểm tra nằm trong `qa/runtime/checkout-voucher/`.
+
 Ảnh sản phẩm: chạy `node qa/harness/product-file-check.mjs` để kiểm tra chọn file ngay trong form thêm/sửa, ưu tiên file hơn URL, chặn định dạng sai, thử lại tải ảnh không tạo trùng sản phẩm và hiển thị ảnh từ backend. Sau khi bật `start.mjs`, chạy `node qa/harness/product-file-api-check.mjs` để kiểm tra API thật, giữ URL cũ trong album, phục vụ file, chặn giả ảnh và giới hạn 5 MB. File JPG/PNG/WEBP/GIF tối đa 5 MB được lưu trong `uploads/products` trên máy chủ; cần giữ thư mục này khi triển khai và sao lưu. Test backend nằm trong `FileStorageServiceTest` và `AdminProductServiceTest`.
 
 Báo cáo admin: chạy `node qa/harness/reports-check.mjs` để kiểm tra kết nối backend/header phiên, bộ lọc GMT+7, KPI/biểu đồ/tab, tải Excel, khoảng ngày sai, lỗi/thử lại và dữ liệu rỗng. Script dùng API giả lập, không ghi database. Kiểm thử SQL và ranh giới ngày nằm trong `AdminStatisticsRepositoryTest.java`.
