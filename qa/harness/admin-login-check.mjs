@@ -32,6 +32,11 @@ try {
   const origin = server.resolvedUrls.local[0]
   await page.goto(new URL('/admin', origin).href)
   await page.getByRole('heading', { name: 'Chào mừng trở lại.' }).waitFor()
+  assert.equal(await page.locator('.admin-quick-fill-section, .quick-fill-btn').count(), 0)
+  assert.equal(await page.getByText('Tài khoản thực hành').count(), 0)
+  assert.equal(await page.locator('#admin-username').inputValue(), '')
+  assert.equal(await page.locator('#admin-password').inputValue(), '')
+  assert.equal(await page.locator('.admin-login-card').textContent().then(text => /admin01|staff01|123456/.test(text)), false)
   assert.equal(await page.locator('#admin-username').evaluate(element => element === document.activeElement), true)
   assert.equal(await page.locator('.admin-login-wrapper').evaluate(element => getComputedStyle(element).filter), 'none')
   assert.equal(await page.locator('.admin-login-card').evaluate(element => getComputedStyle(element).backdropFilter), 'none')
@@ -58,10 +63,6 @@ try {
   releaseLogin()
   await page.getByRole('alert').filter({ hasText: 'không chính xác' }).waitFor()
   assert.equal(await page.getByRole('button', { name: 'Đăng nhập', exact: true }).isEnabled(), true)
-  await page.locator('.admin-quick-fill-section summary').click()
-  await page.getByRole('button', { name: /Nhân viên/ }).click()
-  assert.equal(await page.locator('#admin-username').inputValue(), 'staff01')
-  assert.equal(await page.locator('#admin-password').inputValue(), '123456')
   mode = 'CUSTOMER'
   await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click()
   await page.getByRole('alert').waitFor()
@@ -81,7 +82,7 @@ try {
   await page.locator('.site-header').waitFor()
   assert.equal(new URL(page.url()).pathname, '/')
   assert.deepEqual(errors, [])
-  console.log('PASS admin login: desktop/mobile, validation, password toggle, loading/error, demo, role checks, ADMIN/STAFF login, back navigation')
+  console.log('PASS admin login: no demo accounts, desktop/mobile, validation, password toggle, loading/error, role checks, ADMIN/STAFF login, back navigation')
 } finally {
   await browser.close()
   await server.close()

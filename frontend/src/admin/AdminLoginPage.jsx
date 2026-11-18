@@ -9,7 +9,6 @@ import {
   ArrowLeft,
   AlertCircle,
   CheckCircle2,
-  ChevronDown,
 } from 'lucide-react'
 import { loginAdmin } from '../lib/auth'
 import './AdminLoginPage.css'
@@ -52,12 +51,6 @@ export default function AdminLoginPage({ onLoginSuccess, onBackToStore }) {
       setErrorMessage('Đã xảy ra lỗi kết nối với máy chủ. Vui lòng thử lại sau.')
       setLoading(false)
     }
-  }
-
-  function handleQuickFill(demoUser, demoPass) {
-    setUsername(demoUser)
-    setPassword(demoPass)
-    setErrorMessage('')
   }
 
   return (
@@ -125,7 +118,7 @@ export default function AdminLoginPage({ onLoginSuccess, onBackToStore }) {
                 <input
                   id="admin-username"
                   type="text"
-                  placeholder="Ví dụ: admin01"
+                  placeholder="Nhập tên đăng nhập hoặc email"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   autoComplete="username"
@@ -178,34 +171,6 @@ export default function AdminLoginPage({ onLoginSuccess, onBackToStore }) {
               )}
             </button>
           </form>
-
-          {/* Quick Fill Demo Accounts */}
-          <details className="admin-quick-fill-section">
-            <summary>Tài khoản thực hành <ChevronDown size={15} /></summary>
-            <p>Điền nhanh tài khoản demo của đồ án.</p>
-            <div className="quick-fill-buttons">
-              <button
-                type="button"
-                className="quick-fill-btn admin-role"
-                onClick={() => handleQuickFill('admin01', '123456')}
-              >
-                <div>
-                  <strong>Quản trị viên</strong>
-                  <small>admin01 · 123456</small>
-                </div>
-              </button>
-              <button
-                type="button"
-                className="quick-fill-btn staff-role"
-                onClick={() => handleQuickFill('staff01', '123456')}
-              >
-                <div>
-                  <strong>Nhân viên</strong>
-                  <small>staff01 · 123456</small>
-                </div>
-              </button>
-            </div>
-          </details>
 
           <p className="admin-login-access-note"><Lock size={13} /> Dành cho quản trị viên và nhân viên FuniStore.</p>
         </section>

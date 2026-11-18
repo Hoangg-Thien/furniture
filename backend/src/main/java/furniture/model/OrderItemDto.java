@@ -1,10 +1,12 @@
 package furniture.model;
 
 import java.math.BigDecimal;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import furniture.util.IntegerQuantityDeserializer;
 
 public record OrderItemDto(
         Long productId,
-        Integer quantity,
+        @JsonDeserialize(using = IntegerQuantityDeserializer.class) Integer quantity,
         BigDecimal unitPrice) {
 }
 

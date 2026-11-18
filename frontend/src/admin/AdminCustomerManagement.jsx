@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   AlertCircle,
   Armchair,
@@ -30,6 +30,13 @@ export default function AdminCustomerManagement({ currentUser }) {
   const [customers, setCustomers] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const listRequest = useRef(null)
+  const detailRequest = useRef(null)
+
+  useEffect(() => () => {
+    listRequest.current?.abort()
+    detailRequest.current?.abort()
+  }, [])
 
   // Filters & Pagination
   const [searchKeyword, setSearchKeyword] = useState('')
@@ -68,6 +75,9 @@ export default function AdminCustomerManagement({ currentUser }) {
 
   // Tải danh sách khách hàng từ Backend
   const loadCustomers = async (targetPage = page, targetPageSize = pageSize) => {
+    listRequest.current?.abort()
+    const controller = new AbortController()
+    listRequest.current = controller
     setLoading(true)
     setError(null)
     try {
@@ -90,6 +100,7 @@ export default function AdminCustomerManagement({ currentUser }) {
       }
 
       const res = await fetch(`${baseUrl}/api/admin/customers?${params.toString()}`, {
+        signal: controller.signal,
         headers: getApiHeaders({
           'Content-Type': 'application/json'
         })
@@ -101,15 +112,17 @@ export default function AdminCustomerManagement({ currentUser }) {
       }
 
       const data = await res.json()
+      if (controller.signal.aborted) return
       setCustomers(data.content || [])
       setPage(data.page || 0)
       setTotalPages(data.totalPages || 1)
       setTotalElements(data.totalElements || 0)
     } catch (err) {
+      if (controller.signal.aborted) return
       console.error('Error fetching customers:', err)
       setError(err.message)
     } finally {
-      setLoading(false)
+      if (!controller.signal.aborted) setLoading(false)
     }
   }
 
@@ -129,6 +142,9 @@ export default function AdminCustomerManagement({ currentUser }) {
 
   // Mở Drawer / Modal chi tiết khách hàng
   const openCustomerProfile = async (customer, initialTab = 'profile') => {
+    detailRequest.current?.abort()
+    const controller = new AbortController()
+    detailRequest.current = controller
     setSelectedCustomer(customer)
     setActiveTab(initialTab)
     setCustomerDetail(null)
@@ -138,6 +154,7 @@ export default function AdminCustomerManagement({ currentUser }) {
     try {
       const baseUrl = getApiBaseUrl()
       const res = await fetch(`${baseUrl}/api/admin/customers/${customer.id}`, {
+        signal: controller.signal,
         headers: getApiHeaders({
           'Content-Type': 'application/json'
         })
@@ -148,6 +165,7 @@ export default function AdminCustomerManagement({ currentUser }) {
       }
 
       const data = await res.json()
+      if (controller.signal.aborted) return
       setCustomerDetail(data)
       setEditForm({
         fullName: data.fullName || '',
@@ -156,16 +174,24 @@ export default function AdminCustomerManagement({ currentUser }) {
         address: data.address || ''
       })
     } catch (err) {
+      if (controller.signal.aborted) return
+      setEditError(err.message)
       showToast(err.message, 'error')
     } finally {
-      setDetailLoading(false)
+      if (!controller.signal.aborted) setDetailLoading(false)
     }
+  }
+
+  const closeCustomerProfile = () => {
+    detailRequest.current?.abort()
+    setSelectedCustomer(null)
   }
 
   // Lưu chỉnh sửa thông tin khách hàng (Tab 1)
   const handleSaveProfile = async (e) => {
     e.preventDefault()
-    if (!selectedCustomer) return
+    if (!selectedCustomer || !customerDetail || detailLoading || editSubmitting) return
+    const controller = detailRequest.current
     setEditError('')
 
     if (!editForm.fullName || !editForm.fullName.trim()) {
@@ -194,6 +220,8 @@ export default function AdminCustomerManagement({ currentUser }) {
         throw new Error(data.error || 'Cập nhật thất bại')
       }
 
+      if (controller.signal.aborted) return
+
       showToast('Cập nhật thông tin khách hàng thành công!', 'success')
       // Cập nhật lại state cục bộ
       setCustomerDetail((prev) => ({
@@ -205,7 +233,7 @@ export default function AdminCustomerManagement({ currentUser }) {
       }))
       loadCustomers(page)
     } catch (err) {
-      setEditError(err.message)
+      if (!controller.signal.aborted) setEditError(err.message)
     } finally {
       setEditSubmitting(false)
     }
@@ -641,7 +669,7 @@ export default function AdminCustomerManagement({ currentUser }) {
           DRAWER / MODAL: HỒ SƠ CHI TIẾT KHÁCH HÀNG (CUSTOMER PROFILE DRAWER)
           ==================================================================== */}
       {selectedCustomer && (
-        <div className="admin-modal-backdrop" onClick={() => setSelectedCustomer(null)}>
+        <div className="admin-modal-backdrop" onClick={closeCustomerProfile}>
           <div
             className="customer-drawer-card"
             onClick={(e) => e.stopPropagation()}
@@ -667,7 +695,7 @@ export default function AdminCustomerManagement({ currentUser }) {
                 </div>
               </div>
 
-              <button className="modal-close-btn" onClick={() => setSelectedCustomer(null)}>
+              <button className="modal-close-btn" onClick={closeCustomerProfile}>
                 <X size={20} />
               </button>
             </div>
@@ -703,6 +731,11 @@ export default function AdminCustomerManagement({ currentUser }) {
                 <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--admin-text-muted)' }}>
                   <RefreshCw size={24} className="spin" color="var(--admin-accent)" />
                   <p style={{ marginTop: '10px' }}>Đang tải dữ liệu hồ sơ khách hàng...</p>
+                </div>
+              ) : !customerDetail ? (
+                <div role="alert" className="modal-alert-error">
+                  <span>{editError || 'Không thể tải hồ sơ khách hàng.'}</span>
+                  <button type="button" className="admin-btn admin-btn-outline" onClick={() => openCustomerProfile(selectedCustomer, activeTab)}>Thử lại</button>
                 </div>
               ) : (
                 <>
@@ -788,7 +821,7 @@ export default function AdminCustomerManagement({ currentUser }) {
                         <button
                           type="button"
                           className="admin-btn admin-btn-outline"
-                          onClick={() => setSelectedCustomer(null)}
+                          onClick={closeCustomerProfile}
                         >
                           Đóng
                         </button>

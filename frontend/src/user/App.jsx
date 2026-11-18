@@ -996,7 +996,7 @@ function App() {
               {filteredProducts.map((product, index) => (
                 <article className="product-card" key={product.id} style={{ '--item-index': index }}>
                   <div className="product-image-wrap">
-                    <img className="product-image" src={product.image} alt={product.name} />
+                    <img className="product-image" src={product.image} alt={product.name} loading={index < 4 ? 'eager' : 'lazy'} decoding="async" />
                     {product.badge && <span className="product-badge">{product.badge}</span>}
                     {cart[product.id] > 0 && (
                       <span className="product-cart-tag" title={`Đang có ${cart[product.id]} sản phẩm trong giỏ`}>
@@ -1047,7 +1047,9 @@ function App() {
                     <span className="product-rating">Funi chọn</span>
                   </div>
                   <h3>{product.name}</h3>
-                  <p className="product-stock">{product.quantity == null ? 'Chưa xác nhận tồn kho' : product.quantity === 0 ? 'Hết hàng' : `Còn ${product.quantity} sản phẩm`}</p>
+                  {(product.quantity == null || product.quantity <= 5) && (
+                    <p className="product-stock">{product.quantity == null ? 'Chưa xác nhận tồn kho' : product.quantity === 0 ? 'Hết hàng' : `Còn ${product.quantity} sản phẩm`}</p>
+                  )}
                   <div className="product-price-row">
                     <strong>{formatPrice(product.price)}</strong>
                     {product.oldPrice && <del>{formatPrice(product.oldPrice)}</del>}
