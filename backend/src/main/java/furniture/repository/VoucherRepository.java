@@ -64,7 +64,7 @@ public class VoucherRepository {
 
     public List<Map<String, Object>> findActiveVouchers() {
         String sql = """
-                SELECT v.id, v.code, v.discount_percent, v.minimum_amount, v.maximum_discount,
+                SELECT v.id, v.code, v.voucher_type, v.product_id, v.discount_percent, v.minimum_amount, v.maximum_discount,
                        v.quantity, v.used_quantity, (v.quantity - v.used_quantity) AS remaining_quantity,
                        to_char(v.start_date, 'YYYY-MM-DD HH24:MI:SS') AS start_date,
                        to_char(v.end_date, 'YYYY-MM-DD HH24:MI:SS') AS end_date,
@@ -85,7 +85,7 @@ public class VoucherRepository {
 
     public List<Map<String, Object>> findAllVouchersForAdmin() {
         String sql = """
-                SELECT v.id, v.code, v.discount_percent, v.minimum_amount, v.maximum_discount,
+                SELECT v.id, v.code, v.voucher_type, v.product_id, v.discount_percent, v.minimum_amount, v.maximum_discount,
                        v.quantity, v.used_quantity, (v.quantity - v.used_quantity) AS remaining_quantity,
                        to_char(v.start_date, 'YYYY-MM-DD HH24:MI:SS') AS start_date,
                        to_char(v.end_date, 'YYYY-MM-DD HH24:MI:SS') AS end_date,
@@ -167,14 +167,14 @@ public class VoucherRepository {
     public void insertVoucher(Long progId, String code, BigDecimal discountPercent, BigDecimal minAmt,
                               BigDecimal maxDisc, int quantity, String startDate, String endDate) {
         jdbcTemplate.update(
-                "INSERT INTO public.vouchers (promotion_program_id, code, discount_percent, minimum_amount, maximum_discount, quantity, used_quantity, start_date, end_date, status) " +
-                "VALUES (?, ?, ?, ?, ?, ?, 0, ?::timestamp, ?::timestamp, 'ACTIVE')",
+                "INSERT INTO public.vouchers (promotion_program_id, code, discount_percent, minimum_amount, maximum_discount, quantity, used_quantity, start_date, end_date, status, voucher_type) " +
+                "VALUES (?, ?, ?, ?, ?, ?, 0, ?::timestamp, ?::timestamp, 'ACTIVE', 'VIP')",
                 progId, code, discountPercent, minAmt, maxDisc, quantity, startDate, endDate);
     }
 
     public List<Map<String, Object>> findVoucherWithProgramByCode(String code) {
         String sql = """
-                SELECT v.id, v.code, v.discount_percent, v.minimum_amount, v.maximum_discount,
+                SELECT v.id, v.code, v.voucher_type, v.product_id, v.discount_percent, v.minimum_amount, v.maximum_discount,
                        v.quantity, v.used_quantity,
                        pp.name AS program_name, pp.status AS program_status, v.status AS voucher_status,
                        (v.end_date < CURRENT_TIMESTAMP OR pp.end_date < CURRENT_TIMESTAMP) AS is_expired,
@@ -186,5 +186,17 @@ public class VoucherRepository {
                 """;
         return jdbcTemplate.queryForList(sql, code.trim());
     }
+    public BigDecimal findProductPrice(Long productId) {
+        var prices = jdbcTemplate.queryForList("SELECT selling_price FROM public.products WHERE id = ? AND is_active = TRUE", BigDecimal.class, productId);
+        if (prices.isEmpty()) throw new IllegalArgumentException("Sản phẩm không tồn tại hoặc đã ngừng bán");
+        return prices.get(0);
+    }
+
+    public boolean isVipCustomer(Long customerId) {
+        if (customerId == null) return false;
+        BigDecimal spent = jdbcTemplate.queryForObject("SELECT COALESCE(SUM(total_amount), 0) FROM public.orders WHERE customer_id = ? AND status = 'COMPLETED'", BigDecimal.class, customerId);
+        return "VIP_DIAMOND".equals(AdminCustomerRepository.computeTier(spent, 0));
+    }
+
 }
 

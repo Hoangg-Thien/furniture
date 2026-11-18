@@ -82,6 +82,9 @@ function OrderSummary({
   onApplyVoucher,
   onRemoveVoucher,
   onQuickApply,
+  onUseProductDiscount,
+  promotionNotice,
+  promotionBusy,
   voucherError,
   voucherLoading,
   availableVouchers = [],
@@ -93,8 +96,12 @@ function OrderSummary({
   const shippingFee = quote ? Number(quote.shippingFee) : (subtotal >= FREE_SHIP_THRESHOLD ? 0 : SHIPPING_FEE)
   const total = quote ? Number(quote.totalAmount) : subtotal + shippingFee
 
-  const suggestedVoucher = useMemo(() => appliedVoucher ? null : findSuggestedVoucher(availableVouchers, subtotal),
-    [appliedVoucher, availableVouchers, subtotal])
+  const automaticDiscount = Number(quote?.automaticDiscountAmount ?? (quote?.voucherId ? 0 : discount))
+  const voucherDiscountAmount = Number(quote?.voucherDiscountAmount ?? (quote?.voucherId ? discount : 0))
+  const voucherBase = Number(quote?.subtotal ?? subtotal)
+
+  const suggestedVoucher = useMemo(() => appliedVoucher || !quote || voucherBase <= 0 ? null : findSuggestedVoucher(availableVouchers, voucherBase),
+    [appliedVoucher, availableVouchers, quote, voucherBase])
 
   return (
     <aside className="order-summary-panel">
@@ -104,7 +111,10 @@ function OrderSummary({
         {cartItems.length} sản phẩm
       </h3>
       <div className="order-summary-items">
-        {cartItems.map((product) => (
+        {cartItems.map((product) => {
+          const itemDiscount = quote?.itemDiscounts?.find(item => String(item.productId) === String(product.id))
+          const productOffer = quote?.productOffers?.find(item => String(item.productId) === String(product.id))
+          return (
           <div className="order-summary-item" key={product.id}>
             <div className="order-item-img-wrap">
               {product.image ? (
@@ -130,12 +140,14 @@ function OrderSummary({
             <div className="order-item-detail">
               <span className="order-item-category">{product.category}</span>
               <p className="order-item-name">{product.name}</p>
-              <strong className="order-item-price">
-                {formatPrice(Number(quote?.items.find(item => String(item.productId) === String(product.id))?.unitPrice ?? product.price) * cart[product.id])}
-              </strong>
+              {itemDiscount ? <div className="item-offer-prices">
+                <del>{formatPrice(itemDiscount.originalAmount)}</del><strong>{formatPrice(itemDiscount.finalAmount)}</strong>
+                <span className="item-offer-badge">Đã áp dụng {itemDiscount.label}: −{formatPrice(itemDiscount.discountAmount)}</span>
+              </div> : <strong className="order-item-price">{formatPrice(Number(quote?.items.find(item => String(item.productId) === String(product.id))?.unitPrice ?? product.price) * cart[product.id])}</strong>}
+              {productOffer && !itemDiscount && <button type="button" className="product-offer-button" disabled={promotionBusy} onClick={onUseProductDiscount}>Dùng ưu đãi sản phẩm: −{formatPrice(productOffer.discountAmount)}</button>}
             </div>
           </div>
-        ))}
+        )})}
       </div>
 
       {/* Khung Áp Dụng Voucher Khách Hàng */}
@@ -153,27 +165,16 @@ function OrderSummary({
             aria-label="Mã giảm giá"
             value={voucherInput}
             onChange={(e) => setVoucherInput(e.target.value.toUpperCase())}
-            disabled={!!appliedVoucher || voucherLoading}
+            disabled={voucherLoading || promotionBusy}
           />
-          {appliedVoucher ? (
-            <button
-              type="button"
-              className="voucher-btn voucher-btn--remove"
-              onClick={onRemoveVoucher}
-            >
-              Hủy
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="voucher-btn voucher-btn--apply"
-              disabled={voucherLoading || !voucherInput.trim()}
-              onClick={onApplyVoucher}
-            >
-              {voucherLoading ? 'Kiểm tra...' : 'Áp dụng'}
-            </button>
-          )}
+          <button type="button" className="voucher-btn voucher-btn--apply" disabled={voucherLoading || promotionBusy || !voucherInput.trim()} onClick={onApplyVoucher}>
+            {voucherLoading ? 'Kiểm tra...' : 'Áp dụng'}
+          </button>
         </div>
+        {appliedVoucher && <button type="button" className="voucher-btn voucher-btn--remove" disabled={promotionBusy} onClick={onRemoveVoucher}>Hủy</button>}
+        {promotionNotice && quote && <div className={`voucher-msg-alert ${promotionNotice === 'product' && automaticDiscount <= 0 ? 'error' : 'success'}`} role="status">{promotionNotice === 'product'
+          ? automaticDiscount > 0 ? 'Đã chuyển sang áp dụng ưu đãi sản phẩm' : 'Không còn ưu đãi sản phẩm hợp lệ'
+          : quote.itemDiscounts?.length ? 'Đã chuyển sang áp dụng mã giảm giá sản phẩm' : 'Đã chuyển sang áp dụng mã giảm giá toàn đơn hàng'}</div>}
 
         {voucherError && (
           <div className="voucher-msg-alert error">
@@ -182,11 +183,11 @@ function OrderSummary({
           </div>
         )}
 
-        {appliedVoucher && (
+        {appliedVoucher && !promotionNotice && quote?.voucherId === appliedVoucher.id && (
           <div className="voucher-msg-alert success">
             <CheckCircle2 size={13} />
             <span>
-              Đã kiểm tra mã {appliedVoucher.code}. Hệ thống chọn ưu đãi giảm nhiều nhất.
+              Đã áp dụng mã {appliedVoucher.code}, giảm {formatPrice(voucherDiscountAmount)} cho đơn hàng.
             </span>
           </div>
         )}
@@ -196,15 +197,15 @@ function OrderSummary({
             <div className="suggest-info">
               <Sparkles size={13} className="suggest-sparkle" />
               <span>
-                {Number(suggestedVoucher.minimum_amount || 0) <= subtotal ? (
-                  <>Mã <strong>{suggestedVoucher.code}</strong> giảm <strong>{formatPrice(voucherDiscount(suggestedVoucher, subtotal))}</strong> cho đơn này.</>
+                {Number(suggestedVoucher.minimum_amount || 0) <= voucherBase ? (
+                  <>Mã <strong>{suggestedVoucher.code}</strong> giảm <strong>{formatPrice(voucherDiscount(suggestedVoucher, voucherBase))}</strong> cho đơn hàng.</>
                 ) : (
-                  <>Mã <strong>{suggestedVoucher.code}</strong>: mua thêm {formatPrice(Number(suggestedVoucher.minimum_amount || 0) - subtotal)} để được giảm {suggestedVoucher.discount_percent}%{Number(suggestedVoucher.maximum_discount) > 0 ? `, tối đa ${formatPrice(suggestedVoucher.maximum_discount)}` : ''}.</>
+                  <>Mã <strong>{suggestedVoucher.code}</strong>: mua thêm {formatPrice(Number(suggestedVoucher.minimum_amount || 0) - voucherBase)} để được giảm {suggestedVoucher.discount_percent}%{Number(suggestedVoucher.maximum_discount) > 0 ? `, tối đa ${formatPrice(suggestedVoucher.maximum_discount)}` : ''}.</>
                 )}
                 {suggestedVoucher.program_name && <small className="suggest-program-name">Chiến dịch: {suggestedVoucher.program_name}</small>}
               </span>
             </div>
-            {Number(suggestedVoucher.minimum_amount || 0) <= subtotal && (
+            {Number(suggestedVoucher.minimum_amount || 0) <= voucherBase && (
               <button
                 type="button"
                 className="suggest-apply-btn"
@@ -218,19 +219,21 @@ function OrderSummary({
       </div>
 
       <div className="order-summary-totals">
-        <p className="order-freeship-hint">Mỗi đơn áp dụng một ưu đãi giảm nhiều nhất; không cộng dồn.</p>
+        <p className="order-freeship-hint">Mỗi đơn chỉ áp dụng một loại ưu đãi. Chọn mã mới sẽ thay thế ưu đãi đang dùng, không cộng dồn.</p>
         {!quote && !quoteError && <p role="status">Đang tính ưu đãi và tổng thanh toán...</p>}
         {quoteError && <p role="alert">{quoteError} <button type="button" onClick={onRetryQuote}>Thử lại</button></p>}
         <div className="order-total-row">
           <span>Tạm tính</span>
           <span>{formatPrice(subtotal)}</span>
         </div>
-        {discount > 0 && (
-          <div className="order-total-row order-discount-row">
-            <span>Ưu đãi tốt nhất: {quote.discountLabel}</span>
-            <span className="order-discount-text">-{formatPrice(discount)}</span>
-          </div>
-        )}
+        {automaticDiscount > 0 && <div className="order-total-row order-discount-row order-automatic-discount">
+          <span>Ưu đãi tự động: {quote.automaticDiscountLabel || quote.discountLabel}</span>
+          <span className="order-discount-text">-{formatPrice(automaticDiscount)}</span>
+        </div>}
+        {voucherDiscountAmount > 0 && <div className="order-total-row order-discount-row order-voucher-discount">
+          <span>Voucher {quote.voucherCode}</span>
+          <span className="order-discount-text">-{formatPrice(voucherDiscountAmount)}</span>
+        </div>}
         <div className="order-total-row">
           <span>Phí giao hàng</span>
           <span>
@@ -440,11 +443,15 @@ export default function OrderReviewPage({
 
   // State quản lý Voucher áp dụng cho đơn hàng
   const [appliedVoucher, setAppliedVoucher] = useState(null)
+  const [preferProductDiscounts, setPreferProductDiscounts] = useState(false)
+  const [promotionNotice, setPromotionNotice] = useState('')
+  const voucherVersion = useRef(0)
   const [quoteState, setQuoteState] = useState({})
   const [quoteAttempt, setQuoteAttempt] = useState(0)
   const quoteKey = JSON.stringify({
     items: cartItems.map(p => ({ productId: Number(p.id), quantity: cart[p.id], unitPrice: p.price })),
     voucherId: appliedVoucher?.id ?? null,
+    preferProductDiscounts,
   })
   const quote = quoteState.key === quoteKey ? quoteState.quote : null
   const quoteError = quoteState.key === quoteKey ? quoteState.error : ''
@@ -453,9 +460,9 @@ export default function OrderReviewPage({
   useEffect(() => {
     if (showingOrder) return
     const controller = new AbortController()
-    const { items, voucherId } = JSON.parse(quoteKey)
+    const { items, voucherId, preferProductDiscounts: productOnly } = JSON.parse(quoteKey)
     setQuoteState({ key: quoteKey })
-    previewOrder(items, voucherId, controller.signal).then(result => {
+    previewOrder(items, voucherId, controller.signal, productOnly).then(result => {
       if (!controller.signal.aborted) setQuoteState({ key: quoteKey, quote: result })
     }).catch(error => {
       if (!controller.signal.aborted) setQuoteState({ key: quoteKey, error: error.message || 'Không thể tính tổng đơn hàng.' })
@@ -487,6 +494,22 @@ export default function OrderReviewPage({
     }
   }, [])
 
+  useEffect(() => {
+    voucherVersion.current++
+    setVoucherLoading(false)
+    return () => { voucherVersion.current++ }
+  }, [cart])
+
+  function handleUseProductDiscount() {
+    voucherVersion.current++
+    setVoucherLoading(false)
+    setAppliedVoucher(null)
+    setPreferProductDiscounts(true)
+    setVoucherInput('')
+    setVoucherError('')
+    setPromotionNotice('product')
+  }
+
   // Xử lý áp dụng voucher
   async function handleApplyVoucher(codeToApply) {
     const code = (typeof codeToApply === 'string' ? codeToApply : voucherInput).trim().toUpperCase()
@@ -494,14 +517,18 @@ export default function OrderReviewPage({
       setVoucherError('Vui lòng nhập mã voucher')
       return
     }
+    const version = ++voucherVersion.current
+    setPromotionNotice('')
     setVoucherLoading(true)
     setVoucherError('')
     try {
-      const res = await validateVoucherApi({ code, subtotal: quote?.subtotal ?? subtotal })
+      const res = await validateVoucherApi({ code, subtotal: quote?.subtotal ?? subtotal, items: JSON.parse(quoteKey).items })
+      if (version !== voucherVersion.current) return
       if (!res.valid) {
         setVoucherError(res.error || 'Mã giảm giá không hợp lệ')
-        setAppliedVoucher(null)
       } else {
+        setPreferProductDiscounts(false)
+        setPromotionNotice('voucher')
         setAppliedVoucher({
           id: res.voucherId,
           code: res.code || code,
@@ -512,14 +539,18 @@ export default function OrderReviewPage({
         setVoucherError('')
       }
     } catch (err) {
-      setVoucherError('Lỗi kiểm tra voucher, vui lòng thử lại.')
+      if (version === voucherVersion.current) setVoucherError('Lỗi kiểm tra voucher, vui lòng thử lại.')
     } finally {
-      setVoucherLoading(false)
+      if (version === voucherVersion.current) setVoucherLoading(false)
     }
   }
 
   // Xử lý gỡ voucher
   function handleRemoveVoucher() {
+    voucherVersion.current++
+    setVoucherLoading(false)
+    setPreferProductDiscounts(false)
+    setPromotionNotice('')
     setAppliedVoucher(null)
     setVoucherInput('')
     setVoucherError('')
@@ -650,6 +681,7 @@ export default function OrderReviewPage({
       city: form.city.trim(),
       totalAmount: finalTotal,
       voucherId: appliedVoucher?.id || null,
+      preferProductDiscounts,
       discountAmount: discountAmount,
       items: payloadItems,
     })
@@ -1504,6 +1536,9 @@ export default function OrderReviewPage({
             onApplyVoucher={handleApplyVoucher}
             onRemoveVoucher={handleRemoveVoucher}
             onQuickApply={handleQuickApply}
+            onUseProductDiscount={handleUseProductDiscount}
+            promotionNotice={promotionNotice}
+            promotionBusy={submitting}
             voucherError={voucherError}
             voucherLoading={voucherLoading}
             availableVouchers={availableVouchers}

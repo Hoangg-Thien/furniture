@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -49,7 +50,7 @@ class AdminPromotionServiceTest {
 
     @BeforeEach
     void setUp() {
-        promotionService = new AdminPromotionService(promotionRepository, productRepository);
+        promotionService = new AdminPromotionService(promotionRepository, productRepository, mock(furniture.service.VoucherService.class));
     }
 
     @Test
@@ -275,4 +276,24 @@ class AdminPromotionServiceTest {
         );
         assertTrue(ex.getMessage().contains("đã tồn tại"));
     }
+    @Test
+    void newVoucherCodesAreVipOnlyWhileAutomaticDiscountsStaySeparate() {
+        when(promotionRepository.findById(1L)).thenReturn(new ProgramResponse(1L, "Test", "", now, now.plusDays(1), "ACTIVE"));
+        for (var req : List.of(
+                scopedVoucher("OTHER", null), scopedVoucher("ORDER", null), scopedVoucher("PRODUCT", null),
+                scopedVoucher("PRODUCT", 99L), scopedVoucher("VIP", 1L))) {
+            assertThrows(IllegalArgumentException.class, () -> promotionService.createVoucher(1L, req));
+        }
+        verify(promotionRepository, never()).insertVoucher(any(), any(), any(), any());
+        assertEquals("VIP", new CreateVoucherRequest("NEW", BigDecimal.TEN, BigDecimal.ZERO, null, 10, null, null, "ACTIVE").voucherType());
+        var req = scopedVoucher("VIP", null);
+        when(promotionRepository.insertVoucher(eq(1L), eq(req), any(), any())).thenReturn(12L);
+        promotionService.createVoucher(1L, req);
+        verify(promotionRepository).insertVoucher(eq(1L), eq(req), any(), any());
+    }
+
+    private CreateVoucherRequest scopedVoucher(String type, Long productId) {
+        return new CreateVoucherRequest("SCOPE", BigDecimal.TEN, BigDecimal.ZERO, null, 10, null, null, "ACTIVE", type, productId);
+    }
+
 }

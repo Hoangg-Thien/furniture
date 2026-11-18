@@ -3,6 +3,9 @@ package furniture.service;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import furniture.model.ValidateVoucherRequest;
+import furniture.model.admin.promotion.VoucherCheckRequest;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,10 +27,12 @@ public class AdminPromotionService {
 
     private final AdminPromotionRepository promotionRepository;
     private final AdminProductRepository productRepository;
+    private final VoucherService voucherService;
 
-    public AdminPromotionService(AdminPromotionRepository promotionRepository, AdminProductRepository productRepository) {
+    public AdminPromotionService(AdminPromotionRepository promotionRepository, AdminProductRepository productRepository, VoucherService voucherService) {
         this.promotionRepository = promotionRepository;
         this.productRepository = productRepository;
+        this.voucherService = voucherService;
     }
 
     public List<ProgramResponse> getAllPrograms(String search, String status) {
@@ -174,12 +179,24 @@ public class AdminPromotionService {
         return promotionRepository.findAllVouchers(search, status);
     }
 
+    public Map<String, Object> checkVoucher(Long voucherId, VoucherCheckRequest req) {
+        if (req == null || req.items() == null || req.items().isEmpty() || (req.customerId() != null && req.customerId() <= 0)) {
+            throw new IllegalArgumentException("Vui lòng cung cấp sản phẩm và mã khách hàng hợp lệ");
+        }
+        VoucherDto voucher = promotionRepository.findVoucherById(voucherId);
+        if (voucher == null) throw new IllegalArgumentException("Không tìm thấy voucher");
+        return voucherService.validateVoucher(new ValidateVoucherRequest(voucher.code(), BigDecimal.ZERO, req.items()), req.customerId());
+    }
+
     @Transactional
     public VoucherDto createVoucher(Long programId, CreateVoucherRequest req) {
         ProgramResponse program = getProgramById(programId);
 
         if (req.code() == null || req.code().trim().isEmpty()) {
             throw new IllegalArgumentException("Mã Voucher không được để trống");
+        }
+        if (!"VIP".equals(req.voucherType()) || req.productId() != null) {
+            throw new IllegalArgumentException("Mã voucher mới chỉ dành cho VIP. Giảm theo đơn hàng hoặc sản phẩm được quản lý ở nhóm ưu đãi tự động.");
         }
         String cleanCode = req.code().trim().toUpperCase();
         if (promotionRepository.existsVoucherCode(cleanCode)) {

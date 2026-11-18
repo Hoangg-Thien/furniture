@@ -34,7 +34,7 @@ export const ADMIN_MODULES = [
   { id: 'categories', name: 'Danh mục nội thất', icon: FolderTree, group: 'Sản phẩm', doc: '04', roles: ['ADMIN'] },
 
   // Nhóm 5: Chiến Dịch & Tài Chính (Chỉ ADMIN)
-  { id: 'promotions', name: 'Khuyến mãi & voucher', icon: Percent, group: 'Tăng trưởng', doc: '07', roles: ['ADMIN'] },
+  { id: 'promotions', name: 'Khuyến mãi & voucher', icon: Percent, group: 'Tăng trưởng', doc: '07', roles: ['ADMIN', 'STAFF'] },
   { id: 'reports', name: 'Thống kê & báo cáo', icon: BarChart3, group: 'Tăng trưởng', doc: '10', roles: ['ADMIN'] }
 ]
 

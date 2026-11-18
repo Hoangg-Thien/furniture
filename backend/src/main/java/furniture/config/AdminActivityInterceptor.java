@@ -30,7 +30,8 @@ public class AdminActivityInterceptor implements HandlerInterceptor {
                 || response.getStatus() < 200 || response.getStatus() >= 300
                 || !Set.of("POST", "PUT", "PATCH", "DELETE").contains(request.getMethod())) return;
         String path = new UrlPathHelper().getPathWithinApplication(request).replaceAll(";[^/]*", "").replaceAll("/+", "/");
-        if (!path.startsWith("/api/admin/") || path.endsWith("/preview-calculation")) return;
+        if (!path.startsWith("/api/admin/") || path.endsWith("/preview-calculation")
+                || path.matches("/api/admin/promotions/vouchers/\\d+/check")) return;
         String[] parts = path.substring("/api/admin/".length()).split("/");
         String module = parts[0];
         if (!MODULES.containsKey(module)) return;

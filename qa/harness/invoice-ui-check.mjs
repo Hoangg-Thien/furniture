@@ -15,13 +15,18 @@ try {
   let failEligible = true
   let failPreview = false
   let failCreate = true
+  let failDetail = false
+  let delayLegacy = false
+  let releaseLegacy
+  let legacyStarted
+  let legacyReady
   let releaseFirstOrder
   let firstOrderStarted
   const firstOrderReady = new Promise(resolve => { firstOrderStarted = resolve })
   let created = null
   const imageUrl = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"/>'
   const order = id => ({ id, customerName: `Khách hàng ${id}`, phone: '0901234567', address: '123 Nguyễn Huệ, TP. Hồ Chí Minh', status: 'COMPLETED', voucherCode: 'EXPIRED', orderDate: '2026-11-05T10:00:00', items: [{ productName: 'Ghế nội thất', quantity: 1, unitPrice: id * 100000, amount: id * 100000, imageUrl }] })
-  const legacy = { ...order(3), id: 78, invoiceCode: 'OLD-78', orderId: 3, paymentMethod: 'BANK_TRANSFER', paymentStatus: 'PAID', finalAmount: 300000, qrCodeUrl: 'https://example.test/legacy-qr.png' }
+  const legacy = { ...order(3), id: 78, invoiceCode: 'OLD-78', orderId: 3, paymentMethod: 'BANK_TRANSFER', paymentStatus: 'PAID', subtotalAmount: 300000, paymentDate: '2026-11-05T10:00:00', staffName: 'Nguyễn Văn An', finalAmount: 300000, qrCodeUrl: 'https://example.test/legacy-qr.png' }
   page.on('pageerror', error => errors.push(error.message))
   page.on('dialog', dialog => dialog.accept())
   await page.addInitScript(() => {
@@ -58,7 +63,12 @@ try {
       return route.fulfill({ status: 201, json: created })
     }
     if (path === '/api/admin/invoices/77/pdf') return route.fulfill({ contentType: 'application/pdf', body: '%PDF-1.4\n%%EOF' })
-    if (path === '/api/admin/invoices/78') return route.fulfill({ json: legacy })
+    if (path === '/api/admin/invoices/77') return route.fulfill({ json: created })
+    if (path === '/api/admin/invoices/78') {
+      if (failDetail) return route.fulfill({ status: 500, json: {} })
+      if (delayLegacy) await new Promise(resolve => { releaseLegacy = resolve; legacyStarted() })
+      return route.fulfill({ json: legacy }).catch(() => {})
+    }
     if (path === '/api/admin/invoices/counts') return route.fulfill({ json: { total: created ? 2 : 1, cashCount: created ? 1 : 0, paidCount: created ? 2 : 1, totalRevenue: 80402000 } })
     if (path === '/api/admin/invoices') return route.fulfill({ json: { content: created ? [created, legacy] : [legacy], totalPages: 1, totalElements: created ? 2 : 1 } })
     return route.fulfill({ json: { content: [], total: 0, totalPages: 1 } })
@@ -81,6 +91,69 @@ try {
   await page.setViewportSize({ width: 1440, height: 1000 })
   assert.equal(await page.locator('.inv-method-tabs-card').count(), 0, 'only COD is supported; no payment method tabs')
   assert.equal(await page.getByText(/VietQR|Quẹt.*POS|Tiền Mặt Tại Quầy/).count(), 0)
+  const quickPanel = page.getByRole('region', { name: 'Xem nhanh hóa đơn' })
+  const legacyRow = page.getByRole('row', { name: 'Xem chi tiết hóa đơn OLD-78' })
+  failDetail = true
+  await legacyRow.getByText('Khách hàng 3', { exact: true }).hover()
+  await quickPanel.getByRole('alert').waitFor()
+  failDetail = false
+  await legacyRow.focus()
+  await legacyRow.press('Enter')
+  await quickPanel.getByRole('heading', { name: 'Hóa đơn OLD-78' }).waitFor()
+  await quickPanel.getByText('Ghế nội thất', { exact: true }).waitFor()
+  assert.equal(await page.locator('.inv-detail-page').count(), 0, 'quick view keeps list visible')
+  await page.getByRole('button', { name: 'Bỏ giữ chi tiết', exact: true }).waitFor()
+  await quickPanel.getByRole('button', { name: 'Đóng chi tiết', exact: true }).click()
+  assert.equal(await quickPanel.count(), 0, 'close hides the detail panel')
+  assert.equal(await page.locator('.inv-review-layout').evaluate(el => getComputedStyle(el).gridTemplateColumns.split(' ').length), 1, 'closed detail gives the list full width')
+  await legacyRow.getByText('Khách hàng 3', { exact: true }).hover()
+  await page.waitForTimeout(350)
+  assert.equal(await quickPanel.count(), 0, 'hover must not reopen a closed panel')
+  await legacyRow.focus()
+  await legacyRow.press('Enter')
+  await quickPanel.getByRole('heading', { name: 'Hóa đơn OLD-78' }).waitFor()
+  const columns = await page.locator('.inv-review-layout').evaluate(el => getComputedStyle(el).gridTemplateColumns.split(' ').map(parseFloat))
+  assert(Math.abs(columns[0] / columns[1] - 1.5) < 0.05, 'desktop places the wider list beside detail')
+  for (const width of [768, 390, 320]) {
+    await page.setViewportSize({ width, height: 1000 })
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, `quick view fits ${width}px`)
+    assert.equal(await page.locator('.inv-quick-grid').evaluate(el => getComputedStyle(el).gridTemplateColumns.split(' ').length), 1)
+  }
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  for (const viewport of [{ width: 1440, height: 1000 }, { width: 1193, height: 755 }]) {
+    await page.setViewportSize(viewport)
+    await quickPanel.scrollIntoViewIfNeeded()
+    const layout = await quickPanel.evaluate(el => ({
+      position: getComputedStyle(el).position,
+      overflow: getComputedStyle(el).overflowY,
+      clipped: el.scrollHeight > el.clientHeight + 1,
+      top: el.getBoundingClientRect().top,
+      left: el.getBoundingClientRect().left,
+      list: (() => { const r = el.previousElementSibling.getBoundingClientRect(); return { top: r.top, right: r.right, bottom: r.bottom } })(),
+    }))
+    assert.equal(layout.position, 'static', 'detail must scroll with the page')
+    assert.equal(layout.overflow, 'visible', 'detail must not trap wheel scrolling')
+    assert.equal(layout.clipped, false, 'all detail content must remain in normal flow')
+    if (viewport.width >= 1200) {
+      assert(layout.left >= layout.list.right, 'detail sits to the right without covering the list')
+      assert(Math.abs(layout.top - layout.list.top) < 1, 'list and detail start on the same row')
+    } else {
+      assert(layout.top >= layout.list.bottom, 'narrow screens stack detail below the list')
+    }
+    await quickPanel.getByRole('heading').first().scrollIntoViewIfNeeded()
+    await quickPanel.getByRole('heading').first().hover()
+    const before = await page.evaluate(() => scrollY)
+    await page.mouse.wheel(0, 300)
+    await page.waitForFunction(y => scrollY > y, before)
+    assert.equal(await quickPanel.evaluate(el => el.scrollTop), 0, 'wheel must scroll the page, not the detail')
+  }
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await page.locator('.inv-review-layout').screenshot({ path: fileURLToPath(new URL('../artifacts/invoice-quick-desktop.png', import.meta.url)), animations: 'disabled' })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.locator('.inv-code-badge').filter({ hasText: 'OLD-78' }).click()
+  await page.waitForFunction(() => { const y = document.querySelector('.inv-quick-panel').getBoundingClientRect().y; return y >= 0 && y < 150 })
+  await page.screenshot({ path: fileURLToPath(new URL('../artifacts/invoice-quick-mobile.png', import.meta.url)), fullPage: false, animations: 'disabled' })
+  await page.setViewportSize({ width: 1440, height: 1000 })
   const createButton = page.getByRole('button', { name: '+ Lập Hóa Đơn Mới', exact: true })
   await createButton.click()
   await page.getByRole('heading', { name: 'Lập Hóa Đơn Bán Hàng Mới' }).waitFor()
@@ -138,12 +211,26 @@ try {
   assert.equal(download.suggestedFilename(), 'INV-TEST-77.pdf')
   await page.getByRole('button', { name: 'Về danh sách hóa đơn', exact: true }).click()
   await createButton.waitFor()
-  await page.locator('.inv-code-badge').filter({ hasText: 'OLD-78' }).click()
+  delayLegacy = true
+  legacyReady = new Promise(resolve => { legacyStarted = resolve })
+  await legacyRow.getByText('Khách hàng 3', { exact: true }).hover()
+  await legacyReady
+  await page.locator('.inv-code-badge').filter({ hasText: 'INV-TEST-77' }).click()
+  await quickPanel.getByRole('heading', { name: 'Hóa đơn INV-TEST-77' }).waitFor()
+  releaseLegacy()
+  delayLegacy = false
+  await legacyRow.getByText('Khách hàng 3', { exact: true }).hover()
+  await page.waitForTimeout(350)
+  assert.equal(await quickPanel.getByRole('heading', { name: 'Hóa đơn INV-TEST-77' }).count(), 1, 'pinned view ignores hover and stale responses')
+  await quickPanel.getByRole('button', { name: 'Bỏ giữ chi tiết', exact: true }).click()
+  await legacyRow.getByText('Khách hàng 3', { exact: true }).hover()
+  await quickPanel.getByRole('heading', { name: 'Hóa đơn OLD-78' }).waitFor()
+  await quickPanel.getByRole('button', { name: 'Xem & In', exact: true }).click()
   await page.locator('#printable-invoice-paper').waitFor()
   assert.equal(await page.locator('#printable-invoice-paper').innerText().then(text => text.includes('Chứng từ cũ: BANK_TRANSFER')), true)
   assert.equal(await page.locator('.inv-paper-qr-img').count(), 0, 'legacy invoices must not prompt another payment')
   assert.deepEqual(errors, [])
-  console.log('PASS invoice UI: COD only, legacy records preserved, no QR payment, inline views, eligible retry, stale orders, locked checkout total, create errors/success, mobile, A4/K80 print, PDF')
+  console.log('PASS invoice UI: close/reopen detail, row hover, keyboard/touch pinning, side-by-side list/detail, responsive, error recovery, stale detail cancellation, COD only, legacy records preserved, no QR payment, inline views, eligible retry, stale orders, locked checkout total, create errors/success, mobile, A4/K80 print, PDF')
 } finally {
   await browser.close()
   await server.close()

@@ -281,3 +281,15 @@
   .admin-shell .admin-modal-card { max-height: none !important; }
   .admin-shell .admin-system-footer { display: none; }
 }
+
+.promotion-voucher-check { display: grid; gap: 12px; }
+.promotion-voucher-check h3, .promotion-voucher-check p { margin: 0; }
+.promotion-voucher-check p { font-size: 12px; color: var(--admin-text-muted); line-height: 1.6; }
+.promotion-check-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.promotion-voucher-check .promotion-voucher-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 639px) {
+  .promotion-voucher-check .promotion-voucher-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+.promotion-voucher-type { display: inline-block; padding: 4px 8px; border: 1px solid #dce6df; border-radius: 5px; background: #edf3ef; color: #376757; font-size: 12px; font-weight: 600; }

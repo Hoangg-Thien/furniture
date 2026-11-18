@@ -242,11 +242,7 @@ function AdminWorkspace({ currentUser, onLogout, onBackToStore }) {
           ) : activeModule === 'suppliers' ? (
             <AdminSupplierManagement currentUser={currentUser} />
           ) : activeModule === 'promotions' ? (
-            isStaff ? (
-              <AccessDeniedView onGoBack={() => handleSelectModule('orders')} />
-            ) : (
-              <AdminPromotionManagement currentUser={currentUser} />
-            )
+            <AdminPromotionManagement currentUser={currentUser} />
           ) : activeModule === 'orders' ? (
             <AdminOrderManagement currentUser={currentUser} notificationTarget={notificationTarget?.module === 'orders' ? notificationTarget : null} />
           ) : activeModule === 'invoices' ? (

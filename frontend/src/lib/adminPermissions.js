@@ -6,7 +6,7 @@ export const STAFF_TYPES = {
 
 const modules = {
   ADMIN: ['dashboard', 'orders', 'invoices', 'customers', 'products', 'suppliers', 'users', 'staff', 'categories', 'promotions', 'reports'],
-  SALES: ['orders', 'invoices', 'customers', 'products'],
+  SALES: ['orders', 'invoices', 'customers', 'products', 'promotions'],
   WAREHOUSE: ['suppliers', 'products', 'orders'],
   CONTENT: ['products'],
 }

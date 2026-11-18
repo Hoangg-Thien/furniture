@@ -5964,3 +5964,17 @@
 .account-select:focus {
   border-color: var(--forest);
 }
+
+.cart-money-row { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; margin-bottom: 10px; font-size: 13px; }
+.cart-money-row > :first-child { min-width: 0; overflow-wrap: anywhere; }
+.cart-money-row > :last-child { flex-shrink: 0; }
+.cart-promotion { color: var(--forest, #1b382b); }
+.cart-price-feedback { font-size: 13px; line-height: 1.5; margin-bottom: 12px; }
+.cart-price-feedback button { margin-top: 8px; padding: 8px 14px; border: 1px solid var(--line, #e7e3dc); border-radius: 8px; background: white; color: var(--forest, #1b382b); cursor: pointer; }
+.cart-summary .subtotal { gap: 12px; flex-wrap: wrap; }
+
+.item-offer-prices { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+.item-offer-prices del { color: #657069; font-size: 12px; }
+.item-offer-prices strong { color: #176547; font-weight: 700; }
+.item-offer-badge { display: block; flex-basis: 100%; padding: 4px 6px; border-radius: 5px; background: #e9f4ed; color: #23583e; font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; }
+.product-offer-button { margin-top: 8px; padding: 6px 9px; border: 1px solid #c8dace; border-radius: 6px; background: #edf5ef; color: #23583e; font-size: 11px; cursor: pointer; text-align: left; }

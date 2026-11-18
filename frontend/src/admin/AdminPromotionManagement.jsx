@@ -26,8 +26,10 @@ import {
   ShoppingBag
 } from 'lucide-react'
 import { getApiBaseUrl, getApiHeaders } from '../lib/apiConfig'
+import { VOUCHER_TYPE_LABELS } from '../lib/vouchers'
 
 export default function AdminPromotionManagement({ currentUser }) {
+  const canManage = currentUser?.role === 'ADMIN'
   const [programs, setPrograms] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -68,10 +70,11 @@ export default function AdminPromotionManagement({ currentUser }) {
   const [detailData, setDetailData] = useState(null)
   const [loadingDetail, setLoadingDetail] = useState(false)
   const [detailError, setDetailError] = useState('')
-  const [activeTab, setActiveTab] = useState('overview') // overview | products | orders | vouchers
+  const [activeTab, setActiveTab] = useState('orders') // orders | products | vouchers | overview
 
   // Products list for selecting in Product Discount tab
   const [availableProducts, setAvailableProducts] = useState([])
+  const [productError, setProductError] = useState('')
   const [productDiscountForm, setProductDiscountForm] = useState({
     productId: '',
     discountPercent: 10
@@ -95,6 +98,53 @@ export default function AdminPromotionManagement({ currentUser }) {
     status: 'ACTIVE'
   })
   const [submittingVoucher, setSubmittingVoucher] = useState(false)
+
+  const [voucherCheck, setVoucherCheck] = useState({ voucherId: '', customerId: '', items: [{ productId: '', quantity: 1 }] })
+  const [checkResult, setCheckResult] = useState(null)
+  const [checkError, setCheckError] = useState('')
+  const [checking, setChecking] = useState(false)
+  const checkController = useRef(null)
+
+  function changeVoucherCheck(next) {
+    checkController.current?.abort()
+    setChecking(false)
+    setCheckResult(null)
+    setCheckError('')
+    setVoucherCheck(next)
+  }
+
+  useEffect(() => {
+    changeVoucherCheck({ voucherId: '', customerId: '', items: [{ productId: '', quantity: 1 }] })
+    return () => checkController.current?.abort()
+  }, [activeProgramId, showDetailModal, detailData])
+
+  async function handleCheckVoucher(event) {
+    event.preventDefault()
+    checkController.current?.abort()
+    const controller = new AbortController()
+    checkController.current = controller
+    setChecking(true)
+    setCheckResult(null)
+    setCheckError('')
+    try {
+      const response = await fetch(`${getApiBaseUrl()}/api/admin/promotions/vouchers/${voucherCheck.voucherId}/check`, {
+        method: 'POST', headers: getApiHeaders({ 'Content-Type': 'application/json' }), signal: controller.signal,
+        body: JSON.stringify({ customerId: voucherCheck.customerId ? Number(voucherCheck.customerId) : null,
+          items: voucherCheck.items.map(item => ({ productId: Number(item.productId), quantity: Number(item.quantity) })) })
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Không thể kiểm tra voucher. Vui lòng thử lại.')
+      if (!['subtotal', 'discountAmount', 'finalTotal'].every(key => typeof data[key] === 'number' && Number.isFinite(data[key]) && data[key] >= 0)
+          || data.discountAmount > data.subtotal || data.finalTotal > data.subtotal) {
+        throw new Error('Kết quả kiểm tra voucher không hợp lệ. Vui lòng thử lại.')
+      }
+      if (!controller.signal.aborted) setCheckResult(data)
+    } catch (error) {
+      if (!controller.signal.aborted) setCheckError(error.message)
+    } finally {
+      if (!controller.signal.aborted) setChecking(false)
+    }
+  }
 
   // Delete program confirmation
   const [deletingProgram, setDeletingProgram] = useState(null)
@@ -187,7 +237,7 @@ export default function AdminPromotionManagement({ currentUser }) {
       const [data, vouchers] = await Promise.all([res.json(), voucherRes.json()])
       if (!Array.isArray(data) || !Array.isArray(vouchers)) throw new Error('Dữ liệu khuyến mãi/voucher không hợp lệ.')
       if (id === requestId.current) setPrograms(data.map(p => ({ ...p,
-        voucherCodes: vouchers.filter(v => v.promotionProgramId === p.id).map(v => v.code),
+        voucherCodes: vouchers.filter(v => v.promotionProgramId === p.id).map(v => `${v.code} (${VOUCHER_TYPE_LABELS[v.voucherType || 'ORDER']})`),
       })))
     } catch (err) {
       console.error(err)
@@ -199,15 +249,24 @@ export default function AdminPromotionManagement({ currentUser }) {
 
   // Fetch available products
   const fetchProducts = async () => {
+    setProductError('')
     try {
       const baseUrl = getApiBaseUrl()
-      const res = await fetch(`${baseUrl}/api/admin/products?size=100`, { headers: getApiHeaders() })
-      if (res.ok) {
+      const products = []
+      let page = 0
+      let totalPages = 1
+      do {
+        const res = await fetch(`${baseUrl}/api/admin/products?size=100&page=${page}`, { headers: getApiHeaders() })
+        if (!res.ok) throw new Error('Không thể tải danh sách sản phẩm. Vui lòng thử lại.')
         const data = await res.json()
-        setAvailableProducts(data?.content || [])
-      }
+        if (!Array.isArray(data.content)) throw new Error('Danh sách sản phẩm không hợp lệ.')
+        products.push(...data.content)
+        totalPages = data.totalPages || 1
+        page++
+      } while (page < totalPages)
+      setAvailableProducts(products)
     } catch (err) {
-      console.error('Lỗi tải sản phẩm:', err)
+      setProductError(err.message)
     }
   }
 
@@ -387,7 +446,7 @@ export default function AdminPromotionManagement({ currentUser }) {
   }
 
   // Open Detail / Configuration Modal
-  const handleOpenDetailModal = async (programId, tab = 'overview') => {
+  const handleOpenDetailModal = async (programId, tab = 'orders') => {
     setActiveProgramId(programId)
     setActiveTab(tab)
     setShowDetailModal(true)
@@ -541,6 +600,8 @@ export default function AdminPromotionManagement({ currentUser }) {
     try {
       const baseUrl = getApiBaseUrl()
       const payload = {
+        voucherType: 'VIP',
+        productId: null,
         code: voucherForm.code.trim().toUpperCase(),
         discountPercent: Number(voucherForm.discountPercent),
         minimumAmount: Number(voucherForm.minimumAmount) || 0,
@@ -619,7 +680,7 @@ export default function AdminPromotionManagement({ currentUser }) {
           <h1 className="admin-page-title">Khuyến mãi & voucher</h1>
           <p className="admin-page-subtitle">Quản lý chiến dịch, thiết lập ưu đãi và chăm sóc khách hàng.</p>
         </div>
-        <button className="btn-admin btn-admin-primary" onClick={handleOpenCreateProgram}>
+        <button className="btn-admin btn-admin-primary" disabled={!canManage} onClick={handleOpenCreateProgram}>
           <Plus size={17} /><span>Tạo chiến dịch</span>
         </button>
       </div>
@@ -682,7 +743,7 @@ export default function AdminPromotionManagement({ currentUser }) {
                   <div className="promotion-empty-icon"><Ticket size={29} strokeWidth={1.4} /><span><Plus size={12} /></span></div>
                   <h3>{hasFilters ? 'Không tìm thấy chiến dịch' : 'Ưu đãi đầu tiên, khởi đầu mới'}</h3>
                   <p>{hasFilters ? 'Thử một từ khóa khác hoặc điều chỉnh bộ lọc của bạn.' : 'Tạo chiến dịch để mang sản phẩm đến gần khách hàng hơn. Bạn có thể thiết lập giảm giá và voucher trong cùng một nơi.'}</p>
-                  <button className={hasFilters ? 'btn-admin btn-admin-secondary' : 'btn-admin btn-admin-primary'} onClick={hasFilters ? resetFilters : handleOpenCreateProgram}>
+                  <button className={hasFilters ? 'btn-admin btn-admin-secondary' : 'btn-admin btn-admin-primary'} disabled={!canManage && !hasFilters} onClick={hasFilters ? resetFilters : handleOpenCreateProgram}>
                     {hasFilters ? <X size={15} /> : <Plus size={15} />}{hasFilters ? 'Xóa bộ lọc' : 'Tạo chiến dịch đầu tiên'}
                   </button>
                 </div></td></tr>
@@ -705,11 +766,11 @@ export default function AdminPromotionManagement({ currentUser }) {
                       {p.vouchersCount > 0 && <button onClick={() => handleOpenDetailModal(p.id, 'vouchers')}>{p.vouchersCount} voucher</button>}
                       {!p.productDiscountsCount && !p.orderDiscountsCount && !p.vouchersCount && <button className="promotion-setup-link" onClick={() => handleOpenDetailModal(p.id)}>Thiết lập ưu đãi <ArrowRight size={12} /></button>}
                     </div></td>
-                    <td><button className={`promotion-status-badge status-${p.status.toLowerCase()}`} onClick={() => handleToggleStatus(p)} title="Nhấn để bật hoặc tạm dừng chiến dịch"><span />{p.status === 'ACTIVE' ? 'Đã kích hoạt' : p.status === 'DRAFT' ? 'Bản nháp' : 'Tạm dừng'}</button></td>
+                    <td><button className={`promotion-status-badge status-${p.status.toLowerCase()}`} disabled={!canManage} onClick={() => handleToggleStatus(p)} title="Nhấn để bật hoặc tạm dừng chiến dịch"><span />{p.status === 'ACTIVE' ? 'Đã kích hoạt' : p.status === 'DRAFT' ? 'Bản nháp' : 'Tạm dừng'}</button></td>
                     <td><div className="promotion-row-actions">
                       <button className="btn-action" title="Thiết lập ưu đãi" aria-label={`Thiết lập ưu đãi: ${p.name}`} onClick={() => handleOpenDetailModal(p.id)}><Settings size={16} /></button>
-                      <button className="btn-action" title="Chỉnh sửa chiến dịch" aria-label={`Chỉnh sửa: ${p.name}`} onClick={() => handleOpenEditProgram(p)}><Edit2 size={15} /></button>
-                      <button className="btn-action btn-action-danger" title="Xóa chiến dịch" aria-label={`Xóa: ${p.name}`} onClick={() => { setDeletingProgram(p); setDeleteError('') }}><Trash2 size={15} /></button>
+                      <button className="btn-action" title="Chỉnh sửa chiến dịch" aria-label={`Chỉnh sửa: ${p.name}`} disabled={!canManage} onClick={() => handleOpenEditProgram(p)}><Edit2 size={15} /></button>
+                      <button className="btn-action btn-action-danger" title="Xóa chiến dịch" aria-label={`Xóa: ${p.name}`} disabled={!canManage} onClick={() => { setDeletingProgram(p); setDeleteError('') }}><Trash2 size={15} /></button>
                     </div></td>
                   </tr>
                 )
@@ -755,7 +816,7 @@ export default function AdminPromotionManagement({ currentUser }) {
               </button>
             </div>
 
-            <form onSubmit={handleSubmitProgram}>
+            {canManage && <form onSubmit={handleSubmitProgram}>
               <div className="admin-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 {programFormError && (
                   <div style={{ padding: '0.75rem', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '6px', color: '#b91c1c', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -855,7 +916,7 @@ export default function AdminPromotionManagement({ currentUser }) {
                   )}
                 </button>
               </div>
-            </form>
+            </form>}
           </div>
         </div>
       )}
@@ -915,24 +976,24 @@ export default function AdminPromotionManagement({ currentUser }) {
             {/* Tab navigation */}
             <div className="promotion-detail-tabs">
               <button
-                className={`admin-tab-btn ${activeTab === 'overview' ? 'active' : ''}`}
+                className={`admin-tab-btn ${activeTab === 'orders' ? 'active' : ''}`}
                 style={{
                   padding: '0.75rem 1rem',
                   border: 'none',
                   background: 'transparent',
-                  borderBottom: activeTab === 'overview' ? '2px solid #376757' : '2px solid transparent',
-                  fontWeight: activeTab === 'overview' ? 600 : 500,
-                  color: activeTab === 'overview' ? '#376757' : '#84928a',
+                  borderBottom: activeTab === 'orders' ? '2px solid #376757' : '2px solid transparent',
+                  fontWeight: activeTab === 'orders' ? 600 : 500,
+                  color: activeTab === 'orders' ? '#376757' : '#84928a',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '0.4rem',
                   fontSize: '0.88rem'
                 }}
-                onClick={() => setActiveTab('overview')}
+                onClick={() => setActiveTab('orders')}
               >
-                <Info size={16} />
-                <span>1. Tổng Quan</span>
+                <DollarSign size={16} />
+                <span>1. Giảm theo đơn hàng ({detailData.orderDiscounts.length})</span>
               </button>
 
               <button
@@ -953,28 +1014,7 @@ export default function AdminPromotionManagement({ currentUser }) {
                 onClick={() => setActiveTab('products')}
               >
                 <Package size={16} />
-                <span>2. SP Giảm Giá ({detailData.productDiscounts.length})</span>
-              </button>
-
-              <button
-                className={`admin-tab-btn ${activeTab === 'orders' ? 'active' : ''}`}
-                style={{
-                  padding: '0.75rem 1rem',
-                  border: 'none',
-                  background: 'transparent',
-                  borderBottom: activeTab === 'orders' ? '2px solid #376757' : '2px solid transparent',
-                  fontWeight: activeTab === 'orders' ? 600 : 500,
-                  color: activeTab === 'orders' ? '#376757' : '#84928a',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.4rem',
-                  fontSize: '0.88rem'
-                }}
-                onClick={() => setActiveTab('orders')}
-              >
-                <DollarSign size={16} />
-                <span>3. Bậc Đơn Hàng ({detailData.orderDiscounts.length})</span>
+                <span>2. Giảm theo sản phẩm ({detailData.productDiscounts.length})</span>
               </button>
 
               <button
@@ -995,54 +1035,45 @@ export default function AdminPromotionManagement({ currentUser }) {
                 onClick={() => setActiveTab('vouchers')}
               >
                 <Gift size={16} />
-                <span>4. Kho Voucher ({detailData.vouchers.length})</span>
+                <span>3. Voucher VIP ({detailData.vouchers.filter(v => v.voucherType === 'VIP').length})</span>
+              </button>
+
+              <button
+                className={`admin-tab-btn ${activeTab === 'overview' ? 'active' : ''}`}
+                style={{
+                  padding: '0.75rem 1rem',
+                  border: 'none',
+                  background: 'transparent',
+                  borderBottom: activeTab === 'overview' ? '2px solid #376757' : '2px solid transparent',
+                  fontWeight: activeTab === 'overview' ? 600 : 500,
+                  color: activeTab === 'overview' ? '#376757' : '#84928a',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  fontSize: '0.88rem'
+                }}
+                onClick={() => setActiveTab('overview')}
+              >
+                <Info size={16} />
+                <span>Tổng quan</span>
               </button>
             </div>
 
             <div className="admin-modal-body" style={{ maxHeight: '60vh', overflowY: 'auto', padding: '1.25rem' }}>
-              {/* TAB 1: TỔNG QUAN */}
-              {activeTab === 'overview' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  <div className="promotion-overview-grid">
-                    <div style={{ padding: '1rem', background: '#eff6ff', borderRadius: '8px', border: '1px solid #bfdbfe' }}>
-                      <div style={{ fontSize: '0.8rem', color: '#1d4ed8', fontWeight: 600 }}>Cơ chế 1: SP Giảm Giá</div>
-                      <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#1e3a8a', marginTop: '4px' }}>
-                        {detailData.productDiscounts.length} sản phẩm
-                      </div>
-                      <div style={{ fontSize: '0.76rem', color: '#64748b', marginTop: '4px' }}>Áp dụng trực tiếp vào giá bán lẻ</div>
-                    </div>
-
-                    <div style={{ padding: '1rem', background: '#f5f3ff', borderRadius: '8px', border: '1px solid #ddd6fe' }}>
-                      <div style={{ fontSize: '0.8rem', color: '#7c3aed', fontWeight: 600 }}>Cơ chế 2: Bậc Đơn Hàng</div>
-                      <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#4c1d95', marginTop: '4px' }}>
-                        {detailData.orderDiscounts.length} mức chiết khấu
-                      </div>
-                      <div style={{ fontSize: '0.76rem', color: '#64748b', marginTop: '4px' }}>Kích thích mua trọn gói căn hộ</div>
-                    </div>
-
-                    <div style={{ padding: '1rem', background: '#ecfdf5', borderRadius: '8px', border: '1px solid #a7f3d0' }}>
-                      <div style={{ fontSize: '0.8rem', color: '#047857', fontWeight: 600 }}>Cơ chế 3: Kho Voucher</div>
-                      <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#064e3b', marginTop: '4px' }}>
-                        {detailData.vouchers.length} mã phát hành
-                      </div>
-                      <div style={{ fontSize: '0.76rem', color: '#64748b', marginTop: '4px' }}>Phiếu quà tặng khi thanh toán</div>
-                    </div>
-                  </div>
-
-                  <div style={{ padding: '1rem', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                    <h4 style={{ margin: '0 0 0.5rem', fontSize: '0.9rem', color: '#1e293b' }}>Mô tả chiến dịch</h4>
-                    <p style={{ margin: 0, fontSize: '0.88rem', color: '#475569', lineHeight: 1.5 }}>
-                      {detailData.program.description || 'Chưa cập nhật mô tả chi tiết cho chiến dịch này.'}
-                    </p>
-                  </div>
-                </div>
-              )}
+              {activeTab === 'overview' && <div className="promotion-overview-grid">
+                <div className="admin-card"><h3>1. Giảm theo giá trị đơn hàng</h3><p>{detailData.orderDiscounts.length} mức giảm tự động khi đơn đạt giá trị tối thiểu; không cần nhập mã.</p></div>
+                <div className="admin-card"><h3>2. Giảm theo sản phẩm</h3><p>{detailData.productDiscounts.length} sản phẩm có ưu đãi tự động trên phần tiền sản phẩm; không cần nhập mã.</p></div>
+                <div className="admin-card"><h3>3. Voucher riêng cho VIP</h3><p>{detailData.vouchers.filter(v => v.voucherType === 'VIP').length} mã VIP. Khách nhập mã và phải đạt hạng VIP Diamond từ 50 triệu đồng chi tiêu đơn hoàn thành.</p></div>
+                <p>Mỗi đơn chỉ áp dụng một loại ưu đãi. Chọn voucher sẽ thay thế ưu đãi tự động; chọn lại ưu đãi sản phẩm sẽ gỡ voucher. Hóa đơn giữ khoản giảm đã chốt của đơn.</p>
+              </div>}
 
               {/* TAB 2: GIẢM GIÁ SẢN PHẨM */}
               {activeTab === 'products' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                  <p>Giảm tự động trên tiền của sản phẩm được chọn trong thời gian chiến dịch. Khách không cần nhập mã; khách có thể chuyển sang voucher toàn đơn hoặc chọn lại ưu đãi sản phẩm, không cộng dồn.</p>
                   {/* Form thêm SP giảm giá */}
-                  <form
+                  {canManage && <form
                     className="promotion-discount-form"
                     onSubmit={handleAddProductDiscount}
                     style={{
@@ -1099,7 +1130,7 @@ export default function AdminPromotionManagement({ currentUser }) {
                     >
                       <Plus size={15} /> Thêm Giảm Giá
                     </button>
-                  </form>
+                  </form>}
 
                   {/* Bảng danh sách SP giảm giá */}
                   {detailData.productDiscounts.length === 0 ? (
@@ -1149,7 +1180,7 @@ export default function AdminPromotionManagement({ currentUser }) {
                               <button
                                 className="btn-action btn-action-danger"
                                 style={{ width: '28px', height: '28px' }}
-                                onClick={() => handleDeleteProductDiscount(pd.id)}
+                                disabled={!canManage} onClick={() => handleDeleteProductDiscount(pd.id)}
                                 title="Gỡ sản phẩm khỏi danh sách giảm giá"
                               >
                                 <X size={14} />
@@ -1166,8 +1197,9 @@ export default function AdminPromotionManagement({ currentUser }) {
               {/* TAB 3: BẬC ĐƠN HÀNG */}
               {activeTab === 'orders' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                  <p>Giảm tự động trên tiền hàng khi đơn đạt giá trị tối thiểu trong thời gian chiến dịch. Khách không cần nhập mã; khách có thể chuyển sang voucher toàn đơn hoặc chọn lại ưu đãi sản phẩm, không cộng dồn.</p>
                   {/* Form thêm bậc đơn hàng */}
-                  <form
+                  {canManage && <form
                     className="promotion-discount-form"
                     onSubmit={handleAddOrderDiscount}
                     style={{
@@ -1221,7 +1253,7 @@ export default function AdminPromotionManagement({ currentUser }) {
                     >
                       <Plus size={15} /> Thêm Bậc
                     </button>
-                  </form>
+                  </form>}
 
                   {/* Bảng danh sách bậc chiết khấu */}
                   {detailData.orderDiscounts.length === 0 ? (
@@ -1257,7 +1289,7 @@ export default function AdminPromotionManagement({ currentUser }) {
                               <button
                                 className="btn-action btn-action-danger"
                                 style={{ width: '28px', height: '28px' }}
-                                onClick={() => handleDeleteOrderDiscount(od.id)}
+                                disabled={!canManage} onClick={() => handleDeleteOrderDiscount(od.id)}
                                 title="Xóa bậc chiết khấu"
                               >
                                 <X size={14} />
@@ -1275,7 +1307,7 @@ export default function AdminPromotionManagement({ currentUser }) {
               {activeTab === 'vouchers' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                   {/* Form phát hành Voucher mới */}
-                  <form
+                  {canManage && <form
                     onSubmit={handleCreateVoucher}
                     style={{
                       padding: '1rem',
@@ -1288,8 +1320,10 @@ export default function AdminPromotionManagement({ currentUser }) {
                     }}
                   >
                     <div style={{ fontWeight: 600, color: '#1e293b', fontSize: '0.9rem' }}>
-                      Phát hành mã Voucher mới cho chiến dịch này
+                      Phát hành voucher VIP cho chiến dịch này
                     </div>
+
+                    <p>Chỉ phát hành mã dành cho khách VIP Diamond có chi tiêu từ đơn hoàn thành đạt 50 triệu đồng. Khách nhập mã khi đặt hàng; khi chọn sẽ thay thế ưu đãi tự động; điều kiện đơn tối thiểu tính trên giá gốc tiền hàng, không gồm phí giao hàng.</p>
 
                     <div className="promotion-voucher-grid">
                       <div>
@@ -1368,9 +1402,43 @@ export default function AdminPromotionManagement({ currentUser }) {
                         <Plus size={15} /> Phát Hành Voucher
                       </button>
                     </div>
-                  </form>
+                  </form>}
 
                   {/* Bảng danh sách Vouchers */}
+                  <form onSubmit={handleCheckVoucher} className="promotion-voucher-check admin-card" aria-label="Kiểm tra voucher">
+                    <h3>Kiểm tra số tiền giảm thực tế</h3>
+                    <p>Kiểm tra điều kiện và số tiền giảm trước khi áp dụng. Không trừ lượt sử dụng; chưa gồm phí giao hàng. Khi đặt hàng, khách có thể chuyển sang voucher toàn đơn hoặc chọn lại ưu đãi sản phẩm, không cộng dồn.</p>
+                    <div className="promotion-voucher-grid">
+                      <div><label htmlFor="check-voucher" className="admin-form-label">Voucher cần kiểm tra</label>
+                        <select id="check-voucher" className="admin-form-input" required value={voucherCheck.voucherId} onChange={e => changeVoucherCheck({ ...voucherCheck, voucherId: e.target.value })}>
+                          <option value="">Chọn voucher</option>
+                          {detailData.vouchers.map(v => <option key={v.id} value={v.id}>{v.code} — {VOUCHER_TYPE_LABELS[v.voucherType || 'ORDER']}</option>)}
+                        </select></div>
+                      <div><label htmlFor="check-customer" className="admin-form-label">Mã khách hàng (để trống nếu khách vãng lai)</label>
+                        <input id="check-customer" type="number" min="1" step="1" className="admin-form-input" value={voucherCheck.customerId} onChange={e => changeVoucherCheck({ ...voucherCheck, customerId: e.target.value })} /></div>
+                    </div>
+                    {voucherCheck.items.map((item, index) => <div key={index} className="promotion-voucher-grid">
+                      <div><label htmlFor={`check-product-${index}`} className="admin-form-label">Sản phẩm {index + 1}</label>
+                        <select id={`check-product-${index}`} required className="admin-form-input" value={item.productId} onChange={e => changeVoucherCheck({ ...voucherCheck, items: voucherCheck.items.map((it, i) => i === index ? { ...it, productId: e.target.value } : it) })}>
+                          <option value="">Chọn sản phẩm</option>
+                          {availableProducts.map(p => <option key={p.id} value={p.id}>{p.name} — {formatCurrency(p.sellingPrice)}</option>)}
+                        </select></div>
+                      <div><label htmlFor={`check-quantity-${index}`} className="admin-form-label">Số lượng {index + 1}</label>
+                        <input id={`check-quantity-${index}`} required className="admin-form-input" type="number" min="1" max="2147483647" step="1" value={item.quantity} onChange={e => changeVoucherCheck({ ...voucherCheck, items: voucherCheck.items.map((it, i) => i === index ? { ...it, quantity: e.target.value } : it) })} /></div>
+                      {voucherCheck.items.length > 1 && <button type="button" className="admin-btn admin-btn-outline" onClick={() => changeVoucherCheck({ ...voucherCheck, items: voucherCheck.items.filter((_, i) => i !== index) })}>Bỏ sản phẩm {index + 1}</button>}
+                    </div>)}
+                    {productError && <p role="alert">{productError} <button type="button" className="admin-btn admin-btn-outline" onClick={fetchProducts}>Tải lại sản phẩm</button></p>}
+                    <div className="promotion-check-actions">
+                      <button type="button" className="admin-btn admin-btn-outline" disabled={voucherCheck.items.length >= 100} onClick={() => changeVoucherCheck({ ...voucherCheck, items: [...voucherCheck.items, { productId: '', quantity: 1 }] })}>Thêm sản phẩm kiểm tra</button>
+                      <button type="submit" className="admin-btn admin-btn-primary" disabled={checking || !detailData.vouchers.length}>{checking ? 'Đang kiểm tra...' : 'Kiểm tra voucher'}</button>
+                    </div>
+                    {checkError && <p role="alert">{checkError}</p>}
+                    {checkResult && <div role="status"><strong>Voucher hợp lệ: {checkResult.code}</strong>
+                      <p>Tiền hàng: {formatCurrency(checkResult.subtotal)} · Ưu đãi tự động: {formatCurrency(checkResult.automaticDiscountAmount || 0)} · Voucher giảm: <strong>{formatCurrency(checkResult.discountAmount)}</strong> · Còn lại: {formatCurrency(checkResult.finalTotal)}</p>
+                    </div>}
+                  </form>
+
+                  <p>Các mã theo đơn hàng hoặc sản phẩm đã phát hành trước đây vẫn được giữ nguyên điều kiện và hiển thị loại để tra cứu. Mã mới chỉ dành cho VIP.</p>
                   {detailData.vouchers.length === 0 ? (
                     <div style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8' }}>
                       <Gift size={36} style={{ opacity: 0.3, margin: '0 auto 0.5rem' }} />
@@ -1381,6 +1449,7 @@ export default function AdminPromotionManagement({ currentUser }) {
                       <thead>
                         <tr>
                           <th>Mã Code</th>
+                          <th>Loại voucher</th>
                           <th style={{ textAlign: 'center' }}>Ưu Đãi</th>
                           <th>Điều Kiện Áp Dụng</th>
                           <th style={{ textAlign: 'center', width: '130px' }}>Lượt Dùng</th>
@@ -1401,12 +1470,15 @@ export default function AdminPromotionManagement({ currentUser }) {
                                   </span>
                                 </div>
                               </td>
+                              <td><span className="promotion-voucher-type">{VOUCHER_TYPE_LABELS[v.voucherType || 'ORDER']}</span></td>
                               <td style={{ textAlign: 'center' }}>
                                 <span style={{ padding: '0.2rem 0.5rem', background: '#edf3ef', color: '#376757', borderRadius: '4px', fontWeight: 700, fontSize: '0.85rem' }}>
                                   Giảm {v.discountPercent}%
                                 </span>
                               </td>
                               <td style={{ fontSize: '0.82rem', color: '#475569' }}>
+                                {v.voucherType === 'PRODUCT' && <div>Sản phẩm: {availableProducts.find(p => p.id === v.productId)?.name || `#${v.productId}`}</div>}
+                                {v.voucherType === 'VIP' && <div>VIP Diamond: chi tiêu hoàn thành từ 50 triệu đồng</div>}
                                 <div>Đơn từ: <strong>{formatCurrency(v.minimumAmount)}</strong></div>
                                 {v.maximumDiscount && (
                                   <div>Tối đa: <strong>{formatCurrency(v.maximumDiscount)}</strong></div>
@@ -1434,7 +1506,7 @@ export default function AdminPromotionManagement({ currentUser }) {
                                     cursor: 'pointer',
                                     padding: 0
                                   }}
-                                  onClick={() => handleToggleVoucherStatus(v)}
+                                  disabled={!canManage} onClick={() => handleToggleVoucherStatus(v)}
                                   title="Bật/Tắt mã voucher"
                                 >
                                   <span
@@ -1458,7 +1530,7 @@ export default function AdminPromotionManagement({ currentUser }) {
                                 <button
                                   className="btn-action btn-action-danger"
                                   style={{ width: '28px', height: '28px' }}
-                                  onClick={() => handleDeleteVoucher(v.id)}
+                                  disabled={!canManage} onClick={() => handleDeleteVoucher(v.id)}
                                   title="Xóa voucher"
                                 >
                                   <Trash2 size={14} />

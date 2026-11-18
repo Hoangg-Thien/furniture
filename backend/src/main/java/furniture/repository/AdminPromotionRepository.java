@@ -361,7 +361,7 @@ public class AdminPromotionRepository {
     public List<VoucherDto> findVouchersByProgramId(Long programId) {
         String sql = """
                 SELECT v.id, v.promotion_program_id, pp.name AS program_name, v.code,
-                       v.discount_percent, v.minimum_amount, v.maximum_discount,
+                       v.discount_percent, v.minimum_amount, v.maximum_discount, v.voucher_type, v.product_id,
                        v.quantity, v.used_quantity, (v.quantity - v.used_quantity) AS remaining_quantity,
                        v.start_date, v.end_date, v.status,
                        (v.end_date < CURRENT_TIMESTAMP) AS is_expired
@@ -388,7 +388,9 @@ public class AdminPromotionRepository {
                     startTs != null ? startTs.toLocalDateTime() : null,
                     endTs != null ? endTs.toLocalDateTime() : null,
                     rs.getString("status"),
-                    rs.getBoolean("is_expired")
+                    rs.getBoolean("is_expired"),
+                    rs.getString("voucher_type"),
+                    rs.getObject("product_id", Long.class)
             );
         }, programId);
     }
@@ -397,7 +399,7 @@ public class AdminPromotionRepository {
     public List<VoucherDto> findAllVouchers(String search, String status) {
         StringBuilder sql = new StringBuilder("""
                 SELECT v.id, v.promotion_program_id, pp.name AS program_name, v.code,
-                       v.discount_percent, v.minimum_amount, v.maximum_discount,
+                       v.discount_percent, v.minimum_amount, v.maximum_discount, v.voucher_type, v.product_id,
                        v.quantity, v.used_quantity, (v.quantity - v.used_quantity) AS remaining_quantity,
                        v.start_date, v.end_date, v.status,
                        (v.end_date < CURRENT_TIMESTAMP) AS is_expired
@@ -438,7 +440,9 @@ public class AdminPromotionRepository {
                     startTs != null ? startTs.toLocalDateTime() : null,
                     endTs != null ? endTs.toLocalDateTime() : null,
                     rs.getString("status"),
-                    rs.getBoolean("is_expired")
+                    rs.getBoolean("is_expired"),
+                    rs.getString("voucher_type"),
+                    rs.getObject("product_id", Long.class)
             );
         }, params.toArray());
     }
@@ -476,7 +480,7 @@ public class AdminPromotionRepository {
     public VoucherDto findVoucherById(Long id) {
         String sql = """
                 SELECT v.id, v.promotion_program_id, pp.name AS program_name, v.code,
-                       v.discount_percent, v.minimum_amount, v.maximum_discount,
+                       v.discount_percent, v.minimum_amount, v.maximum_discount, v.voucher_type, v.product_id,
                        v.quantity, v.used_quantity, (v.quantity - v.used_quantity) AS remaining_quantity,
                        v.start_date, v.end_date, v.status,
                        (v.end_date < CURRENT_TIMESTAMP) AS is_expired
@@ -502,7 +506,9 @@ public class AdminPromotionRepository {
                     startTs != null ? startTs.toLocalDateTime() : null,
                     endTs != null ? endTs.toLocalDateTime() : null,
                     rs.getString("status"),
-                    rs.getBoolean("is_expired")
+                    rs.getBoolean("is_expired"),
+                    rs.getString("voucher_type"),
+                    rs.getObject("product_id", Long.class)
             );
         }, id);
 
@@ -520,8 +526,8 @@ public class AdminPromotionRepository {
             PreparedStatement ps = connection.prepareStatement("""
                     INSERT INTO public.vouchers (
                         promotion_program_id, code, discount_percent, minimum_amount,
-                        maximum_discount, quantity, used_quantity, start_date, end_date, status
-                    ) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?)
+                        maximum_discount, quantity, used_quantity, start_date, end_date, status, voucher_type, product_id
+                    ) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?)
                     """, new String[]{"id"});
             ps.setLong(1, programId);
             ps.setString(2, req.code().trim().toUpperCase());
@@ -536,6 +542,8 @@ public class AdminPromotionRepository {
             ps.setTimestamp(7, Timestamp.valueOf(start));
             ps.setTimestamp(8, Timestamp.valueOf(end));
             ps.setString(9, status);
+            ps.setString(10, req.voucherType());
+            ps.setObject(11, req.productId(), java.sql.Types.BIGINT);
             return ps;
         }, keyHolder);
 

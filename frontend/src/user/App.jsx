@@ -22,7 +22,7 @@ import { loadProducts } from '../lib/products'
 import { productImageUrl } from '../lib/productImages'
 import { loadCart, saveCart, loadCartExpiresAt, CART_TIMEOUT_MS, getProductStock, limitCartToStock } from './lib/cart'
 import { isCheckoutPath } from './lib/checkout'
-import { fetchOrderById, getLocalOrders } from '../lib/orders'
+import { fetchOrderById, getLocalOrders, previewOrder } from '../lib/orders'
 import {
   getCurrentUser,
   logoutUser,
@@ -144,6 +144,8 @@ function App() {
   const [favorites, setFavorites] = useState([])
   const [showFavorites, setShowFavorites] = useState(false)
   const [cartOpen, setCartOpen] = useState(false)
+  const [cartQuoteState, setCartQuoteState] = useState({})
+  const [cartQuoteAttempt, setCartQuoteAttempt] = useState(0)
   const [orderOpen, setOrderOpen] = useState(false)
   const [productFormOpen, setProductFormOpen] = useState(false)
   const [productImagePreview, setProductImagePreview] = useState('')
@@ -461,6 +463,25 @@ function App() {
   const cartItems = products.filter((product) => cart[product.id])
   const cartCount = Object.values(cart).reduce((sum, quantity) => sum + quantity, 0)
   const subtotal = cartItems.reduce((sum, product) => sum + product.price * cart[product.id], 0)
+  const cartQuoteKey = JSON.stringify({ items: cartItems.map(product => ({ productId: product.id, quantity: cart[product.id] })), prices: cartItems.map(product => product.price) })
+  const cartQuote = cartQuoteState.key === cartQuoteKey ? cartQuoteState.quote : null
+  const cartQuoteError = cartQuoteState.key === cartQuoteKey ? cartQuoteState.error : null
+
+  useEffect(() => {
+    if (!cartOpen || !JSON.parse(cartQuoteKey).items.length) {
+      setCartQuoteState({})
+      return
+    }
+    const controller = new AbortController()
+    setCartQuoteState({ key: cartQuoteKey })
+    previewOrder(JSON.parse(cartQuoteKey).items, null, controller.signal).then(quote => {
+      if (!controller.signal.aborted) setCartQuoteState({ key: cartQuoteKey, quote })
+    }).catch(error => {
+      if (!controller.signal.aborted) setCartQuoteState({ key: cartQuoteKey, error: error.message })
+    })
+    return () => controller.abort()
+  }, [cartOpen, cartQuoteKey, products, cartQuoteAttempt])
+
 
   function updateQuantity(productId, change) {
     const now = Date.now()
@@ -1173,13 +1194,18 @@ function App() {
             {cartItems.length ? (
               <>
                 <div className="cart-items">
-                  {cartItems.map((product) => (
+                  {cartItems.map((product) => {
+                    const itemDiscount = cartQuote?.itemDiscounts?.find(item => item.productId === product.id)
+                    return (
                     <div className="cart-item" key={product.id}>
                       <img src={product.image} alt="" />
                       <div className="cart-item-info">
                         <span>{product.category}</span>
                         <h3>{product.name}</h3>
-                        <strong>{formatPrice(product.price)}</strong>
+                        {itemDiscount ? <div className="item-offer-prices">
+                          <del>{formatPrice(itemDiscount.originalAmount)}</del><strong>{formatPrice(itemDiscount.finalAmount)}</strong>
+                          <span className="item-offer-badge">Đã áp dụng {itemDiscount.label}: −{formatPrice(itemDiscount.discountAmount)}</span>
+                        </div> : <strong>{formatPrice((cartQuote?.items.find(item => item.productId === product.id)?.unitPrice ?? product.price) * cart[product.id])}</strong>}
                         <div className="quantity-control">
                           <button type="button" aria-label={`Giảm số lượng ${product.name}`} onClick={() => updateQuantity(product.id, -1)}><Minus size={13} /></button>
                           <span>{cart[product.id]}</span>
@@ -1188,12 +1214,17 @@ function App() {
                         <small>{product.quantity == null ? 'Chưa xác nhận tồn kho' : `Tối đa ${product.quantity} sản phẩm theo tồn kho hiện tại`}</small>
                       </div>
                     </div>
-                  ))}
+                  )})}
                 </div>
                 <div className="cart-summary">
-                  <div className="subtotal"><span>Tạm tính</span><strong>{formatPrice(subtotal)}</strong></div>
+                  {cartQuote ? <>
+                    <div className="cart-money-row"><span>Tiền hàng</span><span>{formatPrice(cartQuote.subtotal)}</span></div>
+                    {cartQuote.discountAmount > 0 && <div className="cart-money-row cart-promotion"><span>Ưu đãi tự động{cartQuote.discountLabel ? `: ${cartQuote.discountLabel}` : ''}</span><strong>−{formatPrice(cartQuote.discountAmount)}</strong></div>}
+                    <div className="subtotal"><span>Tạm tính sau ưu đãi</span><strong>{formatPrice(cartQuote.subtotal - cartQuote.discountAmount)}</strong></div>
+                  </> : cartQuoteError ? <div className="cart-price-feedback" role="alert">{cartQuoteError} <button type="button" onClick={() => setCartQuoteAttempt(attempt => attempt + 1)}>Thử lại</button></div>
+                    : <p role="status">Đang kiểm tra giá và ưu đãi...</p>}
                   <p>Phí giao hàng sẽ được xác nhận khi đặt hàng.</p>
-                  <button className="checkout-button" type="button" disabled={cartItems.some(product => cart[product.id] > getProductStock(product))} onClick={placeOrder}>Tiếp tục đặt hàng <ArrowRight size={17} /></button>
+                  <button className="checkout-button" type="button" disabled={!cartQuote || !!catalogError || cartItems.some(product => cart[product.id] > getProductStock(product))} onClick={placeOrder}>Tiếp tục đặt hàng <ArrowRight size={17} /></button>
                 </div>
               </>
             ) : (

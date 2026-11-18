@@ -57,7 +57,7 @@ if (typeof window !== 'undefined' && window.fetch) {
     if (target) {
       const api = new URL(getApiBaseUrl(), window.location.href)
       const apiPath = target.pathname.slice(api.pathname.replace(/\/$/, '').length)
-      customerRequest = /^\/api\/(orders(?:\/|$)|auth\/(me|update\/))/.test(apiPath)
+      customerRequest = apiPath === '/api/vouchers/validate' || /^\/api\/(orders(?:\/|$)|auth\/(me|update\/))/.test(apiPath)
       if (target.origin === api.origin && target.pathname.startsWith(api.pathname.replace(/\/$/, '') + '/api/')
           && (customerRequest || apiPath.startsWith('/api/admin/') || apiPath.startsWith('/api/auth/admin/')
             || /^\/api\/auth\/(users|customers)$/.test(apiPath) || apiPath.startsWith('/api/vouchers'))) {

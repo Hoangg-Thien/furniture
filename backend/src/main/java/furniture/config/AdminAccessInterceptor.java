@@ -24,7 +24,12 @@ public class AdminAccessInterceptor implements HandlerInterceptor {
         if ("OPTIONS".equals(request.getMethod())) return true;
         String path = new UrlPathHelper().getPathWithinApplication(request).replaceAll(";[^/]*", "").replaceAll("/+", "/");
         String method = request.getMethod();
-        if ("POST".equals(method) && path.equals("/api/orders/preview")) return true;
+        if ("POST".equals(method) && (path.equals("/api/orders/preview") || path.equals("/api/vouchers/validate"))) {
+            if (request.getHeader("Authorization") != null) {
+                request.setAttribute(AdminIdentity.ATTRIBUTE, sessions.authenticate(request.getHeader("Authorization")));
+            }
+            return true;
+        }
         boolean customerPath = path.matches("/api/orders(/.*)?") || path.equals("/api/auth/me") || path.equals("/api/auth/logout") || path.startsWith("/api/auth/update/");
         boolean protectedPath = path.startsWith("/api/admin/") || path.equals("/api/admin")
                 || path.matches("/api/auth/admin/(session|logout)")
@@ -89,7 +94,9 @@ public class AdminAccessInterceptor implements HandlerInterceptor {
         if (user.staffId() == null || !Set.of("SALES", "WAREHOUSE", "CONTENT").contains(user.staffType() == null ? "" : user.staffType())) return false;
         if ("GET".equals(method) && path.matches("/api/admin/(products|categories)(/\\d+)?")) return true;
         return switch (user.staffType()) {
-            case "SALES" -> ("GET".equals(method) && path.matches("/api/admin/(orders|invoices|customers)(/\\d+|/counts|/eligible-orders|/export|/\\d+/pdf)?"))
+            case "SALES" -> ("GET".equals(method) && path.matches("/api/admin/promotions(/.*)?"))
+                    || ("POST".equals(method) && path.matches("/api/admin/promotions/vouchers/\\d+/check"))
+                    || ("GET".equals(method) && path.matches("/api/admin/(orders|invoices|customers)(/\\d+|/counts|/eligible-orders|/export|/\\d+/pdf)?"))
                     || ("PUT".equals(method) && path.matches("/api/admin/orders/\\d+/(confirm|cancel|ship|complete)"))
                     || ("PUT".equals(method) && path.matches("/api/admin/customers/\\d+"))
                     || ("POST".equals(method) && path.matches("/api/admin/invoices(/preview-calculation)?"));

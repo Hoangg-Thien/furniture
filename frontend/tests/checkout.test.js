@@ -32,6 +32,10 @@ test('voucher suggestion shows actual savings instead of the cap and chooses the
   assert.equal(voucherDiscount({ ...sale, maximum_discount: 0 }, 1200000), 600000)
   assert.equal(suggestedVoucher([], 1200000), null)
   assert.equal(suggestedVoucher(null, 1200000), null)
+  for (const voucher_type of ['PRODUCT', 'VIP']) {
+    assert.equal(suggestedVoucher([{ ...sale, voucher_type }], 1200000), null)
+    assert.equal(suggestedVoucher([{ ...sale, voucher_type }, smaller], 1200000).code, 'OTHER')
+  }
   assert.equal(suggestedVoucher([branded, { ...sale, minimum_amount: 2000000 }], 1000000).code, 'SALE74')
 })
 

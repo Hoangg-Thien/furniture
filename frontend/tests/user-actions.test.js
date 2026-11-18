@@ -27,6 +27,8 @@ test('checkout preview uses server totals and supports cancellation and server e
   await assert.rejects(previewOrder([], null), /Sold out/)
   globalThis.fetch = async () => ({ ok: true, json: async () => ({ ...quote, totalAmount: null }) })
   await assert.rejects(previewOrder([], null), /báo giá không hợp lệ/)
+  globalThis.fetch = async () => ({ ok: true, json: async () => ({ ...quote, discountAmount: quote.subtotal + 1 }) })
+  await assert.rejects(previewOrder([], null), /báo giá không hợp lệ/)
 })
 beforeEach(() => {
   const values = new Map()
@@ -39,6 +41,21 @@ beforeEach(() => {
 afterEach(() => {
   globalThis.fetch = originalFetch
   delete globalThis.localStorage
+})
+
+test('explicit product offer choice reaches preview and placement; invalid line discounts are rejected', async () => {
+  const items = [{ productId: 1, quantity: 1 }]
+  const quote = { items: [{ ...items[0], unitPrice: 100000 }], subtotal: 100000, discountAmount: 50000, shippingFee: 35000, totalAmount: 85000 }
+  globalThis.fetch = async (url, init) => {
+    const body = JSON.parse(init.body)
+    assert.equal(body.preferProductDiscounts, true)
+    assert.deepEqual(body.items, items)
+    return { ok: true, json: async () => url.endsWith('/preview') ? quote : { orderId: 1 } }
+  }
+  assert.equal((await previewOrder(items, null, undefined, true)).discountAmount, 50000)
+  assert.equal((await createOrder({ items, preferProductDiscounts: true })).order.orderId, 1)
+  globalThis.fetch = async () => ({ ok: true, json: async () => ({ ...quote, itemDiscounts: [{ productId: 1, originalAmount: 100000, discountAmount: 200000, finalAmount: 0, label: 'Bad' }] }) })
+  await assert.rejects(previewOrder(items, null), /giảm giá sản phẩm không hợp lệ/)
 })
 
 test('legacy customer session survives repeated reads after migration', () => {

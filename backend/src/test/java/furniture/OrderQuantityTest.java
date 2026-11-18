@@ -21,7 +21,7 @@ class OrderQuantityTest {
                     .andExpect(status().isOk());
         }
         verify(orders).createOrder(argThat(req -> req.items().get(0).quantity() == 2));
-        verify(orders).previewOrder(argThat(req -> req.items().get(0).quantity() == 2));
+        verify(orders).previewOrder(argThat(req -> req.items().get(0).quantity() == 2), isNull());
     }
 
     @Test
@@ -37,4 +37,16 @@ class OrderQuantityTest {
         }
         verifyNoInteractions(orders);
     }
+    @Test
+    void explicitProductOfferChoiceReachesBothQuoteAndPlacement() throws Exception {
+        var orders = mock(OrderService.class);
+        var mvc = MockMvcBuilders.standaloneSetup(new OrderController(orders)).build();
+        String body = "{\"items\":[{\"productId\":1,\"quantity\":2}],\"preferProductDiscounts\":true}";
+        for (String path : new String[] { "/api/orders", "/api/orders/preview" }) {
+            mvc.perform(post(path).contentType(MediaType.APPLICATION_JSON).content(body)).andExpect(status().isOk());
+        }
+        verify(orders).createOrder(argThat(req -> req.preferProductDiscounts() && req.items().get(0).quantity() == 2));
+        verify(orders).previewOrder(argThat(req -> req.preferProductDiscounts()), isNull());
+    }
+
 }

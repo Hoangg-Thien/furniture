@@ -71,6 +71,7 @@ export async function createOrder({
   totalAmount,
   voucherId = null,
   discountAmount = 0,
+  preferProductDiscounts = false,
   items,
 }) {
   const apiBaseUrl = getApiBaseUrl()
@@ -92,6 +93,7 @@ export async function createOrder({
         totalAmount,
         voucherId,
         discountAmount,
+        ...(preferProductDiscounts ? { preferProductDiscounts: true } : {}),
         items,
       }),
     })
@@ -117,16 +119,22 @@ export async function createOrder({
   }
 }
 
-export async function previewOrder(items, voucherId, signal) {
+export async function previewOrder(items, voucherId, signal, preferProductDiscounts = false) {
   const response = await fetch(`${getApiBaseUrl()}/api/orders/preview`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, signal,
-    body: JSON.stringify({ items, voucherId }),
+    body: JSON.stringify({ items, voucherId, ...(preferProductDiscounts ? { preferProductDiscounts: true } : {}) }),
   })
   const data = await response.json()
   if (!response.ok) throw new Error(data.error || 'Không thể tính tổng đơn hàng. Vui lòng thử lại.')
   if (!Array.isArray(data.items) || !['subtotal', 'discountAmount', 'shippingFee', 'totalAmount'].every(key =>
-    typeof data[key] === 'number' && Number.isFinite(data[key]) && data[key] >= 0)) {
+    typeof data[key] === 'number' && Number.isFinite(data[key]) && data[key] >= 0) || data.discountAmount > data.subtotal) {
     throw new Error('Dữ liệu báo giá không hợp lệ. Vui lòng thử lại.')
+  }
+  for (const field of ['itemDiscounts', 'productOffers']) {
+    if (data[field] != null && (!Array.isArray(data[field]) || !data[field].every(item => item && Number.isSafeInteger(item.productId) && item.productId > 0 && typeof item.label === 'string' &&
+      ['originalAmount', 'discountAmount', 'finalAmount'].every(key => typeof item[key] === 'number' && Number.isFinite(item[key]) && item[key] >= 0) && item.discountAmount <= item.originalAmount))) {
+      throw new Error('Dữ liệu giảm giá sản phẩm không hợp lệ. Vui lòng thử lại.')
+    }
   }
   return data
 }

@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from 'react'
+import { VOUCHER_TYPE_LABELS } from '../../lib/vouchers'
 import {
   X,
   Tag,
@@ -248,7 +249,7 @@ export default function VouchersModal({
                 onClick={() => setActiveTab('CREATE')}
               >
                 <Plus size={16} />
-                <span>Tạo Voucher Mới</span>
+                <span>Tạo Voucher VIP</span>
               </button>
             )}
           </div>
@@ -366,6 +367,7 @@ export default function VouchersModal({
                           <h4 className="voucher-program-title">
                             {voucher.program_name || 'Ưu đãi FuniStore'}
                           </h4>
+                          <p className="voucher-condition-text">{VOUCHER_TYPE_LABELS[voucher.voucher_type || 'ORDER']}{voucher.voucher_type === 'PRODUCT' ? ` — sản phẩm #${voucher.product_id}` : voucher.voucher_type === 'VIP' ? ' — VIP Diamond từ 50 triệu đồng chi tiêu hoàn thành' : ''}</p>
                           <p className="voucher-condition-text">
                             {minAmt > 0
                               ? `Áp dụng cho đơn hàng từ ${formatPrice(minAmt)}`
@@ -593,7 +595,7 @@ export default function VouchersModal({
               <div className="vouchers-create-intro">
                 <Sparkles size={20} />
                 <div>
-                  <h4>Đề xuất Voucher Ưu Đãi Mới</h4>
+                  <h4>Phát hành voucher VIP</h4>
                   <p>
                     {isAdmin
                       ? 'Bạn đang đăng nhập với tư cách Quản trị viên (Admin). Bạn có thể phê duyệt trực tiếp voucher vào Kho hoặc lưu nháp.'
@@ -603,6 +605,7 @@ export default function VouchersModal({
               </div>
 
               <form className="vouchers-create-form" onSubmit={handleCreateSubmit}>
+                <p>Voucher mới chỉ dành cho khách VIP Diamond có chi tiêu từ đơn hoàn thành đạt 50 triệu đồng.</p>
                 <div className="form-grid">
                   <div className="form-group">
                     <label>

@@ -32,9 +32,10 @@ public class OrderController {
     }
 
     @PostMapping("/preview")
-    public ResponseEntity<?> previewOrder(@RequestBody CreateOrderRequest req) {
+    public ResponseEntity<?> previewOrder(@RequestBody CreateOrderRequest req,
+            @RequestAttribute(value = AdminIdentity.ATTRIBUTE, required = false) AdminIdentity identity) {
         try {
-            return ResponseEntity.ok(orderService.previewOrder(req));
+            return ResponseEntity.ok(orderService.previewOrder(req, identity != null && "CUSTOMER".equals(identity.role()) ? identity.customerId() : null));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
         }

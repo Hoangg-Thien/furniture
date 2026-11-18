@@ -107,6 +107,14 @@ public class VoucherService {
     }
 
     public Map<String, Object> validateVoucher(ValidateVoucherRequest req) {
+        return validateVoucher(req, null);
+    }
+
+    public Map<String, Object> validateVoucher(ValidateVoucherRequest req, Long customerId) {
+        return validateVoucher(req, customerId, null);
+    }
+
+    public Map<String, Object> validateVoucher(ValidateVoucherRequest req, Long customerId, List<furniture.model.OrderItemDto> pricedOrderItems) {
         if (req == null || req.code() == null || req.code().trim().isEmpty()) {
             throw new IllegalArgumentException("Vui lòng nhập mã voucher");
         }
@@ -149,6 +157,48 @@ public class VoucherService {
             throw new IllegalStateException("Voucher '" + req.code() + "' đã hết số lượng lượt dùng.");
         }
 
+        String type = (String) v.getOrDefault("voucher_type", "ORDER");
+        if (!List.of("ORDER", "PRODUCT", "VIP").contains(type)) {
+            throw new IllegalArgumentException("Loại voucher không hợp lệ");
+        }
+        if ("VIP".equals(type) && !voucherRepository.isVipCustomer(customerId)) {
+            throw new IllegalArgumentException("Voucher chỉ dành cho khách VIP Diamond có chi tiêu từ đơn hoàn thành đạt 50 triệu đồng");
+        }
+        BigDecimal eligibleAmount = subtotal;
+        if (req.items() != null) {
+            if (req.items().isEmpty() || req.items().size() > 100) {
+                throw new IllegalArgumentException("Giỏ hàng phải có từ 1 đến 100 sản phẩm");
+            }
+            var ids = new java.util.HashSet<Long>();
+            subtotal = BigDecimal.ZERO;
+            eligibleAmount = BigDecimal.ZERO;
+            for (var item : req.items()) {
+                if (item == null || item.productId() == null || item.productId() <= 0 || item.quantity() == null
+                        || item.quantity() <= 0 || !ids.add(item.productId())) {
+                    throw new IllegalArgumentException("Sản phẩm và số lượng không hợp lệ hoặc bị trùng");
+                }
+                BigDecimal unitPrice = pricedOrderItems == null ? voucherRepository.findProductPrice(item.productId())
+                        : pricedOrderItems.stream().filter(priced -> priced.productId().equals(item.productId())).findFirst()
+                                .orElseThrow(() -> new IllegalArgumentException("Thiếu giá sản phẩm đã kiểm tra")).unitPrice();
+                BigDecimal amount = unitPrice.multiply(BigDecimal.valueOf(item.quantity()));
+                subtotal = subtotal.add(amount);
+                if (!"PRODUCT".equals(type) || item.productId().equals(((Number) v.get("product_id")).longValue())) {
+                    eligibleAmount = eligibleAmount.add(amount);
+                }
+            }
+        } else if ("PRODUCT".equals(type)) {
+            throw new IllegalArgumentException("Vui lòng cung cấp sản phẩm trong giỏ để kiểm tra voucher");
+        }
+        if ("PRODUCT".equals(type) && eligibleAmount.signum() <= 0) {
+            throw new IllegalArgumentException("Giỏ hàng không có sản phẩm áp dụng voucher này");
+        }
+
+        if (subtotal.compareTo(new BigDecimal("9999999999999.99")) > 0) {
+            throw new IllegalArgumentException("Giá trị đơn hàng vượt quá giới hạn cho phép");
+        }
+
+        if (eligibleAmount.signum() <= 0) throw new IllegalArgumentException("Không có tiền hàng hợp lệ để áp dụng voucher");
+
         BigDecimal minimumAmount = (BigDecimal) v.get("minimum_amount");
         if (minimumAmount != null && subtotal.compareTo(minimumAmount) < 0) {
             BigDecimal needed = minimumAmount.subtract(subtotal);
@@ -159,14 +209,19 @@ public class VoucherService {
         BigDecimal discountPercent = (BigDecimal) v.get("discount_percent");
         BigDecimal maximumDiscount = (BigDecimal) v.get("maximum_discount");
 
-        BigDecimal calculatedDiscount = subtotal.multiply(discountPercent).divide(BigDecimal.valueOf(100), 0, RoundingMode.HALF_UP);
+        BigDecimal calculatedDiscount = eligibleAmount.multiply(discountPercent).divide(BigDecimal.valueOf(100), 0, RoundingMode.HALF_UP);
         if (maximumDiscount != null && maximumDiscount.compareTo(BigDecimal.ZERO) > 0) {
             if (calculatedDiscount.compareTo(maximumDiscount) > 0) {
                 calculatedDiscount = maximumDiscount;
             }
         }
 
+        calculatedDiscount = calculatedDiscount.min(eligibleAmount);
+
         return Map.of(
+                "productId", "PRODUCT".equals(type) ? v.get("product_id") : 0L,
+                "automaticDiscountAmount", BigDecimal.ZERO,
+                "automaticDiscountLabel", "",
                 "voucherId", v.get("id"),
                 "code", v.get("code"),
                 "programName", v.get("program_name"),

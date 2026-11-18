@@ -71,6 +71,9 @@ class OrderStockTest {
                 quantity INT CHECK (quantity > 0), unit_price NUMERIC(15,2) CHECK (unit_price >= 0), amount NUMERIC(15,2),
                 PRIMARY KEY (order_id, product_id))
                 """);
+        var voucherTypes = new ResourceDatabasePopulator(new ClassPathResource("voucher_types.sql"));
+        voucherTypes.execute(database);
+        voucherTypes.execute(database);
         var migration = new ResourceDatabasePopulator(new ClassPathResource("order_stock.sql"));
         migration.execute(database);
         migration.execute(database);
@@ -107,29 +110,97 @@ class OrderStockTest {
     }
 
     @Test
-    void bestPromotionIsNotStackedWithVoucherAndPreviewDoesNotReserveStock() {
+    void manualVoucherAndProductOfferReplaceEachOtherWithoutConsumingPreviewUsage() {
         jdbc.execute("INSERT INTO product_discounts VALUES (1, 1, 20, CURRENT_TIMESTAMP - INTERVAL '1' DAY, CURRENT_TIMESTAMP + INTERVAL '1' DAY)");
-        jdbc.execute("INSERT INTO order_discounts VALUES (1, 0, 15, CURRENT_TIMESTAMP - INTERVAL '1' DAY, CURRENT_TIMESTAMP + INTERVAL '1' DAY)");
-        var request = new CreateOrderRequest(null, null, "Receiver", "0901234567", "Street", null, "District", "City",
-                BigDecimal.ONE, 1L, BigDecimal.ZERO, List.of(item(1, 2)));
-        var quote = orders.previewOrder(request);
-        assertEquals(0, new BigDecimal("4").compareTo(quote.discountAmount()));
-        assertNull(quote.voucherId());
+        jdbc.execute("INSERT INTO order_discounts VALUES (1, 0, 50, CURRENT_TIMESTAMP - INTERVAL '1' DAY, CURRENT_TIMESTAMP + INTERVAL '1' DAY)");
+        var items = List.of(item(1, 2));
+        var defaultRequest = new CreateOrderRequest(null, null, "Receiver", "0901234567", "Street", null, "District", "City", BigDecimal.ONE, null, BigDecimal.ZERO, items);
+        assertEquals(0, new BigDecimal("10").compareTo(orders.previewOrder(defaultRequest).discountAmount()));
+        var productRequest = new CreateOrderRequest(null, null, "Receiver", "0901234567", "Street", null, "District", "City", BigDecimal.ONE, null, BigDecimal.ZERO, items, true);
+        var productQuote = orders.previewOrder(productRequest);
+        assertEquals(0, new BigDecimal("4").compareTo(productQuote.discountAmount()));
+        assertEquals(1, productQuote.itemDiscounts().size());
+        assertEquals(0, new BigDecimal("16").compareTo(productQuote.itemDiscounts().get(0).finalAmount()));
+        var voucherRequest = new CreateOrderRequest(null, null, "Receiver", "0901234567", "Street", null, "District", "City", BigDecimal.ONE, 1L, BigDecimal.ZERO, items, true);
+        var voucherQuote = orders.previewOrder(voucherRequest);
+        assertEquals(0, new BigDecimal("2").compareTo(voucherQuote.discountAmount()));
+        assertEquals(0, voucherQuote.automaticDiscountAmount().signum());
+        assertTrue(voucherQuote.itemDiscounts().isEmpty());
+        assertEquals(1, voucherQuote.productOffers().size());
         assertEquals(10, stock(1));
-        var order = transaction.execute(tx -> orders.createOrder(request));
-        assertEquals(quote.totalAmount(), order.totalAmount());
         assertEquals(0, jdbc.queryForObject("SELECT used_quantity FROM vouchers WHERE id = 1", Integer.class));
-        assertEquals("Receiver", jdbc.queryForObject("SELECT recipient_name FROM orders WHERE id = ?", String.class, order.orderId()));
-        jdbc.execute("UPDATE vouchers SET discount_percent = 30 WHERE id = 1");
-        var voucherOrder = transaction.execute(tx -> orders.createOrder(request));
-        assertEquals(1L, voucherOrder.voucherId());
+        var order = transaction.execute(tx -> orders.createOrder(voucherRequest));
+        assertEquals(voucherQuote.totalAmount(), order.totalAmount());
         assertEquals(1, jdbc.queryForObject("SELECT used_quantity FROM vouchers WHERE id = 1", Integer.class));
-        assertTrue(cancel(voucherOrder.orderId()));
+        assertTrue(cancel(order.orderId()));
+        var productOrder = transaction.execute(tx -> orders.createOrder(productRequest));
+        assertEquals(productQuote.totalAmount(), productOrder.totalAmount());
+        assertNull(productOrder.voucherId());
         assertEquals(0, jdbc.queryForObject("SELECT used_quantity FROM vouchers WHERE id = 1", Integer.class));
-        jdbc.execute("UPDATE promotion_programs SET end_date = CURRENT_TIMESTAMP - INTERVAL '1' DAY");
-        var noVoucher = new CreateOrderRequest(null, null, "Receiver", "0901234567", "Street", null, "District", "City",
-                BigDecimal.ONE, null, BigDecimal.ZERO, List.of(item(1, 1)));
-        assertEquals(0, orders.previewOrder(noVoucher).discountAmount().signum());
+    }
+
+    @Test
+    void typedVouchersPersistAndChecksDoNotConsumeUsageOrStock() {
+        jdbc.execute("UPDATE vouchers SET voucher_type = 'PRODUCT', product_id = 1");
+        var repository = new furniture.repository.AdminPromotionRepository(jdbc);
+        var saved = repository.findVoucherById(1L);
+        assertEquals("PRODUCT", saved.voucherType());
+        assertEquals(1L, saved.productId());
+        var service = new furniture.service.AdminPromotionService(repository, mock(furniture.repository.AdminProductRepository.class), new VoucherService(new VoucherRepository(jdbc)));
+        var result = service.checkVoucher(1L, new furniture.model.admin.promotion.VoucherCheckRequest(null, List.of(item(1, 2), item(2, 1))));
+        assertEquals(0, new BigDecimal("2").compareTo((BigDecimal) result.get("discountAmount")));
+        assertEquals(10, stock(1));
+        assertEquals(0, jdbc.queryForObject("SELECT used_quantity FROM vouchers WHERE id = 1", Integer.class));
+        var request = new furniture.model.admin.promotion.CreateVoucherRequest("PRODUCT", BigDecimal.TEN, BigDecimal.ZERO, null, 10, null, null, "ACTIVE", "PRODUCT", 1L);
+        // Existing fixture uses manual voucher IDs, so inspect the insert with a generated ID column.
+        jdbc.execute("ALTER TABLE vouchers ALTER COLUMN id BIGINT GENERATED BY DEFAULT AS IDENTITY (START WITH 100)");
+        var id = repository.insertVoucher(1L, request, java.time.LocalDateTime.now().minusDays(1), java.time.LocalDateTime.now().plusDays(1));
+        assertEquals("PRODUCT", repository.findVoucherById(id).voucherType());
+        assertEquals(1L, repository.findAllVouchers(null, null).get(0).productId());
+        new VoucherRepository(jdbc).insertVoucher(1L, "VIP_PUBLIC", BigDecimal.TEN, BigDecimal.ZERO, null, 10,
+                java.time.LocalDateTime.now().minusDays(1).toString(), java.time.LocalDateTime.now().plusDays(1).toString());
+        assertEquals("VIP", jdbc.queryForObject("SELECT voucher_type FROM vouchers WHERE code = 'VIP_PUBLIC'", String.class));
+    }
+
+    @Test
+    void onlyCompletedSpendingAtTheExistingVipThresholdEnablesVipOrders() {
+        jdbc.execute("UPDATE vouchers SET voucher_type = 'VIP'");
+        assertThrows(IllegalArgumentException.class, () -> buy(item(1, 1)));
+        assertEquals(10, stock(1));
+        jdbc.execute("INSERT INTO orders (customer_id, status, total_amount) VALUES (1, 'PENDING', 50000000)");
+        assertThrows(IllegalArgumentException.class, () -> buy(item(1, 1)));
+        jdbc.execute("UPDATE orders SET status = 'COMPLETED', total_amount = 49999999");
+        assertThrows(IllegalArgumentException.class, () -> buy(item(1, 1)));
+        jdbc.execute("UPDATE orders SET total_amount = 50000000");
+        assertEquals(1L, buy(item(1, 1)).voucherId());
+    }
+
+
+    @Test
+    void mixedBasketHasDiscountedLineForAAndFullPriceForBThenSwitchesToWholeOrderVoucher() {
+        jdbc.execute("UPDATE products SET selling_price = CASE id WHEN 1 THEN 14500000 ELSE 9800000 END");
+        jdbc.execute("INSERT INTO product_discounts VALUES (1, 1, 50, CURRENT_TIMESTAMP - INTERVAL '1' DAY, CURRENT_TIMESTAMP + INTERVAL '1' DAY)");
+        var items = List.of(item(1, 1), item(2, 1));
+        var normal = new CreateOrderRequest(null, null, "Receiver", "0901234567", "Street", null, "District", "City", BigDecimal.ONE, null, BigDecimal.ZERO, items);
+        var quote = orders.previewOrder(normal);
+        assertEquals(1, quote.itemDiscounts().size());
+        var a = quote.itemDiscounts().get(0);
+        assertEquals(1L, a.productId());
+        assertEquals(0, new BigDecimal("14500000").compareTo(a.originalAmount()));
+        assertEquals(0, new BigDecimal("7250000").compareTo(a.finalAmount()));
+        var withVoucher = new CreateOrderRequest(null, null, "Receiver", "0901234567", "Street", null, "District", "City", BigDecimal.ONE, 1L, BigDecimal.ZERO, items);
+        var coupon = orders.previewOrder(withVoucher);
+        assertTrue(coupon.itemDiscounts().isEmpty());
+        assertEquals(0, new BigDecimal("2430000").compareTo(coupon.voucherDiscountAmount()));
+        assertEquals(0, new BigDecimal("21870000").compareTo(coupon.totalAmount()));
+        jdbc.execute("UPDATE vouchers SET voucher_type = 'PRODUCT', product_id = 2");
+        var productCoupon = orders.previewOrder(withVoucher);
+        assertEquals(1, productCoupon.itemDiscounts().size());
+        assertEquals(2L, productCoupon.itemDiscounts().get(0).productId());
+        assertEquals(0, new BigDecimal("980000").compareTo(productCoupon.itemDiscounts().get(0).discountAmount()));
+        assertEquals(0, productCoupon.automaticDiscountAmount().signum());
+        assertEquals(0, jdbc.queryForObject("SELECT used_quantity FROM vouchers WHERE id = 1", Integer.class));
+        assertEquals(10, stock(1));
     }
 
     private OrderResponse buy(OrderItemDto... items) {

@@ -3,11 +3,12 @@ import assert from 'node:assert/strict'
 import { allowedAdminModules, canAccessModule, defaultAdminModule, canManageProducts, canEditProductContent, canProcessOrders } from '../src/lib/adminPermissions.js'
 
 test('staff positions have only their assigned modules and landing pages', () => {
-  for (const [staffType, expected] of Object.entries({ SALES: ['orders', 'invoices', 'customers', 'products'], WAREHOUSE: ['suppliers', 'products', 'orders'], CONTENT: ['products'] })) {
+  for (const [staffType, expected] of Object.entries({ SALES: ['orders', 'invoices', 'customers', 'products', 'promotions'], WAREHOUSE: ['suppliers', 'products', 'orders'], CONTENT: ['products'] })) {
     const user = { role: 'STAFF', staffType }
     assert.deepEqual(allowedAdminModules(user), expected)
     assert.equal(defaultAdminModule(user), expected[0])
-    for (const module of ['users', 'staff', 'categories', 'promotions', 'reports', 'dashboard']) assert.equal(canAccessModule(user, module), false)
+    assert.equal(canAccessModule(user, 'promotions'), staffType === 'SALES')
+    for (const module of ['users', 'staff', 'categories', 'reports', 'dashboard']) assert.equal(canAccessModule(user, module), false)
   }
   for (const user of [null, {}, { role: 'STAFF' }, { role: 'STAFF', staffType: 'ADMIN' }, { role: 'CUSTOMER', staffType: 'SALES' }]) {
     assert.deepEqual(allowedAdminModules(user), [])
@@ -45,6 +46,9 @@ test('admin token is attached only to its backend and expired API sessions emit 
     }
     await window.fetch('http://localhost:8080/api/admin/expired')
     assert.deepEqual(events, ['admin-session-expired'])
+    storage.set('furniture_customer_user', JSON.stringify({ accessToken: 'customer-token', apiBaseUrl: 'http://localhost:8080' }))
+    await window.fetch('http://localhost:8080/api/vouchers/validate')
+    assert.equal(calls.at(-1).headers.get('Authorization'), 'Bearer customer-token')
     storage.set('furniture_custom_api_url', 'https://new-backend.example')
     await window.fetch('https://new-backend.example/api/admin/products')
     assert.equal(calls.at(-1).headers.get('Authorization'), null)

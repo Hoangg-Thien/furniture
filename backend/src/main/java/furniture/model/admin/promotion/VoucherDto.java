@@ -17,5 +17,14 @@ public record VoucherDto(
         LocalDateTime startDate,
         LocalDateTime endDate,
         String status,
-        Boolean isExpired
-) {}
+        Boolean isExpired,
+        String voucherType,
+        Long productId
+) {
+    public VoucherDto(Long id, Long promotionProgramId, String programName, String code, BigDecimal discountPercent,
+            BigDecimal minimumAmount, BigDecimal maximumDiscount, Integer quantity, Integer usedQuantity,
+            Integer remainingQuantity, LocalDateTime startDate, LocalDateTime endDate, String status, Boolean isExpired) {
+        this(id, promotionProgramId, programName, code, discountPercent, minimumAmount, maximumDiscount, quantity,
+                usedQuantity, remainingQuantity, startDate, endDate, status, isExpired, "ORDER", null);
+    }
+}

@@ -3,7 +3,6 @@ import {
   Receipt,
   Search,
   RefreshCw,
-  Eye,
   Download,
   Printer,
   Plus,
@@ -29,6 +28,7 @@ import {
 } from 'lucide-react'
 import { getApiBaseUrl, getApiHeaders } from '../lib/apiConfig'
 import { productImageUrl } from '../lib/productImages'
+import './AdminInvoiceManagement.css'
 
 export default function AdminInvoiceManagement({ currentUser }) {
   const [invoices, setInvoices] = useState([])
@@ -60,6 +60,76 @@ export default function AdminInvoiceManagement({ currentUser }) {
   const [selectedInvoice, setSelectedInvoice] = useState(null)
   const [detailLoading, setDetailLoading] = useState(false)
   const [printFormat, setPrintFormat] = useState('A4') // A4 | K80
+  const [quickInvoice, setQuickInvoice] = useState(null)
+  const [quickLoading, setQuickLoading] = useState(false)
+  const [quickError, setQuickError] = useState('')
+  const [quickPinned, setQuickPinned] = useState(false)
+  const [quickClosed, setQuickClosed] = useState(false)
+  const quickRowRef = useRef(null)
+  const quickPanelRef = useRef(null)
+  const quickTimer = useRef(null)
+  const quickRequest = useRef(null)
+
+  useEffect(() => {
+    clearTimeout(quickTimer.current)
+    quickRequest.current?.controller.abort()
+    quickRequest.current = null
+    setQuickInvoice(null)
+    setQuickLoading(false)
+    setQuickError('')
+    setQuickPinned(false)
+    return () => {
+      clearTimeout(quickTimer.current)
+      quickRequest.current?.controller.abort()
+    }
+  }, [invoices, page, pageSize, searchKeyword, selectedStatus, fromDate, toDate, creatingInvoice, viewingInvoice])
+
+  function closeQuickInvoice() {
+    const row = quickRowRef.current
+    clearTimeout(quickTimer.current)
+    quickRequest.current?.controller.abort()
+    quickRequest.current = null
+    setQuickClosed(true)
+    setQuickInvoice(null)
+    setQuickPinned(false)
+    setQuickLoading(false)
+    setQuickError('')
+    window.requestAnimationFrame(() => row?.focus({ preventScroll: true }))
+  }
+
+  async function showQuickInvoice(invoiceId, pin = false) {
+    clearTimeout(quickTimer.current)
+    if ((quickClosed || quickPinned) && !pin) return
+    if (pin) {
+      setQuickClosed(false)
+      setQuickPinned(true)
+      if (window.matchMedia('(max-width: 1199px)').matches) {
+        window.requestAnimationFrame(() => quickPanelRef.current?.scrollIntoView({ block: 'start' }))
+      }
+    }
+    if (quickRequest.current?.id === invoiceId) return
+    quickRequest.current?.controller.abort()
+    const controller = new AbortController()
+    quickRequest.current = { id: invoiceId, controller }
+    setQuickInvoice(null)
+    setQuickLoading(true)
+    setQuickError('')
+    try {
+      const res = await fetch(`${getApiBaseUrl()}/api/admin/invoices/${invoiceId}`, {
+        headers: getApiHeaders(), signal: controller.signal
+      })
+      if (!res.ok) throw new Error('Không thể tải chi tiết hóa đơn. Chọn lại đơn để thử lại.')
+      const data = await res.json()
+      if (!controller.signal.aborted) setQuickInvoice(data)
+    } catch (err) {
+      if (!controller.signal.aborted) {
+        setQuickError(err.message)
+        quickRequest.current = null
+      }
+    } finally {
+      if (!controller.signal.aborted) setQuickLoading(false)
+    }
+  }
 
   // Eligible orders for creating invoices
   const [eligibleOrders, setEligibleOrders] = useState([])
@@ -626,8 +696,9 @@ export default function AdminInvoiceManagement({ currentUser }) {
         )}
       </div>
 
+      <div className="inv-review-layout">
       {/* Invoices Table Card */}
-      <div className="admin-card" style={{ padding: 0, overflow: 'hidden' }}>
+      <div className="admin-card inv-invoice-list" style={{ padding: 0, overflow: 'hidden' }}>
         <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--admin-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
           <div>
             <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: 'var(--admin-text-main)' }}>
@@ -675,13 +746,12 @@ export default function AdminInvoiceManagement({ currentUser }) {
                 <th style={{ width: '125px' }}>Chiết Khấu</th>
                 <th style={{ width: '155px', textAlign: 'right' }}>Tổng Thanh Toán</th>
                 <th style={{ width: '145px' }}>Thu Ngân</th>
-                <th style={{ width: '170px', textAlign: 'center' }}>Thao Tác</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="9" style={{ textAlign: 'center', padding: '48px 16px', color: 'var(--admin-text-muted)' }}>
+                  <td colSpan="8" style={{ textAlign: 'center', padding: '48px 16px', color: 'var(--admin-text-muted)' }}>
                     <div style={{ display: 'inline-flex', alignItems: 'center', gap: '10px' }}>
                       <RefreshCw size={20} className="spin" color="var(--admin-accent)" />
                       <span>Đang nạp dữ liệu hóa đơn...</span>
@@ -690,7 +760,7 @@ export default function AdminInvoiceManagement({ currentUser }) {
                 </tr>
               ) : invoices.length === 0 ? (
                 <tr>
-                  <td colSpan="9" style={{ textAlign: 'center', padding: '48px 16px', color: 'var(--admin-text-muted)' }}>
+                  <td colSpan="8" style={{ textAlign: 'center', padding: '48px 16px', color: 'var(--admin-text-muted)' }}>
                     <Receipt size={36} style={{ opacity: 0.35, marginBottom: '8px' }} />
                     <p style={{ margin: 0, fontWeight: 500 }}>Không tìm thấy hóa đơn nào phù hợp với bộ lọc hiện tại.</p>
                   </td>
@@ -705,17 +775,37 @@ export default function AdminInvoiceManagement({ currentUser }) {
                     .toUpperCase()
 
                   return (
-                    <tr key={inv.id}>
+                    <tr key={inv.id}
+                      ref={quickInvoice?.id === inv.id ? quickRowRef : null}
+                      className={`inv-quick-row ${quickInvoice?.id === inv.id ? 'inv-quick-selected' : ''}`}
+                      tabIndex={0}
+                      aria-label={`Xem chi tiết hóa đơn ${inv.invoiceCode}`}
+                      onMouseEnter={() => {
+                        clearTimeout(quickTimer.current)
+                        quickTimer.current = setTimeout(() => showQuickInvoice(inv.id), 250)
+                      }}
+                      onMouseLeave={() => clearTimeout(quickTimer.current)}
+                      onFocus={() => showQuickInvoice(inv.id)}
+                      onClick={(event) => {
+                        if (!event.target.closest('button, a')) showQuickInvoice(inv.id, true)
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) {
+                          event.preventDefault()
+                          showQuickInvoice(inv.id, true)
+                        }
+                      }}
+                    >
                       <td>
-                        <span
+                        <button
+                          type="button"
                           className="inv-code-badge"
-                          style={{ cursor: 'pointer' }}
-                          onClick={() => handleViewDetail(inv.id)}
-                          title="Bấm để xem & in chi tiết hóa đơn"
+                          onClick={() => showQuickInvoice(inv.id, true)}
+                          title="Giữ chi tiết hóa đơn tại danh sách"
                         >
                           <Receipt size={13} color="#0D9488" />
                           <span>{inv.invoiceCode}</span>
-                        </span>
+                        </button>
                       </td>
                       <td>
                         <span className="inv-order-tag">
@@ -768,28 +858,6 @@ export default function AdminInvoiceManagement({ currentUser }) {
                         <div className="inv-staff-badge">
                           <User size={12} color="var(--admin-text-muted)" />
                           <span>{inv.staffName || 'Admin Showroom'}</span>
-                        </div>
-                      </td>
-                      <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
-                        <div style={{ display: 'inline-flex', gap: '6px', alignItems: 'center', justifyContent: 'center' }}>
-                          <button
-                            type="button"
-                            className="btn-action-view"
-                            title="Xem chi tiết & In hóa đơn bán lẻ"
-                            onClick={() => handleViewDetail(inv.id)}
-                          >
-                            <Eye size={13} />
-                            <span>Xem &amp; In</span>
-                          </button>
-                          <button
-                            type="button"
-                            className="btn-action-pdf"
-                            title="Tải chứng từ PDF"
-                            onClick={() => handleDownloadPdf(inv.id, inv.invoiceCode)}
-                          >
-                            <Download size={13} />
-                            <span>PDF</span>
-                          </button>
                         </div>
                       </td>
                     </tr>
@@ -852,6 +920,59 @@ export default function AdminInvoiceManagement({ currentUser }) {
             </button>
           </div>
         </div>
+      </div>
+
+      {!quickClosed && <section ref={quickPanelRef} className="inv-quick-panel" aria-label="Xem nhanh hóa đơn" aria-busy={quickLoading}>
+        <div className="inv-quick-heading">
+          <div>
+            <h2>Chi tiết đơn hàng &amp; hóa đơn</h2>
+            <p>{quickPinned ? 'Đang giữ chi tiết. Chọn đơn khác hoặc bỏ giữ để xem khi rê chuột.' : 'Rê chuột vào một dòng để xem nhanh; bấm dòng hoặc nhấn Enter để giữ chi tiết.'}</p>
+          </div>
+          <button type="button" className="admin-btn admin-btn-outline" onClick={closeQuickInvoice}><X size={16} />Đóng chi tiết</button>
+          {quickPinned && <button type="button" className="admin-btn admin-btn-outline" onClick={() => setQuickPinned(false)}>Bỏ giữ chi tiết</button>}
+        </div>
+        {quickLoading ? <p role="status">Đang tải chi tiết hóa đơn...</p>
+          : quickError ? <p role="alert">{quickError}</p>
+          : quickInvoice ? <div className="inv-quick-grid">
+            <div className="inv-quick-main">
+              <h3>Thông tin khách hàng</h3>
+              <dl className="inv-quick-customer">
+                <div><dt>Khách hàng</dt><dd>{quickInvoice.customerName || 'Chưa cung cấp'}</dd></div>
+                <div><dt>Số điện thoại</dt><dd>{quickInvoice.phone || 'Chưa cung cấp'}</dd></div>
+                <div><dt>Địa chỉ giao hàng</dt><dd>{quickInvoice.address || 'Nhận tại showroom'}</dd></div>
+                {quickInvoice.email && <div><dt>Email</dt><dd>{quickInvoice.email}</dd></div>}
+              </dl>
+              <h3>Sản phẩm trong đơn #{quickInvoice.orderId}</h3>
+              <div className="admin-table-container">
+                <table className="admin-table inv-quick-items">
+                  <thead><tr><th>Sản phẩm</th><th>Số lượng</th><th>Đơn giá</th><th>Thành tiền</th></tr></thead>
+                  <tbody>{quickInvoice.items?.length ? quickInvoice.items.map((item, index) => <tr key={index}>
+                    <td>{item.productName}</td><td>{item.quantity} {item.unit || 'cái'}</td>
+                    <td>{formatVnd(item.unitPrice)}</td><td>{formatVnd(item.amount)}</td>
+                  </tr>) : <tr><td colSpan="4">Không có thông tin sản phẩm.</td></tr>}</tbody>
+                </table>
+              </div>
+              {quickInvoice.notes && <p className="inv-quick-note"><strong>Ghi chú:</strong> {quickInvoice.notes}</p>}
+            </div>
+            <aside className="inv-quick-summary" aria-label="Tóm tắt hóa đơn">
+              <h3>Hóa đơn {quickInvoice.invoiceCode}</h3>
+              <div className="inv-quick-total"><span>Tổng thanh toán</span><strong>{formatVnd(quickInvoice.finalAmount)}</strong></div>
+              <button type="button" className="admin-btn admin-btn-primary" onClick={() => handleViewDetail(quickInvoice.id)}><Printer size={16} />Xem &amp; In</button>
+              <button type="button" className="admin-btn admin-btn-outline" onClick={() => handleDownloadPdf(quickInvoice.id, quickInvoice.invoiceCode)}><Download size={16} />Tải PDF</button>
+              <dl>
+                <div><dt>Ngày lập</dt><dd>{formatDate(quickInvoice.paymentDate)}</dd></div>
+                <div><dt>Thu ngân</dt><dd>{quickInvoice.staffName || 'Admin Showroom'}</dd></div>
+                <div><dt>Hình thức</dt><dd>{quickInvoice.paymentMethod === 'CASH' ? 'COD — thu tiền khi giao hàng' : `Chứng từ cũ: ${quickInvoice.paymentMethod}`}</dd></div>
+                <div><dt>Thanh toán</dt><dd>{({ PAID: 'Đã thanh toán', UNPAID: 'Chưa thanh toán', PENDING: 'Chờ thanh toán', REFUNDED: 'Đã hoàn tiền', PARTIALLY_REFUNDED: 'Hoàn tiền một phần' })[quickInvoice.paymentStatus] || quickInvoice.paymentStatus || 'Chưa xác định'}</dd></div>
+                <div><dt>Tiền hàng</dt><dd>{formatVnd(quickInvoice.subtotalAmount)}</dd></div>
+                <div><dt>Giảm giá đơn hàng</dt><dd>{formatVnd(quickInvoice.discountAmount)}</dd></div>
+                <div><dt>Giảm giá voucher{quickInvoice.voucherCode ? ` (${quickInvoice.voucherCode})` : ''}</dt><dd>{formatVnd(quickInvoice.voucherDiscount)}</dd></div>
+                <div><dt>Thuế VAT</dt><dd>{formatVnd(quickInvoice.taxAmount)}</dd></div>
+              </dl>
+            </aside>
+          </div> : <p className="inv-quick-empty">Chọn hoặc rê chuột vào một hóa đơn trong danh sách để kiểm tra khách hàng, sản phẩm và số tiền ngay tại đây.</p>}
+      </section>}
+
       </div>
 
       </>}
@@ -1242,7 +1363,7 @@ export default function AdminInvoiceManagement({ currentUser }) {
                       </div>
                       {Number(selectedInvoice.discountAmount) > 0 && (
                         <div className="inv-sum-row inv-sum-discount">
-                          <span>Giảm giá khi đặt hàng{selectedInvoice.voucherCode ? ` (${selectedInvoice.voucherCode})` : ''}:</span>
+                          <span>Ưu đãi đã chốt{selectedInvoice.voucherCode ? ` (gồm mã ${selectedInvoice.voucherCode})` : ''}:</span>
                           <span>-{formatVnd(selectedInvoice.discountAmount)}</span>
                         </div>
                       )}

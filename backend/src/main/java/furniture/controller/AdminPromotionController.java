@@ -25,6 +25,7 @@ import furniture.model.admin.promotion.ProductDiscountDto;
 import furniture.model.admin.promotion.ProgramDetailResponse;
 import furniture.model.admin.promotion.ProgramResponse;
 import furniture.model.admin.promotion.VoucherDto;
+import furniture.model.admin.promotion.VoucherCheckRequest;
 import furniture.service.AdminPromotionService;
 import jakarta.validation.Valid;
 
@@ -64,6 +65,15 @@ public class AdminPromotionController {
             return ResponseEntity.ok(res);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/vouchers/{id}/check")
+    public ResponseEntity<?> checkVoucher(@PathVariable Long id, @RequestBody VoucherCheckRequest req) {
+        try {
+            return ResponseEntity.ok(adminPromotionService.checkVoucher(id, req));
+        } catch (IllegalArgumentException | IllegalStateException ex) {
+            return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
         }
     }
 

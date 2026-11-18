@@ -16,6 +16,8 @@ import org.springframework.web.bind.annotation.RestController;
 import furniture.model.CreateVoucherRequest;
 import furniture.model.ValidateVoucherRequest;
 import furniture.service.VoucherService;
+import furniture.model.admin.AdminIdentity;
+import org.springframework.web.bind.annotation.RequestAttribute;
 
 @RestController
 @RequestMapping("/api/vouchers")
@@ -93,9 +95,10 @@ public class VoucherController {
     }
 
     @PostMapping("/validate")
-    public ResponseEntity<?> validateVoucher(@RequestBody ValidateVoucherRequest req) {
+    public ResponseEntity<?> validateVoucher(@RequestBody ValidateVoucherRequest req,
+            @RequestAttribute(value = AdminIdentity.ATTRIBUTE, required = false) AdminIdentity identity) {
         try {
-            Map<String, Object> result = voucherService.validateVoucher(req);
+            Map<String, Object> result = voucherService.validateVoucher(req, identity != null && "CUSTOMER".equals(identity.role()) ? identity.customerId() : null);
             return ResponseEntity.ok(result);
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));

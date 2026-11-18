@@ -1,5 +1,7 @@
 import { getApiBaseUrl } from './apiConfig'
 
+export const VOUCHER_TYPE_LABELS = { ORDER: 'Theo giá trị đơn hàng', PRODUCT: 'Theo sản phẩm', VIP: 'Dành riêng khách VIP' }
+
 /**
  * Lấy danh sách voucher đang hoạt động cho khách hàng
  */
@@ -104,7 +106,7 @@ export async function validateVoucherApi(codeOrObj, maybeSubtotal) {
     const res = await fetch(`${apiBaseUrl}/api/vouchers/validate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code: (code || '').trim().toUpperCase(), subtotal: Number(subtotal || 0) }),
+      body: JSON.stringify({ code: (code || '').trim().toUpperCase(), subtotal: Number(subtotal || 0), items: typeof codeOrObj === 'object' ? codeOrObj?.items : undefined }),
     })
     const data = await res.json()
     if (!res.ok) {
