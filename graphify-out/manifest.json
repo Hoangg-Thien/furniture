@@ -156,10 +156,10 @@
     "semantic_hash": "2515322068013bff827cd3869e8cfdd8"
   },
   "backend/src/main/java/furniture/model/OrderItemDto.java": {
-    "mtime": 1793779282.0216053,
-    "seen": 1794283278.8987575,
-    "ast_hash": "ded2a495bfbb43a49bc93532c27c50d4",
-    "semantic_hash": "ded2a495bfbb43a49bc93532c27c50d4"
+    "mtime": 1794988205.0150464,
+    "seen": 1794990177.7858207,
+    "ast_hash": "0677ce41c909eda28b0a26b7c6a3d766",
+    "semantic_hash": "0677ce41c909eda28b0a26b7c6a3d766"
   },
   "backend/src/main/java/furniture/model/OrderResponse.java": {
     "mtime": 1794453354.1586704,
@@ -492,10 +492,10 @@
     "semantic_hash": "8ea71f88da29c6f05b87e29d3f330153"
   },
   "backend/src/main/java/furniture/model/admin/supplier/CreateReceiptRequest.java": {
-    "mtime": 1794227828.0404916,
-    "seen": 1794283278.9031603,
-    "ast_hash": "60dcf796536d10cbd9ff234de8cadf60",
-    "semantic_hash": "60dcf796536d10cbd9ff234de8cadf60"
+    "mtime": 1794988203.789785,
+    "seen": 1794990177.7937376,
+    "ast_hash": "fd52ce907f144d18ca41a7d825dba350",
+    "semantic_hash": "fd52ce907f144d18ca41a7d825dba350"
   },
   "backend/src/main/java/furniture/model/admin/supplier/PurchaseReceiptItemDto.java": {
     "mtime": 1793779282.0306094,
@@ -919,10 +919,10 @@
     "semantic_hash": "d734282461f59970ab93d089d9a618a8"
   },
   "frontend/src/admin/AdminCustomerManagement.jsx": {
-    "mtime": 1794316037.6058536,
-    "seen": 1794316252.0337067,
-    "ast_hash": "ca2f536a331c1a723508a517f4b18d33",
-    "semantic_hash": "ca2f536a331c1a723508a517f4b18d33"
+    "mtime": 1794988205.5894008,
+    "seen": 1794990177.804298,
+    "ast_hash": "48185717c1a9e83b13ad3e3f127d51da",
+    "semantic_hash": "48185717c1a9e83b13ad3e3f127d51da"
   },
   "frontend/src/admin/AdminDashboard.jsx": {
     "mtime": 1794314498.2079356,
@@ -955,10 +955,10 @@
     "semantic_hash": "91540ccbfdfae76e55b70e8e930453e6"
   },
   "frontend/src/admin/AdminLoginPage.jsx": {
-    "mtime": 1793852794.7379847,
-    "seen": 1794283278.9086778,
-    "ast_hash": "ba99b16c9cfb7183a3033c3eaeedec76",
-    "semantic_hash": "ba99b16c9cfb7183a3033c3eaeedec76"
+    "mtime": 1794990071.1525536,
+    "seen": 1794990177.8049312,
+    "ast_hash": "facf07a0f00141a58aae794a162f9446",
+    "semantic_hash": "facf07a0f00141a58aae794a162f9446"
   },
   "frontend/src/admin/AdminModulePlaceholder.jsx": {
     "mtime": 1793779282.0909126,
@@ -1081,10 +1081,10 @@
     "semantic_hash": "e8d928f2887a094d73f44837835b3ead"
   },
   "frontend/src/user/App.jsx": {
-    "mtime": 1794453512.0746994,
-    "seen": 1794455208.1180067,
-    "ast_hash": "37e62d4f791be583c65bf81e9e27c788",
-    "semantic_hash": "37e62d4f791be583c65bf81e9e27c788"
+    "mtime": 1794989880.7794406,
+    "seen": 1794990177.807611,
+    "ast_hash": "89d86ec6c7e2cabb5eaa622941b783ff",
+    "semantic_hash": "89d86ec6c7e2cabb5eaa622941b783ff"
   },
   "frontend/src/user/components/AccountModal.jsx": {
     "mtime": 1793780522.5677438,
@@ -1331,10 +1331,10 @@
     "semantic_hash": "4c5c47de2a4b05ce1076d4dd48a81d4f"
   },
   "qa/harness/admin-login-check.mjs": {
-    "mtime": 1793874188.534487,
-    "seen": 1794283278.9117453,
-    "ast_hash": "40ac863a7c1e33f11eeb5181d74f6836",
-    "semantic_hash": "40ac863a7c1e33f11eeb5181d74f6836"
+    "mtime": 1794990071.741949,
+    "seen": 1794990177.8127615,
+    "ast_hash": "55d050c55771b0d1f83c3e240c3b8368",
+    "semantic_hash": "55d050c55771b0d1f83c3e240c3b8368"
   },
   "qa/harness/admin-redesign-check.mjs": {
     "mtime": 1794456218.37808,
@@ -2434,5 +2434,29 @@
     "seen": 1794456761.6791098,
     "ast_hash": "607064388c5d3d64ce1616ca212bb193",
     "semantic_hash": "607064388c5d3d64ce1616ca212bb193"
+  },
+  "backend/src/main/java/furniture/util/IntegerQuantityDeserializer.java": {
+    "mtime": 1794988204.4008257,
+    "seen": 1794990177.798578,
+    "ast_hash": "42018020b713c0c26b14503d8eb3fa46",
+    "semantic_hash": "42018020b713c0c26b14503d8eb3fa46"
+  },
+  "backend/src/test/java/furniture/OrderQuantityTest.java": {
+    "mtime": 1794989985.6552331,
+    "seen": 1794990177.8014045,
+    "ast_hash": "3cb83f77f1007a2ab34e109cb7aca086",
+    "semantic_hash": "3cb83f77f1007a2ab34e109cb7aca086"
+  },
+  "qa/harness/customer-race-check.mjs": {
+    "mtime": 1794988307.6943653,
+    "seen": 1794990177.8140533,
+    "ast_hash": "95dd552945f110ac5d6ea456a9033a31",
+    "semantic_hash": "95dd552945f110ac5d6ea456a9033a31"
+  },
+  "qa/harness/stock-visibility-check.mjs": {
+    "mtime": 1794989920.2457185,
+    "seen": 1794990177.8162575,
+    "ast_hash": "b1f30551496cc5e4928573a6e1273d7b",
+    "semantic_hash": "b1f30551496cc5e4928573a6e1273d7b"
   }
 }
