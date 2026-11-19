@@ -51,7 +51,7 @@ public class OrderRepository {
     }
 
     public String findVoucherCode(Long voucherId) throws IllegalArgumentException {
-        List<String> codes = jdbcTemplate.query("SELECT code FROM public.vouchers WHERE id = ?", (rs, row) -> rs.getString("code"), voucherId);
+        List<String> codes = jdbcTemplate.query("SELECT code FROM public.vouchers WHERE id = ? FOR UPDATE", (rs, row) -> rs.getString("code"), voucherId);
         if (codes.isEmpty()) throw new IllegalArgumentException("Voucher không tồn tại");
         return codes.get(0);
     }
@@ -151,7 +151,7 @@ public class OrderRepository {
         if (voucherId != null && voucherId > 0) {
             int updated = jdbcTemplate.update("""
                     UPDATE public.vouchers SET used_quantity = used_quantity + 1
-                    WHERE id = ? AND used_quantity < quantity AND status = 'ACTIVE'
+                    WHERE id = ? AND is_deleted = FALSE AND used_quantity < quantity AND status = 'ACTIVE'
                       AND start_date <= CURRENT_TIMESTAMP AND end_date >= CURRENT_TIMESTAMP
                       AND EXISTS (SELECT 1 FROM public.promotion_programs pp
                           WHERE pp.id = promotion_program_id AND pp.status = 'ACTIVE'

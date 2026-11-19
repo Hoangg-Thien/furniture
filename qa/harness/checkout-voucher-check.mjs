@@ -26,7 +26,9 @@ try {
   program.vouchersCount = vouchers.length
   const productDiscounts = []
   const orderDiscounts = []
+  vouchers[0].ordersCount = 1
   let automaticPromotion = false
+  let automaticType = 'PRODUCT'
   let failValidation = false
   let holdValidation = false
   let releaseValidation
@@ -66,12 +68,12 @@ try {
       const items = body.items.map(item => ({ ...item, unitPrice: item.productId === 7 ? 1200000 : 3000000 }))
       const subtotal = items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0)
       const offer = { productId: 7, originalAmount: 1200000, discountAmount: 600000, finalAmount: 600000, label: 'Giảm sản phẩm' }
-      const automaticDiscountAmount = automaticPromotion && !selected ? 600000 : 0
+      const automaticDiscountAmount = automaticPromotion && body.preferProductDiscounts && !selected ? 600000 : 0
       const voucherDiscountAmount = selected ? Math.min(subtotal * 0.5, 1000000) : 0
       const shippingFee = subtotal >= 2000000 ? 0 : 35000
       return send({ items, subtotal, automaticDiscountAmount, voucherDiscountAmount,
-        automaticDiscountLabel: automaticDiscountAmount ? 'Giảm sản phẩm' : null,
-        itemDiscounts: automaticDiscountAmount ? [offer] : [], productOffers: automaticPromotion ? [offer] : [],
+        automaticDiscountLabel: automaticDiscountAmount ? (automaticType === 'ORDER' ? program.name : 'Giảm sản phẩm') : null,
+        itemDiscounts: automaticDiscountAmount && automaticType === 'PRODUCT' ? [offer] : [], productOffers: automaticPromotion ? [offer] : [],
         discountAmount: automaticDiscountAmount + voucherDiscountAmount,
         shippingFee, totalAmount: subtotal + shippingFee - automaticDiscountAmount - voucherDiscountAmount,
         voucherId: selected ? 74 : null, voucherCode: selected ? 'SALE74' : null,
@@ -99,10 +101,25 @@ try {
       return send(orderDiscounts[0], 201)
     }
     if (path === '/api/admin/promotions/13/vouchers' && route.request().method() === 'POST') {
-      const voucher = { ...vouchers[0], ...route.request().postDataJSON(), id: 99 + vouchers.length }
+      const voucher = { ...vouchers[0], ...route.request().postDataJSON(), id: 99 + vouchers.length, ordersCount: 0, archived: false }
       vouchers.push(voucher)
       program.vouchersCount = vouchers.length
       return send(voucher, 201)
+    }
+    const voucherAction = path.match(/^\/api\/admin\/promotions\/vouchers\/(\d+)(?:\/(replace|orders|status))?$/)
+    if (voucherAction) {
+      const old = vouchers.find(v => v.id === Number(voucherAction[1]))
+      if (voucherAction[2] === 'orders') return send(old.ordersCount ? [{ id: 42, order_date: '2026-11-18T10:00:00', status: 'CANCELLED', total_amount: 635000, discount_amount: 600000 }] : [])
+      if (route.request().method() === 'DELETE') { old.archived = true; old.status = 'INACTIVE'; return send({}) }
+      const body = route.request().postDataJSON()
+      if (voucherAction[2] === 'replace') {
+        const replacement = { ...old, ...body, id: 99 + vouchers.length, usedQuantity: 0, ordersCount: 0, archived: false }
+        vouchers.push(replacement)
+        old.status = 'INACTIVE'
+        return send(replacement, 201)
+      }
+      Object.assign(old, body)
+      return send(old)
     }
     if (path === '/api/admin/products') return send({ content: [new URL(route.request().url()).searchParams.get('page') === '1' ? { id: 8, name: 'Sofa trang sau', sellingPrice: 3000000 } : { ...product, sellingPrice: product.price }], totalElements: 2, totalPages: 2 })
     return send({ content: [], totalElements: 0, totalPages: 1 })
@@ -116,7 +133,8 @@ try {
     await summary.getByText('SALE74', { exact: true }).waitFor()
     assert((await summary.locator('.suggest-info').innerText()).includes('600.000'))
     assert(!(await summary.locator('.suggest-info').innerText()).includes('1.000.000'))
-    assert((await summary.locator('.suggest-info').innerText()).includes('sale_november'))
+    assert(!(await summary.locator('.suggest-info').innerText()).includes('sale_november'))
+    assert.equal(await summary.locator('.order-discount-row').count(), 0)
     for (const selector of ['.order-page-body', '.order-summary-panel', '.order-summary-voucher-section', '.voucher-suggest-box']) {
       assert(await page.locator(selector).evaluate(el => el.scrollWidth <= el.clientWidth + 1), `${selector} must fit at ${width}px`)
     }
@@ -131,24 +149,51 @@ try {
     await summary.getByRole('button', { name: 'Dùng ngay', exact: true }).click()
     await summary.locator('.order-discount-row').getByText('Voucher SALE74', { exact: true }).waitFor()
     assert((await summary.locator('.order-grand-total').innerText()).includes('635.000'))
+    assert.match(await summary.locator('.order-voucher-discount').innerText(), /Giảm 50% trên tiền hàng/)
     await summary.getByRole('button', { name: 'Hủy', exact: true }).click()
     await summary.getByRole('button', { name: 'Dùng ngay', exact: true }).waitFor()
-    console.log(`PASS checkout ${width}px: layout, visible badge, real savings, campaign name, apply/remove voucher`)
+    await summary.locator('.order-grand-total').filter({ hasText: '1.235.000' }).waitFor()
+    assert.equal(await summary.locator('.order-discount-row').count(), 0)
+    console.log(`PASS checkout ${width}px: layout, no implicit discount, voucher description appears on selection and disappears on removal`)
   }
   await page.setViewportSize({ width: 1440, height: 1000 })
   automaticPromotion = true
+  automaticType = 'ORDER'
+  await page.goto(new URL('/checkout', origin).href)
+  const orderOfferSummary = page.locator('.order-summary-panel')
+  await orderOfferSummary.locator('.order-grand-total').filter({ hasText: '1.235.000' }).waitFor()
+  assert.equal(await orderOfferSummary.locator('.order-discount-row').count(), 0)
+  assert.match(await orderOfferSummary.locator('.suggest-info').innerText(), /chưa áp dụng/)
+  assert.match(await orderOfferSummary.locator('.voucher-selection-hint').innerText(), /Chưa áp dụng mã giảm giá/)
+  assert.equal(await orderOfferSummary.locator('.order-voucher-discount').count(), 0)
+  assert.equal(quoteRequests.at(-1).voucherId, null)
+  for (const width of [1440, 390, 320]) {
+    await page.setViewportSize({ width, height: 1000 })
+    assert.equal(await orderOfferSummary.evaluate(el => el.scrollWidth <= el.clientWidth + 1), true, `unselected voucher layout fits ${width}px`)
+  }
+  await orderOfferSummary.screenshot({ path: fileURLToPath(new URL('automatic-order-explained.png', screenshots)), animations: 'disabled' })
+  await orderOfferSummary.getByRole('button', { name: 'Dùng ngay', exact: true }).click()
+  await orderOfferSummary.locator('.order-voucher-discount').getByText('Voucher SALE74', { exact: true }).waitFor()
+  assert.equal(await orderOfferSummary.locator('.order-automatic-discount').count(), 0)
+  automaticType = 'PRODUCT'
+  await page.setViewportSize({ width: 1440, height: 1000 })
   await page.evaluate(() => localStorage.setItem('qa_mixed_basket', '1'))
   await page.goto(new URL('/checkout', origin).href, { waitUntil: 'domcontentloaded' })
   const switchSummary = page.locator('.order-summary-panel')
+  await switchSummary.locator('.order-grand-total').filter({ hasText: '4.200.000' }).waitFor()
+  assert.equal(await switchSummary.locator('.order-discount-row, .item-offer-badge').count(), 0)
+  await switchSummary.locator('.product-offer-button').waitFor()
+  assert.equal(await switchSummary.locator('.product-offer-button').count(), 1)
+  await switchSummary.locator('.product-offer-button').click()
   await switchSummary.locator('.order-grand-total').filter({ hasText: '3.600.000' }).waitFor()
-  const discounted = switchSummary.locator('.order-summary-item').filter({ hasText: product.name })
-  const normal = switchSummary.locator('.order-summary-item').filter({ hasText: 'Sofa nguyên giá' })
-  assert.match(await discounted.locator('del').innerText(), /1.200.000/)
-  assert.match(await discounted.locator('.item-offer-badge').innerText(), /600.000/)
-  assert.equal(await normal.locator('del, .item-offer-badge').count(), 0, 'full-price product remains undiscounted')
+  await switchSummary.getByRole('status').filter({ hasText: 'Đã chuyển sang áp dụng mã giảm giá sản phẩm' }).waitFor()
+  assert.match(await switchSummary.locator('.item-offer-badge').innerText(), /600.000/)
+  assert.equal(quoteRequests.at(-1).preferProductDiscounts, true)
   await switchSummary.getByRole('textbox', { name: 'Mã giảm giá' }).fill('SALE74')
   await switchSummary.getByRole('button', { name: 'Áp dụng', exact: true }).click()
+  await switchSummary.locator('.order-voucher-discount').waitFor()
   await switchSummary.getByRole('status').filter({ hasText: 'Đã chuyển sang áp dụng mã giảm giá toàn đơn hàng' }).waitFor()
+  assert.equal(await switchSummary.locator('.order-product-discount').count(), 0)
   assert.equal(await switchSummary.locator('.order-automatic-discount, .item-offer-badge').count(), 0)
   assert.match(await switchSummary.locator('.order-grand-total').innerText(), /3.200.000/)
   failValidation = true
@@ -162,15 +207,16 @@ try {
   await switchSummary.getByRole('textbox', { name: 'Mã giảm giá' }).fill('SALE74')
   await switchSummary.getByRole('button', { name: 'Áp dụng', exact: true }).click()
   await oldValidationStarted
-  await switchSummary.getByRole('button', { name: /Dùng ưu đãi sản phẩm/ }).click()
-  await switchSummary.getByRole('status').filter({ hasText: 'Đã chuyển sang áp dụng ưu đãi sản phẩm' }).waitFor()
-  assert.equal(quoteRequests.at(-1).preferProductDiscounts, true)
+  await switchSummary.locator('.product-offer-button').click()
+  await switchSummary.locator('.order-grand-total').filter({ hasText: '3.600.000' }).waitFor()
   assert.equal(quoteRequests.at(-1).voucherId, null)
   assert.equal(await switchSummary.locator('.order-voucher-discount').count(), 0)
-  assert.match(await switchSummary.locator('.order-grand-total').innerText(), /3.600.000/)
   releaseValidation()
   await page.waitForTimeout(100)
-  assert.match(await switchSummary.locator('.order-grand-total').innerText(), /3.600.000/, 'late voucher validation cannot undo a newer product selection')
+  assert.match(await switchSummary.locator('.order-grand-total').innerText(), /3.600.000/, 'late validation cannot replace a newer product selection')
+  await switchSummary.locator('.voucher-btn--remove').click()
+  await switchSummary.locator('.order-grand-total').filter({ hasText: '4.200.000' }).waitFor()
+  assert.equal(await switchSummary.locator('.order-discount-row').count(), 0)
   for (const width of [1440, 390, 320]) {
     await page.setViewportSize({ width, height: 1000 })
     assert.equal(await switchSummary.evaluate(el => el.scrollWidth <= el.clientWidth + 1), true, `item savings fit ${width}px`)
@@ -206,6 +252,29 @@ try {
   assert.equal(saved.productId, null)
   await page.getByRole('row').filter({ has: page.getByText('NEW74', { exact: true }) }).getByRole('cell', { name: 'Dành riêng khách VIP', exact: true }).waitFor()
   await page.getByRole('row').filter({ has: page.getByText('PRODUCT74', { exact: true }) }).getByRole('cell', { name: 'Theo sản phẩm', exact: true }).waitFor()
+  const oldRow = page.getByRole('row').filter({ has: page.getByText('SALE74', { exact: true }) })
+  assert.equal(await oldRow.getByRole('button', { name: 'S\u1eeda', exact: true }).isDisabled(), true, 'cancelled order history locks editing even when usage is zero')
+  await oldRow.getByRole('button', { name: /L\u1ecbch s\u1eed/ }).click()
+  await page.getByRole('region', { name: 'L\u1ecbch s\u1eed s\u1eed d\u1ee5ng voucher' }).getByText('#42', { exact: true }).waitFor()
+  const newRow = page.getByRole('row').filter({ has: page.getByText('NEW74', { exact: true }) })
+  await newRow.getByRole('button', { name: 'S\u1eeda', exact: true }).click()
+  await page.locator('#promotion-field-11').fill('15')
+  await page.getByRole('button', { name: 'L\u01b0u thay \u0111\u1ed5i', exact: true }).click()
+  await newRow.getByText('Gi\u1ea3m 15%', { exact: true }).waitFor()
+  await newRow.getByRole('button', { name: 'T\u1ea1o m\u00e3 thay th\u1ebf', exact: true }).click()
+  await page.getByLabel('M\u00e3 Voucher', { exact: true }).fill('VIPREPLACE')
+  await page.getByRole('button', { name: 'T\u1ea1o m\u00e3 thay th\u1ebf', exact: true }).first().click()
+  await page.getByRole('dialog').getByText('VIPREPLACE', { exact: true }).waitFor()
+  assert.equal(vouchers.find(v => v.code === 'NEW74').status, 'INACTIVE')
+  assert.equal(vouchers.find(v => v.code === 'VIPREPLACE').voucherType, 'VIP')
+  await newRow.getByTitle('L\u01b0u tr\u1eef voucher', { exact: true }).click()
+  await newRow.getByText('\u0110\u00e3 l\u01b0u tr\u1eef', { exact: true }).waitFor()
+  await newRow.scrollIntoViewIfNeeded()
+  await page.getByRole('dialog').screenshot({ path: fileURLToPath(new URL('voucher-lifecycle-admin.png', screenshots)), animations: 'disabled' })
+  assert.equal(await newRow.getByRole('button', { name: 'S\u1eeda', exact: true }).isDisabled(), true)
+  await page.getByLabel('L\u1ecdc tr\u1ea1ng th\u00e1i voucher', { exact: true }).selectOption('ARCHIVED')
+  assert.equal(await page.getByRole('row').filter({ has: page.getByText('VIPREPLACE', { exact: true }) }).count(), 0)
+  await page.getByLabel('L\u1ecdc tr\u1ea1ng th\u00e1i voucher', { exact: true }).selectOption('ALL')
   const checker = page.getByRole('form', { name: 'Kiểm tra voucher', exact: true })
   await checker.getByLabel('Voucher cần kiểm tra', { exact: true }).selectOption('74')
   await checker.getByLabel('Sản phẩm 1', { exact: true }).selectOption('7')
@@ -251,6 +320,11 @@ try {
   await page.getByRole('button', { name: 'sale_november', exact: true }).click()
   await page.getByRole('button', { name: /3\. Voucher VIP/ }).click()
   assert.equal(await page.getByLabel('Loại voucher', { exact: true }).count(), 0, 'sales cannot create vouchers')
+  for (const button of await page.getByRole('dialog').locator('tbody button').all()) {
+    if (await button.getAttribute('title') === 'B\u1eadt/T\u1eaft m\u00e3 voucher' || await button.getAttribute('title') === 'L\u01b0u tr\u1eef voucher' || /S\u1eeda|T\u1ea1o m\u00e3 thay th\u1ebf/.test(await button.innerText())) {
+      assert.equal(await button.isDisabled(), true, 'sales cannot mutate voucher lifecycle')
+    }
+  }
   const salesCheck = page.getByRole('form', { name: 'Kiểm tra voucher', exact: true })
   await salesCheck.getByLabel('Voucher cần kiểm tra', { exact: true }).selectOption('74')
   await salesCheck.getByLabel('Sản phẩm 1', { exact: true }).selectOption('7')
@@ -261,6 +335,6 @@ try {
     assert.equal(await salesCheck.evaluate(el => el.scrollWidth <= el.clientWidth + 1), true, `voucher checker fits ${width}px`)
   }
   await page.getByRole('dialog').screenshot({ path: fileURLToPath(new URL('promotions-voucher-sales-mobile.png', screenshots)), animations: 'disabled' })
-  console.log('PASS client: per-item prices, mixed basket, automatic replacement both directions, invalid/late code protection; promotions: three groups, automatic order/product discounts, new VIP codes, legacy codes preserved, product selection across pages, exact-money check/errors/retry, sales read/check only, mobile, search')
+  console.log('PASS client: per-item prices, mixed basket, explicit offers replace each other, removal restores full price, invalid/late code protection; promotions: three groups, automatic order/product discounts, new VIP codes, legacy codes preserved, product selection across pages, exact-money check/errors/retry, sales read/check only, mobile, search')
   assert.deepEqual(errors, [])
 } finally { await browser.close(); await server.close() }

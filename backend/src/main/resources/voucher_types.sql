@@ -1,3 +1,5 @@
 ALTER TABLE public.vouchers ADD COLUMN IF NOT EXISTS voucher_type VARCHAR(16) NOT NULL DEFAULT 'ORDER'
     CHECK (voucher_type IN ('ORDER', 'PRODUCT', 'VIP'));
 ALTER TABLE public.vouchers ADD COLUMN IF NOT EXISTS product_id BIGINT REFERENCES public.products(id);
+
+ALTER TABLE public.vouchers ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN NOT NULL DEFAULT FALSE;

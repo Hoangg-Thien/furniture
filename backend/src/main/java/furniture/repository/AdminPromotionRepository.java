@@ -228,10 +228,8 @@ public class AdminPromotionRepository {
     }
 
     public void deleteProgram(Long id) {
-        jdbcTemplate.update("DELETE FROM public.product_discounts WHERE promotion_program_id = ?", id);
-        jdbcTemplate.update("DELETE FROM public.order_discounts WHERE promotion_program_id = ?", id);
-        jdbcTemplate.update("DELETE FROM public.vouchers WHERE promotion_program_id = ?", id);
-        jdbcTemplate.update("DELETE FROM public.promotion_programs WHERE id = ?", id);
+        jdbcTemplate.update("UPDATE public.vouchers SET status = 'INACTIVE', is_deleted = TRUE WHERE promotion_program_id = ?", id);
+        jdbcTemplate.update("UPDATE public.promotion_programs SET status = 'INACTIVE' WHERE id = ?", id);
     }
 
     // -------------------------------------------------------------
@@ -363,7 +361,8 @@ public class AdminPromotionRepository {
                 SELECT v.id, v.promotion_program_id, pp.name AS program_name, v.code,
                        v.discount_percent, v.minimum_amount, v.maximum_discount, v.voucher_type, v.product_id,
                        v.quantity, v.used_quantity, (v.quantity - v.used_quantity) AS remaining_quantity,
-                       v.start_date, v.end_date, v.status,
+                       v.start_date, v.end_date, v.status, v.is_deleted,
+                       (SELECT COUNT(*) FROM public.orders o WHERE o.voucher_id = v.id) AS orders_count,
                        (v.end_date < CURRENT_TIMESTAMP) AS is_expired
                 FROM public.vouchers v
                 JOIN public.promotion_programs pp ON pp.id = v.promotion_program_id
@@ -390,7 +389,8 @@ public class AdminPromotionRepository {
                     rs.getString("status"),
                     rs.getBoolean("is_expired"),
                     rs.getString("voucher_type"),
-                    rs.getObject("product_id", Long.class)
+                    rs.getObject("product_id", Long.class),
+                    rs.getBoolean("is_deleted"), rs.getInt("orders_count")
             );
         }, programId);
     }
@@ -401,7 +401,8 @@ public class AdminPromotionRepository {
                 SELECT v.id, v.promotion_program_id, pp.name AS program_name, v.code,
                        v.discount_percent, v.minimum_amount, v.maximum_discount, v.voucher_type, v.product_id,
                        v.quantity, v.used_quantity, (v.quantity - v.used_quantity) AS remaining_quantity,
-                       v.start_date, v.end_date, v.status,
+                       v.start_date, v.end_date, v.status, v.is_deleted,
+                       (SELECT COUNT(*) FROM public.orders o WHERE o.voucher_id = v.id) AS orders_count,
                        (v.end_date < CURRENT_TIMESTAMP) AS is_expired
                 FROM public.vouchers v
                 JOIN public.promotion_programs pp ON pp.id = v.promotion_program_id
@@ -442,7 +443,8 @@ public class AdminPromotionRepository {
                     rs.getString("status"),
                     rs.getBoolean("is_expired"),
                     rs.getString("voucher_type"),
-                    rs.getObject("product_id", Long.class)
+                    rs.getObject("product_id", Long.class),
+                    rs.getBoolean("is_deleted"), rs.getInt("orders_count")
             );
         }, params.toArray());
     }
@@ -482,7 +484,8 @@ public class AdminPromotionRepository {
                 SELECT v.id, v.promotion_program_id, pp.name AS program_name, v.code,
                        v.discount_percent, v.minimum_amount, v.maximum_discount, v.voucher_type, v.product_id,
                        v.quantity, v.used_quantity, (v.quantity - v.used_quantity) AS remaining_quantity,
-                       v.start_date, v.end_date, v.status,
+                       v.start_date, v.end_date, v.status, v.is_deleted,
+                       (SELECT COUNT(*) FROM public.orders o WHERE o.voucher_id = v.id) AS orders_count,
                        (v.end_date < CURRENT_TIMESTAMP) AS is_expired
                 FROM public.vouchers v
                 JOIN public.promotion_programs pp ON pp.id = v.promotion_program_id
@@ -508,7 +511,8 @@ public class AdminPromotionRepository {
                     rs.getString("status"),
                     rs.getBoolean("is_expired"),
                     rs.getString("voucher_type"),
-                    rs.getObject("product_id", Long.class)
+                    rs.getObject("product_id", Long.class),
+                    rs.getBoolean("is_deleted"), rs.getInt("orders_count")
             );
         }, id);
 
@@ -550,6 +554,24 @@ public class AdminPromotionRepository {
         return extractId(keyHolder);
     }
 
+    public void lockVoucher(Long id) {
+        jdbcTemplate.queryForList("SELECT id FROM public.vouchers WHERE id = ? FOR UPDATE", Long.class, id);
+    }
+
+    public void updateVoucher(Long id, CreateVoucherRequest req, LocalDateTime start, LocalDateTime end) {
+        jdbcTemplate.update("""
+                UPDATE public.vouchers SET code = ?, discount_percent = ?, minimum_amount = ?,
+                    maximum_discount = ?, quantity = ?, start_date = ?, end_date = ?, status = ?
+                WHERE id = ? AND is_deleted = FALSE
+                """, req.code().trim().toUpperCase(), req.discountPercent(),
+                req.minimumAmount() == null ? BigDecimal.ZERO : req.minimumAmount(), req.maximumDiscount(),
+                req.quantity(), start, end, req.status() == null ? "ACTIVE" : req.status().trim().toUpperCase(), id);
+    }
+
+    public List<Map<String, Object>> findVoucherOrders(Long id) {
+        return jdbcTemplate.queryForList("SELECT id, order_date, status, total_amount, discount_amount FROM public.orders WHERE voucher_id = ? ORDER BY id DESC", id);
+    }
+
     public void updateVoucherStatus(Long voucherId, String status) {
         String validStatus = status != null ? status.trim().toUpperCase() : "ACTIVE";
         jdbcTemplate.update("UPDATE public.vouchers SET status = ? WHERE id = ?", validStatus, voucherId);
@@ -565,6 +587,6 @@ public class AdminPromotionRepository {
     }
 
     public void deleteVoucher(Long voucherId) {
-        jdbcTemplate.update("DELETE FROM public.vouchers WHERE id = ?", voucherId);
+        jdbcTemplate.update("UPDATE public.vouchers SET status = 'INACTIVE', is_deleted = TRUE WHERE id = ?", voucherId);
     }
 }

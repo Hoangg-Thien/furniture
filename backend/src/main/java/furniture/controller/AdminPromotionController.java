@@ -205,6 +205,37 @@ public class AdminPromotionController {
         }
     }
 
+    @PutMapping("/vouchers/{voucherId}")
+    public ResponseEntity<?> updateVoucher(@PathVariable Long voucherId, @Valid @RequestBody CreateVoucherRequest req) {
+        try {
+            return ResponseEntity.ok(adminPromotionService.updateVoucher(voucherId, req));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
+        } catch (IllegalStateException ex) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error", ex.getMessage()));
+        }
+    }
+
+    @PostMapping("/vouchers/{voucherId}/replace")
+    public ResponseEntity<?> replaceVoucher(@PathVariable Long voucherId, @Valid @RequestBody CreateVoucherRequest req) {
+        try {
+            return ResponseEntity.status(HttpStatus.CREATED).body(adminPromotionService.replaceVoucher(voucherId, req));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
+        } catch (IllegalStateException ex) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error", ex.getMessage()));
+        }
+    }
+
+    @GetMapping("/vouchers/{voucherId}/orders")
+    public ResponseEntity<?> voucherOrders(@PathVariable Long voucherId) {
+        try {
+            return ResponseEntity.ok(adminPromotionService.getVoucherOrders(voucherId));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
+        }
+    }
+
     @PutMapping("/vouchers/{voucherId}/status")
     public ResponseEntity<?> updateVoucherStatus(
             @PathVariable Long voucherId,
@@ -217,6 +248,8 @@ public class AdminPromotionController {
             }
             adminPromotionService.updateVoucherStatus(voucherId, newStatus);
             return ResponseEntity.ok(Map.of("message", "Đã cập nhật trạng thái voucher"));
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error", e.getMessage()));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
@@ -226,7 +259,7 @@ public class AdminPromotionController {
     public ResponseEntity<?> deleteVoucher(@PathVariable Long voucherId) {
         try {
             adminPromotionService.deleteVoucher(voucherId);
-            return ResponseEntity.ok(Map.of("message", "Đã xóa voucher thành công"));
+            return ResponseEntity.ok(Map.of("message", "Đã lưu trữ voucher; lịch sử đơn hàng được giữ nguyên"));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", e.getMessage()));
         } catch (IllegalStateException e) {

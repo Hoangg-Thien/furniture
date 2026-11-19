@@ -660,6 +660,9 @@ function App() {
 
   return (
     <div className="storefront">
+      {adminUser?.role === 'ADMIN' && (
+        <div className="toast admin-store-notice" role="status">Bạn đang xem cửa hàng với vai trò admin.</div>
+      )}
       <div className="announcement">
         <span>Giao hàng miễn phí cho đơn từ 2.000.000₫</span>
         <span className="announcement-note">Thiết kế tử tế, sống an yên</span>
@@ -1195,17 +1198,13 @@ function App() {
               <>
                 <div className="cart-items">
                   {cartItems.map((product) => {
-                    const itemDiscount = cartQuote?.itemDiscounts?.find(item => item.productId === product.id)
                     return (
                     <div className="cart-item" key={product.id}>
                       <img src={product.image} alt="" />
                       <div className="cart-item-info">
                         <span>{product.category}</span>
                         <h3>{product.name}</h3>
-                        {itemDiscount ? <div className="item-offer-prices">
-                          <del>{formatPrice(itemDiscount.originalAmount)}</del><strong>{formatPrice(itemDiscount.finalAmount)}</strong>
-                          <span className="item-offer-badge">Đã áp dụng {itemDiscount.label}: −{formatPrice(itemDiscount.discountAmount)}</span>
-                        </div> : <strong>{formatPrice((cartQuote?.items.find(item => item.productId === product.id)?.unitPrice ?? product.price) * cart[product.id])}</strong>}
+                        <strong>{formatPrice((cartQuote?.items.find(item => item.productId === product.id)?.unitPrice ?? product.price) * cart[product.id])}</strong>
                         <div className="quantity-control">
                           <button type="button" aria-label={`Giảm số lượng ${product.name}`} onClick={() => updateQuantity(product.id, -1)}><Minus size={13} /></button>
                           <span>{cart[product.id]}</span>
@@ -1217,12 +1216,9 @@ function App() {
                   )})}
                 </div>
                 <div className="cart-summary">
-                  {cartQuote ? <>
-                    <div className="cart-money-row"><span>Tiền hàng</span><span>{formatPrice(cartQuote.subtotal)}</span></div>
-                    {cartQuote.discountAmount > 0 && <div className="cart-money-row cart-promotion"><span>Ưu đãi tự động{cartQuote.discountLabel ? `: ${cartQuote.discountLabel}` : ''}</span><strong>−{formatPrice(cartQuote.discountAmount)}</strong></div>}
-                    <div className="subtotal"><span>Tạm tính sau ưu đãi</span><strong>{formatPrice(cartQuote.subtotal - cartQuote.discountAmount)}</strong></div>
-                  </> : cartQuoteError ? <div className="cart-price-feedback" role="alert">{cartQuoteError} <button type="button" onClick={() => setCartQuoteAttempt(attempt => attempt + 1)}>Thử lại</button></div>
-                    : <p role="status">Đang kiểm tra giá và ưu đãi...</p>}
+                  {cartQuote ? <div className="subtotal"><span>Tạm tính</span><strong>{formatPrice(cartQuote.subtotal)}</strong></div>
+                    : cartQuoteError ? <div className="cart-price-feedback" role="alert">{cartQuoteError} <button type="button" onClick={() => setCartQuoteAttempt(attempt => attempt + 1)}>Thử lại</button></div>
+                    : <p role="status">Đang kiểm tra giá...</p>}
                   <p>Phí giao hàng sẽ được xác nhận khi đặt hàng.</p>
                   <button className="checkout-button" type="button" disabled={!cartQuote || !!catalogError || cartItems.some(product => cart[product.id] > getProductStock(product))} onClick={placeOrder}>Tiếp tục đặt hàng <ArrowRight size={17} /></button>
                 </div>

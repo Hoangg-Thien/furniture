@@ -42,7 +42,10 @@ try {
     })
     const responses = {
       overview: mode === 'invalid' ? {} : mode === 'empty' ? Object.fromEntries(Object.keys(overview).map(key => [key, 0])) : overview,
-      'revenue-trend': [{ dateLabel: '11/11', salesRevenue: 1250000, importCost: 250000, ordersCount: 4 }],
+      'revenue-trend': [
+        { dateLabel: '11/11', salesRevenue: 1250000, importCost: 250000, ordersCount: 4 },
+        { dateLabel: '12/11', salesRevenue: 0, importCost: 0, ordersCount: 0 },
+      ],
       'category-share': [{ categoryId: 1, categoryName: 'Sofa', totalRevenue: 1250000, percentage: 100 }],
       'top-products': [{ productId: 1, productName: 'Sofa bán chạy', soldQuantity: 12, totalRevenue: 1250000, currentStock: 2 }],
       'dead-stock': [{ productId: 2, productName: 'Bàn chưa bán', currentStock: 3, sellingPrice: 500000, daysSinceLastSold: null },
@@ -59,6 +62,10 @@ try {
   assert.equal(await page.getByLabel('Từ ngày:').inputValue(), '2026-10-13')
   assert.equal(await page.getByLabel('Đến ngày:').inputValue(), '2026-11-11')
   assert.match(await page.locator('.admin-kpi-card').first().innerText(), /1\.250\.000/)
+  assert.equal(await page.locator('.admin-bar-revenue').last().evaluate(el => el.style.height), '0px', 'Zero revenue must not draw a bar')
+  assert.equal(await page.locator('.admin-bar-cost').last().evaluate(el => el.style.height), '0px', 'Zero import cost must not draw a bar')
+  assert(await page.locator('.admin-bar-cost').first().evaluate(el => parseFloat(el.style.height) > 0), 'Positive import cost must draw a bar')
+  assert.match(await page.locator('.admin-chart-desc').first().innerText(), /ngày lập phiếu/)
   assert(await page.locator('.admin-kpi-card').evaluateAll(cards => cards.every(card => {
     const top = card.querySelector('.admin-kpi-top').getBoundingClientRect()
     const value = card.querySelector('.admin-kpi-value').getBoundingClientRect()

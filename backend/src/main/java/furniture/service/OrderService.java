@@ -145,17 +145,12 @@ public class OrderService {
             } catch (IllegalStateException ex) {
                 throw new IllegalArgumentException(ex.getMessage());
             }
-        } else {
-            var promotions = preferProductDiscounts ? productPromotions : orderRepository.findBestPromotion(items, subtotal);
-            if (!promotions.isEmpty()) {
-                automaticDiscount = ((BigDecimal) promotions.get(0).get("discount_amount")).max(BigDecimal.ZERO).min(subtotal);
-                automaticLabel = (String) promotions.get(0).get("discount_label");
-                discountLabel = automaticLabel;
-                if ("PRODUCT".equals(promotions.get(0).get("promotion_type"))) {
-                    itemDiscounts = orderRepository.findProductDiscountLines(((Number) promotions.get(0).get("program_id")).longValue(), items, automaticLabel);
-                    automaticDiscount = itemDiscounts.stream().map(furniture.model.OrderItemDiscount::discountAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
-                }
-            }
+        }
+        if (requestedVoucherId == null && preferProductDiscounts && !productOffers.isEmpty()) {
+            itemDiscounts = productOffers;
+            automaticDiscount = itemDiscounts.stream().map(furniture.model.OrderItemDiscount::discountAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+            automaticLabel = (String) productPromotions.get(0).get("discount_label");
+            discountLabel = automaticLabel;
         }
         BigDecimal discount = automaticDiscount.add(voucherDiscount);
         BigDecimal shippingFee = subtotal.compareTo(new BigDecimal("2000000")) >= 0 ? BigDecimal.ZERO : new BigDecimal("35000");

@@ -264,7 +264,7 @@ class AdminPermissionsTest {
     void salesCanOnlyReadAndCheckPromotionsWhileAdminOwnsWrites() throws Exception {
         for (int user = 1; user <= 4; user++) {
             String bearer = "Bearer " + token(user);
-            for (String path : List.of("/api/admin/promotions", "/api/admin/promotions/vouchers", "/api/admin/promotions/1/detail")) {
+            for (String path : List.of("/api/admin/promotions", "/api/admin/promotions/vouchers", "/api/admin/promotions/1/detail", "/api/admin/promotions/vouchers/1/orders")) {
                 mvc.perform(get(path).header("Authorization", bearer)).andExpect(user <= 2 ? status().isOk() : status().isForbidden());
             }
             mvc.perform(post("/api/admin/promotions/vouchers/1/check").header("Authorization", bearer))
@@ -273,6 +273,10 @@ class AdminPermissionsTest {
             mvc.perform(post("/api/admin/promotions/1/vouchers").header("Authorization", bearer))
                     .andExpect(user == 1 ? status().isOk() : status().isForbidden());
             mvc.perform(put("/api/admin/promotions/vouchers/1/status").header("Authorization", bearer))
+                    .andExpect(user == 1 ? status().isOk() : status().isForbidden());
+            mvc.perform(put("/api/admin/promotions/vouchers/1").header("Authorization", bearer))
+                    .andExpect(user == 1 ? status().isOk() : status().isForbidden());
+            mvc.perform(post("/api/admin/promotions/vouchers/1/replace").header("Authorization", bearer))
                     .andExpect(user == 1 ? status().isOk() : status().isForbidden());
             mvc.perform(delete("/api/admin/promotions/vouchers/1").header("Authorization", bearer))
                     .andExpect(user == 1 ? status().isOk() : status().isForbidden());

@@ -68,12 +68,12 @@ public class VoucherRepository {
                        v.quantity, v.used_quantity, (v.quantity - v.used_quantity) AS remaining_quantity,
                        to_char(v.start_date, 'YYYY-MM-DD HH24:MI:SS') AS start_date,
                        to_char(v.end_date, 'YYYY-MM-DD HH24:MI:SS') AS end_date,
-                       v.status AS voucher_status,
+                       v.status AS voucher_status, v.is_deleted,
                        pp.id AS program_id, pp.name AS program_name, pp.description AS program_description,
                        pp.status AS program_status
                 FROM public.vouchers v
                 JOIN public.promotion_programs pp ON pp.id = v.promotion_program_id
-                WHERE v.status = 'ACTIVE' AND pp.status = 'ACTIVE'
+                WHERE v.is_deleted = FALSE AND v.status = 'ACTIVE' AND pp.status = 'ACTIVE'
                   AND v.start_date <= CURRENT_TIMESTAMP
                   AND v.end_date >= CURRENT_TIMESTAMP
                   AND pp.start_date <= CURRENT_TIMESTAMP AND pp.end_date >= CURRENT_TIMESTAMP
@@ -89,7 +89,7 @@ public class VoucherRepository {
                        v.quantity, v.used_quantity, (v.quantity - v.used_quantity) AS remaining_quantity,
                        to_char(v.start_date, 'YYYY-MM-DD HH24:MI:SS') AS start_date,
                        to_char(v.end_date, 'YYYY-MM-DD HH24:MI:SS') AS end_date,
-                       v.status AS voucher_status,
+                       v.status AS voucher_status, v.is_deleted,
                        pp.id AS program_id, pp.name AS program_name, pp.description AS program_description,
                        pp.status AS program_status,
                        CASE
@@ -111,7 +111,7 @@ public class VoucherRepository {
         return jdbcTemplate.update("""
                 UPDATE public.promotion_programs
                 SET status = 'ACTIVE'
-                WHERE id = (SELECT promotion_program_id FROM public.vouchers WHERE id = ?)
+                WHERE id = (SELECT promotion_program_id FROM public.vouchers WHERE id = ? AND is_deleted = FALSE)
                 """, voucherId);
     }
 
@@ -119,7 +119,7 @@ public class VoucherRepository {
         return jdbcTemplate.update("""
                 UPDATE public.vouchers
                 SET status = 'ACTIVE'
-                WHERE id = ?
+                WHERE id = ? AND is_deleted = FALSE
                 """, voucherId);
     }
 
@@ -127,7 +127,7 @@ public class VoucherRepository {
         return jdbcTemplate.update("""
                 UPDATE public.promotion_programs
                 SET status = 'INACTIVE'
-                WHERE id = (SELECT promotion_program_id FROM public.vouchers WHERE id = ?)
+                WHERE id = (SELECT promotion_program_id FROM public.vouchers WHERE id = ? AND is_deleted = FALSE)
                 """, voucherId);
     }
 
@@ -176,12 +176,12 @@ public class VoucherRepository {
         String sql = """
                 SELECT v.id, v.code, v.voucher_type, v.product_id, v.discount_percent, v.minimum_amount, v.maximum_discount,
                        v.quantity, v.used_quantity,
-                       pp.name AS program_name, pp.status AS program_status, v.status AS voucher_status,
+                       pp.name AS program_name, pp.status AS program_status, v.status AS voucher_status, v.is_deleted,
                        (v.end_date < CURRENT_TIMESTAMP OR pp.end_date < CURRENT_TIMESTAMP) AS is_expired,
                        (v.start_date > CURRENT_TIMESTAMP OR pp.start_date > CURRENT_TIMESTAMP) AS is_not_started
                 FROM public.vouchers v
                 JOIN public.promotion_programs pp ON pp.id = v.promotion_program_id
-                WHERE UPPER(v.code) = UPPER(?)
+                WHERE v.is_deleted = FALSE AND UPPER(v.code) = UPPER(?)
                 LIMIT 1
                 """;
         return jdbcTemplate.queryForList(sql, code.trim());

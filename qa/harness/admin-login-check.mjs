@@ -67,6 +67,8 @@ try {
   await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click()
   await page.getByRole('alert').waitFor()
   assert.equal(await page.evaluate(() => localStorage.getItem('furniture_admin_user')), null)
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await page.clock.install()
   for (const role of ['ADMIN', 'STAFF']) {
     mode = role
     await page.locator('#admin-username').fill(role === 'ADMIN' ? 'admin01' : 'staff01')
@@ -74,6 +76,37 @@ try {
     await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click()
     await page.locator('.admin-navbar').waitFor()
     assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('furniture_admin_user')).role), role)
+    for (const selector of ['.admin-store-link-btn', '.admin-navbar button[title="Xem Cửa hàng FuniStore"]']) {
+      await page.locator(selector).click()
+      await page.locator('.site-header').waitFor()
+      assert.equal(new URL(page.url()).pathname, '/')
+      const notice = page.getByRole('status').filter({ hasText: 'Bạn đang xem cửa hàng với vai trò admin.' })
+      assert.equal(await notice.count(), role === 'ADMIN' ? 1 : 0)
+      if (role === 'ADMIN') {
+        await page.clock.fastForward(6000)
+        assert(await notice.isVisible(), 'admin notice remains after the old timeout')
+        await page.reload()
+        await page.locator('.site-header').waitFor()
+        assert(await notice.isVisible(), 'admin notice survives reload')
+        for (const width of [1440, 390]) {
+          await page.setViewportSize({ width, height: 1000 })
+          await page.evaluate(() => window.scrollTo(0, 500))
+          const position = await notice.evaluate(element => {
+            const rect = element.getBoundingClientRect()
+            return { fixed: getComputedStyle(element).position, right: innerWidth - rect.right, bottom: innerHeight - rect.bottom, left: rect.left }
+          })
+          assert.equal(position.fixed, 'fixed')
+          assert.equal(position.right, 24)
+          assert.equal(position.bottom, 24)
+          assert(position.left >= 0)
+        }
+        await page.setViewportSize({ width: 1440, height: 1000 })
+      }
+      assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('furniture_admin_user')).role), role)
+      assert.equal(await page.evaluate(() => localStorage.getItem('furniture_customer_user')), null)
+      await page.goto(new URL('/admin', origin).href)
+      await page.locator('.admin-navbar').waitFor()
+    }
     await page.evaluate(() => localStorage.removeItem('furniture_admin_user'))
     await page.goto(new URL('/admin', origin).href)
     await page.getByRole('heading', { name: 'Chào mừng trở lại.' }).waitFor()
@@ -81,8 +114,9 @@ try {
   await page.getByRole('button', { name: 'Về cửa hàng', exact: true }).click()
   await page.locator('.site-header').waitFor()
   assert.equal(new URL(page.url()).pathname, '/')
+  assert.equal(await page.getByText('Bạn đang xem cửa hàng với vai trò admin.', { exact: true }).count(), 0)
   assert.deepEqual(errors, [])
-  console.log('PASS admin login: no demo accounts, desktop/mobile, validation, password toggle, loading/error, role checks, ADMIN/STAFF login, back navigation')
+  console.log('PASS admin login: desktop/mobile, validation, role checks, both store links notify ADMIN only and preserve separate sessions')
 } finally {
   await browser.close()
   await server.close()

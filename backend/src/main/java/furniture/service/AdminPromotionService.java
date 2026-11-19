@@ -192,14 +192,27 @@ public class AdminPromotionService {
     public VoucherDto createVoucher(Long programId, CreateVoucherRequest req) {
         ProgramResponse program = getProgramById(programId);
 
-        if (req.code() == null || req.code().trim().isEmpty()) {
-            throw new IllegalArgumentException("Mã Voucher không được để trống");
-        }
         if (!"VIP".equals(req.voucherType()) || req.productId() != null) {
             throw new IllegalArgumentException("Mã voucher mới chỉ dành cho VIP. Giảm theo đơn hàng hoặc sản phẩm được quản lý ở nhóm ưu đãi tự động.");
         }
+        validateVoucherRequest(program, req, null);
+
+        Long voucherId = promotionRepository.insertVoucher(programId, req, program.startDate(), program.endDate());
+        return promotionRepository.findVoucherById(voucherId);
+    }
+
+    private void validateVoucherRequest(ProgramResponse program, CreateVoucherRequest req, VoucherDto existing) {
+        if (req.status() != null && !List.of("ACTIVE", "INACTIVE").contains(req.status().trim().toUpperCase())) {
+            throw new IllegalArgumentException("Trạng thái voucher không hợp lệ");
+        }
+        if (existing != null && (!existing.voucherType().equals(req.voucherType()) || !java.util.Objects.equals(existing.productId(), req.productId()))) {
+            throw new IllegalArgumentException("Giữ nguyên loại voucher và sản phẩm; hãy tạo mã mới nếu cần đổi loại");
+        }
+        if (req.code() == null || req.code().trim().isEmpty()) {
+            throw new IllegalArgumentException("Mã Voucher không được để trống");
+        }
         String cleanCode = req.code().trim().toUpperCase();
-        if (promotionRepository.existsVoucherCode(cleanCode)) {
+        if ((existing == null || !cleanCode.equalsIgnoreCase(existing.code())) && promotionRepository.existsVoucherCode(cleanCode)) {
             throw new IllegalArgumentException("Mã voucher '" + cleanCode + "' đã tồn tại trong hệ thống!");
         }
 
@@ -219,21 +232,54 @@ public class AdminPromotionService {
             throw new IllegalArgumentException("Mức giảm tối đa của voucher phải >= 0");
         }
 
-        LocalDateTime start = req.startDate() != null ? req.startDate() : program.startDate();
-        LocalDateTime end = req.endDate() != null ? req.endDate() : program.endDate();
+        LocalDateTime start = req.startDate() != null ? req.startDate() : existing == null ? program.startDate() : existing.startDate();
+        LocalDateTime end = req.endDate() != null ? req.endDate() : existing == null ? program.endDate() : existing.endDate();
         if (end.isBefore(start)) {
             throw new IllegalArgumentException("Hạn dùng của voucher phải sau ngày bắt đầu!");
         }
 
-        Long voucherId = promotionRepository.insertVoucher(programId, req, program.startDate(), program.endDate());
-        return promotionRepository.findVoucherById(voucherId);
+    }
+
+    private VoucherDto requireEditableVoucher(Long id) {
+        promotionRepository.lockVoucher(id);
+        VoucherDto voucher = promotionRepository.findVoucherById(id);
+        if (voucher == null) throw new IllegalArgumentException("Không tìm thấy voucher");
+        if (voucher.archived()) throw new IllegalStateException("Voucher đã lưu trữ, không thể chỉnh sửa hoặc kích hoạt lại");
+        return voucher;
+    }
+
+    @Transactional
+    public VoucherDto updateVoucher(Long id, CreateVoucherRequest req) {
+        VoucherDto voucher = requireEditableVoucher(id);
+        if (voucher.usedQuantity() > 0 || promotionRepository.countOrdersUsingVoucher(id) > 0) {
+            throw new IllegalStateException("Voucher đã có lịch sử sử dụng. Hãy tạo mã mới thay thế, giữ nguyên điều kiện mã cũ.");
+        }
+        ProgramResponse program = getProgramById(voucher.promotionProgramId());
+        validateVoucherRequest(program, req, voucher);
+        promotionRepository.updateVoucher(id, req, req.startDate() == null ? voucher.startDate() : req.startDate(),
+                req.endDate() == null ? voucher.endDate() : req.endDate());
+        return promotionRepository.findVoucherById(id);
+    }
+
+    @Transactional
+    public VoucherDto replaceVoucher(Long id, CreateVoucherRequest req) {
+        VoucherDto old = requireEditableVoucher(id);
+        if (req.code() == null || old.code().equalsIgnoreCase(req.code().trim())) throw new IllegalArgumentException("Mã thay thế phải khác mã cũ");
+        ProgramResponse program = getProgramById(old.promotionProgramId());
+        validateVoucherRequest(program, req, old);
+        Long newId = promotionRepository.insertVoucher(old.promotionProgramId(), req, old.startDate(), old.endDate());
+        promotionRepository.updateVoucherStatus(id, "INACTIVE");
+        return promotionRepository.findVoucherById(newId);
+    }
+
+    public List<Map<String, Object>> getVoucherOrders(Long id) {
+        if (promotionRepository.findVoucherById(id) == null) throw new IllegalArgumentException("Không tìm thấy voucher");
+        return promotionRepository.findVoucherOrders(id);
     }
 
     @Transactional
     public void updateVoucherStatus(Long voucherId, String status) {
-        if (!promotionRepository.existsVoucherById(voucherId)) {
-            throw new IllegalArgumentException("Không tìm thấy voucher với ID: " + voucherId);
-        }
+        requireEditableVoucher(voucherId);
         String validStatus = status != null ? status.trim().toUpperCase() : "ACTIVE";
         if (!List.of("ACTIVE", "INACTIVE").contains(validStatus)) {
             throw new IllegalArgumentException("Trạng thái voucher không hợp lệ: " + status);
@@ -243,18 +289,10 @@ public class AdminPromotionService {
 
     @Transactional
     public void deleteVoucher(Long voucherId) {
+        promotionRepository.lockVoucher(voucherId);
         VoucherDto voucher = promotionRepository.findVoucherById(voucherId);
         if (voucher == null) {
             throw new IllegalArgumentException("Không tìm thấy voucher với ID: " + voucherId);
-        }
-
-        if (voucher.usedQuantity() != null && voucher.usedQuantity() > 0) {
-            throw new IllegalStateException("Không thể xóa voucher đã có " + voucher.usedQuantity() + " khách hàng sử dụng! Vui lòng chuyển trạng thái sang INACTIVE.");
-        }
-
-        int ordersUsing = promotionRepository.countOrdersUsingVoucher(voucherId);
-        if (ordersUsing > 0) {
-            throw new IllegalStateException("Không thể xóa voucher đã gắn với " + ordersUsing + " đơn hàng! Vui lòng chuyển trạng thái sang INACTIVE.");
         }
 
         promotionRepository.deleteVoucher(voucherId);

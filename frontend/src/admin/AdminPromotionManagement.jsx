@@ -97,6 +97,11 @@ export default function AdminPromotionManagement({ currentUser }) {
     quantity: 100,
     status: 'ACTIVE'
   })
+  const [voucherTarget, setVoucherTarget] = useState(null)
+  const [voucherFilter, setVoucherFilter] = useState('ALL')
+  const [voucherHistory, setVoucherHistory] = useState(null)
+  const historyController = useRef(null)
+  const voucherFormRef = useRef(null)
   const [submittingVoucher, setSubmittingVoucher] = useState(false)
 
   const [voucherCheck, setVoucherCheck] = useState({ voucherId: '', customerId: '', items: [{ productId: '', quantity: 1 }] })
@@ -464,6 +469,9 @@ export default function AdminPromotionManagement({ currentUser }) {
       const data = await res.json()
       setDetailData(data)
 
+      setVoucherTarget(null)
+      setVoucherHistory(null)
+      setVoucherFilter('ALL')
       // Reset forms
       if (availableProducts.length > 0) {
         setProductDiscountForm({ productId: availableProducts[0].id, discountPercent: 10 })
@@ -600,8 +608,10 @@ export default function AdminPromotionManagement({ currentUser }) {
     try {
       const baseUrl = getApiBaseUrl()
       const payload = {
-        voucherType: 'VIP',
-        productId: null,
+        voucherType: voucherTarget?.voucher.voucherType || 'VIP',
+        productId: voucherTarget?.voucher.productId ?? null,
+        startDate: voucherForm.startDate || null,
+        endDate: voucherForm.endDate || null,
         code: voucherForm.code.trim().toUpperCase(),
         discountPercent: Number(voucherForm.discountPercent),
         minimumAmount: Number(voucherForm.minimumAmount) || 0,
@@ -610,14 +620,17 @@ export default function AdminPromotionManagement({ currentUser }) {
         status: voucherForm.status
       }
 
-      const res = await fetch(`${baseUrl}/api/admin/promotions/${activeProgramId}/vouchers`, {
-        method: 'POST',
+      const path = voucherTarget ? `vouchers/${voucherTarget.voucher.id}${voucherTarget.mode === 'replace' ? '/replace' : ''}` : `${activeProgramId}/vouchers`
+      const res = await fetch(`${baseUrl}/api/admin/promotions/${path}`, {
+        method: voucherTarget?.mode === 'edit' ? 'PUT' : 'POST',
         headers: getApiHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(payload)
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Lỗi phát hành voucher.')
-      showToast(`Đã phát hành mã Voucher ${data.code} thành công!`)
+      showToast(voucherTarget?.mode === 'replace' ? `Đã tạo ${data.code} thay thế và tạm ngưng ${voucherTarget.voucher.code}` : `Đã lưu voucher ${data.code}`)
+      setVoucherTarget(null)
+      setVoucherForm({ code: '', discountPercent: 10, minimumAmount: 0, maximumDiscount: '', quantity: 100, status: 'ACTIVE' })
       refreshDetail()
     } catch (err) {
       showToast(err.message, 'error')
@@ -636,7 +649,8 @@ export default function AdminPromotionManagement({ currentUser }) {
         headers: getApiHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ status: newStatus })
       })
-      if (!res.ok) throw new Error('Không thể cập nhật trạng thái voucher.')
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Không thể cập nhật trạng thái voucher.')
       showToast(`Voucher ${voucher.code} đã chuyển sang ${newStatus}!`)
       refreshDetail()
     } catch (err) {
@@ -654,10 +668,42 @@ export default function AdminPromotionManagement({ currentUser }) {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Không thể xóa voucher.')
-      showToast('Đã xóa voucher thành công!')
+      showToast('Đã lưu trữ voucher. Giữ nguyên lịch sử đơn hàng.')
       refreshDetail()
     } catch (err) {
       showToast(err.message, 'error')
+    }
+  }
+
+  function prepareVoucher(voucher, mode) {
+    setVoucherTarget({ voucher, mode })
+    setVoucherForm({ ...voucher, code: mode === 'replace' ? '' : voucher.code,
+      status: mode === 'replace' ? 'ACTIVE' : voucher.status,
+      maximumDiscount: voucher.maximumDiscount ?? '' })
+    voucherFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    voucherFormRef.current?.querySelector('input')?.focus({ preventScroll: true })
+  }
+
+  useEffect(() => {
+    historyController.current?.abort()
+    setVoucherHistory(null)
+    return () => historyController.current?.abort()
+  }, [activeProgramId, showDetailModal])
+
+  async function viewVoucherOrders(voucher) {
+    historyController.current?.abort()
+    const controller = new AbortController()
+    historyController.current = controller
+    setVoucherHistory({ code: voucher.code, loading: true })
+    try {
+      const response = await fetch(`${getApiBaseUrl()}/api/admin/promotions/vouchers/${voucher.id}/orders`, {
+        headers: getApiHeaders(), signal: controller.signal,
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Không tải được lịch sử voucher')
+      if (!controller.signal.aborted) setVoucherHistory({ code: voucher.code, orders: data })
+    } catch (error) {
+      if (!controller.signal.aborted) setVoucherHistory({ code: voucher.code, error: error.message })
     }
   }
 
@@ -934,7 +980,7 @@ export default function AdminPromotionManagement({ currentUser }) {
       )}
       {showDetailModal && detailData && (
         <div className="admin-modal-overlay">
-          <div className="admin-modal-card" role="dialog" aria-modal="true" aria-labelledby="promotion-detail-title" style={{ maxWidth: '880px' }}>
+          <div className="admin-modal-card" role="dialog" aria-modal="true" aria-labelledby="promotion-detail-title" style={{ maxWidth: '1120px' }}>
             <div className="admin-modal-header" style={{ paddingBottom: '0.75rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                 <div style={{ width: '38px', height: '38px', borderRadius: '8px', background: '#edf3ef', color: '#376757', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -1065,13 +1111,13 @@ export default function AdminPromotionManagement({ currentUser }) {
                 <div className="admin-card"><h3>1. Giảm theo giá trị đơn hàng</h3><p>{detailData.orderDiscounts.length} mức giảm tự động khi đơn đạt giá trị tối thiểu; không cần nhập mã.</p></div>
                 <div className="admin-card"><h3>2. Giảm theo sản phẩm</h3><p>{detailData.productDiscounts.length} sản phẩm có ưu đãi tự động trên phần tiền sản phẩm; không cần nhập mã.</p></div>
                 <div className="admin-card"><h3>3. Voucher riêng cho VIP</h3><p>{detailData.vouchers.filter(v => v.voucherType === 'VIP').length} mã VIP. Khách nhập mã và phải đạt hạng VIP Diamond từ 50 triệu đồng chi tiêu đơn hoàn thành.</p></div>
-                <p>Mỗi đơn chỉ áp dụng một loại ưu đãi. Chọn voucher sẽ thay thế ưu đãi tự động; chọn lại ưu đãi sản phẩm sẽ gỡ voucher. Hóa đơn giữ khoản giảm đã chốt của đơn.</p>
+                <p>Mỗi đơn chỉ áp dụng một loại ưu đãi do khách chọn. Chọn voucher sẽ thay thế ưu đãi sản phẩm và ngược lại, không cộng dồn. Hóa đơn giữ khoản giảm đã chốt của đơn.</p>
               </div>}
 
               {/* TAB 2: GIẢM GIÁ SẢN PHẨM */}
               {activeTab === 'products' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                  <p>Giảm tự động trên tiền của sản phẩm được chọn trong thời gian chiến dịch. Khách không cần nhập mã; khách có thể chuyển sang voucher toàn đơn hoặc chọn lại ưu đãi sản phẩm, không cộng dồn.</p>
+                  <p>Khách chủ động chọn ưu đãi cho sản phẩm trong thời gian chiến dịch. Chọn voucher toàn đơn sẽ thay thế ưu đãi sản phẩm và ngược lại; không cộng dồn, không tự giảm khi chưa chọn.</p>
                   {/* Form thêm SP giảm giá */}
                   {canManage && <form
                     className="promotion-discount-form"
@@ -1305,14 +1351,16 @@ export default function AdminPromotionManagement({ currentUser }) {
 
               {/* TAB 4: KHO VOUCHER */}
               {activeTab === 'vouchers' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                <div className="promotion-vouchers">
                   {/* Form phát hành Voucher mới */}
                   {canManage && <form
                     onSubmit={handleCreateVoucher}
+                    ref={voucherFormRef}
+                    className="promotion-voucher-form"
                     style={{
                       padding: '1rem',
                       background: '#f8fafc',
-                      borderRadius: '8px',
+                      borderRadius: '12px',
                       border: '1px solid #e2e8f0',
                       display: 'flex',
                       flexDirection: 'column',
@@ -1320,10 +1368,14 @@ export default function AdminPromotionManagement({ currentUser }) {
                     }}
                   >
                     <div style={{ fontWeight: 600, color: '#1e293b', fontSize: '0.9rem' }}>
-                      Phát hành voucher VIP cho chiến dịch này
+                      {voucherTarget ? `${voucherTarget.mode === 'edit' ? 'Sửa voucher' : 'Tạo mã mới thay thế'} ${voucherTarget.voucher.code}` : 'Phát hành voucher VIP cho chiến dịch này'}
                     </div>
 
-                    <p>Chỉ phát hành mã dành cho khách VIP Diamond có chi tiêu từ đơn hoàn thành đạt 50 triệu đồng. Khách nhập mã khi đặt hàng; khi chọn sẽ thay thế ưu đãi tự động; điều kiện đơn tối thiểu tính trên giá gốc tiền hàng, không gồm phí giao hàng.</p>
+                    <p>{voucherTarget ? `Loại: ${VOUCHER_TYPE_LABELS[voucherTarget.voucher.voucherType || 'ORDER']}. ${voucherTarget.mode === 'replace' ? 'Dùng mã khác. Khi lưu thành công, mã cũ tự tạm ngưng; đơn đã sử dụng giữ nguyên giá trị.' : 'Chỉ sửa voucher chưa từng có đơn sử dụng.'}` : 'Phát hành mã dành cho khách VIP Diamond. Khách phải chủ động chọn mã; không tự giảm tiền khi chưa chọn.'}</p>
+                    {voucherTarget && <button type="button" className="admin-btn admin-btn-outline" disabled={submittingVoucher} onClick={() => {
+                      setVoucherTarget(null)
+                      setVoucherForm({ code: '', discountPercent: 10, minimumAmount: 0, maximumDiscount: '', quantity: 100, status: 'ACTIVE' })
+                    }}>Hủy chỉnh sửa</button>}
 
                     <div className="promotion-voucher-grid">
                       <div>
@@ -1372,12 +1424,16 @@ export default function AdminPromotionManagement({ currentUser }) {
                           step="100000"
                           placeholder="Không giới hạn"
                           className="admin-form-input"
-                          value={voucherForm.maximumDiscount || ''}
+                          value={voucherForm.maximumDiscount ?? ''}
                           onChange={(e) => setVoucherForm({ ...voucherForm, maximumDiscount: e.target.value })}
                         />
                       </div>
                     </div>
 
+                    <div className="promotion-date-grid">
+                      <div><label htmlFor="voucher-start" className="admin-form-label">Bắt đầu áp dụng</label><input id="voucher-start" type="datetime-local" className="admin-form-input" value={(voucherForm.startDate || '').slice(0, 16)} onChange={e => setVoucherForm({ ...voucherForm, startDate: e.target.value })} /></div>
+                      <div><label htmlFor="voucher-end" className="admin-form-label">Hết hạn</label><input id="voucher-end" type="datetime-local" className="admin-form-input" value={(voucherForm.endDate || '').slice(0, 16)} onChange={e => setVoucherForm({ ...voucherForm, endDate: e.target.value })} /></div>
+                    </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                         <label htmlFor="promotion-field-14" className="admin-form-label" style={{ margin: 0, fontSize: '0.78rem' }}>
@@ -1399,45 +1455,22 @@ export default function AdminPromotionManagement({ currentUser }) {
                         className="btn-admin btn-admin-primary"
                         disabled={submittingVoucher}
                       >
-                        <Plus size={15} /> Phát Hành Voucher
+                        <Plus size={15} /> {submittingVoucher ? 'Đang lưu...' : voucherTarget?.mode === 'edit' ? 'Lưu thay đổi' : voucherTarget ? 'Tạo mã thay thế' : 'Phát Hành Voucher'}
                       </button>
                     </div>
                   </form>}
 
+                  <p>Voucher đã có đơn sử dụng, kể cả đơn đã hủy, được giữ nguyên điều kiện. Dùng “Tạo mã thay thế” khi cần đổi mức giảm. Lưu trữ không xóa lịch sử.</p>
+                  <div className="promotion-voucher-toolbar">
+                    <h3>Danh sách voucher <span>({detailData.vouchers.length})</span></h3>
+                    <div>
+                      <label className="admin-form-label" htmlFor="voucher-status-filter">Lọc trạng thái voucher</label>
+                      <select id="voucher-status-filter" className="admin-form-input" value={voucherFilter} onChange={e => setVoucherFilter(e.target.value)}>
+                        <option value="ALL">Tất cả</option><option value="ACTIVE">Đang hoạt động</option><option value="INACTIVE">Tạm ngưng</option><option value="ARCHIVED">Đã lưu trữ</option>
+                      </select>
+                    </div>
+                  </div>
                   {/* Bảng danh sách Vouchers */}
-                  <form onSubmit={handleCheckVoucher} className="promotion-voucher-check admin-card" aria-label="Kiểm tra voucher">
-                    <h3>Kiểm tra số tiền giảm thực tế</h3>
-                    <p>Kiểm tra điều kiện và số tiền giảm trước khi áp dụng. Không trừ lượt sử dụng; chưa gồm phí giao hàng. Khi đặt hàng, khách có thể chuyển sang voucher toàn đơn hoặc chọn lại ưu đãi sản phẩm, không cộng dồn.</p>
-                    <div className="promotion-voucher-grid">
-                      <div><label htmlFor="check-voucher" className="admin-form-label">Voucher cần kiểm tra</label>
-                        <select id="check-voucher" className="admin-form-input" required value={voucherCheck.voucherId} onChange={e => changeVoucherCheck({ ...voucherCheck, voucherId: e.target.value })}>
-                          <option value="">Chọn voucher</option>
-                          {detailData.vouchers.map(v => <option key={v.id} value={v.id}>{v.code} — {VOUCHER_TYPE_LABELS[v.voucherType || 'ORDER']}</option>)}
-                        </select></div>
-                      <div><label htmlFor="check-customer" className="admin-form-label">Mã khách hàng (để trống nếu khách vãng lai)</label>
-                        <input id="check-customer" type="number" min="1" step="1" className="admin-form-input" value={voucherCheck.customerId} onChange={e => changeVoucherCheck({ ...voucherCheck, customerId: e.target.value })} /></div>
-                    </div>
-                    {voucherCheck.items.map((item, index) => <div key={index} className="promotion-voucher-grid">
-                      <div><label htmlFor={`check-product-${index}`} className="admin-form-label">Sản phẩm {index + 1}</label>
-                        <select id={`check-product-${index}`} required className="admin-form-input" value={item.productId} onChange={e => changeVoucherCheck({ ...voucherCheck, items: voucherCheck.items.map((it, i) => i === index ? { ...it, productId: e.target.value } : it) })}>
-                          <option value="">Chọn sản phẩm</option>
-                          {availableProducts.map(p => <option key={p.id} value={p.id}>{p.name} — {formatCurrency(p.sellingPrice)}</option>)}
-                        </select></div>
-                      <div><label htmlFor={`check-quantity-${index}`} className="admin-form-label">Số lượng {index + 1}</label>
-                        <input id={`check-quantity-${index}`} required className="admin-form-input" type="number" min="1" max="2147483647" step="1" value={item.quantity} onChange={e => changeVoucherCheck({ ...voucherCheck, items: voucherCheck.items.map((it, i) => i === index ? { ...it, quantity: e.target.value } : it) })} /></div>
-                      {voucherCheck.items.length > 1 && <button type="button" className="admin-btn admin-btn-outline" onClick={() => changeVoucherCheck({ ...voucherCheck, items: voucherCheck.items.filter((_, i) => i !== index) })}>Bỏ sản phẩm {index + 1}</button>}
-                    </div>)}
-                    {productError && <p role="alert">{productError} <button type="button" className="admin-btn admin-btn-outline" onClick={fetchProducts}>Tải lại sản phẩm</button></p>}
-                    <div className="promotion-check-actions">
-                      <button type="button" className="admin-btn admin-btn-outline" disabled={voucherCheck.items.length >= 100} onClick={() => changeVoucherCheck({ ...voucherCheck, items: [...voucherCheck.items, { productId: '', quantity: 1 }] })}>Thêm sản phẩm kiểm tra</button>
-                      <button type="submit" className="admin-btn admin-btn-primary" disabled={checking || !detailData.vouchers.length}>{checking ? 'Đang kiểm tra...' : 'Kiểm tra voucher'}</button>
-                    </div>
-                    {checkError && <p role="alert">{checkError}</p>}
-                    {checkResult && <div role="status"><strong>Voucher hợp lệ: {checkResult.code}</strong>
-                      <p>Tiền hàng: {formatCurrency(checkResult.subtotal)} · Ưu đãi tự động: {formatCurrency(checkResult.automaticDiscountAmount || 0)} · Voucher giảm: <strong>{formatCurrency(checkResult.discountAmount)}</strong> · Còn lại: {formatCurrency(checkResult.finalTotal)}</p>
-                    </div>}
-                  </form>
-
                   <p>Các mã theo đơn hàng hoặc sản phẩm đã phát hành trước đây vẫn được giữ nguyên điều kiện và hiển thị loại để tra cứu. Mã mới chỉ dành cho VIP.</p>
                   {detailData.vouchers.length === 0 ? (
                     <div style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8' }}>
@@ -1445,7 +1478,8 @@ export default function AdminPromotionManagement({ currentUser }) {
                       <p style={{ margin: 0, fontSize: '0.88rem' }}>Chiến dịch này chưa phát hành mã voucher nào.</p>
                     </div>
                   ) : (
-                    <table className="admin-table">
+                    <div className="promotion-voucher-table-scroll" role="region" aria-label="Danh sách voucher" tabIndex={0}>
+                    <table className="admin-table promotion-voucher-table">
                       <thead>
                         <tr>
                           <th>Mã Code</th>
@@ -1454,11 +1488,11 @@ export default function AdminPromotionManagement({ currentUser }) {
                           <th>Điều Kiện Áp Dụng</th>
                           <th style={{ textAlign: 'center', width: '130px' }}>Lượt Dùng</th>
                           <th style={{ textAlign: 'center' }}>Trạng Thái</th>
-                          <th style={{ textAlign: 'center', width: '70px' }}>Xóa</th>
+                          <th style={{ textAlign: 'center' }}>Quản lý</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {detailData.vouchers.map((v) => {
+                        {detailData.vouchers.filter(v => voucherFilter === 'ALL' || (voucherFilter === 'ARCHIVED' ? v.archived : !v.archived && v.status === voucherFilter)).map((v) => {
                           const usedPercent = v.quantity > 0 ? Math.round((v.usedQuantity / v.quantity) * 100) : 0
                           return (
                             <tr key={v.id}>
@@ -1472,7 +1506,7 @@ export default function AdminPromotionManagement({ currentUser }) {
                               </td>
                               <td><span className="promotion-voucher-type">{VOUCHER_TYPE_LABELS[v.voucherType || 'ORDER']}</span></td>
                               <td style={{ textAlign: 'center' }}>
-                                <span style={{ padding: '0.2rem 0.5rem', background: '#edf3ef', color: '#376757', borderRadius: '4px', fontWeight: 700, fontSize: '0.85rem' }}>
+                                <span className="promotion-voucher-discount">
                                   Giảm {v.discountPercent}%
                                 </span>
                               </td>
@@ -1506,7 +1540,8 @@ export default function AdminPromotionManagement({ currentUser }) {
                                     cursor: 'pointer',
                                     padding: 0
                                   }}
-                                  disabled={!canManage} onClick={() => handleToggleVoucherStatus(v)}
+                                  disabled={!canManage || v.archived} onClick={() => handleToggleVoucherStatus(v)}
+                                  className="promotion-voucher-status"
                                   title="Bật/Tắt mã voucher"
                                 >
                                   <span
@@ -1522,26 +1557,73 @@ export default function AdminPromotionManagement({ currentUser }) {
                                         : 'bg-slate-100 text-slate-600'
                                     }
                                   >
-                                    {v.status}
+                                    {v.archived ? 'Đã lưu trữ' : v.status === 'ACTIVE' ? 'Đang hoạt động' : 'Tạm ngưng'}
                                   </span>
                                 </button>
                               </td>
                               <td style={{ textAlign: 'center' }}>
+                                <div className="promotion-voucher-actions">
+                                  <button type="button" className="admin-btn admin-btn-outline" disabled={!canManage || v.archived || v.usedQuantity > 0 || v.ordersCount > 0} title={v.usedQuantity > 0 || v.ordersCount > 0 ? 'Đã có lịch sử sử dụng; hãy tạo mã mới thay thế' : 'Sửa voucher chưa dùng'} onClick={() => prepareVoucher(v, 'edit')}>Sửa</button>
+                                  <button type="button" className="admin-btn admin-btn-outline" disabled={!canManage || v.archived} onClick={() => prepareVoucher(v, 'replace')}>Tạo mã thay thế</button>
+                                  <button type="button" className="admin-btn admin-btn-outline" onClick={() => viewVoucherOrders(v)}>Lịch sử ({v.ordersCount || 0})</button>
                                 <button
                                   className="btn-action btn-action-danger"
                                   style={{ width: '28px', height: '28px' }}
-                                  disabled={!canManage} onClick={() => handleDeleteVoucher(v.id)}
-                                  title="Xóa voucher"
+                                  disabled={!canManage || v.archived} onClick={() => handleDeleteVoucher(v.id)}
+                                  title="Lưu trữ voucher"
                                 >
                                   <Trash2 size={14} />
                                 </button>
+                                </div>
                               </td>
                             </tr>
                           )
                         })}
                       </tbody>
                     </table>
+                    </div>
                   )}
+                  <details className="promotion-check-panel">
+                    <summary>Kiểm tra số tiền giảm thực tế</summary>
+                  <form onSubmit={handleCheckVoucher} className="promotion-voucher-check admin-card" aria-label="Kiểm tra voucher">
+                    <h3>Kiểm tra số tiền giảm thực tế</h3>
+                    <p>Kiểm tra điều kiện và số tiền giảm trước khi áp dụng. Không trừ lượt sử dụng; chưa gồm phí giao hàng. Khi đặt hàng, khách có thể chuyển sang voucher toàn đơn hoặc chọn lại ưu đãi sản phẩm, không cộng dồn.</p>
+                    <div className="promotion-voucher-grid">
+                      <div><label htmlFor="check-voucher" className="admin-form-label">Voucher cần kiểm tra</label>
+                        <select id="check-voucher" className="admin-form-input" required value={voucherCheck.voucherId} onChange={e => changeVoucherCheck({ ...voucherCheck, voucherId: e.target.value })}>
+                          <option value="">Chọn voucher</option>
+                          {detailData.vouchers.map(v => <option key={v.id} value={v.id}>{v.code} — {VOUCHER_TYPE_LABELS[v.voucherType || 'ORDER']}</option>)}
+                        </select></div>
+                      <div><label htmlFor="check-customer" className="admin-form-label">Mã khách hàng (để trống nếu khách vãng lai)</label>
+                        <input id="check-customer" type="number" min="1" step="1" className="admin-form-input" value={voucherCheck.customerId} onChange={e => changeVoucherCheck({ ...voucherCheck, customerId: e.target.value })} /></div>
+                    </div>
+                    {voucherCheck.items.map((item, index) => <div key={index} className="promotion-voucher-grid">
+                      <div><label htmlFor={`check-product-${index}`} className="admin-form-label">Sản phẩm {index + 1}</label>
+                        <select id={`check-product-${index}`} required className="admin-form-input" value={item.productId} onChange={e => changeVoucherCheck({ ...voucherCheck, items: voucherCheck.items.map((it, i) => i === index ? { ...it, productId: e.target.value } : it) })}>
+                          <option value="">Chọn sản phẩm</option>
+                          {availableProducts.map(p => <option key={p.id} value={p.id}>{p.name} — {formatCurrency(p.sellingPrice)}</option>)}
+                        </select></div>
+                      <div><label htmlFor={`check-quantity-${index}`} className="admin-form-label">Số lượng {index + 1}</label>
+                        <input id={`check-quantity-${index}`} required className="admin-form-input" type="number" min="1" max="2147483647" step="1" value={item.quantity} onChange={e => changeVoucherCheck({ ...voucherCheck, items: voucherCheck.items.map((it, i) => i === index ? { ...it, quantity: e.target.value } : it) })} /></div>
+                      {voucherCheck.items.length > 1 && <button type="button" className="admin-btn admin-btn-outline" onClick={() => changeVoucherCheck({ ...voucherCheck, items: voucherCheck.items.filter((_, i) => i !== index) })}>Bỏ sản phẩm {index + 1}</button>}
+                    </div>)}
+                    {productError && <p role="alert">{productError} <button type="button" className="admin-btn admin-btn-outline" onClick={fetchProducts}>Tải lại sản phẩm</button></p>}
+                    <div className="promotion-check-actions">
+                      <button type="button" className="admin-btn admin-btn-outline" disabled={voucherCheck.items.length >= 100} onClick={() => changeVoucherCheck({ ...voucherCheck, items: [...voucherCheck.items, { productId: '', quantity: 1 }] })}>Thêm sản phẩm kiểm tra</button>
+                      <button type="submit" className="admin-btn admin-btn-primary" disabled={checking || !detailData.vouchers.length}>{checking ? 'Đang kiểm tra...' : 'Kiểm tra voucher'}</button>
+                    </div>
+                    {checkError && <p role="alert">{checkError}</p>}
+                    {checkResult && <div role="status"><strong>Voucher hợp lệ: {checkResult.code}</strong>
+                      <p>Tiền hàng: {formatCurrency(checkResult.subtotal)} · Ưu đãi tự động: {formatCurrency(checkResult.automaticDiscountAmount || 0)} · Voucher giảm: <strong>{formatCurrency(checkResult.discountAmount)}</strong> · Còn lại: {formatCurrency(checkResult.finalTotal)}</p>
+                    </div>}
+                  </form>
+                  </details>
+                  {voucherHistory && <section className="admin-card" aria-label="Lịch sử sử dụng voucher">
+                    <h3>Đơn sử dụng {voucherHistory.code}</h3>
+                    {voucherHistory.loading ? <p role="status">Đang tải lịch sử...</p> : voucherHistory.error ? <p role="alert">{voucherHistory.error}</p> : voucherHistory.orders?.length ? <div style={{ overflowX: 'auto' }}><table className="admin-table"><thead><tr><th>Đơn hàng</th><th>Ngày đặt</th><th>Trạng thái</th><th>Giảm giá đã chốt</th><th>Tổng thanh toán</th></tr></thead><tbody>
+                      {voucherHistory.orders.map(order => <tr key={order.id}><td>#{order.id}</td><td>{new Date(order.order_date).toLocaleString('vi-VN')}</td><td>{order.status}</td><td>{formatCurrency(order.discount_amount)}</td><td>{formatCurrency(order.total_amount)}</td></tr>)}
+                    </tbody></table></div> : <p>Chưa có đơn sử dụng mã này.</p>}
+                  </section>}
                 </div>
               )}
             </div>
