@@ -5767,6 +5767,86 @@
   line-height: 1.4;
 }
 
+.voucher-success-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.voucher-remove-link {
+  background: none;
+  border: none;
+  color: #047857;
+  font-size: 11.5px;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+}
+
+.voucher-remove-link:hover {
+  color: #065f46;
+}
+
+.voucher-best-badge {
+  display: inline-block;
+  background: #d97706;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-left: 6px;
+  letter-spacing: 0.02em;
+}
+
+.voucher-code-line {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.checkout-voucher-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.checkout-voucher-group-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #4b5563;
+  margin-top: 4px;
+}
+
+.checkout-voucher-group.ineligible-group {
+  margin-top: 8px;
+  border-top: 1px dashed #e5e7df;
+  padding-top: 10px;
+}
+
+.checkout-voucher-option.disabled {
+  background: #fafaf9;
+  border-color: #e5e5e5;
+  opacity: 0.82;
+}
+
+.checkout-voucher-option.disabled strong {
+  color: #6b7280;
+}
+
+.voucher-reason-note {
+  color: #b45309 !important;
+  font-size: 11px !important;
+  font-weight: 500;
+  margin-top: 3px !important;
+}
+
 .voucher-msg-alert.error {
   background: #fef2f2;
   border: 1px solid #fecaca;
@@ -5790,6 +5870,40 @@
   justify-content: space-between;
   gap: 10px;
 }
+.checkout-voucher-list { margin-top: 12px; padding: 12px; border: 1px solid #e1e7e3; border-radius: 10px; background: #fff; font-size: 12px; }
+.checkout-voucher-list summary { color: #245b48; font-weight: 600; cursor: pointer; }
+.checkout-voucher-options { display: grid; gap: 10px; max-height: 340px; overflow-y: auto; margin-top: 12px; overscroll-behavior: contain; }
+.checkout-voucher-option { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 12px; border: 1px solid #e5e7df; border-radius: 8px; }
+.checkout-voucher-option.selected { border-color: #376757; background: #f0f6f2; }
+.checkout-voucher-option > div { flex: 1 1 170px; min-width: 0; overflow-wrap: anywhere; }
+.checkout-voucher-option strong { display: block; color: #193c35; }
+.checkout-voucher-option span, .checkout-voucher-option p { color: #63736c; font-size: 11px; line-height: 1.5; }
+.checkout-voucher-option p { margin: 4px 0 0; }
+.checkout-voucher-option .suggest-apply-btn { background: #245b48; }
+.checkout-voucher-list button:disabled { opacity: .55; cursor: default; }
+.checkout-voucher-list :is(summary, button):focus-visible { outline: 2px solid #376757; outline-offset: 3px; }
+.checkout-voucher-trigger { width: 100%; display: flex; align-items: center; gap: 10px; margin-top: 16px; padding: 16px; border: 1px solid #d8e1da; border-radius: 12px; background: #fff; color: #193c35; font: inherit; font-size: 13px; font-weight: 600; text-align: left; cursor: pointer; }
+.checkout-voucher-trigger span { flex: 1; }
+.checkout-voucher-trigger svg { flex-shrink: 0; }
+.checkout-voucher-trigger:hover { background: #eef4ef; }
+.checkout-voucher-trigger:focus-visible { outline: 2px solid #376757; outline-offset: 3px; }
+.checkout-voucher-dialog { width: min(560px, calc(100vw - 24px)); max-width: none; max-height: 86dvh; margin: auto; padding: 0; border: 1px solid #dce3dc; border-radius: 18px; color: #193c35; box-shadow: 0 20px 60px #0002; overflow: hidden; }
+.checkout-voucher-dialog::backdrop { background: rgba(0, 0, 0, .45); backdrop-filter: none; }
+.checkout-voucher-dialog-content { display: flex; flex-direction: column; max-height: 86dvh; }
+.checkout-voucher-dialog-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 24px 24px 12px; }
+.checkout-voucher-dialog-header .eyebrow { margin: 0 0 6px; font-size: 10px; }
+.checkout-voucher-dialog-header h2 { margin: 0; font-size: 24px; letter-spacing: -.02em; }
+.checkout-voucher-close { display: grid; place-items: center; width: 38px; height: 38px; flex-shrink: 0; border: 1px solid #dce3dc; border-radius: 50%; color: #193c35; background: #fff; cursor: pointer; }
+.checkout-voucher-intro { padding: 0 24px; margin: 0 0 16px; color: #63736c; font-size: 13px; line-height: 1.6; }
+.checkout-voucher-dialog .checkout-voucher-options { min-height: 0; max-height: none; margin: 0; padding: 0 24px 20px; overflow-y: auto; }
+.checkout-voucher-dialog .checkout-voucher-option { padding: 16px; border-radius: 12px; }
+.checkout-voucher-dialog .checkout-voucher-option .voucher-code-line strong { font-size: 15px; letter-spacing: .03em; }
+.checkout-voucher-dialog .checkout-voucher-option p strong { display: inline; }
+.checkout-voucher-dialog .checkout-voucher-option .voucher-best-badge { color: #245b48; font-size: 10px; }
+.checkout-voucher-dialog-content > :is(p, .voucher-msg-alert) { margin-left: 24px; margin-right: 24px; }
+.checkout-voucher-dialog-content > .checkout-voucher-intro { margin-left: 0; margin-right: 0; }
+.checkout-voucher-dialog-footer { display: flex; justify-content: flex-end; padding: 16px 24px; border-top: 1px solid #e1e7e3; background: #fafaf7; }
+.checkout-voucher-dialog-footer button { padding: 10px 28px; border: 0; border-radius: 8px; background: #193c35; color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
 
 .suggest-info {
   flex: 1 1 150px;
@@ -5983,6 +6097,7 @@
 .item-offer-prices { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
 .item-offer-prices del { color: #657069; font-size: 12px; }
 .item-offer-prices strong { color: #176547; font-weight: 700; }
+.cart-promotion { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 8px; color: #245b48; font-size: 12px; }
 .item-offer-badge { display: block; flex-basis: 100%; padding: 4px 6px; border-radius: 5px; background: #e9f4ed; color: #23583e; font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; }
 .product-offer-button { margin-top: 8px; padding: 6px 9px; border: 1px solid #c8dace; border-radius: 6px; background: #edf5ef; color: #23583e; font-size: 11px; cursor: pointer; text-align: left; }
 

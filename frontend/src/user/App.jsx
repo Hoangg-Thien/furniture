@@ -491,7 +491,7 @@ function App() {
     }
     const controller = new AbortController()
     setCartQuoteState({ key: cartQuoteKey })
-    previewOrder(JSON.parse(cartQuoteKey).items, null, controller.signal).then(quote => {
+    previewOrder(JSON.parse(cartQuoteKey).items, null, controller.signal, true).then(quote => {
       if (!controller.signal.aborted) setCartQuoteState({ key: cartQuoteKey, quote })
     }).catch(error => {
       if (!controller.signal.aborted) setCartQuoteState({ key: cartQuoteKey, error: error.message })
@@ -1105,7 +1105,7 @@ function App() {
                       <strong aria-label="Giá ưu đãi">{formatPrice(product.discountedPrice)}</strong>
                     </> : <strong>{formatPrice(product.price)}</strong>}
                   </div>
-                  {product.discountPercent > 0 && product.discountedPrice != null && <p className="product-offer-note">Khi chọn ưu đãi sản phẩm</p>}
+                  {product.discountPercent > 0 && product.discountedPrice != null && <p className="product-offer-note">Tự động áp dụng trong giỏ hàng</p>}
                   {product.soldQuantity != null && <div className="product-sales-row">
                     {product.bestSeller && <span className="product-bestseller" title="Top 3 sản phẩm bán nhiều nhất từ đơn hoàn thành trong 30 ngày gần đây"><TrendingUp size={13} aria-hidden="true" />Bán chạy</span>}
                     <span className="product-sold-count" title="Số sản phẩm trong các đơn đã hoàn thành">Đã bán {new Intl.NumberFormat('vi-VN').format(product.soldQuantity)}</span>
@@ -1230,13 +1230,15 @@ function App() {
               <>
                 <div className="cart-items">
                   {cartItems.map((product) => {
+                    const itemDiscount = cartQuote?.itemDiscounts?.find(item => String(item.productId) === String(product.id))
                     return (
                     <div className="cart-item" key={product.id}>
                       <img src={product.image} alt="" />
                       <div className="cart-item-info">
                         <span>{product.category}</span>
                         <h3>{product.name}</h3>
-                        <strong>{formatPrice((cartQuote?.items.find(item => item.productId === product.id)?.unitPrice ?? product.price) * cart[product.id])}</strong>
+                        {itemDiscount ? <div className="item-offer-prices"><del>{formatPrice(itemDiscount.originalAmount)}</del><strong>{formatPrice(itemDiscount.finalAmount)}</strong><span className="item-offer-badge">Đã giảm {formatPrice(itemDiscount.discountAmount)}</span></div>
+                          : <strong>{formatPrice((cartQuote?.items.find(item => item.productId === product.id)?.unitPrice ?? product.price) * cart[product.id])}</strong>}
                         <div className="quantity-control">
                           <button type="button" aria-label={`Giảm số lượng ${product.name}`} onClick={() => updateQuantity(product.id, -1)}><Minus size={13} /></button>
                           <span>{cart[product.id]}</span>
@@ -1248,7 +1250,10 @@ function App() {
                   )})}
                 </div>
                 <div className="cart-summary">
-                  {cartQuote ? <div className="subtotal"><span>Tạm tính</span><strong>{formatPrice(cartQuote.subtotal)}</strong></div>
+                  {cartQuote ? <>
+                    {cartQuote.discountAmount > 0 && <div className="cart-promotion"><span>Ưu đãi sản phẩm</span><strong>−{formatPrice(cartQuote.discountAmount)}</strong></div>}
+                    <div className="subtotal"><span>Tạm tính sau ưu đãi</span><strong>{formatPrice(cartQuote.subtotal - cartQuote.discountAmount)}</strong></div>
+                  </>
                     : cartQuoteError ? <div className="cart-price-feedback" role="alert">{cartQuoteError} <button type="button" onClick={() => setCartQuoteAttempt(attempt => attempt + 1)}>Thử lại</button></div>
                     : <p role="status">Đang kiểm tra giá...</p>}
                   <p>Phí giao hàng sẽ được xác nhận khi đặt hàng.</p>

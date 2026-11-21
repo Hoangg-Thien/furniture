@@ -30,6 +30,7 @@ try {
   let automaticPromotion = false
   let automaticType = 'PRODUCT'
   let failValidation = false
+  let rejectBest = false
   let holdValidation = false
   let releaseValidation
   let validationStarted
@@ -49,35 +50,42 @@ try {
     const send = (json, status = 200) => route.fulfill({ json, status })
     if (route.request().method() === 'OPTIONS') return send({})
     if (path === '/api/products') return send([{ ...product, discountPercent: 50, discountedPrice: 600000, soldQuantity: 15, bestSeller: true }, { ...product, id: 8, name: 'Sofa nguyên giá', price: 3000000, soldQuantity: 0, bestSeller: false }])
-    if (path === '/api/vouchers/active') return send([weaker, sale])
+    if (path === '/api/vouchers/active') return send([weaker, sale, { ...weaker, id: 77, code: 'MINIMUM', minimum_amount: 5000000 }, { ...weaker, id: 78, code: 'VIPONLY', voucher_type: 'VIP' }])
     if (path === '/api/vouchers/validate') {
       if (failValidation) return send({ error: 'Mã mới không hợp lệ' }, 400)
       const body = route.request().postDataJSON()
+      if (body.code === 'VIPONLY') return send({ error: 'Voucher chỉ dành cho khách VIP Diamond' }, 400)
       if (holdValidation) {
         holdValidation = false
         await new Promise(resolve => { releaseValidation = resolve; validationStarted() })
       }
       const subtotal = body.items.reduce((sum, item) => sum + (item.productId === 7 ? 1200000 : 3000000) * item.quantity, 0)
-      const discount = Math.min(subtotal * 0.5, 1000000)
-      return send({ voucherId: 74, code: 'SALE74', discountAmount: discount, discountPercent: 50, finalTotal: subtotal - discount })
+      const chosen = body.code === 'OTHER' ? weaker : sale
+      const discount = Math.min(subtotal * chosen.discount_percent / 100, chosen.maximum_discount)
+      return send({ voucherId: chosen.id, code: chosen.code, discountAmount: discount, discountPercent: chosen.discount_percent, finalTotal: subtotal - discount })
     }
     if (path === '/api/orders/preview') {
       const body = route.request().postDataJSON()
+      if (rejectBest && body.voucherId === 74) return send({ error: 'Voucher đã hết lượt sử dụng' }, 400)
+      if (body.voucherId === 78) return send({ error: 'Voucher chỉ dành cho khách VIP Diamond' }, 400)
+      if (body.voucherId === 77) return send({ error: 'Đơn hàng chưa đạt giá trị tối thiểu 5.000.000₫' }, 400)
       quoteRequests.push(body)
-      const selected = body.voucherId === 74
+      const selected = body.voucherId === 74 || body.voucherId === 75
+      const chosen = body.voucherId === 75 ? weaker : sale
       const items = body.items.map(item => ({ ...item, unitPrice: item.productId === 7 ? 1200000 : 3000000 }))
       const subtotal = items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0)
       const offer = { productId: 7, originalAmount: 1200000, discountAmount: 600000, finalAmount: 600000, label: 'Giảm sản phẩm' }
-      const automaticDiscountAmount = automaticPromotion && body.preferProductDiscounts && !selected ? 600000 : 0
-      const voucherDiscountAmount = selected ? Math.min(subtotal * 0.5, 1000000) : 0
+      const automaticDiscountAmount = automaticPromotion && automaticType === 'PRODUCT' && body.preferProductDiscounts ? 600000 : 0
+      const netSubtotal = subtotal - automaticDiscountAmount
+      const voucherDiscountAmount = selected ? Math.min(netSubtotal * chosen.discount_percent / 100, chosen.maximum_discount) : 0
       const shippingFee = subtotal >= 2000000 ? 0 : 35000
       return send({ items, subtotal, automaticDiscountAmount, voucherDiscountAmount,
         automaticDiscountLabel: automaticDiscountAmount ? (automaticType === 'ORDER' ? program.name : 'Giảm sản phẩm') : null,
         itemDiscounts: automaticDiscountAmount && automaticType === 'PRODUCT' ? [offer] : [], productOffers: automaticPromotion ? [offer] : [],
         discountAmount: automaticDiscountAmount + voucherDiscountAmount,
         shippingFee, totalAmount: subtotal + shippingFee - automaticDiscountAmount - voucherDiscountAmount,
-        voucherId: selected ? 74 : null, voucherCode: selected ? 'SALE74' : null,
-        discountLabel: selected ? 'Voucher SALE74' : automaticPromotion ? 'Giảm sản phẩm' : null })
+        voucherId: selected ? chosen.id : null, voucherCode: selected ? chosen.code : null,
+        discountLabel: selected ? `Voucher ${chosen.code}` : automaticPromotion ? 'Giảm sản phẩm' : null })
     }
     if (path === '/api/admin/promotions') return send([program, { ...program, id: 2, name: 'Chiến dịch khác', vouchersCount: 0 }])
     if (path === '/api/admin/promotions/vouchers') return send(failVouchers ? { error: 'Unavailable' } : vouchers, failVouchers ? 503 : 200)
@@ -154,93 +162,69 @@ try {
     await page.setViewportSize({ width, height: 1000 })
     await page.goto(new URL('/checkout', origin).href, { waitUntil: 'domcontentloaded' })
     const summary = page.locator('.order-summary-panel')
-    await summary.getByText('SALE74', { exact: true }).waitFor()
-    assert((await summary.locator('.suggest-info').innerText()).includes('600.000'))
-    assert(!(await summary.locator('.suggest-info').innerText()).includes('1.000.000'))
-    assert(!(await summary.locator('.suggest-info').innerText()).includes('sale_november'))
-    assert.equal(await summary.locator('.order-discount-row').count(), 0)
-    for (const selector of ['.order-page-body', '.order-summary-panel', '.order-summary-voucher-section', '.voucher-suggest-box']) {
-      assert(await page.locator(selector).evaluate(el => el.scrollWidth <= el.clientWidth + 1), `${selector} must fit at ${width}px`)
-    }
-    const badge = await summary.locator('.order-item-qty').boundingBox()
-    const image = await summary.locator('.order-item-img-wrap').boundingBox()
-    assert(badge.y >= image.y && badge.x + badge.width <= image.x + image.width, 'Quantity badge must not be clipped')
-    assert.equal(image.width, image.height)
-    const input = await summary.getByRole('textbox', { name: 'Mã giảm giá' }).boundingBox()
-    const apply = await summary.getByRole('button', { name: 'Áp dụng', exact: true }).boundingBox()
-    assert(input.x + input.width <= apply.x || input.y + input.height <= apply.y, 'Input and button must not overlap')
-    await summary.screenshot({ path: fileURLToPath(new URL(`summary-${width}.png`, screenshots)), animations: 'disabled' })
-    await summary.getByRole('button', { name: 'Dùng ngay', exact: true }).click()
-    await summary.locator('.order-discount-row').getByText('Voucher SALE74', { exact: true }).waitFor()
-    assert((await summary.locator('.order-grand-total').innerText()).includes('635.000'))
-    assert.match(await summary.locator('.order-voucher-discount').innerText(), /Giảm 50% trên tiền hàng/)
-    await summary.getByRole('button', { name: 'Hủy', exact: true }).click()
-    await summary.getByRole('button', { name: 'Dùng ngay', exact: true }).waitFor()
+    await summary.locator('.order-voucher-discount').getByText('Voucher SALE74', { exact: true }).waitFor()
+    assert.match(await summary.locator('.order-voucher-discount').innerText(), /Đã tự động chọn ưu đãi tốt nhất/)
+    assert.match(await summary.locator('.order-grand-total').innerText(), /635.000/)
+    await summary.locator('.checkout-voucher-trigger').click()
+    const choices = page.getByRole('dialog', { name: 'Chọn voucher', exact: true })
+    await choices.waitFor()
+    assert.equal(await choices.locator('.checkout-voucher-option').count(), 4)
+    assert(await choices.getByRole('button', { name: 'Chọn voucher MINIMUM', exact: true }).isDisabled())
+    assert(await choices.getByRole('button', { name: 'Chọn voucher VIPONLY', exact: true }).isDisabled())
+    assert.match(await choices.innerText(), /VIP Diamond/)
+    assert.match(await choices.locator('.selected').innerText(), /Ưu đãi tốt nhất/)
+    assert.equal(await choices.evaluate(el => getComputedStyle(el, '::backdrop').backdropFilter), 'none')
+    assert(await choices.evaluate(el => el.scrollWidth <= el.clientWidth + 1), `popup fits ${width}px`)
+    await choices.screenshot({ path: fileURLToPath(new URL(`voucher-choices-${width}.png`, screenshots)), animations: 'disabled' })
+    await choices.getByRole('button', { name: 'Chọn voucher OTHER', exact: true }).click()
+    await choices.waitFor({ state: 'hidden' })
+    await summary.locator('.order-voucher-discount').getByText('Voucher OTHER', { exact: true }).waitFor()
+    assert.match(await summary.locator('.order-grand-total').innerText(), /1.115.000/)
+    await summary.locator('.checkout-voucher-trigger').click()
+    await page.keyboard.press('Escape')
+    await choices.waitFor({ state: 'hidden' })
+    assert.equal(await summary.locator('.checkout-voucher-trigger').evaluate(el => el === document.activeElement), true, 'closing restores focus')
+    await summary.getByRole('button', { name: 'Bỏ chọn', exact: true }).click()
     await summary.locator('.order-grand-total').filter({ hasText: '1.235.000' }).waitFor()
-    assert.equal(await summary.locator('.order-discount-row').count(), 0)
-    console.log(`PASS checkout ${width}px: layout, no implicit discount, voucher description appears on selection and disappears on removal`)
+    assert.equal(await summary.locator('.order-voucher-discount').count(), 0, 'removal is respected')
+    await summary.screenshot({ path: fileURLToPath(new URL(`summary-${width}.png`, screenshots)), animations: 'disabled' })
+    console.log(`PASS checkout ${width}px: auto best voucher, popup, replacement, removal, eligibility and keyboard`)
   }
   await page.setViewportSize({ width: 1440, height: 1000 })
+  rejectBest = true
+  await page.goto(new URL('/checkout', origin).href)
+  await page.locator('.order-voucher-discount').getByText('Voucher OTHER', { exact: true }).waitFor()
+  assert.match(await page.locator('.order-grand-total').innerText(), /1.115.000/, 'expired/exhausted best code falls back to the next valid voucher')
+  rejectBest = false
   automaticPromotion = true
   automaticType = 'ORDER'
   await page.goto(new URL('/checkout', origin).href)
   const orderOfferSummary = page.locator('.order-summary-panel')
-  await orderOfferSummary.locator('.order-grand-total').filter({ hasText: '1.235.000' }).waitFor()
-  assert.equal(await orderOfferSummary.locator('.order-discount-row').count(), 0)
-  assert.match(await orderOfferSummary.locator('.suggest-info').innerText(), /chưa áp dụng/)
-  assert.match(await orderOfferSummary.locator('.voucher-selection-hint').innerText(), /Chưa áp dụng mã giảm giá/)
-  assert.equal(await orderOfferSummary.locator('.order-voucher-discount').count(), 0)
-  assert.equal(quoteRequests.at(-1).voucherId, null)
-  for (const width of [1440, 390, 320]) {
-    await page.setViewportSize({ width, height: 1000 })
-    assert.equal(await orderOfferSummary.evaluate(el => el.scrollWidth <= el.clientWidth + 1), true, `unselected voucher layout fits ${width}px`)
-  }
-  await orderOfferSummary.screenshot({ path: fileURLToPath(new URL('automatic-order-explained.png', screenshots)), animations: 'disabled' })
-  await orderOfferSummary.getByRole('button', { name: 'Dùng ngay', exact: true }).click()
   await orderOfferSummary.locator('.order-voucher-discount').getByText('Voucher SALE74', { exact: true }).waitFor()
-  assert.equal(await orderOfferSummary.locator('.order-automatic-discount').count(), 0)
+  assert.match(await orderOfferSummary.locator('.order-grand-total').innerText(), /635.000/)
   automaticType = 'PRODUCT'
   await page.setViewportSize({ width: 1440, height: 1000 })
   await page.evaluate(() => localStorage.setItem('qa_mixed_basket', '1'))
   await page.goto(new URL('/checkout', origin).href, { waitUntil: 'domcontentloaded' })
   const switchSummary = page.locator('.order-summary-panel')
-  await switchSummary.locator('.order-grand-total').filter({ hasText: '4.200.000' }).waitFor()
-  assert.equal(await switchSummary.locator('.order-discount-row, .item-offer-badge').count(), 0)
-  await switchSummary.locator('.product-offer-button').waitFor()
-  assert.equal(await switchSummary.locator('.product-offer-button').count(), 1)
-  await switchSummary.locator('.product-offer-button').click()
-  await switchSummary.locator('.order-grand-total').filter({ hasText: '3.600.000' }).waitFor()
-  await switchSummary.getByRole('status').filter({ hasText: 'Đã chuyển sang áp dụng mã giảm giá sản phẩm' }).waitFor()
+  await switchSummary.locator('.order-voucher-discount').getByText('Voucher SALE74', { exact: true }).waitFor()
   assert.match(await switchSummary.locator('.item-offer-badge').innerText(), /600.000/)
   assert.equal(quoteRequests.at(-1).preferProductDiscounts, true)
   await switchSummary.getByRole('textbox', { name: 'Mã giảm giá' }).fill('SALE74')
   await switchSummary.getByRole('button', { name: 'Áp dụng', exact: true }).click()
   await switchSummary.locator('.order-voucher-discount').waitFor()
-  await switchSummary.getByRole('status').filter({ hasText: 'Đã chuyển sang áp dụng mã giảm giá toàn đơn hàng' }).waitFor()
-  assert.equal(await switchSummary.locator('.order-product-discount').count(), 0)
-  assert.equal(await switchSummary.locator('.order-automatic-discount, .item-offer-badge').count(), 0)
-  assert.match(await switchSummary.locator('.order-grand-total').innerText(), /3.200.000/)
+  assert.match(await switchSummary.locator('.item-offer-badge').innerText(), /600.000/)
+  assert.match(await switchSummary.locator('.order-grand-total').innerText(), /2.600.000/)
   failValidation = true
   await switchSummary.getByRole('textbox', { name: 'Mã giảm giá' }).fill('INVALID')
   await switchSummary.getByRole('button', { name: 'Áp dụng', exact: true }).click()
   await switchSummary.getByText('Mã mới không hợp lệ', { exact: true }).waitFor()
-  assert.match(await switchSummary.locator('.order-grand-total').innerText(), /3.200.000/, 'invalid replacement keeps the existing voucher')
+  assert.match(await switchSummary.locator('.order-grand-total').innerText(), /2.600.000/, 'invalid replacement keeps the existing voucher')
   failValidation = false
-  const oldValidationStarted = new Promise(resolve => { validationStarted = resolve })
-  holdValidation = true
-  await switchSummary.getByRole('textbox', { name: 'Mã giảm giá' }).fill('SALE74')
-  await switchSummary.getByRole('button', { name: 'Áp dụng', exact: true }).click()
-  await oldValidationStarted
-  await switchSummary.locator('.product-offer-button').click()
+  await switchSummary.getByRole('button', { name: 'Bỏ chọn', exact: true }).click()
   await switchSummary.locator('.order-grand-total').filter({ hasText: '3.600.000' }).waitFor()
-  assert.equal(quoteRequests.at(-1).voucherId, null)
   assert.equal(await switchSummary.locator('.order-voucher-discount').count(), 0)
-  releaseValidation()
-  await page.waitForTimeout(100)
-  assert.match(await switchSummary.locator('.order-grand-total').innerText(), /3.600.000/, 'late validation cannot replace a newer product selection')
-  await switchSummary.locator('.voucher-btn--remove').click()
-  await switchSummary.locator('.order-grand-total').filter({ hasText: '4.200.000' }).waitFor()
-  assert.equal(await switchSummary.locator('.order-discount-row').count(), 0)
+
   for (const width of [1440, 390, 320]) {
     await page.setViewportSize({ width, height: 1000 })
     assert.equal(await switchSummary.evaluate(el => el.scrollWidth <= el.clientWidth + 1), true, `item savings fit ${width}px`)

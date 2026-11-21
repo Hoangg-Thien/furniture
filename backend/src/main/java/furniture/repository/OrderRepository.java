@@ -134,15 +134,22 @@ public class OrderRepository {
                 """.formatted(values), params.toArray());
     }
 
-    public List<furniture.model.OrderItemDiscount> findProductDiscountLines(Long programId, List<OrderItemDto> items, String label) {
-        var rates = jdbcTemplate.queryForList("SELECT product_id, discount_percent FROM public.product_discounts WHERE promotion_program_id = ? AND CURRENT_TIMESTAMP BETWEEN start_date AND end_date", programId);
+    public List<furniture.model.OrderItemDiscount> findProductDiscountLines(List<OrderItemDto> items) {
+        var rates = jdbcTemplate.queryForList("""
+                SELECT pd.product_id, MAX(pd.discount_percent) AS discount_percent
+                FROM public.product_discounts pd JOIN public.promotion_programs pp ON pp.id = pd.promotion_program_id
+                WHERE pp.status = 'ACTIVE' AND CURRENT_TIMESTAMP BETWEEN pp.start_date AND pp.end_date
+                  AND CURRENT_TIMESTAMP BETWEEN pd.start_date AND pd.end_date
+                GROUP BY pd.product_id
+                """);
         var result = new ArrayList<furniture.model.OrderItemDiscount>();
         for (var item : items) {
             BigDecimal percent = rates.stream().filter(row -> item.productId().equals(((Number) row.get("product_id")).longValue()))
                     .map(row -> (BigDecimal) row.get("discount_percent")).max(BigDecimal::compareTo).orElse(BigDecimal.ZERO);
             BigDecimal amount = item.unitPrice().multiply(BigDecimal.valueOf(item.quantity()));
-            BigDecimal discount = amount.multiply(percent).divide(BigDecimal.valueOf(100), 0, java.math.RoundingMode.HALF_UP).max(BigDecimal.ZERO).min(amount);
-            if (discount.signum() > 0) result.add(new furniture.model.OrderItemDiscount(item.productId(), amount, discount, amount.subtract(discount), label));
+            BigDecimal discount = item.unitPrice().multiply(percent).divide(BigDecimal.valueOf(100), 0, java.math.RoundingMode.HALF_UP)
+                    .multiply(BigDecimal.valueOf(item.quantity())).max(BigDecimal.ZERO).min(amount);
+            if (discount.signum() > 0) result.add(new furniture.model.OrderItemDiscount(item.productId(), amount, discount, amount.subtract(discount), "Ưu đãi sản phẩm"));
         }
         return result;
     }

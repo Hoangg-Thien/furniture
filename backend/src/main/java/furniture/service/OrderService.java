@@ -1,6 +1,7 @@
 package furniture.service;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Year;
 import java.time.ZoneId;
 import java.security.SecureRandom;
@@ -51,7 +52,8 @@ public class OrderService {
         String district = requiredText(req.district(), 150, "quận/huyện");
         String city = requiredText(req.city(), 150, "tỉnh/thành phố");
         String ward = req.ward() == null ? "" : req.ward().trim();
-        if (ward.length() > 150) throw new IllegalArgumentException("Phường/xã quá dài.");
+        if (ward.length() > 150)
+            throw new IllegalArgumentException("Phường/xã quá dài.");
         String fullAddress = address + (ward.isEmpty() ? "" : ", " + ward) + ", " + district + ", " + city;
 
         boolean guest = req.customerId() == null && req.userId() == null;
@@ -64,10 +66,12 @@ public class OrderService {
         }
         validateItems(req.items());
         List<OrderItemDto> pricedItems = new ArrayList<>();
-        // Khóa cùng thứ tự; đọc giá sau khi trừ kho để giá không đổi giữa lúc tính và lưu.
+        // Khóa cùng thứ tự; đọc giá sau khi trừ kho để giá không đổi giữa lúc tính và
+        // lưu.
         for (OrderItemDto item : req.items().stream().sorted(Comparator.comparing(OrderItemDto::productId)).toList()) {
             if (!orderRepository.deductProductStock(item.productId(), item.quantity())) {
-                throw new IllegalArgumentException("Sản phẩm #" + item.productId() + " không đủ tồn kho hoặc đã ngừng bán. Vui lòng cập nhật giỏ hàng.");
+                throw new IllegalArgumentException("Sản phẩm #" + item.productId()
+                        + " không đủ tồn kho hoặc đã ngừng bán. Vui lòng cập nhật giỏ hàng.");
             }
             BigDecimal price = orderRepository.findProductPrice(item.productId());
             pricedItems.add(new OrderItemDto(item.productId(), item.quantity(), price));
@@ -77,12 +81,15 @@ public class OrderService {
         BigDecimal discount = quote.discountAmount();
         BigDecimal shippingFee = quote.shippingFee();
         BigDecimal finalTotal = quote.totalAmount();
-        if (quote.voucherId() != null) orderRepository.incrementVoucherUsedQuantity(quote.voucherId());
+        if (quote.voucherId() != null)
+            orderRepository.incrementVoucherUsedQuantity(quote.voucherId());
         if (guest) {
             customerId = orderRepository.insertGuestCustomer(fullName, phone, fullAddress);
         }
-        Long orderId = orderRepository.insertOrder(customerId, finalTotal, quote.voucherId(), discount, fullAddress, fullName, phone, quote.discountLabel());
-        if (orderId == null) throw new IllegalStateException("Không thể tạo mã đơn hàng trong database.");
+        Long orderId = orderRepository.insertOrder(customerId, finalTotal, quote.voucherId(), discount, fullAddress,
+                fullName, phone, quote.discountLabel());
+        if (orderId == null)
+            throw new IllegalStateException("Không thể tạo mã đơn hàng trong database.");
         String guestToken = null;
         if (guest) {
             byte[] bytes = new byte[32];
@@ -94,9 +101,11 @@ public class OrderService {
             orderRepository.insertOrderItem(orderId, item.productId(), item.quantity(), item.unitPrice(),
                     item.unitPrice().multiply(BigDecimal.valueOf(item.quantity())));
         }
-        String orderCode = "FUNI-" + Year.now(ZoneId.of("Asia/Ho_Chi_Minh")).getValue() + "-" + String.format("%06d", orderId);
+        String orderCode = "FUNI-" + Year.now(ZoneId.of("Asia/Ho_Chi_Minh")).getValue() + "-"
+                + String.format("%06d", orderId);
         return new OrderResponse(orderId, orderCode, "PENDING", finalTotal,
-                "Đặt hàng thành công và đã lưu vào cơ sở dữ liệu!", guestToken, subtotal, discount, shippingFee, pricedItems, quote.voucherId(), quote.voucherCode(), quote.discountLabel());
+                "Đặt hàng thành công và đã lưu vào cơ sở dữ liệu!", guestToken, subtotal, discount, shippingFee,
+                pricedItems, quote.voucherId(), quote.voucherCode(), quote.discountLabel());
     }
 
     public OrderQuote previewOrder(CreateOrderRequest req) {
@@ -113,7 +122,8 @@ public class OrderService {
         return calculateQuote(items, req.voucherId(), customerId, req.preferProductDiscounts());
     }
 
-    private OrderQuote calculateQuote(List<OrderItemDto> items, Long requestedVoucherId, Long customerId, boolean preferProductDiscounts) {
+    private OrderQuote calculateQuote(List<OrderItemDto> items, Long requestedVoucherId, Long customerId,
+            boolean preferProductDiscounts) {
         BigDecimal subtotal = items.stream().map(item -> item.unitPrice().multiply(BigDecimal.valueOf(item.quantity())))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         if (subtotal.compareTo(new BigDecimal("9999999999999.99")) > 0) {
@@ -125,40 +135,63 @@ public class OrderService {
         BigDecimal automaticDiscount = BigDecimal.ZERO;
         BigDecimal voucherDiscount = BigDecimal.ZERO;
         String automaticLabel = null;
-        var productPromotions = orderRepository.findBestPromotion(items, subtotal, true);
-        List<furniture.model.OrderItemDiscount> productOffers = productPromotions.isEmpty() ? List.of()
-                : orderRepository.findProductDiscountLines(((Number) productPromotions.get(0).get("program_id")).longValue(), items, (String) productPromotions.get(0).get("discount_label"));
+        var productOffers = orderRepository.findProductDiscountLines(items);
         List<furniture.model.OrderItemDiscount> itemDiscounts = List.of();
+        if (preferProductDiscounts && !productOffers.isEmpty()) {
+            automaticDiscount = productOffers.stream().map(furniture.model.OrderItemDiscount::discountAmount)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            automaticLabel = "Ưu đãi sản phẩm";
+            discountLabel = automaticLabel;
+            itemDiscounts = productOffers;
+        }
+
+        List<OrderItemDto> voucherCheckItems = items;
+        BigDecimal netSubtotal = subtotal.subtract(automaticDiscount);
+        if (automaticDiscount.signum() > 0) {
+            voucherCheckItems = new ArrayList<>();
+            for (var item : items) {
+                var offer = productOffers.stream().filter(o -> o.productId().equals(item.productId())).findFirst().orElse(null);
+                if (offer != null) {
+                    BigDecimal unitPrice = offer.finalAmount().divide(BigDecimal.valueOf(item.quantity()), 0, RoundingMode.HALF_UP);
+                    voucherCheckItems.add(new OrderItemDto(item.productId(), item.quantity(), unitPrice));
+                } else {
+                    voucherCheckItems.add(item);
+                }
+            }
+        }
+
         if (requestedVoucherId != null) {
             try {
-                var voucher = vouchers.validateVoucher(new ValidateVoucherRequest(orderRepository.findVoucherCode(requestedVoucherId), subtotal, items), customerId, items);
+                var voucher = vouchers.validateVoucher(new ValidateVoucherRequest(
+                        orderRepository.findVoucherCode(requestedVoucherId), netSubtotal, voucherCheckItems), customerId, voucherCheckItems);
                 voucherDiscount = (BigDecimal) voucher.get("discountAmount");
                 voucherId = requestedVoucherId;
                 voucherCode = (String) voucher.get("code");
-                discountLabel = "Voucher " + voucherCode;
                 Long productId = ((Number) voucher.get("productId")).longValue();
                 if (productId > 0) {
-                    var item = items.stream().filter(line -> line.productId().equals(productId)).findFirst().orElseThrow();
+                    var item = items.stream().filter(line -> line.productId().equals(productId)).findFirst()
+                            .orElseThrow();
                     BigDecimal amount = item.unitPrice().multiply(BigDecimal.valueOf(item.quantity()));
-                    itemDiscounts = List.of(new furniture.model.OrderItemDiscount(productId, amount, voucherDiscount, amount.subtract(voucherDiscount), discountLabel));
+                    itemDiscounts = List.of(new furniture.model.OrderItemDiscount(productId, amount, voucherDiscount,
+                            amount.subtract(voucherDiscount), "Voucher " + voucherCode));
                 }
             } catch (IllegalStateException ex) {
                 throw new IllegalArgumentException(ex.getMessage());
             }
         }
-        if (requestedVoucherId == null && preferProductDiscounts && !productOffers.isEmpty()) {
-            itemDiscounts = productOffers;
-            automaticDiscount = itemDiscounts.stream().map(furniture.model.OrderItemDiscount::discountAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
-            automaticLabel = (String) productPromotions.get(0).get("discount_label");
-            discountLabel = automaticLabel;
+        if (voucherCode != null) {
+            discountLabel = automaticLabel != null ? automaticLabel + " + Voucher " + voucherCode
+                    : "Voucher " + voucherCode;
         }
         BigDecimal discount = automaticDiscount.add(voucherDiscount);
-        BigDecimal shippingFee = subtotal.compareTo(new BigDecimal("2000000")) >= 0 ? BigDecimal.ZERO : new BigDecimal("35000");
+        BigDecimal shippingFee = subtotal.compareTo(new BigDecimal("2000000")) >= 0 ? BigDecimal.ZERO
+                : new BigDecimal("35000");
         BigDecimal finalTotal = subtotal.subtract(discount).add(shippingFee);
         if (finalTotal.compareTo(new BigDecimal("9999999999999.99")) > 0) {
             throw new IllegalArgumentException("Giá trị đơn hàng vượt quá giới hạn cho phép.");
         }
-        return new OrderQuote(items, subtotal, discount, shippingFee, finalTotal, voucherId, voucherCode, discountLabel, automaticDiscount, voucherDiscount, automaticLabel, itemDiscounts, productOffers);
+        return new OrderQuote(items, subtotal, discount, shippingFee, finalTotal, voucherId, voucherCode, discountLabel,
+                automaticDiscount, voucherDiscount, automaticLabel, itemDiscounts, productOffers);
     }
 
     private static void validateItems(List<OrderItemDto> items) {

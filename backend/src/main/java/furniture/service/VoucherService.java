@@ -77,7 +77,8 @@ public class VoucherService {
         } catch (java.time.format.DateTimeParseException ex) {
             throw new IllegalArgumentException("Ngày bắt đầu hoặc kết thúc voucher không hợp lệ");
         }
-        if (end.isBefore(start)) throw new IllegalArgumentException("Ngày kết thúc phải sau ngày bắt đầu");
+        if (end.isBefore(start))
+            throw new IllegalArgumentException("Ngày kết thúc phải sau ngày bắt đầu");
         BigDecimal minAmt = req.minimumAmount() != null ? req.minimumAmount() : BigDecimal.ZERO;
         BigDecimal maxDisc = req.maximumDiscount();
         if (minAmt.signum() < 0 || (maxDisc != null && maxDisc.signum() < 0)
@@ -93,7 +94,8 @@ public class VoucherService {
             throw new IllegalStateException("Không thể tạo chương trình ưu đãi");
         }
 
-        voucherRepository.insertVoucher(progId, cleanCode, req.discountPercent(), minAmt, maxDisc, qty, startDate, endDate);
+        voucherRepository.insertVoucher(progId, cleanCode, req.discountPercent(), minAmt, maxDisc, qty, startDate,
+                endDate);
 
         String message = "Đã tạo voucher tạm ngưng, cần admin kiểm tra và kích hoạt trước khi khách sử dụng.";
 
@@ -103,15 +105,16 @@ public class VoucherService {
                 "status", initialStatus);
     }
 
-    public Map<String, Object> validateVoucher(ValidateVoucherRequest req) {
+    public Map<String, Object> validateVoucher(ValidateVoucherRequest req) throws IllegalStateException {
         return validateVoucher(req, null);
     }
 
-    public Map<String, Object> validateVoucher(ValidateVoucherRequest req, Long customerId) {
+    public Map<String, Object> validateVoucher(ValidateVoucherRequest req, Long customerId) throws IllegalStateException {
         return validateVoucher(req, customerId, null);
     }
 
-    public Map<String, Object> validateVoucher(ValidateVoucherRequest req, Long customerId, List<furniture.model.OrderItemDto> pricedOrderItems) {
+    public Map<String, Object> validateVoucher(ValidateVoucherRequest req, Long customerId,
+            List<furniture.model.OrderItemDto> pricedOrderItems) throws IllegalStateException {
         return validateVoucher(req, customerId, pricedOrderItems, false);
     }
 
@@ -126,7 +129,8 @@ public class VoucherService {
         }
 
         BigDecimal subtotal = req.subtotal() != null ? req.subtotal() : BigDecimal.ZERO;
-        if (subtotal.signum() < 0) throw new IllegalArgumentException("Giá trị đơn hàng không được âm");
+        if (subtotal.signum() < 0)
+            throw new IllegalArgumentException("Giá trị đơn hàng không được âm");
         List<Map<String, Object>> rows = voucherRepository.findVoucherWithProgramByCode(req.code());
 
         if (rows.isEmpty()) {
@@ -142,7 +146,8 @@ public class VoucherService {
 
         if (!simulation && !"ACTIVE".equalsIgnoreCase(progStatus)) {
             if ("DRAFT".equalsIgnoreCase(progStatus)) {
-                throw new IllegalStateException("Voucher '" + req.code() + "' hiện đang chờ Admin phê duyệt, chưa thể áp dụng.");
+                throw new IllegalStateException(
+                        "Voucher '" + req.code() + "' hiện đang chờ Admin phê duyệt, chưa thể áp dụng.");
             }
             throw new IllegalStateException("Voucher này hiện không còn hoạt động.");
         }
@@ -168,7 +173,8 @@ public class VoucherService {
             throw new IllegalArgumentException("Loại voucher không hợp lệ");
         }
         if ("VIP".equals(type) && !voucherRepository.isVipCustomer(customerId)) {
-            throw new IllegalArgumentException("Voucher chỉ dành cho khách VIP Diamond có chi tiêu từ đơn hoàn thành đạt 50 triệu đồng");
+            throw new IllegalArgumentException(
+                    "Voucher chỉ dành cho khách VIP Diamond có chi tiêu từ đơn hoàn thành đạt 50 triệu đồng");
         }
         BigDecimal eligibleAmount = subtotal;
         if (req.items() != null) {
@@ -184,13 +190,20 @@ public class VoucherService {
                     throw new IllegalArgumentException("Sản phẩm và số lượng không hợp lệ hoặc bị trùng");
                 }
                 BigDecimal unitPrice = pricedOrderItems == null ? voucherRepository.findProductPrice(item.productId())
-                        : pricedOrderItems.stream().filter(priced -> priced.productId().equals(item.productId())).findFirst()
-                                .orElseThrow(() -> new IllegalArgumentException("Thiếu giá sản phẩm đã kiểm tra")).unitPrice();
+                        : pricedOrderItems.stream().filter(priced -> priced.productId().equals(item.productId()))
+                                .findFirst()
+                                .orElseThrow(() -> new IllegalArgumentException("Thiếu giá sản phẩm đã kiểm tra"))
+                                .unitPrice();
                 BigDecimal amount = unitPrice.multiply(BigDecimal.valueOf(item.quantity()));
                 subtotal = subtotal.add(amount);
                 if (!"PRODUCT".equals(type) || item.productId().equals(((Number) v.get("product_id")).longValue())) {
                     eligibleAmount = eligibleAmount.add(amount);
                 }
+            }
+            if (pricedOrderItems == null && req.subtotal() != null && req.subtotal().compareTo(subtotal) < 0
+                    && !"PRODUCT".equals(type)) {
+                subtotal = req.subtotal();
+                eligibleAmount = req.subtotal();
             }
         } else if ("PRODUCT".equals(type)) {
             throw new IllegalArgumentException("Vui lòng cung cấp sản phẩm trong giỏ để kiểm tra voucher");
@@ -203,7 +216,8 @@ public class VoucherService {
             throw new IllegalArgumentException("Giá trị đơn hàng vượt quá giới hạn cho phép");
         }
 
-        if (eligibleAmount.signum() <= 0) throw new IllegalArgumentException("Không có tiền hàng hợp lệ để áp dụng voucher");
+        if (eligibleAmount.signum() <= 0)
+            throw new IllegalArgumentException("Không có tiền hàng hợp lệ để áp dụng voucher");
 
         BigDecimal minimumAmount = (BigDecimal) v.get("minimum_amount");
         if (minimumAmount != null && subtotal.compareTo(minimumAmount) < 0) {
@@ -215,7 +229,8 @@ public class VoucherService {
         BigDecimal discountPercent = (BigDecimal) v.get("discount_percent");
         BigDecimal maximumDiscount = (BigDecimal) v.get("maximum_discount");
 
-        BigDecimal calculatedDiscount = eligibleAmount.multiply(discountPercent).divide(BigDecimal.valueOf(100), 0, RoundingMode.HALF_UP);
+        BigDecimal calculatedDiscount = eligibleAmount.multiply(discountPercent).divide(BigDecimal.valueOf(100), 0,
+                RoundingMode.HALF_UP);
         if (maximumDiscount != null && maximumDiscount.compareTo(BigDecimal.ZERO) > 0) {
             if (calculatedDiscount.compareTo(maximumDiscount) > 0) {
                 calculatedDiscount = maximumDiscount;
@@ -238,8 +253,8 @@ public class VoucherService {
     }
 
     private String formatMoney(BigDecimal amount) {
-        if (amount == null) return "0₫";
+        if (amount == null)
+            return "0₫";
         return String.format("%,d₫", amount.longValue()).replace(',', '.');
     }
 }
-

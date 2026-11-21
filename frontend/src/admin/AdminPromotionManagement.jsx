@@ -1128,7 +1128,7 @@ export default function AdminPromotionManagement({ currentUser }) {
               {/* TAB 2: GIẢM GIÁ SẢN PHẨM */}
               {activeTab === 'products' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                  <p>Khách chủ động chọn ưu đãi cho sản phẩm trong thời gian chiến dịch. Chọn voucher toàn đơn sẽ thay thế ưu đãi sản phẩm và ngược lại; không cộng dồn, không tự giảm khi chưa chọn.</p>
+                  <p>Giá giảm theo sản phẩm tự động áp dụng trong giỏ hàng và thanh toán khi chiến dịch còn hiệu lực. Chọn voucher sẽ thay thế ưu đãi sản phẩm; bỏ voucher sẽ khôi phục giá giảm sản phẩm, không cộng dồn.</p>
                   {/* Form thêm SP giảm giá */}
                   {canManage && <form
                     className="promotion-discount-form"

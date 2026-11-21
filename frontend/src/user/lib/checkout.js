@@ -9,6 +9,14 @@ export function voucherDiscount(voucher, subtotal) {
   return Math.max(0, Math.min(discount, maximum > 0 ? maximum : subtotal, subtotal))
 }
 
+export function findBestEligibleVoucher(vouchers, subtotal) {
+  if (!Array.isArray(vouchers) || vouchers.length === 0) return null
+  const eligible = vouchers.filter(v => (!v.voucher_type || v.voucher_type === 'ORDER') && Number(v.minimum_amount || 0) <= subtotal)
+  if (!eligible.length) return null
+  const best = eligible.reduce((prev, v) => voucherDiscount(v, subtotal) > voucherDiscount(prev, subtotal) ? v : prev)
+  return voucherDiscount(best, subtotal) > 0 ? best : null
+}
+
 export function suggestedVoucher(vouchers, subtotal) {
   if (!Array.isArray(vouchers) || vouchers.length === 0) return null
   // shortcut: suggestions cover order vouchers, check product/VIP eligibility before suggesting those types.

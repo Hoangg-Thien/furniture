@@ -26,6 +26,7 @@ try {
       if (offline) return route.abort('failed')
       if (failQuote) return route.fulfill({ status: 503, json: { error: 'Không thể kiểm tra ưu đãi lúc này' } })
       const request = route.request().postDataJSON()
+      assert.equal(request.preferProductDiscounts, true)
       const appliedPercent = discountPercent
       const items = request.items.map(item => ({ ...item, unitPrice: 100000 }))
       const subtotal = items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0)
@@ -62,8 +63,8 @@ try {
   assert.equal(await add.isDisabled(), true)
   await page.getByRole('button', { name: /Mở giỏ hàng/ }).click()
   const summary = page.locator('.cart-summary')
-  await summary.locator('.subtotal strong').filter({ hasText: /^200\.000₫$/ }).waitFor()
-  assert.equal(await page.locator('.cart-promotion, .item-offer-badge, .item-offer-prices del').count(), 0)
+  await summary.locator('.subtotal strong').filter({ hasText: /^100\.000₫$/ }).waitFor()
+  await page.locator('.item-offer-prices del').waitFor()
   for (const width of [1440, 390, 320]) {
     await page.setViewportSize({ width, height: 1000 })
     assert.equal(await summary.evaluate(el => el.scrollWidth <= el.clientWidth + 1), true, `cart promotion fits ${width}px`)
@@ -74,21 +75,21 @@ try {
   assert.equal(await plus.isDisabled(), true)
   await page.getByRole('button', { name: 'Giảm số lượng Ghế giới hạn', exact: true }).click()
   assert.equal(await plus.isEnabled(), true)
-  await summary.locator('.subtotal strong').filter({ hasText: /^100\.000₫$/ }).waitFor()
+  await summary.locator('.subtotal strong').filter({ hasText: /^50\.000₫$/ }).waitFor()
   await plus.click()
   assert.equal(await plus.isDisabled(), true)
   assert.equal((await page.locator('.quantity-control span').innerText()).trim(), '2')
-  await summary.locator('.subtotal strong').filter({ hasText: /^200\.000₫$/ }).waitFor()
+  await summary.locator('.subtotal strong').filter({ hasText: /^100\.000₫$/ }).waitFor()
   const oldQuoteStarted = new Promise(resolve => { quoteStarted = resolve })
   holdNextQuote = true
   await page.getByRole('button', { name: 'Giảm số lượng Ghế giới hạn', exact: true }).click()
   await oldQuoteStarted
   assert.equal(await summary.locator('.subtotal').count(), 0, 'changing quantity must hide the previous total while pricing')
   await plus.click()
-  await summary.locator('.subtotal strong').filter({ hasText: /^200\.000₫$/ }).waitFor()
+  await summary.locator('.subtotal strong').filter({ hasText: /^100\.000₫$/ }).waitFor()
   releaseQuote()
   await page.waitForTimeout(100)
-  assert.match(await summary.locator('.subtotal strong').innerText(), /^200\.000₫$/, 'late response must not overwrite the current cart')
+  assert.match(await summary.locator('.subtotal strong').innerText(), /^100\.000₫$/, 'late response must not overwrite the current cart')
   discountPercent = 0
   await page.evaluate(() => window.dispatchEvent(new Event('focus')))
   await summary.locator('.subtotal strong').filter({ hasText: /^200\.000₫$/ }).waitFor()
@@ -101,7 +102,7 @@ try {
   failQuote = false
   discountPercent = 50
   await summary.getByRole('button', { name: 'Thử lại', exact: true }).click()
-  await summary.locator('.subtotal strong').filter({ hasText: /^200\.000₫$/ }).waitFor()
+  await summary.locator('.subtotal strong').filter({ hasText: /^100\.000₫$/ }).waitFor()
   await page.locator('.cart-drawer').screenshot({ path: fileURLToPath(new URL('../artifacts/cart-promotion-desktop.png', import.meta.url)), animations: 'disabled' })
 
   await page.evaluate(timeout => localStorage.setItem('furniture_cart', JSON.stringify({ items: { 1: 99, 2: 3, 999: 1 }, expiresAt: Date.now() + timeout })), CART_TIMEOUT_MS)
@@ -129,7 +130,7 @@ try {
   assert.equal(await plus.isDisabled(), true)
   assert.equal(await page.getByRole('button', { name: /Tiếp tục đặt hàng/ }).isDisabled(), true)
   assert.deepEqual(errors, [])
-  console.log('PASS cart promotions: no implicit savings, quantity changes, promotion refresh, failed quote/retry, mobile; stock limits: rapid clicks stop at 2, cart +/- buttons, unavailable stock, saved cart correction, focus refresh, sold out, reorder 99 capped to 2, offline checkout blocked')
+  console.log('PASS cart promotions: automatic product savings, quantity changes, promotion refresh, failed quote/retry, mobile; stock limits: rapid clicks stop at 2, cart +/- buttons, unavailable stock, saved cart correction, focus refresh, sold out, reorder 99 capped to 2, offline checkout blocked')
 } finally {
   await browser.close()
   await server.close()

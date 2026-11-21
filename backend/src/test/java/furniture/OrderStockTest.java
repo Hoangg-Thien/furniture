@@ -331,6 +331,27 @@ class OrderStockTest {
         }
     }
 
+    @Test
+    void displayedProductOffersFromDifferentCampaignsApplyTogetherAndVoucherReplacesThem() {
+        jdbc.execute("INSERT INTO promotion_programs (id, name, status, start_date, end_date) VALUES (2, 'Other', 'ACTIVE', CURRENT_TIMESTAMP - INTERVAL '1' DAY, CURRENT_TIMESTAMP + INTERVAL '1' DAY)");
+        jdbc.execute("INSERT INTO product_discounts VALUES (1, 1, 20, CURRENT_TIMESTAMP - INTERVAL '1' DAY, CURRENT_TIMESTAMP + INTERVAL '1' DAY), (2, 2, 50, CURRENT_TIMESTAMP - INTERVAL '1' DAY, CURRENT_TIMESTAMP + INTERVAL '1' DAY), (2, 1, 10, CURRENT_TIMESTAMP - INTERVAL '1' DAY, CURRENT_TIMESTAMP + INTERVAL '1' DAY)");
+        var items = List.of(item(1, 1), item(2, 1));
+        var request = new CreateOrderRequest(null, null, "Receiver", "0901234567", "Street", null, "District", "City", BigDecimal.ZERO, null, BigDecimal.ZERO, items, true);
+        var quote = orders.previewOrder(request);
+        assertEquals(2, quote.itemDiscounts().size());
+        assertEquals(0, new BigDecimal("7").compareTo(quote.discountAmount()));
+        var placed = transaction.execute(tx -> orders.createOrder(request));
+        assertEquals(quote.totalAmount(), placed.totalAmount());
+        assertEquals(0, new BigDecimal("7").compareTo(jdbc.queryForObject("SELECT discount_amount FROM orders WHERE id = ?", BigDecimal.class, placed.orderId())));
+        assertTrue(cancel(placed.orderId()));
+        var voucher = orders.previewOrder(new CreateOrderRequest(null, null, "Receiver", "0901234567", "Street", null, "District", "City", BigDecimal.ZERO, 1L, BigDecimal.ZERO, items, true));
+        assertEquals(0, new BigDecimal("2").compareTo(voucher.discountAmount()));
+        assertEquals(0, voucher.automaticDiscountAmount().signum());
+        jdbc.update("UPDATE products SET selling_price = 11 WHERE id = 1");
+        var rounded = orders.previewOrder(new CreateOrderRequest(null, null, "Receiver", "0901234567", "Street", null, "District", "City", BigDecimal.ZERO, null, BigDecimal.ZERO, List.of(item(1, 3)), true));
+        assertEquals(0, new BigDecimal("27").compareTo(rounded.itemDiscounts().get(0).finalAmount()));
+    }
+
     private OrderResponse buy(OrderItemDto... items) {
         return transaction.execute(tx -> orders.createOrder(new CreateOrderRequest(
                 1L, 1L, "Customer", "0901234567", "New address", null, "District", "City",
