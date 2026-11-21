@@ -95,6 +95,8 @@ public class AdminAccessInterceptor implements HandlerInterceptor {
         if ("GET".equals(method) && path.matches("/api/admin/(products|categories)(/\\d+)?")) return true;
         return switch (user.staffType()) {
             case "SALES" -> ("GET".equals(method) && path.matches("/api/admin/promotions(/.*)?"))
+                    || ("POST".equals(method) && path.matches("/api/admin/promotions/\\d+/vouchers"))
+                    || ("PUT".equals(method) && path.matches("/api/admin/promotions/vouchers/\\d+(/status)?"))
                     || ("POST".equals(method) && path.matches("/api/admin/promotions/vouchers/\\d+/check"))
                     || ("GET".equals(method) && path.matches("/api/admin/(orders|invoices|customers)(/\\d+|/counts|/eligible-orders|/export|/\\d+/pdf)?"))
                     || ("PUT".equals(method) && path.matches("/api/admin/orders/\\d+/(confirm|cancel|ship|complete)"))

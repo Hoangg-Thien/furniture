@@ -19,6 +19,10 @@ export async function loadProducts() {
         name: row.name,
         category: row.category ?? 'Khác',
         price: Number(row.price),
+        discountPercent: row.discountPercent,
+        discountedPrice: row.discountedPrice,
+        soldQuantity: row.soldQuantity ?? null,
+        bestSeller: row.bestSeller === true,
         badge: '',
         image: productImageUrl(row.imageUrl),
         quantity: Number.isSafeInteger(row.quantity) && row.quantity >= 0 ? row.quantity : null,
@@ -43,7 +47,7 @@ export async function loadProducts() {
       if (cached) {
         const parsed = JSON.parse(cached)
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return { products: parsed.map(product => ({ ...product, quantity: null })), error }
+          return { products: parsed.map(product => ({ ...product, quantity: null, discountPercent: null, discountedPrice: null, soldQuantity: null, bestSeller: false })), error }
         }
       }
     } catch {

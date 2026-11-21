@@ -14,6 +14,8 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestAttribute;
+import furniture.model.admin.AdminIdentity;
 import org.springframework.web.bind.annotation.RestController;
 
 import furniture.model.admin.promotion.CreateOrderDiscountRequest;
@@ -240,11 +242,15 @@ public class AdminPromotionController {
     public ResponseEntity<?> updateVoucherStatus(
             @PathVariable Long voucherId,
             @RequestParam(required = false) String status,
-            @RequestBody(required = false) Map<String, String> body) {
+            @RequestBody(required = false) Map<String, String> body,
+            @RequestAttribute(value = AdminIdentity.ATTRIBUTE, required = false) AdminIdentity identity) {
         try {
             String newStatus = status;
             if (newStatus == null && body != null) {
                 newStatus = body.get("status");
+            }
+            if (identity != null && "STAFF".equals(identity.role()) && !"INACTIVE".equalsIgnoreCase(newStatus == null ? "" : newStatus.trim())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", "Chỉ admin được kích hoạt voucher"));
             }
             adminPromotionService.updateVoucherStatus(voucherId, newStatus);
             return ResponseEntity.ok(Map.of("message", "Đã cập nhật trạng thái voucher"));
@@ -258,8 +264,10 @@ public class AdminPromotionController {
     @DeleteMapping("/vouchers/{voucherId}")
     public ResponseEntity<?> deleteVoucher(@PathVariable Long voucherId) {
         try {
-            adminPromotionService.deleteVoucher(voucherId);
-            return ResponseEntity.ok(Map.of("message", "Đã lưu trữ voucher; lịch sử đơn hàng được giữ nguyên"));
+            boolean archived = adminPromotionService.deleteVoucher(voucherId);
+            return ResponseEntity.ok(Map.of("archived", archived, "message", archived
+                    ? "Đã lưu trữ voucher; lịch sử đơn hàng được giữ nguyên"
+                    : "Đã xóa vĩnh viễn voucher chưa từng sử dụng"));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", e.getMessage()));
         } catch (IllegalStateException e) {

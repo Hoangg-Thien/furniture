@@ -27,9 +27,12 @@ import {
 } from 'lucide-react'
 import { getApiBaseUrl, getApiHeaders } from '../lib/apiConfig'
 import { VOUCHER_TYPE_LABELS } from '../lib/vouchers'
+import AdminConfirmModal from './AdminConfirmModal'
 
 export default function AdminPromotionManagement({ currentUser }) {
   const canManage = currentUser?.role === 'ADMIN'
+  const canEditVouchers = canManage || (currentUser?.role === 'STAFF' && currentUser.staffType === 'SALES')
+  const [deletingVoucher, setDeletingVoucher] = useState(null)
   const [programs, setPrograms] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -95,7 +98,7 @@ export default function AdminPromotionManagement({ currentUser }) {
     minimumAmount: 5000000,
     maximumDiscount: 1000000,
     quantity: 100,
-    status: 'ACTIVE'
+    status: 'INACTIVE'
   })
   const [voucherTarget, setVoucherTarget] = useState(null)
   const [voucherFilter, setVoucherFilter] = useState('ALL')
@@ -165,10 +168,14 @@ export default function AdminPromotionManagement({ currentUser }) {
     const previousFocus = document.activeElement
     const previousOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
-    const dialog = document.querySelector('.admin-promotion-management [role="dialog"]')
+    const dialog = [...document.querySelectorAll('.admin-promotion-management [role="dialog"]')].at(-1)
     const focusable = () => [...(dialog?.querySelectorAll('button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex="0"]') || [])].filter(el => el.getClientRects().length)
     focusable()[0]?.focus()
     const handleKey = (event) => {
+      if (event.key === 'Escape' && !saving && deletingVoucher) {
+        setDeletingVoucher(null)
+        return
+      }
       if (event.key === 'Escape' && !saving) {
         setShowProgramModal(false)
         setShowDetailModal(false)
@@ -189,7 +196,7 @@ export default function AdminPromotionManagement({ currentUser }) {
       document.removeEventListener('keydown', handleKey)
       previousFocus?.focus()
     }
-  }, [modalOpen, saving, loadingDetail])
+  }, [modalOpen, saving, loadingDetail, deletingVoucher])
 
   // Format currency
   const formatCurrency = (val) => {
@@ -482,7 +489,7 @@ export default function AdminPromotionManagement({ currentUser }) {
         minimumAmount: 5000000,
         maximumDiscount: 1000000,
         quantity: 100,
-        status: 'ACTIVE'
+        status: 'INACTIVE'
       })
     } catch (err) {
       setDetailError(err.message)
@@ -628,9 +635,9 @@ export default function AdminPromotionManagement({ currentUser }) {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Lỗi phát hành voucher.')
-      showToast(voucherTarget?.mode === 'replace' ? `Đã tạo ${data.code} thay thế và tạm ngưng ${voucherTarget.voucher.code}` : `Đã lưu voucher ${data.code}`)
+      showToast(voucherTarget?.mode === 'replace' ? `Đã tạo ${data.code} tạm ngưng thay thế ${voucherTarget.voucher.code}` : `Đã lưu voucher ${data.code} ở trạng thái tạm ngưng`)
       setVoucherTarget(null)
-      setVoucherForm({ code: '', discountPercent: 10, minimumAmount: 0, maximumDiscount: '', quantity: 100, status: 'ACTIVE' })
+      setVoucherForm({ code: '', discountPercent: 10, minimumAmount: 0, maximumDiscount: '', quantity: 100, status: 'INACTIVE' })
       refreshDetail()
     } catch (err) {
       showToast(err.message, 'error')
@@ -660,6 +667,7 @@ export default function AdminPromotionManagement({ currentUser }) {
 
   // Delete Voucher
   const handleDeleteVoucher = async (voucherId) => {
+    setSubmittingVoucher(true)
     try {
       const baseUrl = getApiBaseUrl()
       const res = await fetch(`${baseUrl}/api/admin/promotions/vouchers/${voucherId}`, {
@@ -668,17 +676,20 @@ export default function AdminPromotionManagement({ currentUser }) {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Không thể xóa voucher.')
-      showToast('Đã lưu trữ voucher. Giữ nguyên lịch sử đơn hàng.')
+      showToast(data.message)
+      setDeletingVoucher(null)
       refreshDetail()
     } catch (err) {
       showToast(err.message, 'error')
+    } finally {
+      setSubmittingVoucher(false)
     }
   }
 
   function prepareVoucher(voucher, mode) {
     setVoucherTarget({ voucher, mode })
     setVoucherForm({ ...voucher, code: mode === 'replace' ? '' : voucher.code,
-      status: mode === 'replace' ? 'ACTIVE' : voucher.status,
+      status: 'INACTIVE',
       maximumDiscount: voucher.maximumDiscount ?? '' })
     voucherFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     voucherFormRef.current?.querySelector('input')?.focus({ preventScroll: true })
@@ -1189,9 +1200,7 @@ export default function AdminPromotionManagement({ currentUser }) {
                       <thead>
                         <tr>
                           <th>Sản Phẩm Nội Thất</th>
-                          <th style={{ textAlign: 'right' }}>Giá Gốc</th>
-                          <th style={{ textAlign: 'center' }}>% Giảm</th>
-                          <th style={{ textAlign: 'right' }}>Giá Sau Giảm</th>
+                          <th>Giá ưu đãi</th>
                           <th style={{ textAlign: 'center', width: '80px' }}>Gỡ Bỏ</th>
                         </tr>
                       </thead>
@@ -1211,16 +1220,12 @@ export default function AdminPromotionManagement({ currentUser }) {
                                 </div>
                               </div>
                             </td>
-                            <td style={{ textAlign: 'right', color: '#64748b', textDecoration: 'line-through' }}>
-                              {formatCurrency(pd.sellingPrice)}
-                            </td>
-                            <td style={{ textAlign: 'center' }}>
-                              <span style={{ padding: '0.2rem 0.5rem', background: '#fef2f2', color: '#dc2626', borderRadius: '4px', fontWeight: 700, fontSize: '0.82rem' }}>
-                                -{pd.discountPercent}%
-                              </span>
-                            </td>
-                            <td style={{ textAlign: 'right', fontWeight: 700, color: '#047857' }}>
-                              {formatCurrency(pd.discountedPrice)}
+                            <td>
+                              <div className="promotion-product-prices">
+                                <del aria-label="Giá gốc">{formatCurrency(pd.sellingPrice)}</del>
+                                <span>-{pd.discountPercent}%</span>
+                                <strong aria-label="Giá ưu đãi">{formatCurrency(pd.discountedPrice)}</strong>
+                              </div>
                             </td>
                             <td style={{ textAlign: 'center' }}>
                               <button
@@ -1353,7 +1358,7 @@ export default function AdminPromotionManagement({ currentUser }) {
               {activeTab === 'vouchers' && (
                 <div className="promotion-vouchers">
                   {/* Form phát hành Voucher mới */}
-                  {canManage && <form
+                  {canEditVouchers && <form
                     onSubmit={handleCreateVoucher}
                     ref={voucherFormRef}
                     className="promotion-voucher-form"
@@ -1368,13 +1373,13 @@ export default function AdminPromotionManagement({ currentUser }) {
                     }}
                   >
                     <div style={{ fontWeight: 600, color: '#1e293b', fontSize: '0.9rem' }}>
-                      {voucherTarget ? `${voucherTarget.mode === 'edit' ? 'Sửa voucher' : 'Tạo mã mới thay thế'} ${voucherTarget.voucher.code}` : 'Phát hành voucher VIP cho chiến dịch này'}
+                      {voucherTarget ? `${voucherTarget.mode === 'edit' ? 'Sửa voucher' : 'Tạo mã mới thay thế'} ${voucherTarget.voucher.code}` : 'Tạo voucher VIP tạm ngưng'}
                     </div>
 
-                    <p>{voucherTarget ? `Loại: ${VOUCHER_TYPE_LABELS[voucherTarget.voucher.voucherType || 'ORDER']}. ${voucherTarget.mode === 'replace' ? 'Dùng mã khác. Khi lưu thành công, mã cũ tự tạm ngưng; đơn đã sử dụng giữ nguyên giá trị.' : 'Chỉ sửa voucher chưa từng có đơn sử dụng.'}` : 'Phát hành mã dành cho khách VIP Diamond. Khách phải chủ động chọn mã; không tự giảm tiền khi chưa chọn.'}</p>
+                    <p>{voucherTarget ? `Loại: ${VOUCHER_TYPE_LABELS[voucherTarget.voucher.voucherType || 'ORDER']}. ${voucherTarget.mode === 'replace' ? 'Mã mới được tạo ở trạng thái tạm ngưng; mã cũ tự tạm ngưng. Đơn đã sử dụng giữ nguyên giá trị.' : 'Chỉ sửa mã tạm ngưng chưa từng có đơn sử dụng.'}` : 'Mã mới luôn tạm ngưng. Kiểm tra thử rồi nhấn trạng thái trong danh sách để admin kích hoạt. Chỉ khách VIP Diamond được sử dụng.'}</p>
                     {voucherTarget && <button type="button" className="admin-btn admin-btn-outline" disabled={submittingVoucher} onClick={() => {
                       setVoucherTarget(null)
-                      setVoucherForm({ code: '', discountPercent: 10, minimumAmount: 0, maximumDiscount: '', quantity: 100, status: 'ACTIVE' })
+                      setVoucherForm({ code: '', discountPercent: 10, minimumAmount: 0, maximumDiscount: '', quantity: 100, status: 'INACTIVE' })
                     }}>Hủy chỉnh sửa</button>}
 
                     <div className="promotion-voucher-grid">
@@ -1455,7 +1460,7 @@ export default function AdminPromotionManagement({ currentUser }) {
                         className="btn-admin btn-admin-primary"
                         disabled={submittingVoucher}
                       >
-                        <Plus size={15} /> {submittingVoucher ? 'Đang lưu...' : voucherTarget?.mode === 'edit' ? 'Lưu thay đổi' : voucherTarget ? 'Tạo mã thay thế' : 'Phát Hành Voucher'}
+                        <Plus size={15} /> {submittingVoucher ? 'Đang lưu...' : voucherTarget?.mode === 'edit' ? 'Lưu thay đổi' : voucherTarget ? 'Tạo mã thay thế' : 'Tạo voucher tạm ngưng'}
                       </button>
                     </div>
                   </form>}
@@ -1540,7 +1545,7 @@ export default function AdminPromotionManagement({ currentUser }) {
                                     cursor: 'pointer',
                                     padding: 0
                                   }}
-                                  disabled={!canManage || v.archived} onClick={() => handleToggleVoucherStatus(v)}
+                                  disabled={!canEditVouchers || v.archived || (!canManage && v.status !== 'ACTIVE')} onClick={() => handleToggleVoucherStatus(v)}
                                   className="promotion-voucher-status"
                                   title="Bật/Tắt mã voucher"
                                 >
@@ -1563,14 +1568,14 @@ export default function AdminPromotionManagement({ currentUser }) {
                               </td>
                               <td style={{ textAlign: 'center' }}>
                                 <div className="promotion-voucher-actions">
-                                  <button type="button" className="admin-btn admin-btn-outline" disabled={!canManage || v.archived || v.usedQuantity > 0 || v.ordersCount > 0} title={v.usedQuantity > 0 || v.ordersCount > 0 ? 'Đã có lịch sử sử dụng; hãy tạo mã mới thay thế' : 'Sửa voucher chưa dùng'} onClick={() => prepareVoucher(v, 'edit')}>Sửa</button>
+                                  <button type="button" className="admin-btn admin-btn-outline" disabled={!canEditVouchers || v.archived || v.status !== 'INACTIVE' || v.usedQuantity > 0 || v.ordersCount > 0} title={v.usedQuantity > 0 || v.ordersCount > 0 ? 'Đã có lịch sử sử dụng; hãy tạo mã mới thay thế' : 'Sửa voucher chưa dùng'} onClick={() => prepareVoucher(v, 'edit')}>Sửa</button>
                                   <button type="button" className="admin-btn admin-btn-outline" disabled={!canManage || v.archived} onClick={() => prepareVoucher(v, 'replace')}>Tạo mã thay thế</button>
                                   <button type="button" className="admin-btn admin-btn-outline" onClick={() => viewVoucherOrders(v)}>Lịch sử ({v.ordersCount || 0})</button>
                                 <button
                                   className="btn-action btn-action-danger"
                                   style={{ width: '28px', height: '28px' }}
-                                  disabled={!canManage || v.archived} onClick={() => handleDeleteVoucher(v.id)}
-                                  title="Lưu trữ voucher"
+                                  disabled={!canManage || v.archived} onClick={() => setDeletingVoucher(v)}
+                                  title={v.usedQuantity > 0 || v.ordersCount > 0 ? 'Lưu trữ voucher' : 'Xóa vĩnh viễn voucher'}
                                 >
                                   <Trash2 size={14} />
                                 </button>
@@ -1587,7 +1592,7 @@ export default function AdminPromotionManagement({ currentUser }) {
                     <summary>Kiểm tra số tiền giảm thực tế</summary>
                   <form onSubmit={handleCheckVoucher} className="promotion-voucher-check admin-card" aria-label="Kiểm tra voucher">
                     <h3>Kiểm tra số tiền giảm thực tế</h3>
-                    <p>Kiểm tra điều kiện và số tiền giảm trước khi áp dụng. Không trừ lượt sử dụng; chưa gồm phí giao hàng. Khi đặt hàng, khách có thể chuyển sang voucher toàn đơn hoặc chọn lại ưu đãi sản phẩm, không cộng dồn.</p>
+                    <p>Mô phỏng số tiền giảm, kể cả khi mã tạm ngưng hoặc chưa đến ngày áp dụng. Không kích hoạt mã, không trừ lượt dùng hay tồn kho; vẫn kiểm tra giỏ hàng và điều kiện VIP.</p>
                     <div className="promotion-voucher-grid">
                       <div><label htmlFor="check-voucher" className="admin-form-label">Voucher cần kiểm tra</label>
                         <select id="check-voucher" className="admin-form-input" required value={voucherCheck.voucherId} onChange={e => changeVoucherCheck({ ...voucherCheck, voucherId: e.target.value })}>
@@ -1613,7 +1618,8 @@ export default function AdminPromotionManagement({ currentUser }) {
                       <button type="submit" className="admin-btn admin-btn-primary" disabled={checking || !detailData.vouchers.length}>{checking ? 'Đang kiểm tra...' : 'Kiểm tra voucher'}</button>
                     </div>
                     {checkError && <p role="alert">{checkError}</p>}
-                    {checkResult && <div role="status"><strong>Voucher hợp lệ: {checkResult.code}</strong>
+                    {checkResult && <div role="status"><strong>Kết quả kiểm tra thử: {checkResult.code}</strong>
+                      {checkResult.warnings?.map(warning => <p key={warning}>{warning} — đây chỉ là mô phỏng, khách chưa thể dùng mã.</p>)}
                       <p>Tiền hàng: {formatCurrency(checkResult.subtotal)} · Ưu đãi tự động: {formatCurrency(checkResult.automaticDiscountAmount || 0)} · Voucher giảm: <strong>{formatCurrency(checkResult.discountAmount)}</strong> · Còn lại: {formatCurrency(checkResult.finalTotal)}</p>
                     </div>}
                   </form>
@@ -1697,6 +1703,16 @@ export default function AdminPromotionManagement({ currentUser }) {
           </div>
         </div>
       )}
+      <AdminConfirmModal
+        isOpen={!!deletingVoucher}
+        title={deletingVoucher && (deletingVoucher.usedQuantity > 0 || deletingVoucher.ordersCount > 0) ? 'Lưu trữ voucher' : 'Xóa vĩnh viễn voucher'}
+        message={deletingVoucher && (deletingVoucher.usedQuantity > 0 || deletingVoucher.ordersCount > 0)
+          ? `Lưu trữ ${deletingVoucher.code}? Khách không thể dùng mã nữa; lịch sử đơn hàng được giữ nguyên.`
+          : `Xóa vĩnh viễn ${deletingVoucher?.code}? Mã chưa từng dùng sẽ bị xóa và không thể khôi phục. Nếu có lịch sử phát sinh, hệ thống sẽ chỉ lưu trữ.`}
+        isLoading={submittingVoucher}
+        onCancel={() => { if (!submittingVoucher) setDeletingVoucher(null) }}
+        onConfirm={() => handleDeleteVoucher(deletingVoucher.id)}
+      />
     </div>
   )
 }

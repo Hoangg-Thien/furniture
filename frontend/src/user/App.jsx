@@ -14,6 +14,7 @@ import {
   ShoppingBag,
   SlidersHorizontal,
   Tag,
+  TrendingUp,
   Upload,
   User,
   X,
@@ -61,6 +62,10 @@ function App() {
   const [currentRoute, setCurrentRoute] = useState(() => getCurrentRoute())
 
   function handleBackToStore() {
+    if (currentRoute === 'admin' && (adminUser?.role === 'ADMIN' || adminUser?.role === 'STAFF')) {
+      try { sessionStorage.setItem('furniture_store_preview', 'true') } catch { /* Keep preview in memory if storage is blocked. */ }
+      setStorePreview(true)
+    }
     window.history.pushState(null, '', '/')
     setCurrentRoute('store')
   }
@@ -150,8 +155,19 @@ function App() {
   const [productFormOpen, setProductFormOpen] = useState(false)
   const [productImagePreview, setProductImagePreview] = useState('')
   const [notice, setNotice] = useState('')
-  const [currentUser, setCurrentUser] = useState(() => getCurrentUser())
+  const [customerUser, setCurrentUser] = useState(() => getCurrentUser())
   const [adminUser, setAdminUser] = useState(() => getCurrentAdminUser())
+  const [storePreview, setStorePreview] = useState(() => {
+    try { return sessionStorage.getItem('furniture_store_preview') === 'true' } catch { return false }
+  })
+  const storeReadOnly = storePreview && (adminUser?.role === 'ADMIN' || adminUser?.role === 'STAFF')
+  const currentUser = storeReadOnly ? null : customerUser
+  useEffect(() => {
+    if (currentRoute === 'admin') {
+      try { sessionStorage.removeItem('furniture_store_preview') } catch { /* Preview still resets in memory. */ }
+      setStorePreview(false)
+    }
+  }, [currentRoute])
   const [authOpen, setAuthOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const [accountOpen, setAccountOpen] = useState(false)
@@ -321,6 +337,7 @@ function App() {
   useEffect(() => {
     let cancelled = false
     async function restoreOrderFromUrlOrStorage() {
+      if (storeReadOnly) return
       if (isCheckoutPath(window.location.pathname)) {
         setCompletedOrder(null)
         if (Object.keys(loadCart()).length === 0) {
@@ -422,7 +439,7 @@ function App() {
       cancelled = true
       window.removeEventListener('popstate', handlePopState)
     }
-  }, [currentUser?.customerId])
+  }, [currentUser?.customerId, storeReadOnly])
 
   // Khóa cuộn nền khi mở giỏ hoặc đặt hàng; Escape đóng giỏ hàng.
   useEffect(() => {
@@ -484,6 +501,7 @@ function App() {
 
 
   function updateQuantity(productId, change) {
+    if (storeReadOnly) return
     const now = Date.now()
     setCartExpiresAt(now + CART_TIMEOUT_MS)
     setCartExpired(false)
@@ -498,6 +516,7 @@ function App() {
   }
 
   function handleAddToCart(product, event) {
+    if (storeReadOnly) return
     if (event) event.stopPropagation()
     if ((cart[product.id] || 0) >= getProductStock(product)) return
     updateQuantity(product.id, 1)
@@ -538,6 +557,7 @@ function App() {
   }
 
   function placeOrder() {
+    if (storeReadOnly) return
     if (Date.now() >= cartExpiresAt) {
       setCart({})
       setCartExpiresAt(0)
@@ -561,6 +581,7 @@ function App() {
   }
 
   function handleReorder(items) {
+    if (storeReadOnly) return
     if (!items || items.length === 0) return
     const availableItems = items.filter((item) =>
       products.some((product) => String(product.id) === String(item.productId || item.product_id || item.id) && getProductStock(product) > 0)
@@ -660,8 +681,8 @@ function App() {
 
   return (
     <div className="storefront">
-      {adminUser?.role === 'ADMIN' && (
-        <div className="toast admin-store-notice" role="status">Bạn đang xem cửa hàng với vai trò admin.</div>
+      {storeReadOnly && (
+        <div className="toast admin-store-notice" role="status">Bạn đang xem cửa hàng với vai trò {adminUser.role === 'ADMIN' ? 'admin' : 'nhân viên'}. Chỉ xem, không thể mua hàng.</div>
       )}
       <div className="announcement">
         <span>Giao hàng miễn phí cho đơn từ 2.000.000₫</span>
@@ -726,6 +747,8 @@ function App() {
               }}
             />
           </label>
+          {storeReadOnly && <a className="user-logged-box" href="/admin"><User size={15} /><span>{adminUser.fullName || adminUser.username} · {adminUser.role === 'ADMIN' ? 'Admin' : 'Nhân viên'}</span></a>}
+          {!storeReadOnly && <>
           <NotificationsMenu
             key={`notifications-${currentUser?.customerId || 'guest'}`}
             customerId={currentUser?.customerId}
@@ -821,6 +844,7 @@ function App() {
               <span>Đăng nhập</span>
             </button>
           )}
+          </>}
         </div>
       </header>
 
@@ -850,7 +874,7 @@ function App() {
       </nav>
 
       {currentRoute === 'orders' ? (
-        currentUser?.customerId ? (
+        !storeReadOnly && currentUser?.customerId ? (
           <MyOrdersPage
             key={`orders-${currentUser.customerId}`}
             onClose={handleBackToStore}
@@ -862,8 +886,8 @@ function App() {
         ) : (
           <main className="orders-page shopee-orders-empty" id="top">
             <h1>Lịch sử đơn hàng</h1>
-            <p>Đăng nhập để xem và theo dõi đơn hàng của bạn.</p>
-            <button className="shopee-btn shopee-btn-detail" type="button" onClick={() => setAuthOpen(true)}>Đăng nhập</button>
+            <p>{storeReadOnly ? 'Chế độ xem cửa hàng không hỗ trợ mua hàng hoặc xem đơn hàng cá nhân.' : 'Đăng nhập để xem và theo dõi đơn hàng của bạn.'}</p>
+            {!storeReadOnly && <button className="shopee-btn shopee-btn-detail" type="button" onClick={() => setAuthOpen(true)}>Đăng nhập</button>}
           </main>
         )
       ) : (
@@ -1041,10 +1065,10 @@ function App() {
                       className={`quick-add ${justAddedId === product.id ? 'is-added' : ''} ${cart[product.id] > 0 ? 'has-in-cart' : ''}`}
                       type="button"
                       aria-label={`Thêm ${product.name} vào giỏ hàng`}
-                      disabled={(cart[product.id] || 0) >= getProductStock(product)}
+                      disabled={storeReadOnly || (cart[product.id] || 0) >= getProductStock(product)}
                       onClick={(e) => handleAddToCart(product, e)}
                     >
-                      {getProductStock(product) === 0 ? (
+                      {storeReadOnly ? <span>Chỉ xem</span> : getProductStock(product) === 0 ? (
                         <span>{product.quantity == null ? 'Chưa xác nhận tồn kho' : 'Hết hàng'}</span>
                       ) : (cart[product.id] || 0) >= getProductStock(product) ? (
                         <span>Đã đủ {getProductStock(product)} trong giỏ</span>
@@ -1075,9 +1099,17 @@ function App() {
                     <p className="product-stock">{product.quantity == null ? 'Chưa xác nhận tồn kho' : product.quantity === 0 ? 'Hết hàng' : `Còn ${product.quantity} sản phẩm`}</p>
                   )}
                   <div className="product-price-row">
-                    <strong>{formatPrice(product.price)}</strong>
-                    {product.oldPrice && <del>{formatPrice(product.oldPrice)}</del>}
+                    {product.discountPercent > 0 && product.discountedPrice != null ? <>
+                      <del aria-label="Giá gốc">{formatPrice(product.price)}</del>
+                      <span className="product-discount-badge">-{product.discountPercent}%</span>
+                      <strong aria-label="Giá ưu đãi">{formatPrice(product.discountedPrice)}</strong>
+                    </> : <strong>{formatPrice(product.price)}</strong>}
                   </div>
+                  {product.discountPercent > 0 && product.discountedPrice != null && <p className="product-offer-note">Khi chọn ưu đãi sản phẩm</p>}
+                  {product.soldQuantity != null && <div className="product-sales-row">
+                    {product.bestSeller && <span className="product-bestseller" title="Top 3 sản phẩm bán nhiều nhất từ đơn hoàn thành trong 30 ngày gần đây"><TrendingUp size={13} aria-hidden="true" />Bán chạy</span>}
+                    <span className="product-sold-count" title="Số sản phẩm trong các đơn đã hoàn thành">Đã bán {new Intl.NumberFormat('vi-VN').format(product.soldQuantity)}</span>
+                  </div>}
                 </article>
               ))}
             </div>
@@ -1181,7 +1213,7 @@ function App() {
         </aside>
       )}
 
-      {cartOpen && (
+      {!storeReadOnly && cartOpen && (
         <div className="cart-layer" role="presentation" onMouseDown={(event) => {
           if (event.target === event.currentTarget) setCartOpen(false)
         }}>
@@ -1341,7 +1373,7 @@ function App() {
         </div>
       )}
       <AuthModal
-        isOpen={authOpen}
+        isOpen={!storeReadOnly && authOpen}
         onClose={() => setAuthOpen(false)}
         onAuthSuccess={(user) => {
           setCurrentUser(user)
@@ -1350,14 +1382,14 @@ function App() {
         }}
       />
       <ProfileModal
-        isOpen={profileOpen}
+        isOpen={!storeReadOnly && profileOpen}
         user={currentUser}
         onClose={() => setProfileOpen(false)}
         onLogout={handleLogout}
         onOpenMyOrders={handleOpenMyOrders}
       />
       <VouchersModal
-        isOpen={vouchersOpen}
+        isOpen={!storeReadOnly && vouchersOpen}
         onClose={() => setVouchersOpen(false)}
         currentUser={currentUser}
         onUseVoucher={(code) => {
@@ -1370,12 +1402,12 @@ function App() {
         }}
       />
       <AccountModal
-        isOpen={accountOpen}
+        isOpen={!storeReadOnly && accountOpen}
         user={currentUser}
         onClose={() => setAccountOpen(false)}
         onUserUpdate={handleUserUpdate}
       />
-      {orderOpen && (
+      {!storeReadOnly && orderOpen && (
         <OrderReviewPage
           key={currentUser?.customerId || 'guest'}
           cartItems={cartItems}

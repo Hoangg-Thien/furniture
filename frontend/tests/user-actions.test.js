@@ -176,21 +176,32 @@ test('an empty product catalog does not show cached or demo products', async () 
 
 test('catalog carries live inventory, including sold-out products', async () => {
   globalThis.fetch = async () => ({ ok: true, json: async () => [
-    { id: 1, name: 'Sofa', price: 100, quantity: 2 },
+    { id: 1, name: 'Sofa', price: 100, quantity: 2, discountPercent: 50, discountedPrice: 50, soldQuantity: 15, bestSeller: true },
     { id: 2, name: 'Chair', price: 100, quantity: 0 },
     { id: 3, name: 'Unknown', price: 100 },
   ] })
   const result = await loadProducts()
   assert.equal(result.error, null)
   assert.deepEqual(result.products.map(product => product.quantity), [2, 0, null])
+  assert.equal(result.products[0].price, 100)
+  assert.equal(result.products[0].discountPercent, 50)
+  assert.equal(result.products[0].discountedPrice, 50)
+  assert.equal(result.products[0].soldQuantity, 15)
+  assert.equal(result.products[0].bestSeller, true)
+  assert.equal(result.products[1].soldQuantity, null)
+  assert.equal(result.products[1].bestSeller, false)
 })
 
 test('an offline catalog does not pass old cached inventory off as current', async () => {
-  localStorage.setItem('furniture_cached_products', JSON.stringify([{ id: 1, name: 'Sofa', quantity: 99 }]))
+  localStorage.setItem('furniture_cached_products', JSON.stringify([{ id: 1, name: 'Sofa', quantity: 99, discountPercent: 50, discountedPrice: 50, soldQuantity: 15, bestSeller: true }]))
   globalThis.fetch = async () => { throw new Error('offline') }
   const result = await loadProducts()
   assert.ok(result.error)
   assert.equal(result.products[0].quantity, null)
+  assert.equal(result.products[0].discountPercent, null)
+  assert.equal(result.products[0].discountedPrice, null)
+  assert.equal(result.products[0].soldQuantity, null)
+  assert.equal(result.products[0].bestSeller, false)
 })
 
 test('saved address separates street from existing administrative selections', () => {

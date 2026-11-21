@@ -64,8 +64,7 @@ public class VoucherService {
                 ? req.programName().trim()
                 : "Chương trình ưu đãi " + cleanCode;
         String progDesc = (req.description() != null) ? req.description().trim() : "";
-        boolean isAutoApprove = Boolean.TRUE.equals(req.autoApprove());
-        String initialStatus = isAutoApprove ? "ACTIVE" : "DRAFT";
+        String initialStatus = "DRAFT";
 
         LocalDate today = LocalDate.now(ZoneId.of("Asia/Ho_Chi_Minh"));
         LocalDateTime start;
@@ -96,9 +95,7 @@ public class VoucherService {
 
         voucherRepository.insertVoucher(progId, cleanCode, req.discountPercent(), minAmt, maxDisc, qty, startDate, endDate);
 
-        String message = isAutoApprove
-                ? "Tạo voucher thành công và đã đưa vào Kho Voucher!"
-                : "Tạo voucher cửa hàng thành công! Voucher đang ở trạng thái 'Chờ Admin duyệt' trước khi vào Kho Voucher.";
+        String message = "Đã tạo voucher tạm ngưng, cần admin kiểm tra và kích hoạt trước khi khách sử dụng.";
 
         return Map.of(
                 "message", message,
@@ -115,6 +112,15 @@ public class VoucherService {
     }
 
     public Map<String, Object> validateVoucher(ValidateVoucherRequest req, Long customerId, List<furniture.model.OrderItemDto> pricedOrderItems) {
+        return validateVoucher(req, customerId, pricedOrderItems, false);
+    }
+
+    public Map<String, Object> simulateVoucher(ValidateVoucherRequest req, Long customerId) {
+        return validateVoucher(req, customerId, null, true);
+    }
+
+    private Map<String, Object> validateVoucher(ValidateVoucherRequest req, Long customerId,
+            List<furniture.model.OrderItemDto> pricedOrderItems, boolean simulation) {
         if (req == null || req.code() == null || req.code().trim().isEmpty()) {
             throw new IllegalArgumentException("Vui lòng nhập mã voucher");
         }
@@ -134,22 +140,22 @@ public class VoucherService {
         int quantity = ((Number) v.get("quantity")).intValue();
         int usedQuantity = ((Number) v.get("used_quantity")).intValue();
 
-        if (!"ACTIVE".equalsIgnoreCase(progStatus)) {
+        if (!simulation && !"ACTIVE".equalsIgnoreCase(progStatus)) {
             if ("DRAFT".equalsIgnoreCase(progStatus)) {
                 throw new IllegalStateException("Voucher '" + req.code() + "' hiện đang chờ Admin phê duyệt, chưa thể áp dụng.");
             }
             throw new IllegalStateException("Voucher này hiện không còn hoạt động.");
         }
 
-        if (!"ACTIVE".equalsIgnoreCase(vchStatus)) {
+        if (!simulation && !"ACTIVE".equalsIgnoreCase(vchStatus)) {
             throw new IllegalStateException("Voucher này đã bị tạm ngừng áp dụng.");
         }
 
-        if (Boolean.TRUE.equals(isExpired)) {
+        if (!simulation && Boolean.TRUE.equals(isExpired)) {
             throw new IllegalStateException("Voucher '" + req.code() + "' đã hết hạn sử dụng.");
         }
 
-        if (Boolean.TRUE.equals(v.get("is_not_started"))) {
+        if (!simulation && Boolean.TRUE.equals(v.get("is_not_started"))) {
             throw new IllegalStateException("Voucher chưa đến thời gian áp dụng.");
         }
 

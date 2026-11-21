@@ -168,7 +168,7 @@ public class VoucherRepository {
                               BigDecimal maxDisc, int quantity, String startDate, String endDate) {
         jdbcTemplate.update(
                 "INSERT INTO public.vouchers (promotion_program_id, code, discount_percent, minimum_amount, maximum_discount, quantity, used_quantity, start_date, end_date, status, voucher_type) " +
-                "VALUES (?, ?, ?, ?, ?, ?, 0, ?::timestamp, ?::timestamp, 'ACTIVE', 'VIP')",
+                "VALUES (?, ?, ?, ?, ?, ?, 0, ?::timestamp, ?::timestamp, 'INACTIVE', 'VIP')",
                 progId, code, discountPercent, minAmt, maxDisc, quantity, startDate, endDate);
     }
 

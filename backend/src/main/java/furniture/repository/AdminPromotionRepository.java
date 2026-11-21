@@ -240,7 +240,7 @@ public class AdminPromotionRepository {
                 SELECT pd.id, pd.promotion_program_id, pd.product_id,
                        p.name AS product_name, p.image_url, COALESCE(p.unit, 'cái') AS unit,
                        p.selling_price, pd.discount_percent,
-                       ROUND(p.selling_price * (1 - pd.discount_percent / 100), -2) AS discounted_price,
+                       p.selling_price - ROUND(p.selling_price * pd.discount_percent / 100, 0) AS discounted_price,
                        pd.start_date, pd.end_date
                 FROM public.product_discounts pd
                 JOIN public.products p ON p.id = pd.product_id
@@ -522,7 +522,7 @@ public class AdminPromotionRepository {
     public Long insertVoucher(Long programId, CreateVoucherRequest req, LocalDateTime defaultStart, LocalDateTime defaultEnd) {
         LocalDateTime start = req.startDate() != null ? req.startDate() : defaultStart;
         LocalDateTime end = req.endDate() != null ? req.endDate() : defaultEnd;
-        String status = req.status() != null && !req.status().trim().isEmpty() ? req.status().trim().toUpperCase() : "ACTIVE";
+        String status = "INACTIVE";
         BigDecimal minAmt = req.minimumAmount() != null ? req.minimumAmount() : BigDecimal.ZERO;
 
         KeyHolder keyHolder = new GeneratedKeyHolder();
@@ -565,7 +565,7 @@ public class AdminPromotionRepository {
                 WHERE id = ? AND is_deleted = FALSE
                 """, req.code().trim().toUpperCase(), req.discountPercent(),
                 req.minimumAmount() == null ? BigDecimal.ZERO : req.minimumAmount(), req.maximumDiscount(),
-                req.quantity(), start, end, req.status() == null ? "ACTIVE" : req.status().trim().toUpperCase(), id);
+                req.quantity(), start, end, "INACTIVE", id);
     }
 
     public List<Map<String, Object>> findVoucherOrders(Long id) {
@@ -584,6 +584,13 @@ public class AdminPromotionRepository {
                 voucherId
         );
         return count != null ? count : 0;
+    }
+
+    public int deleteUnusedVoucher(Long voucherId) {
+        return jdbcTemplate.update("""
+                DELETE FROM public.vouchers WHERE id = ? AND used_quantity = 0
+                  AND NOT EXISTS (SELECT 1 FROM public.orders WHERE voucher_id = ?)
+                """, voucherId, voucherId);
     }
 
     public void deleteVoucher(Long voucherId) {

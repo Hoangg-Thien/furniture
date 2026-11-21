@@ -171,7 +171,7 @@ try {
     assert.equal(orderDiscounts.length, 1)
     await page.getByRole('button', { name: /4. Kho Voucher/ }).click()
     await page.getByLabel('Mã Voucher', { exact: true }).fill('MODERN10')
-    await page.getByRole('button', { name: /Phát Hành Voucher/ }).click()
+    await page.getByRole('button', { name: 'Tạo voucher tạm ngưng', exact: true }).click()
     await page.getByRole('dialog').getByText('MODERN10', { exact: true }).waitFor()
     assert.equal(vouchers.length, 1)
     await shot('desktop-vouchers')

@@ -52,6 +52,16 @@ class VoucherServiceTest {
     private CreateVoucherRequest voucher(String start, String end, BigDecimal minimum, int quantity) {
         return new CreateVoucherRequest("Test", "", "TEST", BigDecimal.TEN, minimum, null, quantity, start, end, false);
     }
+
+    @Test
+    void legacyCreationCannotAutoPublishAVoucher() {
+        var repository = mock(VoucherRepository.class);
+        when(repository.insertProgram(any(), any(), any(), any(), eq("DRAFT"))).thenReturn(1L);
+        var request = new CreateVoucherRequest("Test", "", "PENDING", BigDecimal.TEN, BigDecimal.ZERO,
+                null, 10, null, null, true);
+        assertEquals("DRAFT", new VoucherService(repository).createVoucher(request).get("status"));
+        verify(repository).insertProgram(any(), any(), any(), any(), eq("DRAFT"));
+    }
     private Map<String, Object> scopedVoucher(String type) {
         var voucher = new HashMap<String, Object>(Map.of("id", 1L, "code", "SCOPE", "program_name", "Test",
                 "program_status", "ACTIVE", "voucher_status", "ACTIVE", "quantity", 10, "used_quantity", 0,
