@@ -2123,13 +2123,13 @@
       "degree": 35
     },
     {
-      "id": "ref_lucide_react",
-      "label": "lucide-react",
+      "id": "frontend_src_lib_apiconfig_getapiheaders",
+      "label": "getApiHeaders()",
       "degree": 34
     },
     {
-      "id": "frontend_src_lib_apiconfig_getapiheaders",
-      "label": "getApiHeaders()",
+      "id": "ref_lucide_react",
+      "label": "lucide-react",
       "degree": 34
     },
     {
@@ -2162,33 +2162,33 @@
       "why": "bridges separate communities; peripheral node `api()` unexpectedly reaches hub `adminApiHeaders()`"
     },
     {
-      "source": "AdminSupplierController",
-      "target": "AdminSupplierService",
+      "source": "ProgramDetailResponse",
+      "target": "VoucherDto",
       "source_files": [
-        "backend/src/main/java/furniture/controller/AdminSupplierController.java",
-        "backend/src/main/java/furniture/service/AdminSupplierService.java"
+        "backend/src/main/java/furniture/model/admin/promotion/ProgramDetailResponse.java",
+        "backend/src/main/java/furniture/model/admin/promotion/VoucherDto.java"
       ],
       "confidence": "EXTRACTED",
       "relation": "references",
       "why": "bridges separate communities"
     },
     {
-      "source": "ProductDetailDto",
-      "target": "ProductImageDto",
+      "source": "AdminPromotionController",
+      "target": "AdminPromotionService",
       "source_files": [
-        "backend/src/main/java/furniture/model/admin/product/ProductDetailDto.java",
-        "backend/src/main/java/furniture/model/admin/product/ProductImageDto.java"
+        "backend/src/main/java/furniture/controller/AdminPromotionController.java",
+        "backend/src/main/java/furniture/service/AdminPromotionService.java"
       ],
       "confidence": "EXTRACTED",
       "relation": "references",
-      "why": "peripheral node `ProductImageDto` unexpectedly reaches hub `ProductDetailDto`"
+      "why": "bridges separate communities"
     },
     {
-      "source": "AdminProductController",
-      "target": "AdminProductService",
+      "source": "AdminPromotionService",
+      "target": "VoucherService",
       "source_files": [
-        "backend/src/main/java/furniture/controller/AdminProductController.java",
-        "backend/src/main/java/furniture/service/AdminProductService.java"
+        "backend/src/main/java/furniture/service/AdminPromotionService.java",
+        "backend/src/main/java/furniture/service/VoucherService.java"
       ],
       "confidence": "EXTRACTED",
       "relation": "references",
