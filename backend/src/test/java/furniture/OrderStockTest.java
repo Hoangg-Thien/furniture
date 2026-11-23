@@ -165,12 +165,31 @@ class OrderStockTest {
         assertEquals("PRODUCT", repository.findVoucherById(id).voucherType());
         assertEquals(1L, repository.findAllVouchers(null, null).get(0).productId());
         new VoucherRepository(jdbc).insertVoucher(1L, "VIP_PUBLIC", BigDecimal.TEN, BigDecimal.ZERO, null, 10,
-                java.time.LocalDateTime.now().minusDays(1).toString(), java.time.LocalDateTime.now().plusDays(1).toString());
+                java.time.LocalDateTime.now().minusDays(1).toString(), java.time.LocalDateTime.now().plusDays(1).toString(), "VIP_DIAMOND");
         assertEquals("VIP", jdbc.queryForObject("SELECT voucher_type FROM vouchers WHERE code = 'VIP_PUBLIC'", String.class));
     }
 
     @Test
-    void onlyCompletedSpendingAtTheExistingVipThresholdEnablesVipOrders() {
+    void voucherAndInvoiceTiersUseCompletedOrderCountsAndOriginalSpendingThresholds() {
+        var repository = new VoucherRepository(jdbc);
+        var invoices = new furniture.repository.AdminInvoiceRepository(jdbc);
+        assertEquals("NEW", repository.findCustomerTier(1L));
+        jdbc.execute("INSERT INTO orders (customer_id, status, total_amount) VALUES (1, 'PENDING', 50000000)");
+        assertEquals("NEW", repository.findCustomerTier(1L));
+        jdbc.execute("UPDATE orders SET status = 'COMPLETED', total_amount = 0");
+        assertEquals("SILVER", repository.findCustomerTier(1L));
+        assertTrue(invoices.matchesVoucherTier(1L, "SILVER"));
+        jdbc.execute("UPDATE orders SET total_amount = 15000000");
+        assertEquals("GOLD", repository.findCustomerTier(1L));
+        assertTrue(invoices.matchesVoucherTier(1L, "GOLD"));
+        jdbc.execute("UPDATE orders SET total_amount = 50000000");
+        assertEquals("VIP_DIAMOND", repository.findCustomerTier(1L));
+        assertTrue(invoices.matchesVoucherTier(1L, "VIP_DIAMOND"));
+        assertFalse(invoices.matchesVoucherTier(1L, "SILVER"));
+    }
+
+    @Test
+    void onlyCompletedSpendingAtTheDiamondThresholdEnablesVipOrders() {
         jdbc.execute("UPDATE vouchers SET voucher_type = 'VIP'");
         assertThrows(IllegalArgumentException.class, () -> buy(item(1, 1)));
         assertEquals(10, stock(1));

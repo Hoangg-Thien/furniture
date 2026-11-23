@@ -1,3 +1,4 @@
+import { VIP_TIER_LABELS } from '../../lib/vouchers'
 import { useEffect, useState, useMemo } from 'react'
 import { VOUCHER_TYPE_LABELS } from '../../lib/vouchers'
 import {
@@ -84,7 +85,7 @@ export default function VouchersModal({
       setActionAlert(null)
       setCopiedCode(null)
     }
-  }, [isOpen, canManageVouchers])
+  }, [isOpen, canManageVouchers, currentUser?.customerId])
 
   // Xử lý sao chép mã
   const handleCopy = async (code) => {
@@ -367,7 +368,7 @@ export default function VouchersModal({
                           <h4 className="voucher-program-title">
                             {voucher.program_name || 'Ưu đãi FuniStore'}
                           </h4>
-                          <p className="voucher-condition-text">{VOUCHER_TYPE_LABELS[voucher.voucher_type || 'ORDER']}{voucher.voucher_type === 'PRODUCT' ? ` — sản phẩm #${voucher.product_id}` : voucher.voucher_type === 'VIP' ? ' — VIP Diamond từ 50 triệu đồng chi tiêu hoàn thành' : ''}</p>
+                          <p className="voucher-condition-text">{VOUCHER_TYPE_LABELS[voucher.voucher_type || 'ORDER']}{voucher.voucher_type === 'PRODUCT' ? ` — sản phẩm #${voucher.product_id}` : voucher.voucher_type === 'VIP' ? ` — ${VIP_TIER_LABELS[voucher.customer_tier] || ''}` : ''}</p>
                           <p className="voucher-condition-text">
                             {minAmt > 0
                               ? `Áp dụng cho đơn hàng từ ${formatPrice(minAmt)}`
@@ -605,7 +606,9 @@ export default function VouchersModal({
               </div>
 
               <form className="vouchers-create-form" onSubmit={handleCreateSubmit}>
-                <p>Voucher mới chỉ dành cho khách VIP Diamond có chi tiêu từ đơn hoàn thành đạt 50 triệu đồng.</p>
+                <p>Chọn hạng khách được sử dụng voucher. Phần trăm giảm do bạn nhập.</p>
+                <label htmlFor="create-voucher-tier">Hạng khách áp dụng</label>
+                <select id="create-voucher-tier" value={createForm.customerTier || 'VIP_DIAMOND'} onChange={e => setCreateForm({ ...createForm, customerTier: e.target.value })}>{Object.entries(VIP_TIER_LABELS).map(([tier, label]) => <option key={tier} value={tier}>{label}</option>)}</select>
                 <div className="form-grid">
                   <div className="form-group">
                     <label>

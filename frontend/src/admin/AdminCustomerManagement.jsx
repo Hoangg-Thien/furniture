@@ -322,21 +322,21 @@ export default function AdminCustomerManagement({ currentUser }) {
         return (
           <span className="customer-tier-badge diamond">
             <Sparkles size={12} />
-            VIP Diamond
+            Kim cương
           </span>
         )
       case 'GOLD':
         return (
           <span className="customer-tier-badge gold">
             <Award size={12} />
-            Thân thiết (Gold)
+            Vàng
           </span>
         )
       case 'SILVER':
         return (
           <span className="customer-tier-badge silver">
             <Award size={12} />
-            Tiềm năng (Silver)
+            Bạc
           </span>
         )
       default:
@@ -423,10 +423,10 @@ export default function AdminCustomerManagement({ currentUser }) {
             <label>Phân hạng:</label>
             <select value={selectedTier} onChange={(e) => setSelectedTier(e.target.value)}>
               <option value="ALL">Tất cả phân hạng</option>
-              <option value="VIP_DIAMOND">VIP Diamond (&ge; 50 triệu)</option>
-              <option value="GOLD">Thân thiết - Gold (15 - 50 triệu)</option>
-              <option value="SILVER">Tiềm năng - Silver (1+ đơn)</option>
-              <option value="NEW">Khách hàng Mới (0 đơn)</option>
+              <option value="VIP_DIAMOND">Kim cương (&ge; 50 triệu)</option>
+              <option value="GOLD">Vàng (15 - dưới 50 triệu)</option>
+              <option value="SILVER">Bạc (1+ đơn hoàn thành, dưới 15 triệu)</option>
+              <option value="NEW">Khách hàng mới (0 đơn hoàn thành)</option>
             </select>
           </div>
 

@@ -359,7 +359,7 @@ public class AdminPromotionRepository {
     public List<VoucherDto> findVouchersByProgramId(Long programId) {
         String sql = """
                 SELECT v.id, v.promotion_program_id, pp.name AS program_name, v.code,
-                       v.discount_percent, v.minimum_amount, v.maximum_discount, v.voucher_type, v.product_id,
+                       v.discount_percent, v.minimum_amount, v.maximum_discount, v.voucher_type, v.product_id, v.customer_tier,
                        v.quantity, v.used_quantity, (v.quantity - v.used_quantity) AS remaining_quantity,
                        v.start_date, v.end_date, v.status, v.is_deleted,
                        (SELECT COUNT(*) FROM public.orders o WHERE o.voucher_id = v.id) AS orders_count,
@@ -390,7 +390,7 @@ public class AdminPromotionRepository {
                     rs.getBoolean("is_expired"),
                     rs.getString("voucher_type"),
                     rs.getObject("product_id", Long.class),
-                    rs.getBoolean("is_deleted"), rs.getInt("orders_count")
+                    rs.getBoolean("is_deleted"), rs.getInt("orders_count"), rs.getString("customer_tier")
             );
         }, programId);
     }
@@ -399,7 +399,7 @@ public class AdminPromotionRepository {
     public List<VoucherDto> findAllVouchers(String search, String status) {
         StringBuilder sql = new StringBuilder("""
                 SELECT v.id, v.promotion_program_id, pp.name AS program_name, v.code,
-                       v.discount_percent, v.minimum_amount, v.maximum_discount, v.voucher_type, v.product_id,
+                       v.discount_percent, v.minimum_amount, v.maximum_discount, v.voucher_type, v.product_id, v.customer_tier,
                        v.quantity, v.used_quantity, (v.quantity - v.used_quantity) AS remaining_quantity,
                        v.start_date, v.end_date, v.status, v.is_deleted,
                        (SELECT COUNT(*) FROM public.orders o WHERE o.voucher_id = v.id) AS orders_count,
@@ -444,7 +444,7 @@ public class AdminPromotionRepository {
                     rs.getBoolean("is_expired"),
                     rs.getString("voucher_type"),
                     rs.getObject("product_id", Long.class),
-                    rs.getBoolean("is_deleted"), rs.getInt("orders_count")
+                    rs.getBoolean("is_deleted"), rs.getInt("orders_count"), rs.getString("customer_tier")
             );
         }, params.toArray());
     }
@@ -482,7 +482,7 @@ public class AdminPromotionRepository {
     public VoucherDto findVoucherById(Long id) {
         String sql = """
                 SELECT v.id, v.promotion_program_id, pp.name AS program_name, v.code,
-                       v.discount_percent, v.minimum_amount, v.maximum_discount, v.voucher_type, v.product_id,
+                       v.discount_percent, v.minimum_amount, v.maximum_discount, v.voucher_type, v.product_id, v.customer_tier,
                        v.quantity, v.used_quantity, (v.quantity - v.used_quantity) AS remaining_quantity,
                        v.start_date, v.end_date, v.status, v.is_deleted,
                        (SELECT COUNT(*) FROM public.orders o WHERE o.voucher_id = v.id) AS orders_count,
@@ -512,7 +512,7 @@ public class AdminPromotionRepository {
                     rs.getBoolean("is_expired"),
                     rs.getString("voucher_type"),
                     rs.getObject("product_id", Long.class),
-                    rs.getBoolean("is_deleted"), rs.getInt("orders_count")
+                    rs.getBoolean("is_deleted"), rs.getInt("orders_count"), rs.getString("customer_tier")
             );
         }, id);
 
@@ -530,8 +530,8 @@ public class AdminPromotionRepository {
             PreparedStatement ps = connection.prepareStatement("""
                     INSERT INTO public.vouchers (
                         promotion_program_id, code, discount_percent, minimum_amount,
-                        maximum_discount, quantity, used_quantity, start_date, end_date, status, voucher_type, product_id
-                    ) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?)
+                        maximum_discount, quantity, used_quantity, start_date, end_date, status, voucher_type, product_id, customer_tier
+                    ) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?)
                     """, new String[]{"id"});
             ps.setLong(1, programId);
             ps.setString(2, req.code().trim().toUpperCase());
@@ -548,6 +548,7 @@ public class AdminPromotionRepository {
             ps.setString(9, status);
             ps.setString(10, req.voucherType());
             ps.setObject(11, req.productId(), java.sql.Types.BIGINT);
+            ps.setString(12, req.customerTier());
             return ps;
         }, keyHolder);
 
@@ -561,11 +562,11 @@ public class AdminPromotionRepository {
     public void updateVoucher(Long id, CreateVoucherRequest req, LocalDateTime start, LocalDateTime end) {
         jdbcTemplate.update("""
                 UPDATE public.vouchers SET code = ?, discount_percent = ?, minimum_amount = ?,
-                    maximum_discount = ?, quantity = ?, start_date = ?, end_date = ?, status = ?
+                    maximum_discount = ?, quantity = ?, start_date = ?, end_date = ?, status = ?, customer_tier = ?
                 WHERE id = ? AND is_deleted = FALSE
                 """, req.code().trim().toUpperCase(), req.discountPercent(),
                 req.minimumAmount() == null ? BigDecimal.ZERO : req.minimumAmount(), req.maximumDiscount(),
-                req.quantity(), start, end, "INACTIVE", id);
+                req.quantity(), start, end, "INACTIVE", req.customerTier(), id);
     }
 
     public List<Map<String, Object>> findVoucherOrders(Long id) {

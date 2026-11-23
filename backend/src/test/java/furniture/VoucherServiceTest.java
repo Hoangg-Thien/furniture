@@ -73,6 +73,21 @@ class VoucherServiceTest {
     }
 
     @Test
+    void vipVouchersAreVisibleAndUsableOnlyForTheirExactTier() {
+        for (String tier : List.of("SILVER", "GOLD", "VIP_DIAMOND")) {
+            var voucher = scopedVoucher("VIP");
+            voucher.put("customer_tier", tier);
+            when(repository.findCustomerTier(7L)).thenReturn(tier);
+            when(repository.findActiveVouchers()).thenReturn(List.of(voucher));
+            assertEquals(1, service.getActiveVouchers(7L).size());
+            service.validateVoucher(new ValidateVoucherRequest("SCOPE", new BigDecimal("500000")), 7L);
+            when(repository.findCustomerTier(7L)).thenReturn("NEW");
+            assertEquals(0, service.getActiveVouchers(7L).size());
+            assertThrows(IllegalArgumentException.class, () -> service.validateVoucher(new ValidateVoucherRequest("SCOPE", new BigDecimal("500000")), 7L));
+        }
+    }
+
+    @Test
     void productVoucherUsesOnlyMatchingProductsAtDatabasePricesAndHonorsTheCap() {
         var voucher = scopedVoucher("PRODUCT");
         when(repository.findProductPrice(1L)).thenReturn(new BigDecimal("150000"));
@@ -92,17 +107,23 @@ class VoucherServiceTest {
 
     @Test
     void vipValidationUsesAuthenticatedIdentityAndNeverAClaimedCustomerId() throws Exception {
-        scopedVoucher("VIP");
-        when(repository.isVipCustomer(7L)).thenReturn(true);
+        var vip = scopedVoucher("VIP");
+        when(repository.findActiveVouchers()).thenReturn(List.of(vip));
+        when(repository.findCustomerTier(7L)).thenReturn("VIP_DIAMOND");
         var sessions = mock(furniture.service.AdminSessionService.class);
         when(sessions.authenticate("Bearer vip")).thenReturn(new furniture.model.admin.AdminIdentity(3L, null, "CUSTOMER", null, 7L));
         var mvc = org.springframework.test.web.servlet.setup.MockMvcBuilders.standaloneSetup(new furniture.controller.VoucherController(service))
                 .addInterceptors(new furniture.config.AdminAccessInterceptor(sessions, mock(org.springframework.jdbc.core.JdbcTemplate.class))).build();
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/vouchers/active"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.length()").value(0));
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/vouchers/active").header("Authorization", "Bearer vip"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.length()").value(1));
+        org.mockito.Mockito.clearInvocations(repository);
         String body = "{\"code\":\"SCOPE\",\"subtotal\":500000,\"customerId\":7}";
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/vouchers/validate")
                 .contentType(org.springframework.http.MediaType.APPLICATION_JSON).content(body))
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isBadRequest());
-        verify(repository, never()).isVipCustomer(7L);
+        verify(repository, never()).findCustomerTier(7L);
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/vouchers/validate")
                 .header("Authorization", "Bearer vip").contentType(org.springframework.http.MediaType.APPLICATION_JSON).content(body))
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk())

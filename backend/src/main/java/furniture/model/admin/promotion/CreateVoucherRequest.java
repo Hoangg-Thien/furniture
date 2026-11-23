@@ -31,9 +31,16 @@ public record CreateVoucherRequest(
         LocalDateTime endDate,
         String status,
         String voucherType,
-        Long productId
+        Long productId,
+        String customerTier
 ) {
+    public CreateVoucherRequest(String code, BigDecimal discountPercent, BigDecimal minimumAmount,
+            BigDecimal maximumDiscount, Integer quantity, LocalDateTime startDate, LocalDateTime endDate,
+            String status, String voucherType, Long productId) {
+        this(code, discountPercent, minimumAmount, maximumDiscount, quantity, startDate, endDate, status, voucherType, productId, "VIP_DIAMOND");
+    }
     public CreateVoucherRequest {
+        customerTier = customerTier == null ? "VIP_DIAMOND" : customerTier.trim().toUpperCase(java.util.Locale.ROOT);
         voucherType = voucherType == null ? "VIP" : voucherType.trim().toUpperCase(java.util.Locale.ROOT);
     }
 

@@ -417,11 +417,16 @@ public class AdminInvoiceRepository {
         });
     }
 
+    public boolean matchesVoucherTier(Long customerId, String tier) {
+        return jdbcTemplate.queryForObject("SELECT COALESCE(SUM(total_amount), 0) AS spent, COUNT(*) AS completed FROM public.orders WHERE customer_id = ? AND status = 'COMPLETED'",
+                (rs, row) -> tier.equals(AdminCustomerRepository.computeTier(rs.getBigDecimal("spent"), rs.getLong("completed"))), customerId);
+    }
+
     public Optional<VoucherDto> findVoucherByCode(String code) {
         if (code == null || code.trim().isEmpty()) return Optional.empty();
         String sql = """
                 SELECT v.id, v.promotion_program_id, pp.name AS program_name, v.code,
-                       v.discount_percent, v.minimum_amount, v.maximum_discount,
+                       v.discount_percent, v.minimum_amount, v.maximum_discount, v.voucher_type, v.product_id, v.customer_tier,
                        v.quantity, v.used_quantity, (v.quantity - v.used_quantity) AS remaining_quantity,
                        v.start_date, v.end_date, v.status,
                        (v.end_date < CURRENT_TIMESTAMP) AS is_expired
@@ -447,7 +452,7 @@ public class AdminInvoiceRepository {
                     startTs != null ? startTs.toLocalDateTime() : null,
                     endTs != null ? endTs.toLocalDateTime() : null,
                     rs.getString("status"),
-                    rs.getBoolean("is_expired")
+                    rs.getBoolean("is_expired"), rs.getString("voucher_type"), rs.getObject("product_id", Long.class), false, 0, rs.getString("customer_tier")
             );
         }, code.trim());
 

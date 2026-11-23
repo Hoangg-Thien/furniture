@@ -112,6 +112,9 @@ public class AdminInvoiceService {
             } else {
                 VoucherDto v = voucherOpt.get();
                 voucherMessage = checkVoucherValidity(v, baseAmount);
+                if (voucherMessage == null && "VIP".equals(v.voucherType())
+                        && !adminInvoiceRepository.matchesVoucherTier(order.customerId(), v.customerTier()))
+                    voucherMessage = "Voucher không dành cho hạng khách hàng này";
                 if (voucherMessage == null) {
                     voucherValid = true;
                     // Thuật toán: MIN(baseAmount * % / 100, maximumDiscount)

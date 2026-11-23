@@ -24,6 +24,12 @@ public class VoucherService {
         this.voucherRepository = voucherRepository;
     }
 
+    public List<Map<String, Object>> getActiveVouchers(Long customerId) {
+        String tier = voucherRepository.findCustomerTier(customerId);
+        return getActiveVouchers().stream().filter(v -> !"VIP".equals(v.get("voucher_type"))
+                || v.getOrDefault("customer_tier", "VIP_DIAMOND").equals(tier)).toList();
+    }
+
     public List<Map<String, Object>> getActiveVouchers() {
         return voucherRepository.findActiveVouchers();
     }
@@ -55,6 +61,8 @@ public class VoucherService {
             throw new IllegalArgumentException("Phần trăm giảm giá phải từ 1 đến 100");
         }
 
+        if (!List.of("SILVER", "GOLD", "VIP_DIAMOND").contains(req.customerTier()))
+            throw new IllegalArgumentException("Hạng khách hàng không hợp lệ");
         String cleanCode = req.code().trim().toUpperCase();
         if (voucherRepository.countByCode(cleanCode) > 0) {
             throw new IllegalArgumentException("Mã voucher '" + cleanCode + "' đã tồn tại trên hệ thống");
@@ -95,7 +103,7 @@ public class VoucherService {
         }
 
         voucherRepository.insertVoucher(progId, cleanCode, req.discountPercent(), minAmt, maxDisc, qty, startDate,
-                endDate);
+                endDate, req.customerTier());
 
         String message = "Đã tạo voucher tạm ngưng, cần admin kiểm tra và kích hoạt trước khi khách sử dụng.";
 
@@ -172,9 +180,9 @@ public class VoucherService {
         if (!List.of("ORDER", "PRODUCT", "VIP").contains(type)) {
             throw new IllegalArgumentException("Loại voucher không hợp lệ");
         }
-        if ("VIP".equals(type) && !voucherRepository.isVipCustomer(customerId)) {
+        if ("VIP".equals(type) && !v.getOrDefault("customer_tier", "VIP_DIAMOND").equals(voucherRepository.findCustomerTier(customerId))) {
             throw new IllegalArgumentException(
-                    "Voucher chỉ dành cho khách VIP Diamond có chi tiêu từ đơn hoàn thành đạt 50 triệu đồng");
+                    "Voucher không dành cho hạng khách hàng hiện tại");
         }
         BigDecimal eligibleAmount = subtotal;
         if (req.items() != null) {

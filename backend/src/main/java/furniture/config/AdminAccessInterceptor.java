@@ -24,7 +24,7 @@ public class AdminAccessInterceptor implements HandlerInterceptor {
         if ("OPTIONS".equals(request.getMethod())) return true;
         String path = new UrlPathHelper().getPathWithinApplication(request).replaceAll(";[^/]*", "").replaceAll("/+", "/");
         String method = request.getMethod();
-        if ("POST".equals(method) && (path.equals("/api/orders/preview") || path.equals("/api/vouchers/validate"))) {
+        if (("GET".equals(method) && path.equals("/api/vouchers/active")) || ("POST".equals(method) && (path.equals("/api/orders/preview") || path.equals("/api/vouchers/validate")))) {
             if (request.getHeader("Authorization") != null) {
                 request.setAttribute(AdminIdentity.ATTRIBUTE, sessions.authenticate(request.getHeader("Authorization")));
             }

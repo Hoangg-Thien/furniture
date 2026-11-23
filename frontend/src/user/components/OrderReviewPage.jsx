@@ -1,3 +1,4 @@
+import { VIP_TIER_LABELS } from '../../lib/vouchers'
 import { useEffect, useState, useMemo, useRef } from 'react'
 import { productImageUrl } from '../../lib/productImages'
 import {
@@ -306,7 +307,7 @@ function OrderSummary({
                           {voucherChoices[voucher.id]?.error || (missing > 0
                             ? `Đơn từ ${formatPrice(Number(voucher.minimum_amount || 0))} · Mua thêm ${formatPrice(missing)} để áp dụng`
                             : type === 'VIP'
-                            ? 'Chỉ áp dụng cho khách hàng VIP Diamond'
+                            ? `Chỉ áp dụng cho hạng ${VIP_TIER_LABELS[voucher.customer_tier] || ''}`
                             : 'Giỏ hàng không có sản phẩm áp dụng')}
                         </p>
                       </div>

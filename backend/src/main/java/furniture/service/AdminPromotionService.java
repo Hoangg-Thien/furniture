@@ -214,6 +214,9 @@ public class AdminPromotionService {
     }
 
     private void validateVoucherRequest(ProgramResponse program, CreateVoucherRequest req, VoucherDto existing) {
+        if (!List.of("SILVER", "GOLD", "VIP_DIAMOND").contains(req.customerTier())) {
+            throw new IllegalArgumentException("Hạng khách hàng không hợp lệ");
+        }
         if (req.status() != null && !List.of("ACTIVE", "INACTIVE").contains(req.status().trim().toUpperCase())) {
             throw new IllegalArgumentException("Trạng thái voucher không hợp lệ");
         }

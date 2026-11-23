@@ -31,9 +31,9 @@ public class VoucherController {
     }
 
     @GetMapping("/active")
-    public ResponseEntity<?> getActiveVouchers() {
+    public ResponseEntity<?> getActiveVouchers(@RequestAttribute(value = AdminIdentity.ATTRIBUTE, required = false) AdminIdentity identity) {
         try {
-            return ResponseEntity.ok(voucherService.getActiveVouchers());
+            return ResponseEntity.ok(voucherService.getActiveVouchers(identity != null && "CUSTOMER".equals(identity.role()) ? identity.customerId() : null));
         } catch (Exception ex) {
             ex.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)

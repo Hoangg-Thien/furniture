@@ -1,3 +1,4 @@
+import { VIP_TIER_LABELS } from '../lib/vouchers'
 import { useState, useEffect, useMemo, useRef } from 'react'
 import {
   Plus,
@@ -615,6 +616,7 @@ export default function AdminPromotionManagement({ currentUser }) {
     try {
       const baseUrl = getApiBaseUrl()
       const payload = {
+        customerTier: voucherForm.customerTier || 'VIP_DIAMOND',
         voucherType: voucherTarget?.voucher.voucherType || 'VIP',
         productId: voucherTarget?.voucher.productId ?? null,
         startDate: voucherForm.startDate || null,
@@ -1121,7 +1123,7 @@ export default function AdminPromotionManagement({ currentUser }) {
               {activeTab === 'overview' && <div className="promotion-overview-grid">
                 <div className="admin-card"><h3>1. Giảm theo giá trị đơn hàng</h3><p>{detailData.orderDiscounts.length} mức giảm tự động khi đơn đạt giá trị tối thiểu; không cần nhập mã.</p></div>
                 <div className="admin-card"><h3>2. Giảm theo sản phẩm</h3><p>{detailData.productDiscounts.length} sản phẩm có ưu đãi tự động trên phần tiền sản phẩm; không cần nhập mã.</p></div>
-                <div className="admin-card"><h3>3. Voucher riêng cho VIP</h3><p>{detailData.vouchers.filter(v => v.voucherType === 'VIP').length} mã VIP. Khách nhập mã và phải đạt hạng VIP Diamond từ 50 triệu đồng chi tiêu đơn hoàn thành.</p></div>
+                <div className="admin-card"><h3>3. Voucher riêng cho VIP</h3><p>{detailData.vouchers.filter(v => v.voucherType === 'VIP').length} mã VIP. Khách chỉ dùng voucher dành cho đúng hạng, tính theo chi tiêu đơn hoàn thành.</p></div>
                 <p>Mỗi đơn chỉ áp dụng một loại ưu đãi do khách chọn. Chọn voucher sẽ thay thế ưu đãi sản phẩm và ngược lại, không cộng dồn. Hóa đơn giữ khoản giảm đã chốt của đơn.</p>
               </div>}
 
@@ -1376,7 +1378,7 @@ export default function AdminPromotionManagement({ currentUser }) {
                       {voucherTarget ? `${voucherTarget.mode === 'edit' ? 'Sửa voucher' : 'Tạo mã mới thay thế'} ${voucherTarget.voucher.code}` : 'Tạo voucher VIP tạm ngưng'}
                     </div>
 
-                    <p>{voucherTarget ? `Loại: ${VOUCHER_TYPE_LABELS[voucherTarget.voucher.voucherType || 'ORDER']}. ${voucherTarget.mode === 'replace' ? 'Mã mới được tạo ở trạng thái tạm ngưng; mã cũ tự tạm ngưng. Đơn đã sử dụng giữ nguyên giá trị.' : 'Chỉ sửa mã tạm ngưng chưa từng có đơn sử dụng.'}` : 'Mã mới luôn tạm ngưng. Kiểm tra thử rồi nhấn trạng thái trong danh sách để admin kích hoạt. Chỉ khách VIP Diamond được sử dụng.'}</p>
+                    <p>{voucherTarget ? `Loại: ${VOUCHER_TYPE_LABELS[voucherTarget.voucher.voucherType || 'ORDER']}. ${voucherTarget.mode === 'replace' ? 'Mã mới được tạo ở trạng thái tạm ngưng; mã cũ tự tạm ngưng. Đơn đã sử dụng giữ nguyên giá trị.' : 'Chỉ sửa mã tạm ngưng chưa từng có đơn sử dụng.'}` : 'Mã mới luôn tạm ngưng. Kiểm tra thử rồi nhấn trạng thái trong danh sách để admin kích hoạt. Chọn hạng khách được sử dụng; phần trăm giảm do bạn nhập.'}</p>
                     {voucherTarget && <button type="button" className="admin-btn admin-btn-outline" disabled={submittingVoucher} onClick={() => {
                       setVoucherTarget(null)
                       setVoucherForm({ code: '', discountPercent: 10, minimumAmount: 0, maximumDiscount: '', quantity: 100, status: 'INACTIVE' })
@@ -1436,7 +1438,7 @@ export default function AdminPromotionManagement({ currentUser }) {
                     </div>
 
                     <div className="promotion-date-grid">
-                      <div><label htmlFor="voucher-start" className="admin-form-label">Bắt đầu áp dụng</label><input id="voucher-start" type="datetime-local" className="admin-form-input" value={(voucherForm.startDate || '').slice(0, 16)} onChange={e => setVoucherForm({ ...voucherForm, startDate: e.target.value })} /></div>
+                      <div><label htmlFor="voucher-tier" className="admin-form-label">Hạng khách áp dụng</label><select id="voucher-tier" className="admin-form-input" value={voucherForm.customerTier || 'VIP_DIAMOND'} onChange={e => setVoucherForm({ ...voucherForm, customerTier: e.target.value })}>{Object.entries(VIP_TIER_LABELS).map(([tier, label]) => <option key={tier} value={tier}>{label}</option>)}</select></div><div><label htmlFor="voucher-start" className="admin-form-label">Bắt đầu áp dụng</label><input id="voucher-start" type="datetime-local" className="admin-form-input" value={(voucherForm.startDate || '').slice(0, 16)} onChange={e => setVoucherForm({ ...voucherForm, startDate: e.target.value })} /></div>
                       <div><label htmlFor="voucher-end" className="admin-form-label">Hết hạn</label><input id="voucher-end" type="datetime-local" className="admin-form-input" value={(voucherForm.endDate || '').slice(0, 16)} onChange={e => setVoucherForm({ ...voucherForm, endDate: e.target.value })} /></div>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1517,7 +1519,7 @@ export default function AdminPromotionManagement({ currentUser }) {
                               </td>
                               <td style={{ fontSize: '0.82rem', color: '#475569' }}>
                                 {v.voucherType === 'PRODUCT' && <div>Sản phẩm: {availableProducts.find(p => p.id === v.productId)?.name || `#${v.productId}`}</div>}
-                                {v.voucherType === 'VIP' && <div>VIP Diamond: chi tiêu hoàn thành từ 50 triệu đồng</div>}
+                                {v.voucherType === 'VIP' && <div>{VIP_TIER_LABELS[v.customerTier]}</div>}
                                 <div>Đơn từ: <strong>{formatCurrency(v.minimumAmount)}</strong></div>
                                 {v.maximumDiscount && (
                                   <div>Tối đa: <strong>{formatCurrency(v.maximumDiscount)}</strong></div>

@@ -64,7 +64,7 @@ public class VoucherRepository {
 
     public List<Map<String, Object>> findActiveVouchers() {
         String sql = """
-                SELECT v.id, v.code, v.voucher_type, v.product_id, v.discount_percent, v.minimum_amount, v.maximum_discount,
+                SELECT v.id, v.code, v.voucher_type, v.product_id, v.customer_tier, v.discount_percent, v.minimum_amount, v.maximum_discount,
                        v.quantity, v.used_quantity, (v.quantity - v.used_quantity) AS remaining_quantity,
                        to_char(v.start_date, 'YYYY-MM-DD HH24:MI:SS') AS start_date,
                        to_char(v.end_date, 'YYYY-MM-DD HH24:MI:SS') AS end_date,
@@ -85,7 +85,7 @@ public class VoucherRepository {
 
     public List<Map<String, Object>> findAllVouchersForAdmin() {
         String sql = """
-                SELECT v.id, v.code, v.voucher_type, v.product_id, v.discount_percent, v.minimum_amount, v.maximum_discount,
+                SELECT v.id, v.code, v.voucher_type, v.product_id, v.customer_tier, v.discount_percent, v.minimum_amount, v.maximum_discount,
                        v.quantity, v.used_quantity, (v.quantity - v.used_quantity) AS remaining_quantity,
                        to_char(v.start_date, 'YYYY-MM-DD HH24:MI:SS') AS start_date,
                        to_char(v.end_date, 'YYYY-MM-DD HH24:MI:SS') AS end_date,
@@ -165,16 +165,16 @@ public class VoucherRepository {
     }
 
     public void insertVoucher(Long progId, String code, BigDecimal discountPercent, BigDecimal minAmt,
-                              BigDecimal maxDisc, int quantity, String startDate, String endDate) {
+                              BigDecimal maxDisc, int quantity, String startDate, String endDate, String customerTier) {
         jdbcTemplate.update(
-                "INSERT INTO public.vouchers (promotion_program_id, code, discount_percent, minimum_amount, maximum_discount, quantity, used_quantity, start_date, end_date, status, voucher_type) " +
-                "VALUES (?, ?, ?, ?, ?, ?, 0, ?::timestamp, ?::timestamp, 'INACTIVE', 'VIP')",
-                progId, code, discountPercent, minAmt, maxDisc, quantity, startDate, endDate);
+                "INSERT INTO public.vouchers (promotion_program_id, code, discount_percent, minimum_amount, maximum_discount, quantity, used_quantity, start_date, end_date, status, voucher_type, customer_tier) " +
+                "VALUES (?, ?, ?, ?, ?, ?, 0, ?::timestamp, ?::timestamp, 'INACTIVE', 'VIP', ?)",
+                progId, code, discountPercent, minAmt, maxDisc, quantity, startDate, endDate, customerTier);
     }
 
     public List<Map<String, Object>> findVoucherWithProgramByCode(String code) {
         String sql = """
-                SELECT v.id, v.code, v.voucher_type, v.product_id, v.discount_percent, v.minimum_amount, v.maximum_discount,
+                SELECT v.id, v.code, v.voucher_type, v.product_id, v.customer_tier, v.discount_percent, v.minimum_amount, v.maximum_discount,
                        v.quantity, v.used_quantity,
                        pp.name AS program_name, pp.status AS program_status, v.status AS voucher_status, v.is_deleted,
                        (v.end_date < CURRENT_TIMESTAMP OR pp.end_date < CURRENT_TIMESTAMP) AS is_expired,
@@ -193,9 +193,13 @@ public class VoucherRepository {
     }
 
     public boolean isVipCustomer(Long customerId) {
-        if (customerId == null) return false;
-        BigDecimal spent = jdbcTemplate.queryForObject("SELECT COALESCE(SUM(total_amount), 0) FROM public.orders WHERE customer_id = ? AND status = 'COMPLETED'", BigDecimal.class, customerId);
-        return "VIP_DIAMOND".equals(AdminCustomerRepository.computeTier(spent, 0));
+        return "VIP_DIAMOND".equals(findCustomerTier(customerId));
+    }
+
+    public String findCustomerTier(Long customerId) {
+        if (customerId == null) return "NEW";
+        return jdbcTemplate.queryForObject("SELECT COALESCE(SUM(total_amount), 0) AS spent, COUNT(*) AS completed FROM public.orders WHERE customer_id = ? AND status = 'COMPLETED'",
+                (rs, row) -> AdminCustomerRepository.computeTier(rs.getBigDecimal("spent"), rs.getLong("completed")), customerId);
     }
 
 }

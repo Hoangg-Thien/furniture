@@ -132,3 +132,5 @@ export async function validateVoucherApi(codeOrObj, maybeSubtotal) {
     return { valid: false, discount: 0, error: 'Không thể kết nối đến máy chủ để xác thực voucher.' }
   }
 }
+
+export const VIP_TIER_LABELS = { SILVER: 'Bạc (ít nhất 1 đơn hoàn thành, dưới 15 triệu)', GOLD: 'Vàng (từ 15 đến dưới 50 triệu)', VIP_DIAMOND: 'Kim cương (từ 50 triệu)' }
