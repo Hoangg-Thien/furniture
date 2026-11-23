@@ -642,10 +642,10 @@
     "semantic_hash": "a8feacbc39a56391babb3e1b4efe1901"
   },
   "backend/src/main/java/furniture/service/AdminPromotionService.java": {
-    "mtime": 1795402491.9883044,
-    "seen": 1795403226.5223331,
-    "ast_hash": "9165113f2cf7b230bdf2338893a4c84a",
-    "semantic_hash": "9165113f2cf7b230bdf2338893a4c84a"
+    "mtime": 1795405547.9037924,
+    "seen": 1795420688.0786378,
+    "ast_hash": "773a4860a06adfb86650266fe4163cd2",
+    "semantic_hash": "773a4860a06adfb86650266fe4163cd2"
   },
   "backend/src/main/java/furniture/service/AdminSessionService.java": {
     "mtime": 1793875296.82608,
@@ -804,10 +804,10 @@
     "semantic_hash": "f2653e384723a1afe25cabc001fed9a9"
   },
   "backend/src/test/java/furniture/OrderStockTest.java": {
-    "mtime": 1795402515.122265,
-    "seen": 1795403226.5265105,
-    "ast_hash": "d89c89d4c265179e022fcb848a4a75cc",
-    "semantic_hash": "d89c89d4c265179e022fcb848a4a75cc"
+    "mtime": 1795405567.7271628,
+    "seen": 1795420688.0843625,
+    "ast_hash": "7729c0398fe44c4957175abbea88e320",
+    "semantic_hash": "7729c0398fe44c4957175abbea88e320"
   },
   "backend/src/test/java/furniture/ProductAuditTest.java": {
     "mtime": 1793883027.2783563,
@@ -986,9 +986,9 @@
   },
   "frontend/src/admin/AdminPromotionManagement.jsx": {
     "mtime": 1795405202.4881866,
-    "seen": 1795405221.5521123,
+    "seen": 1795420688.090019,
     "ast_hash": "3c4e11c74e6f9900ae2f1a30f7186546",
-    "semantic_hash": ""
+    "semantic_hash": "3c4e11c74e6f9900ae2f1a30f7186546"
   },
   "frontend/src/admin/AdminReportsManagement.jsx": {
     "mtime": 1795015721.8404403,
@@ -1051,10 +1051,10 @@
     "semantic_hash": "747b3b27e4f8b780b255b5e8dd88df52"
   },
   "frontend/src/lib/notifications.js": {
-    "mtime": 1793800229.6407876,
-    "seen": 1794283278.9097962,
-    "ast_hash": "118d493bb0c7d096c6829f1e20ac47f4",
-    "semantic_hash": "118d493bb0c7d096c6829f1e20ac47f4"
+    "mtime": 1795418508.8508668,
+    "seen": 1795420688.0916474,
+    "ast_hash": "368f6a2490361e395fced10212b1d6f7",
+    "semantic_hash": "368f6a2490361e395fced10212b1d6f7"
   },
   "frontend/src/lib/orders.js": {
     "mtime": 1795029848.6261065,
@@ -1070,9 +1070,9 @@
   },
   "frontend/src/lib/vouchers.js": {
     "mtime": 1795405201.4862325,
-    "seen": 1795405221.5532296,
+    "seen": 1795420688.0921454,
     "ast_hash": "40df346be3ab7bc81ce665d98a5d60dc",
-    "semantic_hash": ""
+    "semantic_hash": "40df346be3ab7bc81ce665d98a5d60dc"
   },
   "frontend/src/main.jsx": {
     "mtime": 1793780522.565744,
@@ -1117,10 +1117,10 @@
     "semantic_hash": "da09359c23fd3cd137781f31aa593396"
   },
   "frontend/src/user/components/NotificationsMenu.jsx": {
-    "mtime": 1793800070.1149907,
-    "seen": 1794283278.9105675,
-    "ast_hash": "d41c14edc63409bfeda07a8c2ceef066",
-    "semantic_hash": "d41c14edc63409bfeda07a8c2ceef066"
+    "mtime": 1795418618.8053632,
+    "seen": 1795420688.0933096,
+    "ast_hash": "4d38dfd9dfba164dcf8de6741b61dddc",
+    "semantic_hash": "4d38dfd9dfba164dcf8de6741b61dddc"
   },
   "frontend/src/user/components/OrderReviewPage.jsx": {
     "mtime": 1795401882.0681732,
@@ -1195,10 +1195,10 @@
     "semantic_hash": "343c18bccdea17b2dbd850bf9a82e04e"
   },
   "frontend/tests/notifications.test.js": {
-    "mtime": 1793799749.3054602,
-    "seen": 1794283278.9114513,
-    "ast_hash": "2ae5cac3298166aec205a9e25011cf0b",
-    "semantic_hash": "2ae5cac3298166aec205a9e25011cf0b"
+    "mtime": 1795418552.0955007,
+    "seen": 1795420688.0953298,
+    "ast_hash": "f3f09c0ccf8bbfc7d43b4ebd87f63f28",
+    "semantic_hash": "f3f09c0ccf8bbfc7d43b4ebd87f63f28"
   },
   "frontend/tests/user-actions.test.js": {
     "mtime": 1795243553.3721354,
@@ -1385,10 +1385,10 @@
     "semantic_hash": "debb888fc72b3fc3da8480e4f86599b2"
   },
   "qa/harness/notifications-check.mjs": {
-    "mtime": 1794314499.9710627,
-    "seen": 1794314664.0057254,
-    "ast_hash": "a4b3f3791540a7be1d336a4abcdab020",
-    "semantic_hash": "a4b3f3791540a7be1d336a4abcdab020"
+    "mtime": 1795418625.6155274,
+    "seen": 1795420688.1014988,
+    "ast_hash": "d3e2f0623a1e43bb3363ba237dc6256b",
+    "semantic_hash": "d3e2f0623a1e43bb3363ba237dc6256b"
   },
   "qa/harness/order-refresh-check.mjs": {
     "mtime": 1794290500.896769,
@@ -2497,9 +2497,9 @@
   },
   "frontend/tests/voucher-customer.test.js": {
     "mtime": 1795405203.5436862,
-    "seen": 1795405221.5550811,
+    "seen": 1795420688.0956545,
     "ast_hash": "f306424d4e98dafdc8be09ccef9f4228",
-    "semantic_hash": ""
+    "semantic_hash": "f306424d4e98dafdc8be09ccef9f4228"
   },
   "doc_kehoach/15_Voucher.md": {
     "mtime": 1795247696.680153,
@@ -2583,12 +2583,6 @@
     "mtime": 1795069764.7667484,
     "seen": 1795405221.5671365,
     "ast_hash": "75ae6397e2d71e1cbcaba99b7302f689",
-    "semantic_hash": ""
-  },
-  "frontend/package-lock.json": {
-    "mtime": 1793779782.861955,
-    "seen": 1795405221.5672112,
-    "ast_hash": "9ef2073e9ba1f2748a6aefa118e616a6",
     "semantic_hash": ""
   }
 }
