@@ -18,16 +18,16 @@
     "semantic_hash": "b95034e3dcdb0bddf7abb587c0018977"
   },
   "backend/src/main/java/furniture/config/AdminAccessInterceptor.java": {
-    "mtime": 1795402014.1222675,
-    "seen": 1795403226.5075355,
-    "ast_hash": "476d96081aa1f070fcb2a24978475950",
-    "semantic_hash": "476d96081aa1f070fcb2a24978475950"
+    "mtime": 1795430671.4454281,
+    "seen": 1795433349.3581588,
+    "ast_hash": "0cafffbb62e332e578707b76598f7d02",
+    "semantic_hash": "0cafffbb62e332e578707b76598f7d02"
   },
   "backend/src/main/java/furniture/config/SalesDatabaseInitializer.java": {
-    "mtime": 1795018898.6754224,
-    "seen": 1795030104.4281619,
-    "ast_hash": "dd1b32aedaa5526e9bebb60cd8135ffd",
-    "semantic_hash": "dd1b32aedaa5526e9bebb60cd8135ffd"
+    "mtime": 1795430670.2488427,
+    "seen": 1795433349.3583124,
+    "ast_hash": "203535fa472a64b12f643775f50ad976",
+    "semantic_hash": "203535fa472a64b12f643775f50ad976"
   },
   "backend/src/main/java/furniture/config/WebMvcConfig.java": {
     "mtime": 1794315679.9882708,
@@ -90,10 +90,10 @@
     "semantic_hash": "e13039ceebf44ec4f59c5c6ed7f8265e"
   },
   "backend/src/main/java/furniture/controller/AdminSupplierController.java": {
-    "mtime": 1794228024.458411,
-    "seen": 1794283278.8979485,
-    "ast_hash": "16b82ebfd4161c193fbfb007ccef49aa",
-    "semantic_hash": "16b82ebfd4161c193fbfb007ccef49aa"
+    "mtime": 1795431048.2240095,
+    "seen": 1795433349.359869,
+    "ast_hash": "1ef5608d8426af3918367e2729f1b21c",
+    "semantic_hash": "1ef5608d8426af3918367e2729f1b21c"
   },
   "backend/src/main/java/furniture/controller/AdminUserController.java": {
     "mtime": 1793874755.7511938,
@@ -564,16 +564,16 @@
     "semantic_hash": "7ed389b84e0a07f9cf0a6e59c3e6573f"
   },
   "backend/src/main/java/furniture/repository/AdminStatisticsRepository.java": {
-    "mtime": 1794315020.1978154,
-    "seen": 1794316252.0254154,
-    "ast_hash": "598d60ded259990d1c1ac29cd178fa62",
-    "semantic_hash": "598d60ded259990d1c1ac29cd178fa62"
+    "mtime": 1795429231.1841183,
+    "seen": 1795433349.371857,
+    "ast_hash": "b0aecb474e82488a371360e7f6a9e1bf",
+    "semantic_hash": "b0aecb474e82488a371360e7f6a9e1bf"
   },
   "backend/src/main/java/furniture/repository/AdminSupplierRepository.java": {
-    "mtime": 1794453738.441918,
-    "seen": 1794455208.1018083,
-    "ast_hash": "b9f9f8baaf835a061f6e2cafc08eac26",
-    "semantic_hash": "b9f9f8baaf835a061f6e2cafc08eac26"
+    "mtime": 1795431046.9107978,
+    "seen": 1795433349.3718593,
+    "ast_hash": "df70b9edde9faee392b56103e26d25c9",
+    "semantic_hash": "df70b9edde9faee392b56103e26d25c9"
   },
   "backend/src/main/java/furniture/repository/AdminUserRepository.java": {
     "mtime": 1793779282.0336058,
@@ -666,10 +666,10 @@
     "semantic_hash": "f7585274eeb72196d2b066303ee4f7bd"
   },
   "backend/src/main/java/furniture/service/AdminSupplierService.java": {
-    "mtime": 1794228025.4822195,
-    "seen": 1794283278.9052515,
-    "ast_hash": "c8efe64da0a03006fa752a65b602fe55",
-    "semantic_hash": "c8efe64da0a03006fa752a65b602fe55"
+    "mtime": 1795431047.6056774,
+    "seen": 1795433349.3740819,
+    "ast_hash": "da2cba741811d17a7560e6a8c6c69ae3",
+    "semantic_hash": "da2cba741811d17a7560e6a8c6c69ae3"
   },
   "backend/src/main/java/furniture/service/AdminUserService.java": {
     "mtime": 1794453232.4114995,
@@ -750,10 +750,10 @@
     "semantic_hash": "61cb1a0cf36adb6b32176a05fbb4691b"
   },
   "backend/src/test/java/furniture/AdminPermissionsTest.java": {
-    "mtime": 1795241508.151957,
-    "seen": 1795243809.3240507,
-    "ast_hash": "94461c6b364d33e74e85310540e162c7",
-    "semantic_hash": "94461c6b364d33e74e85310540e162c7"
+    "mtime": 1795430981.2056253,
+    "seen": 1795433349.376135,
+    "ast_hash": "1cd1bcc2838e5267c982a604cb412b13",
+    "semantic_hash": "1cd1bcc2838e5267c982a604cb412b13"
   },
   "backend/src/test/java/furniture/AdminProductServiceTest.java": {
     "mtime": 1794316153.415295,
@@ -816,10 +816,10 @@
     "semantic_hash": "83b1f402893f93afa6102735755e80d6"
   },
   "backend/src/test/java/furniture/PurchaseReceiptTest.java": {
-    "mtime": 1794227888.3188372,
-    "seen": 1794283278.9070408,
-    "ast_hash": "4e1731cb516c98cafeb4dc0015ecf088",
-    "semantic_hash": "4e1731cb516c98cafeb4dc0015ecf088"
+    "mtime": 1795431080.1690361,
+    "seen": 1795433349.3787405,
+    "ast_hash": "deab77a7ffc664d7c425ae00395e11f5",
+    "semantic_hash": "deab77a7ffc664d7c425ae00395e11f5"
   },
   "backend/src/test/resources/application.yaml": {
     "mtime": 1793779282.0406053,
@@ -943,10 +943,10 @@
     "semantic_hash": "fb8c872da97bb3aadb1546c9db026280"
   },
   "frontend/src/admin/AdminInvoiceManagement.jsx": {
-    "mtime": 1795421768.346764,
-    "seen": 1795427633.4375162,
-    "ast_hash": "4c16cbe246408fafcefdfd28e795164e",
-    "semantic_hash": "4c16cbe246408fafcefdfd28e795164e"
+    "mtime": 1795433213.1535096,
+    "seen": 1795433349.3820212,
+    "ast_hash": "8b9d9aa6108145687f057c61dfa5bf01",
+    "semantic_hash": "8b9d9aa6108145687f057c61dfa5bf01"
   },
   "frontend/src/admin/AdminLayout.jsx": {
     "mtime": 1795018818.4028165,
@@ -991,10 +991,10 @@
     "semantic_hash": "3c4e11c74e6f9900ae2f1a30f7186546"
   },
   "frontend/src/admin/AdminReportsManagement.jsx": {
-    "mtime": 1795015721.8404403,
-    "seen": 1795030104.449882,
-    "ast_hash": "1aa33d58029c5e43200dec050a1a2497",
-    "semantic_hash": "1aa33d58029c5e43200dec050a1a2497"
+    "mtime": 1795429679.6495852,
+    "seen": 1795433349.383022,
+    "ast_hash": "bde8dec032967bce7335aeaeb599f238",
+    "semantic_hash": "bde8dec032967bce7335aeaeb599f238"
   },
   "frontend/src/admin/AdminSidebar.jsx": {
     "mtime": 1795018818.4028165,
@@ -1009,10 +1009,10 @@
     "semantic_hash": "6466d37860ba5bd3252bcc77890c3612"
   },
   "frontend/src/admin/AdminSupplierManagement.jsx": {
-    "mtime": 1794228027.5371747,
-    "seen": 1794283278.9092886,
-    "ast_hash": "8e482ec04c3243399f6853781fc42d91",
-    "semantic_hash": "8e482ec04c3243399f6853781fc42d91"
+    "mtime": 1795432868.1652768,
+    "seen": 1795433349.3833275,
+    "ast_hash": "74cd01d2976fe132ccb54f36b9143f2b",
+    "semantic_hash": "74cd01d2976fe132ccb54f36b9143f2b"
   },
   "frontend/src/admin/AdminToastContainer.jsx": {
     "mtime": 1793779282.0939164,
@@ -2345,10 +2345,10 @@
     "semantic_hash": ""
   },
   "backend/src/test/java/furniture/AdminStatisticsRepositoryTest.java": {
-    "mtime": 1794315118.6160076,
-    "seen": 1794316252.0302022,
-    "ast_hash": "0c4918dada87b68d4b3e950a3c0a1431",
-    "semantic_hash": "0c4918dada87b68d4b3e950a3c0a1431"
+    "mtime": 1795429248.3350108,
+    "seen": 1795433349.376704,
+    "ast_hash": "eb9f9e1f987eb534609b304ffd09f9c1",
+    "semantic_hash": "eb9f9e1f987eb534609b304ffd09f9c1"
   },
   "backend/src/test/java/furniture/FileStorageServiceTest.java": {
     "mtime": 1794315787.405412,
@@ -2381,10 +2381,10 @@
     "semantic_hash": "9f8fd2cffb9158aed3cb5b833e6fdf1b"
   },
   "qa/harness/reports-check.mjs": {
-    "mtime": 1795030384.2464328,
-    "seen": 1795071485.306392,
-    "ast_hash": "4a1200a403d46670bee08b877a572198",
-    "semantic_hash": "4a1200a403d46670bee08b877a572198"
+    "mtime": 1795429680.2735364,
+    "seen": 1795433349.3949687,
+    "ast_hash": "b93276989214127e21be1f679aae60ed",
+    "semantic_hash": "b93276989214127e21be1f679aae60ed"
   },
   "backend/src/main/java/furniture/model/OrderQuote.java": {
     "mtime": 1795029257.9881182,
@@ -2596,5 +2596,23 @@
     "seen": 1795427633.4428847,
     "ast_hash": "f2f9049427b622d25771a01e4b9c77e5",
     "semantic_hash": "f2f9049427b622d25771a01e4b9c77e5"
+  },
+  "backend/src/main/java/furniture/controller/ReceiptInspectionController.java": {
+    "mtime": 1795430917.365258,
+    "seen": 1795433349.3604555,
+    "ast_hash": "e3dca67ffcf717bb3e463d0c177513ef",
+    "semantic_hash": "e3dca67ffcf717bb3e463d0c177513ef"
+  },
+  "backend/src/main/java/furniture/service/ReceiptInspectionService.java": {
+    "mtime": 1795430872.9158769,
+    "seen": 1795433349.3748085,
+    "ast_hash": "99b6e85af9977e769227522236a35e43",
+    "semantic_hash": "99b6e85af9977e769227522236a35e43"
+  },
+  "qa/harness/receipt-count-check.mjs": {
+    "mtime": 1795432935.8919387,
+    "seen": 1795433349.3949666,
+    "ast_hash": "cde52394a1da4c86f80239408cd62d4c",
+    "semantic_hash": "cde52394a1da4c86f80239408cd62d4c"
   }
 }
