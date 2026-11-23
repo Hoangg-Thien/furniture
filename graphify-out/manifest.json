@@ -54,10 +54,10 @@
     "semantic_hash": "93a7118c441c02183d3c063c81b0899c"
   },
   "backend/src/main/java/furniture/controller/AdminOrderController.java": {
-    "mtime": 1793872960.5443153,
-    "seen": 1794283278.8975146,
-    "ast_hash": "5959fa01003a3081d13d14e4f37c19cf",
-    "semantic_hash": "5959fa01003a3081d13d14e4f37c19cf"
+    "mtime": 1795422468.5096571,
+    "seen": 1795427633.415044,
+    "ast_hash": "32f71a5c974aebb70e33059178db5f2f",
+    "semantic_hash": "32f71a5c974aebb70e33059178db5f2f"
   },
   "backend/src/main/java/furniture/controller/AdminProductController.java": {
     "mtime": 1794315738.7691922,
@@ -630,10 +630,10 @@
     "semantic_hash": "05c66756f00647d10c2caf37a4805ef1"
   },
   "backend/src/main/java/furniture/service/AdminOrderService.java": {
-    "mtime": 1794229106.0221496,
-    "seen": 1794283278.904831,
-    "ast_hash": "7cfaf38d35d6e8a62382d5a3d0d5b6ba",
-    "semantic_hash": "7cfaf38d35d6e8a62382d5a3d0d5b6ba"
+    "mtime": 1795422469.5266297,
+    "seen": 1795427633.4292626,
+    "ast_hash": "16a258df32c7f8c08f0a21f7ee60e9ec",
+    "semantic_hash": "16a258df32c7f8c08f0a21f7ee60e9ec"
   },
   "backend/src/main/java/furniture/service/AdminProductService.java": {
     "mtime": 1794316118.1655045,
@@ -943,10 +943,10 @@
     "semantic_hash": "fb8c872da97bb3aadb1546c9db026280"
   },
   "frontend/src/admin/AdminInvoiceManagement.jsx": {
-    "mtime": 1795027369.0875804,
-    "seen": 1795030104.4491773,
-    "ast_hash": "516032f689e5e0a2a69896544db70081",
-    "semantic_hash": "516032f689e5e0a2a69896544db70081"
+    "mtime": 1795421768.346764,
+    "seen": 1795427633.4375162,
+    "ast_hash": "4c16cbe246408fafcefdfd28e795164e",
+    "semantic_hash": "4c16cbe246408fafcefdfd28e795164e"
   },
   "frontend/src/admin/AdminLayout.jsx": {
     "mtime": 1795018818.4028165,
@@ -967,16 +967,16 @@
     "semantic_hash": "39a869db775fb0772cacd2423cc5d905"
   },
   "frontend/src/admin/AdminNavbar.jsx": {
-    "mtime": 1794306644.9224195,
-    "seen": 1794308532.1755111,
-    "ast_hash": "fdac7ab74b82716d967073caa596451e",
-    "semantic_hash": "fdac7ab74b82716d967073caa596451e"
+    "mtime": 1795422176.6710546,
+    "seen": 1795427633.4379003,
+    "ast_hash": "3da6b940096117ecf3166c3acd67390c",
+    "semantic_hash": "3da6b940096117ecf3166c3acd67390c"
   },
   "frontend/src/admin/AdminOrderManagement.jsx": {
-    "mtime": 1794315813.2554803,
-    "seen": 1794316252.0346546,
-    "ast_hash": "cdba5c08f233b023eba1596b859524f9",
-    "semantic_hash": "cdba5c08f233b023eba1596b859524f9"
+    "mtime": 1795422470.3623252,
+    "seen": 1795427633.4379017,
+    "ast_hash": "704ca3861978265942abab7ae6fd4665",
+    "semantic_hash": "704ca3861978265942abab7ae6fd4665"
   },
   "frontend/src/admin/AdminProductManagement.jsx": {
     "mtime": 1794453115.9082634,
@@ -1331,10 +1331,10 @@
     "semantic_hash": "4c5c47de2a4b05ce1076d4dd48a81d4f"
   },
   "qa/harness/admin-login-check.mjs": {
-    "mtime": 1795233670.8134866,
-    "seen": 1795243809.3392925,
-    "ast_hash": "6ae935acea8f556851bd3e53faeee791",
-    "semantic_hash": "6ae935acea8f556851bd3e53faeee791"
+    "mtime": 1795422190.5484977,
+    "seen": 1795427633.4456675,
+    "ast_hash": "2402ae623eb4a6400829fb3f6b19f931",
+    "semantic_hash": "2402ae623eb4a6400829fb3f6b19f931"
   },
   "qa/harness/admin-redesign-check.mjs": {
     "mtime": 1795241611.79127,
@@ -1379,10 +1379,10 @@
     "semantic_hash": "422ac512a1fac01d1aa8db5b60403421"
   },
   "qa/harness/invoice-ui-check.mjs": {
-    "mtime": 1795017838.801304,
-    "seen": 1795030104.4577332,
-    "ast_hash": "debb888fc72b3fc3da8480e4f86599b2",
-    "semantic_hash": "debb888fc72b3fc3da8480e4f86599b2"
+    "mtime": 1795421798.0825768,
+    "seen": 1795427633.4474306,
+    "ast_hash": "f334eca8954891f8bd2e62a0150cc72b",
+    "semantic_hash": "f334eca8954891f8bd2e62a0150cc72b"
   },
   "qa/harness/notifications-check.mjs": {
     "mtime": 1795418625.6155274,
@@ -2584,5 +2584,17 @@
     "seen": 1795405221.5671365,
     "ast_hash": "75ae6397e2d71e1cbcaba99b7302f689",
     "semantic_hash": ""
+  },
+  "frontend/src/lib/productUnits.js": {
+    "mtime": 1795421462.987849,
+    "seen": 1795427633.4398017,
+    "ast_hash": "4997c3083cbfe0c67285b83fb08ebe63",
+    "semantic_hash": "4997c3083cbfe0c67285b83fb08ebe63"
+  },
+  "frontend/tests/product-units.test.js": {
+    "mtime": 1795421463.8896735,
+    "seen": 1795427633.4428847,
+    "ast_hash": "f2f9049427b622d25771a01e4b9c77e5",
+    "semantic_hash": "f2f9049427b622d25771a01e4b9c77e5"
   }
 }

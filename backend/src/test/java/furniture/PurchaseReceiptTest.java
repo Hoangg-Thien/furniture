@@ -24,6 +24,8 @@ import furniture.model.admin.supplier.CreateReceiptRequest;
 import furniture.model.admin.supplier.CreateReceiptRequest.ReceiptItemRequest;
 import furniture.repository.AdminSupplierRepository;
 import furniture.service.AdminSupplierService;
+import furniture.service.ReceiptInspectionService;
+import furniture.model.admin.AdminIdentity;
 
 class PurchaseReceiptTest {
     private EmbeddedDatabase database;
@@ -73,6 +75,49 @@ class PurchaseReceiptTest {
 
     private int stock() {
         return jdbc.queryForObject("SELECT quantity FROM products WHERE id = 1", Integer.class);
+    }
+
+    @Test
+    void employeeSubmitsAdminReturnsThenApprovesWithStockExactlyOnce() throws Exception {
+        jdbc.execute("CREATE TABLE users (id BIGINT PRIMARY KEY, username VARCHAR(100))");
+        jdbc.execute("INSERT INTO users VALUES (1, 'warehouseA'), (2, 'adminA')");
+        jdbc.execute("ALTER TABLE suppliers ADD COLUMN name VARCHAR(100) DEFAULT 'Supplier'");
+        String migration = new org.springframework.core.io.ClassPathResource("receipt_inspection.sql").getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
+        jdbc.execute(migration.replace("ALTER TABLE public.receipt_inspection_events ENABLE ROW LEVEL SECURITY;", ""));
+        var inspection = new ReceiptInspectionService(jdbc, new AdminSupplierRepository(jdbc));
+        var employee = new AdminIdentity(1L, 1L, "STAFF", "WAREHOUSE", null);
+        var admin = new AdminIdentity(2L, null, "ADMIN", null, null);
+        Long createdByAdmin = transaction.execute(tx -> service.createReceipt(1L, new CreateReceiptRequest(1L, "PENDING",
+            List.of(new ReceiptItemRequest(1L, 5, new BigDecimal("100")))), admin.userId()));
+        assertEquals(2L, jdbc.queryForObject("SELECT created_by FROM purchase_receipts WHERE id = ?", Long.class, createdByAdmin));
+        var mvc = org.springframework.test.web.servlet.setup.MockMvcBuilders.standaloneSetup(
+            new furniture.controller.AdminSupplierController(service), new furniture.controller.ReceiptInspectionController(inspection)).build();
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/admin/suppliers/1/receipts")
+            .requestAttr(AdminIdentity.ATTRIBUTE, employee).contentType("application/json")
+            .content("{\"status\":\"COMPLETED\",\"items\":[{\"productId\":1,\"quantity\":5,\"unitPrice\":100}]}"))
+            .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isBadRequest());
+        Long id = create("PENDING");
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch("/api/admin/suppliers/1/receipts/" + id + "/status")
+            .requestAttr(AdminIdentity.ATTRIBUTE, employee).contentType("application/json").content("{\"status\":\"COMPLETED\"}"))
+            .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isBadRequest());
+        assertThrows(IllegalArgumentException.class, () -> transaction.executeWithoutResult(tx -> inspection.submit(1L, id, java.util.Map.of(1L, 4), employee)));
+        transaction.executeWithoutResult(tx -> inspection.submit(1L, id, java.util.Map.of(1L, 5), employee));
+        assertEquals(0, stock());
+        assertEquals("warehouseA", inspection.detail(1L, id).get("checkedBy"));
+        assertEquals(1, inspection.queue(admin).size());
+        assertThrows(org.springframework.web.server.ResponseStatusException.class, () -> transaction.executeWithoutResult(tx -> inspection.review(1L, id, true, null, employee)));
+        assertThrows(IllegalArgumentException.class, () -> transaction.executeWithoutResult(tx -> inspection.review(1L, id, false, "", admin)));
+        transaction.executeWithoutResult(tx -> inspection.review(1L, id, false, "Kiểm lại hàng", admin));
+        assertEquals(0, stock());
+        assertEquals("Kiểm lại hàng", inspection.detail(1L, id).get("reason"));
+        transaction.executeWithoutResult(tx -> inspection.submit(1L, id, java.util.Map.of(1L, 5), employee));
+        transaction.executeWithoutResult(tx -> inspection.review(1L, id, true, null, admin));
+        assertEquals(5, stock());
+        assertEquals(0, inspection.queue(admin).size());
+        assertEquals("adminA", inspection.detail(1L, id).get("reviewedBy"));
+        assertEquals(4, ((java.util.List<?>) inspection.detail(1L, id).get("history")).size());
+        assertThrows(IllegalArgumentException.class, () -> transaction.executeWithoutResult(tx -> inspection.review(1L, id, true, null, admin)));
+        assertEquals(5, stock());
     }
 
     @Test

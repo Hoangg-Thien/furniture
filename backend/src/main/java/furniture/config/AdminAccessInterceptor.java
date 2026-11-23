@@ -106,7 +106,8 @@ public class AdminAccessInterceptor implements HandlerInterceptor {
                     || ("GET".equals(method) && path.matches("/api/admin/suppliers(/\\d+(/receipts(/\\d+/items)?)?)?"))
                     || ("POST".equals(method) && path.matches("/api/admin/suppliers(/\\d+/receipts)?"))
                     || ("PUT".equals(method) && path.matches("/api/admin/suppliers/\\d+"))
-                    || ("PATCH".equals(method) && path.matches("/api/admin/suppliers/\\d+/receipts/\\d+/status"));
+                    || ("PATCH".equals(method) && path.matches("/api/admin/suppliers/\\d+/receipts/\\d+/status"))
+                    || (("GET".equals(method) || "POST".equals(method)) && path.matches("/api/admin/suppliers/\\d+/receipts/\\d+/inspection"));
             case "CONTENT" -> ("PUT".equals(method) && path.matches("/api/admin/products/\\d+/content"))
                     || ("POST".equals(method) && path.matches("/api/admin/products/\\d+/images(/url)?"))
                     || ("PUT".equals(method) && path.matches("/api/admin/products/\\d+/images/\\d+/set-primary"))

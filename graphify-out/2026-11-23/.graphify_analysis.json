@@ -2094,8 +2094,8 @@
       "degree": 35
     },
     {
-      "id": "backend_src_main_java_furniture_repository_admincategoryrepository_admincategoryrepository",
-      "label": "AdminCategoryRepository",
+      "id": "backend_src_main_java_furniture_model_admin_order_orderdetaildto_orderdetaildto",
+      "label": "OrderDetailDto",
       "degree": 34
     }
   ],

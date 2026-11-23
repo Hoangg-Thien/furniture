@@ -75,6 +75,37 @@ class AdminStatisticsRepositoryTest {
     }
 
     @Test
+    void productRankingIncludesUnsoldAndIgnoresUncompletedOrders() {
+        jdbc.execute("ALTER TABLE products ADD COLUMN name VARCHAR(100)");
+        jdbc.execute("ALTER TABLE products ADD COLUMN image_url VARCHAR(255)");
+        jdbc.execute("ALTER TABLE products ADD COLUMN unit VARCHAR(30)");
+        jdbc.execute("INSERT INTO order_items VALUES (2, 2, 99, 99999)");
+        var products = repository.getTopSellingProducts(20);
+        assertEquals(2, products.size());
+        assertEquals(13L, products.getFirst().soldQuantity());
+        assertEquals(0, new BigDecimal("1300").compareTo(products.getFirst().totalRevenue()));
+        assertEquals(0L, products.get(1).soldQuantity());
+        assertEquals(0, products.get(1).totalRevenue().signum());
+        assertEquals(2, repository.getTopSellingProducts(0).size());
+        assertEquals(1, repository.getTopSellingProducts(1).size());
+    }
+
+    @Test
+    void deadStockIncludesAllEligibleProductsAndPrioritizesNeverSold() {
+        jdbc.execute("ALTER TABLE products ADD COLUMN name VARCHAR(100)");
+        jdbc.execute("ALTER TABLE products ADD COLUMN image_url VARCHAR(255)");
+        jdbc.execute("ALTER TABLE products ADD COLUMN unit VARCHAR(30)");
+        jdbc.execute("ALTER TABLE products ADD COLUMN selling_price NUMERIC(15,2) DEFAULT 100");
+        for (int id = 3; id <= 16; id++) {
+            jdbc.update("INSERT INTO products (id, category_id, quantity, is_active) VALUES (?, 1, 10, TRUE)", id);
+        }
+        var products = repository.getDeadStockProducts(0);
+        assertEquals(16, products.size());
+        assertNull(products.getFirst().daysSinceLastSold());
+        assertEquals(6, repository.getDeadStockProducts(6).size());
+    }
+
+    @Test
     void overviewIncludesLastFractionalSecondAndComparesExactlyOnePreviousDay() {
         var overview = repository.getOverview(day, day);
         assertEquals(0, new BigDecimal("600").compareTo(overview.totalRevenue()));

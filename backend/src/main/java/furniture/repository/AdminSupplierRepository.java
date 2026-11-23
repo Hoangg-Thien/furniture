@@ -205,15 +205,16 @@ public class AdminSupplierRepository {
     public List<PurchaseReceiptSummaryDto> findReceiptsBySupplierId(Long supplierId) {
         String sql = """
                 SELECT pr.id, pr.supplier_id, pr.staff_id,
-                       COALESCE(st.full_name, u.username, 'Nhân viên #' || pr.staff_id) AS staff_name,
+                       COALESCE(creator.username, st.full_name, u.username, 'Nhân viên #' || pr.staff_id) AS staff_name,
                        pr.receipt_date, pr.status, pr.total_amount,
                        COUNT(pri.product_id) AS total_items_count
                 FROM public.purchase_receipts pr
                 LEFT JOIN public.staff st ON st.id = pr.staff_id
                 LEFT JOIN public.users u ON u.id = st.user_id
+                LEFT JOIN public.users creator ON creator.id = pr.created_by
                 LEFT JOIN public.purchase_receipt_items pri ON pri.purchase_receipt_id = pr.id
                 WHERE pr.supplier_id = ?
-                GROUP BY pr.id, pr.supplier_id, pr.staff_id, st.full_name, u.username, pr.receipt_date, pr.status, pr.total_amount
+                GROUP BY pr.id, pr.supplier_id, pr.staff_id, st.full_name, u.username, creator.username, pr.receipt_date, pr.status, pr.total_amount
                 ORDER BY pr.receipt_date DESC, pr.id DESC
                 """;
 
@@ -319,6 +320,10 @@ public class AdminSupplierRepository {
         }
 
         return receiptId;
+    }
+
+    public void recordReceiptCreator(Long receiptId, Long userId) {
+        jdbcTemplate.update("UPDATE public.purchase_receipts SET created_by = ? WHERE id = ?", userId, receiptId);
     }
 
     public boolean productExists(Long id) {

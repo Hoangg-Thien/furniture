@@ -9,7 +9,10 @@
   color: var(--admin-text-main);
   scroll-margin-top: 84px;
 }
-.inv-quick-heading { display: flex; justify-content: space-between; align-items: start; gap: 16px; }
+.inv-quick-heading { position: relative; }
+.inv-quick-heading > div { padding-right: 48px; }
+.inv-quick-heading > button:first-of-type { position: absolute; top: 0; right: 0; }
+.inv-quick-heading > button:last-of-type:not(:first-of-type) { margin-top: 8px; }
 .inv-quick-heading h2 { margin: 0; font-size: 1.1rem; }
 .inv-quick-heading p, .inv-quick-empty { color: var(--admin-text-muted); font-size: .85rem; }
 .inv-quick-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; margin-top: 16px; }
@@ -41,9 +44,7 @@ button.inv-code-badge { font: inherit; cursor: pointer; }
 }
 @media (min-width: 1200px) {
   .inv-review-layout:has(> .inv-quick-panel) { grid-template-columns: minmax(0, 1fr) minmax(480px, 1fr); }
-  .inv-quick-heading { flex-direction: column; }
 }
 @media (max-width: 639px) {
   .inv-quick-panel { padding: 12px; }
-  .inv-quick-heading { flex-direction: column; }
 }

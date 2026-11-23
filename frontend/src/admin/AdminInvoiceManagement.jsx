@@ -929,7 +929,7 @@ export default function AdminInvoiceManagement({ currentUser }) {
             <h2>Chi tiết đơn hàng &amp; hóa đơn</h2>
             <p>{quickPinned ? 'Đang giữ chi tiết. Chọn đơn khác hoặc bỏ giữ để xem khi rê chuột.' : 'Rê chuột vào một dòng để xem nhanh; bấm dòng hoặc nhấn Enter để giữ chi tiết.'}</p>
           </div>
-          <button type="button" className="admin-btn admin-btn-outline" onClick={closeQuickInvoice}><X size={16} />Đóng chi tiết</button>
+          <button type="button" className="admin-btn admin-btn-outline" aria-label="Đóng chi tiết" title="Đóng chi tiết" onClick={closeQuickInvoice}><X size={16} /></button>
           {quickPinned && <button type="button" className="admin-btn admin-btn-outline" onClick={() => setQuickPinned(false)}>Bỏ giữ chi tiết</button>}
         </div>
         {quickLoading ? <p role="status">Đang tải chi tiết hóa đơn...</p>

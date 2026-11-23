@@ -135,6 +135,13 @@ public class AdminSupplierService {
     }
 
     @Transactional
+    public Long createReceipt(Long supplierId, CreateReceiptRequest req, Long actorUserId) {
+        Long receiptId = createReceipt(supplierId, req);
+        adminSupplierRepository.recordReceiptCreator(receiptId, actorUserId);
+        return receiptId;
+    }
+
+    @Transactional
     public void updateReceiptStatus(Long supplierId, Long receiptId, String status) {
         adminSupplierRepository.updateReceiptStatus(supplierId, receiptId, status);
     }

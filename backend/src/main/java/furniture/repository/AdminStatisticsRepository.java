@@ -237,18 +237,17 @@ public class AdminStatisticsRepository {
     }
 
     public List<TopProductDto> getTopSellingProducts(int limit) {
-        int max = limit > 0 ? limit : 5;
+        int max = limit == 0 ? Integer.MAX_VALUE : limit > 0 ? limit : 5;
         String sql = """
                 SELECT p.id, p.name, p.image_url, COALESCE(p.unit, 'cái') AS unit,
                        p.quantity AS current_stock,
-                       COALESCE(SUM(oi.quantity), 0) AS sold_qty,
-                       COALESCE(SUM(oi.amount), 0) AS total_revenue
+                       COALESCE(SUM(CASE WHEN o.id IS NOT NULL THEN oi.quantity ELSE 0 END), 0) AS sold_qty,
+                       COALESCE(SUM(CASE WHEN o.id IS NOT NULL THEN oi.amount ELSE 0 END), 0) AS total_revenue
                 FROM public.products p
-                JOIN public.order_items oi ON oi.product_id = p.id
-                JOIN public.orders o ON o.id = oi.order_id
-                WHERE o.status = 'COMPLETED'
+                LEFT JOIN public.order_items oi ON oi.product_id = p.id
+                LEFT JOIN public.orders o ON o.id = oi.order_id AND o.status = 'COMPLETED'
                 GROUP BY p.id, p.name, p.image_url, p.unit, p.quantity
-                ORDER BY sold_qty DESC, total_revenue DESC
+                ORDER BY sold_qty DESC, total_revenue DESC, p.id ASC
                 LIMIT ?
                 """;
 
@@ -264,7 +263,7 @@ public class AdminStatisticsRepository {
     }
 
     public List<DeadStockProductDto> getDeadStockProducts(int limit) {
-        int max = limit > 0 ? limit : 5;
+        int max = limit == 0 ? Integer.MAX_VALUE : limit > 0 ? limit : 5;
         String sql = """
                 SELECT p.id, p.name, p.image_url, COALESCE(p.unit, 'cái') AS unit,
                        p.quantity AS current_stock, p.selling_price,
@@ -274,7 +273,7 @@ public class AdminStatisticsRepository {
                 LEFT JOIN public.orders o ON o.id = oi.order_id AND o.status = 'COMPLETED'
                 WHERE p.is_active = true AND p.quantity > 0
                 GROUP BY p.id, p.name, p.image_url, p.unit, p.quantity, p.selling_price
-                ORDER BY days_idle DESC, p.quantity DESC
+                ORDER BY days_idle DESC NULLS FIRST, p.quantity DESC, p.id ASC
                 LIMIT ?
                 """;
 

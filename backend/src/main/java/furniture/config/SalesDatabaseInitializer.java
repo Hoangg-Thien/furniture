@@ -52,6 +52,7 @@ public class SalesDatabaseInitializer implements CommandLineRunner {
                 new ResourceDatabasePopulator(new ClassPathResource("order_stock.sql")).populate(conn);
                 new ResourceDatabasePopulator(new ClassPathResource("guest_checkout.sql")).populate(conn);
                 new ResourceDatabasePopulator(new ClassPathResource("voucher_types.sql")).populate(conn);
+                new ResourceDatabasePopulator(new ClassPathResource("receipt_inspection.sql")).populate(conn);
                 st.execute(new ClassPathResource("product_images.sql").getContentAsString(StandardCharsets.UTF_8));
                 log.info("Supabase database đã có dữ liệu từ sales.sql. Bỏ qua khởi tạo.");
                 try (ResultSet rs = st.executeQuery("SELECT COUNT(*) FROM public.users")) {
@@ -123,6 +124,7 @@ public class SalesDatabaseInitializer implements CommandLineRunner {
             new ResourceDatabasePopulator(new ClassPathResource("order_stock.sql")).populate(conn);
             new ResourceDatabasePopulator(new ClassPathResource("guest_checkout.sql")).populate(conn);
             new ResourceDatabasePopulator(new ClassPathResource("voucher_types.sql")).populate(conn);
+            new ResourceDatabasePopulator(new ClassPathResource("receipt_inspection.sql")).populate(conn);
             st.execute(new ClassPathResource("product_images.sql").getContentAsString(StandardCharsets.UTF_8));
 
             // Với PostgreSQL (Supabase): đồng bộ lại sequence sau khi INSERT thủ công có ID

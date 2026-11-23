@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import {
   Truck,
   Plus,
@@ -29,6 +29,7 @@ import {
   ArrowRight
 } from 'lucide-react'
 import { getApiBaseUrl, getApiHeaders } from '../lib/apiConfig'
+import { formatProductUnit } from '../lib/productUnits.js'
 
 export default function AdminSupplierManagement({ currentUser }) {
   const [suppliers, setSuppliers] = useState([])
@@ -63,17 +64,81 @@ export default function AdminSupplierManagement({ currentUser }) {
   const [expandedReceiptId, setExpandedReceiptId] = useState(null)
   const [receiptItemsMap, setReceiptItemsMap] = useState({})
   const [loadingItemsMap, setLoadingItemsMap] = useState({})
+  const [receiptItemErrors, setReceiptItemErrors] = useState({})
+  const [countedItems, setCountedItems] = useState({})
+  const [updatingReceiptId, setUpdatingReceiptId] = useState(null)
+  const [inspections, setInspections] = useState({})
+  const [approvalQueue, setApprovalQueue] = useState(null)
+  const [approvalLoading, setApprovalLoading] = useState(false)
+  const [reviewReason, setReviewReason] = useState('')
+  const [quickSupplierId, setQuickSupplierId] = useState(null)
+  const [quickPinned, setQuickPinned] = useState(false)
+  const [quickReceipts, setQuickReceipts] = useState([])
+  const [quickLoading, setQuickLoading] = useState(false)
+  const [quickError, setQuickError] = useState('')
+  const [quickAttempt, setQuickAttempt] = useState(0)
+  const quickTimer = useRef(null)
+  const quickPanel = useRef(null)
+  const quickRow = useRef(null)
+  const quickSupplier = suppliers.find(supplier => supplier.id === quickSupplierId)
 
   // Create Stock-in Receipt Modal
   const [showCreateReceiptModal, setShowCreateReceiptModal] = useState(false)
   const [availableProducts, setAvailableProducts] = useState([])
   const [receiptForm, setReceiptForm] = useState({
     staffId: 1,
-    status: 'COMPLETED',
+    status: 'PENDING',
     items: [{ productId: '', quantity: 1, unitPrice: '' }]
   })
   const [receiptFormError, setReceiptFormError] = useState('')
   const [submittingReceipt, setSubmittingReceipt] = useState(false)
+
+  useEffect(() => () => clearTimeout(quickTimer.current), [])
+  useEffect(() => {
+    if (!quickSupplierId || showReceiptsModal || showCreateReceiptModal) return
+    const controller = new AbortController()
+    async function load() {
+      setQuickLoading(true)
+      setQuickError('')
+      setQuickReceipts([])
+      try {
+        const response = await fetch(`${getApiBaseUrl()}/api/admin/suppliers/${quickSupplierId}/receipts`, { headers: getApiHeaders(), signal: controller.signal })
+        if (!response.ok) throw new Error('Không tải được phiếu nhập của nhà cung cấp.')
+        const rows = await response.json()
+        if (!Array.isArray(rows)) throw new Error('Dữ liệu phiếu nhập không hợp lệ.')
+        if (!controller.signal.aborted) setQuickReceipts(rows)
+      } catch (error) {
+        if (!controller.signal.aborted) setQuickError('Không tải được phiếu nhập. Bấm Thử lại để cập nhật.')
+      } finally {
+        if (!controller.signal.aborted) setQuickLoading(false)
+      }
+    }
+    load()
+    return () => controller.abort()
+  }, [quickSupplierId, showReceiptsModal, showCreateReceiptModal, quickAttempt])
+
+  const showQuickSupplier = (id, pin = false) => {
+    if (showReceiptsModal || showCreateReceiptModal || showSupplierModal || deletingSupplier || (quickPinned && !pin)) return
+    if (id !== quickSupplierId) { setQuickReceipts([]); setQuickError(''); setQuickLoading(true) }
+    setQuickSupplierId(id)
+    if (pin) {
+      setQuickPinned(true)
+      if (window.matchMedia('(max-width: 1199px)').matches) requestAnimationFrame(() => quickPanel.current?.scrollIntoView({ block: 'start' }))
+    }
+  }
+  const closeQuickSupplier = () => {
+    clearTimeout(quickTimer.current)
+    const row = quickRow.current
+    setQuickSupplierId(null)
+    setQuickPinned(false)
+    requestAnimationFrame(() => row?.focus({ preventScroll: true }))
+  }
+  useEffect(() => {
+    if (quickSupplierId && !suppliers.some(supplier => supplier.id === quickSupplierId)) {
+      setQuickSupplierId(null)
+      setQuickPinned(false)
+    }
+  }, [suppliers, quickSupplierId])
 
   // Delete confirmation
   const [deletingSupplier, setDeletingSupplier] = useState(null)
@@ -264,11 +329,15 @@ export default function AdminSupplierManagement({ currentUser }) {
   }
 
   // Open Receipt History Modal
-  const handleOpenReceiptsModal = async (supplier) => {
+  const handleOpenReceiptsModal = async (supplier, receiptId = null) => {
     setActiveSupplier(supplier)
     setShowReceiptsModal(true)
+    setReceiptsList([])
     setExpandedReceiptId(null)
     setReceiptItemsMap({})
+    setCountedItems({})
+    setInspections({})
+    setReceiptItemErrors({})
     setLoadingReceipts(true)
     try {
       const baseUrl = getApiBaseUrl()
@@ -280,6 +349,7 @@ export default function AdminSupplierManagement({ currentUser }) {
       }
       const data = await res.json()
       setReceiptsList(data || [])
+      if (receiptId) await handleToggleExpandReceipt(receiptId, supplier.id, true)
     } catch (err) {
       console.error(err)
       showToast(err.message, 'error')
@@ -289,27 +359,33 @@ export default function AdminSupplierManagement({ currentUser }) {
   }
 
   // Toggle expand receipt items
-  const handleToggleExpandReceipt = async (receiptId) => {
-    if (expandedReceiptId === receiptId) {
+  const handleToggleExpandReceipt = async (receiptId, supplierId = activeSupplier.id, force = false) => {
+    if (!force && expandedReceiptId === receiptId) {
       setExpandedReceiptId(null)
       return
     }
 
     setExpandedReceiptId(receiptId)
-    if (!receiptItemsMap[receiptId]) {
+    if (force || !receiptItemsMap[receiptId]) {
       setLoadingItemsMap((prev) => ({ ...prev, [receiptId]: true }))
+      setReceiptItemErrors(prev => ({ ...prev, [receiptId]: '' }))
       try {
         const baseUrl = getApiBaseUrl()
         const res = await fetch(
-          `${baseUrl}/api/admin/suppliers/${activeSupplier.id}/receipts/${receiptId}/items`,
+          `${baseUrl}/api/admin/suppliers/${supplierId}/receipts/${receiptId}/items`,
           { headers: getApiHeaders() }
         )
-        if (res.ok) {
-          const items = await res.json()
-          setReceiptItemsMap((prev) => ({ ...prev, [receiptId]: items }))
-        }
+        if (!res.ok) throw new Error('Không tải được chi tiết phiếu nhập. Đóng và mở lại phiếu để thử lại.')
+        const items = await res.json()
+        const checked = await fetch(`${baseUrl}/api/admin/suppliers/${supplierId}/receipts/${receiptId}/inspection`, { headers: getApiHeaders() })
+        if (!checked.ok) throw new Error('Không tải được kết quả kiểm đếm. Mở lại phiếu để thử lại.')
+        const inspection = await checked.json()
+        setInspections(prev => ({ ...prev, [receiptId]: inspection }))
+        setReviewReason('')
+        setCountedItems(prev => ({ ...prev, ...Object.fromEntries(inspection.items.filter(item => item.quantity !== null).map(item => [`${receiptId}-${item.productId}`, String(item.quantity)])) }))
+        setReceiptItemsMap((prev) => ({ ...prev, [receiptId]: items }))
       } catch (err) {
-        console.error('Lỗi lấy chi tiết phiếu nhập:', err)
+        setReceiptItemErrors(prev => ({ ...prev, [receiptId]: err instanceof TypeError ? 'Không kết nối được API kiểm đếm. Kiểm tra backend đã chạy bản mới rồi bấm Thử lại.' : err.message }))
       } finally {
         setLoadingItemsMap((prev) => ({ ...prev, [receiptId]: false }))
       }
@@ -317,7 +393,20 @@ export default function AdminSupplierManagement({ currentUser }) {
   }
 
   // Update Receipt Status
+  const receiptCountMatches = (receiptId) => {
+    const items = receiptItemsMap[receiptId] || []
+    return items.length > 0 && items.every(item => {
+      const value = countedItems[`${receiptId}-${item.productId}`]
+      return value !== undefined && value !== '' && Number.isSafeInteger(Number(value)) && Number(value) === item.quantity
+    })
+  }
   const handleUpdateReceiptStatus = async (receiptId, newStatus) => {
+    if (updatingReceiptId) return
+    if (newStatus === 'COMPLETED' && !receiptCountMatches(receiptId)) {
+      showToast('Cần kiểm đếm đủ số lượng của từng sản phẩm trước khi hoàn tất.', 'error')
+      return
+    }
+    setUpdatingReceiptId(receiptId)
     try {
       const baseUrl = getApiBaseUrl()
       const res = await fetch(
@@ -339,7 +428,35 @@ export default function AdminSupplierManagement({ currentUser }) {
       fetchSuppliers()
     } catch (err) {
       showToast(err.message, 'error')
+    } finally {
+      setUpdatingReceiptId(null)
     }
+  }
+
+  const loadApprovalQueue = async () => {
+    setApprovalLoading(true)
+    try {
+      const res = await fetch(`${getApiBaseUrl()}/api/admin/suppliers/receipt-approvals`, { headers: getApiHeaders() })
+      if (!res.ok) throw new Error('Không tải được danh sách phiếu chờ duyệt.')
+      setApprovalQueue(await res.json())
+    } catch (error) { showToast(error.message, 'error') }
+    finally { setApprovalLoading(false) }
+  }
+  const handleReceiptWorkflow = async (id, action, approve) => {
+    if (updatingReceiptId) return
+    if (action === 'inspection' && !receiptCountMatches(id)) return
+    setUpdatingReceiptId(id)
+    try {
+      const body = action === 'inspection' ? { counts: Object.fromEntries((receiptItemsMap[id] || []).map(item => [item.productId, Number(countedItems[`${id}-${item.productId}`])])) } : { approve, reason: reviewReason }
+      const res = await fetch(`${getApiBaseUrl()}/api/admin/suppliers/${activeSupplier.id}/receipts/${id}/${action}`, { method: 'POST', headers: getApiHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify(body) })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Không xử lý được phiếu nhập.')
+      showToast(data.message)
+      await handleOpenReceiptsModal(activeSupplier, id)
+      fetchSuppliers()
+      if (approvalQueue !== null) await loadApprovalQueue()
+    } catch (error) { showToast(error.message, 'error') }
+    finally { setUpdatingReceiptId(null) }
   }
 
   // Open Create Receipt Modal
@@ -347,7 +464,7 @@ export default function AdminSupplierManagement({ currentUser }) {
     setActiveSupplier(supplier)
     setReceiptForm({
       staffId: 1,
-      status: 'COMPLETED',
+      status: 'PENDING',
       items: [{ productId: availableProducts[0]?.id || '', quantity: 5, unitPrice: '' }]
     })
     setReceiptFormError('')
@@ -454,8 +571,8 @@ export default function AdminSupplierManagement({ currentUser }) {
       showToast(`Lập phiếu nhập kho thành công! Mã phiếu: #PR-${data.receiptId}`)
       setShowCreateReceiptModal(false)
       fetchSuppliers()
-      if (showReceiptsModal && activeSupplier) {
-        handleOpenReceiptsModal(activeSupplier)
+      if (activeSupplier && (receiptForm.status === 'PENDING' || showReceiptsModal)) {
+        await handleOpenReceiptsModal(activeSupplier, receiptForm.status === 'PENDING' ? data.receiptId : null)
       }
     } catch (err) {
       setReceiptFormError(err.message || 'Lỗi khi lập phiếu nhập kho.')
@@ -490,6 +607,7 @@ export default function AdminSupplierManagement({ currentUser }) {
         </div>
 
         <div className="admin-header-actions">
+          {currentUser?.role === 'ADMIN' && <button type="button" className="admin-btn admin-btn-primary" disabled={approvalLoading} onClick={loadApprovalQueue}>Phiếu nhập chờ duyệt</button>}
           <button
             type="button"
             className="admin-btn admin-btn-outline"
@@ -510,6 +628,16 @@ export default function AdminSupplierManagement({ currentUser }) {
           </button>
         </div>
       </div>
+
+      {approvalQueue !== null && <section className="admin-card" aria-label="Phiếu nhập chờ admin duyệt" style={{ padding: 20, marginTop: 20 }}>
+        <h2>Phiếu nhập chờ duyệt ({approvalQueue.length})</h2>
+        <p>Nhân viên đã kiểm đếm đủ. Mở phiếu để đối chiếu số lượng và giá vốn trước khi duyệt.</p>
+        {approvalQueue.length === 0 && <p>Không có phiếu chờ duyệt.</p>}
+        {approvalQueue.map(item => <div key={item.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', padding: 12, borderBottom: '1px solid var(--admin-border)' }}>
+          <span>Phiếu #{item.id} · {item.supplierName} · Kiểm đếm: {item.checkedBy} · {formatDate(item.submittedAt)} · {formatCurrency(item.totalAmount)}</span>
+          <button type="button" className="admin-btn admin-btn-outline" onClick={() => handleOpenReceiptsModal({ id: item.supplierId, name: item.supplierName }, item.id)}>Mở phiếu #{item.id}</button>
+        </div>)}
+      </section>}
 
       {/* 4 KPI Telemetry Cards */}
       <div className="inv-stats-grid">
@@ -659,7 +787,8 @@ export default function AdminSupplierManagement({ currentUser }) {
       </div>
 
       {/* Main Table Card */}
-      <div className="admin-card" style={{ padding: 0, overflow: 'hidden' }}>
+      <div className="supplier-review-layout">
+      <div className="admin-card supplier-review-list" style={{ padding: 0, overflow: 'hidden' }}>
         <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--admin-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
           <div>
             <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: 'var(--admin-text-main)' }}>
@@ -721,7 +850,12 @@ export default function AdminSupplierManagement({ currentUser }) {
                   const receiptCount = Number(s.totalReceiptsCount) || 0
                   const receiptValue = Number(s.totalReceiptValue) || 0
                   return (
-                    <tr key={s.id}>
+                    <tr key={s.id} className={`supplier-quick-row ${quickSupplierId === s.id ? 'supplier-quick-selected' : ''}`}
+                      ref={quickSupplierId === s.id ? quickRow : null} tabIndex={0} aria-label={`Xem nhà cung cấp ${s.name}`}
+                      onMouseEnter={() => { clearTimeout(quickTimer.current); quickTimer.current = setTimeout(() => showQuickSupplier(s.id), 250) }}
+                      onMouseLeave={() => clearTimeout(quickTimer.current)}
+                      onClick={event => { if (!event.target.closest('button, a, input')) showQuickSupplier(s.id, true) }}
+                      onKeyDown={event => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); showQuickSupplier(s.id, true) } }}>
                       <td style={{ textAlign: 'center', color: 'var(--admin-text-muted)', fontFamily: 'monospace', fontWeight: 700, fontSize: '0.86rem' }}>
                         #{s.id < 10 ? `0${s.id}` : s.id}
                       </td>
@@ -820,11 +954,11 @@ export default function AdminSupplierManagement({ currentUser }) {
                           <button
                             type="button"
                             className="btn-action-gallery"
-                            title="Xem lịch sử nhập kho"
+                            title="Xem phiếu nhập và kiểm đếm phiếu chờ"
                             onClick={() => handleOpenReceiptsModal(s)}
                           >
                             <FileSpreadsheet size={13} />
-                            <span>Lịch sử</span>
+                            <span>Phiếu nhập / Kiểm đếm</span>
                           </button>
 
                           {/* Sửa thông tin */}
@@ -859,6 +993,39 @@ export default function AdminSupplierManagement({ currentUser }) {
             </tbody>
           </table>
         </div>
+      </div>
+
+
+
+      {quickSupplier && <aside ref={quickPanel} className="supplier-quick-panel" aria-label="Xem nhanh nhà cung cấp">
+        <div className="supplier-quick-heading">
+          <div><span className="supplier-quick-eyebrow">NHÀ CUNG CẤP #{quickSupplier.id}</span><h2>{quickSupplier.name}</h2></div>
+          <button type="button" className="admin-btn admin-btn-outline" aria-label="Đóng chi tiết nhà cung cấp" onClick={closeQuickSupplier}><X size={16} /></button>
+        </div>
+        <p className="supplier-quick-help">{quickPinned ? 'Đang giữ chi tiết. Chọn nhà cung cấp khác để chuyển.' : 'Rê chuột để xem nhanh, bấm dòng hoặc nhấn Enter để giữ chi tiết.'}</p>
+        {quickPinned && <button type="button" className="admin-btn admin-btn-outline" onClick={() => setQuickPinned(false)}>Bỏ giữ chi tiết</button>}
+        <div className="supplier-quick-stats">
+          <div><span>Đợt nhập hàng</span><strong>{quickSupplier.totalReceiptsCount || 0}</strong></div>
+          <div><span>Tổng giá trị nhập</span><strong>{formatCurrency(quickSupplier.totalReceiptValue)}</strong></div>
+        </div>
+        <h3>Thông tin liên hệ</h3>
+        <dl className="supplier-quick-contact">
+          <div><dt><Phone size={14} />Điện thoại</dt><dd>{quickSupplier.phone ? <a href={`tel:${quickSupplier.phone}`}>{quickSupplier.phone}</a> : 'Chưa cung cấp'}</dd></div>
+          <div><dt><Mail size={14} />Email</dt><dd>{quickSupplier.email ? <a href={`mailto:${quickSupplier.email}`}>{quickSupplier.email}</a> : 'Chưa cung cấp'}</dd></div>
+          <div><dt><MapPin size={14} />Địa chỉ</dt><dd>{quickSupplier.address || 'Chưa cung cấp'}</dd></div>
+        </dl>
+        <div className="supplier-quick-actions">
+          <button type="button" className="admin-btn admin-btn-primary" onClick={() => handleOpenCreateReceipt(quickSupplier)}><Plus size={15} />Lập phiếu nhập</button>
+          <button type="button" className="admin-btn admin-btn-outline" onClick={() => handleOpenReceiptsModal(quickSupplier)}>Phiếu nhập / Kiểm đếm</button>
+        </div>
+        <h3>Phiếu nhập của nhà cung cấp</h3>
+        {quickLoading ? <p role="status">Đang tải phiếu nhập...</p> : quickError ? <div role="alert"><p>{quickError}</p><button type="button" className="admin-btn admin-btn-outline" onClick={() => setQuickAttempt(value => value + 1)}>Thử lại</button></div> : quickReceipts.length === 0 ? <p>Chưa có phiếu nhập kho.</p> : <div className="supplier-quick-receipts">
+          {quickReceipts.map(receipt => <button type="button" key={receipt.id} className="supplier-quick-receipt" onClick={() => handleOpenReceiptsModal(quickSupplier, receipt.id)}>
+            <span><strong>#PR-{receipt.id}</strong><small>{formatDate(receipt.receiptDate)} · {receipt.staffName || 'Chưa rõ người lập'}</small></span>
+            <span><strong>{formatCurrency(receipt.totalAmount)}</strong><small>{({ PENDING: 'Chờ kiểm đếm / duyệt', COMPLETED: 'Đã nhập kho', CANCELLED: 'Đã hủy' })[receipt.status] || receipt.status}</small></span>
+          </button>)}
+        </div>}
+      </aside>}
       </div>
 
       {/* MODAL 1: Thêm / Sửa Nhà Cung Cấp */}
@@ -984,10 +1151,10 @@ export default function AdminSupplierManagement({ currentUser }) {
                 </div>
                 <div>
                   <h3 className="modal-title">
-                    Lịch Sử Nhập Kho — {activeSupplier.name}
+                    Phiếu nhập &amp; Kiểm đếm — {activeSupplier.name}
                   </h3>
                   <p className="modal-subtitle">
-                    Theo dõi các lô hàng nội thất đã nhập, nhân viên phụ trách và tình trạng kho.
+                    Mở phiếu chờ kiểm đếm, đối chiếu hàng nhận thực tế với số lượng trên phiếu rồi hoàn tất nhập kho.
                   </p>
                 </div>
               </div>
@@ -1029,10 +1196,12 @@ export default function AdminSupplierManagement({ currentUser }) {
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {receiptsList.map((rc) => {
+                  {[...receiptsList].sort((a, b) => Number(b.status === 'PENDING') - Number(a.status === 'PENDING')).map((rc) => {
                     const isExpanded = expandedReceiptId === rc.id
                     const items = receiptItemsMap[rc.id] || []
                     const loadingItems = loadingItemsMap[rc.id]
+                    const inspection = inspections[rc.id]
+                    const awaitingApproval = Boolean(inspection?.submittedAt && !inspection?.reviewedAt)
 
                     let statusBadgeClass = 'admin-status-pill'
                     let statusLabel = rc.status
@@ -1043,7 +1212,7 @@ export default function AdminSupplierManagement({ currentUser }) {
                       statusDot = 'green'
                     } else if (rc.status === 'PENDING') {
                       statusBadgeClass = 'admin-status-pill warning'
-                      statusLabel = 'Chờ duyệt kho'
+                      statusLabel = awaitingApproval ? 'Chờ admin duyệt' : inspection?.reason ? 'Cần kiểm tra lại' : 'Chờ kiểm đếm / duyệt'
                       statusDot = 'amber'
                     } else if (rc.status === 'CANCELLED') {
                       statusBadgeClass = 'admin-status-pill inactive'
@@ -1064,6 +1233,9 @@ export default function AdminSupplierManagement({ currentUser }) {
                       >
                         {/* Receipt row header */}
                         <div
+                          role="button" tabIndex={0} aria-expanded={isExpanded}
+                          aria-label={`Mở phiếu nhập #${rc.id}${rc.status === 'PENDING' ? ' để kiểm đếm' : ''}`}
+                          onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); handleToggleExpandReceipt(rc.id) } }}
                           style={{
                             padding: '14px 18px',
                             display: 'flex',
@@ -1120,16 +1292,32 @@ export default function AdminSupplierManagement({ currentUser }) {
                         {/* Expanded Receipt Items */}
                         {isExpanded && (
                           <div style={{ padding: '16px 20px', background: '#F8FAFC' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                            {rc.status === 'PENDING' && <p role="status" style={{ marginTop: 0, lineHeight: 1.6 }}>
+                              Đối chiếu mã sản phẩm, số lượng trên phiếu giao của nhà cung cấp và hàng thực tế. Nhập số lượng đã đếm cho từng dòng bên dưới.
+                              Khi đủ hàng đạt chất lượng, gửi kết quả cho admin duyệt. Tồn kho chỉ tăng khi admin đồng ý. Nếu thiếu, thừa hoặc hỏng, liên hệ nhà cung cấp.
+                            </p>}
+                            {inspection?.checkedBy && <p>Kiểm đếm: <strong>{inspection.checkedBy}</strong> · Gửi lúc {formatDate(inspection.submittedAt)}</p>}
+                            {inspection?.reviewedBy && <p>Admin xử lý: <strong>{inspection.reviewedBy}</strong> · {formatDate(inspection.reviewedAt)}{inspection.reason ? ` · Yêu cầu kiểm tra lại: ${inspection.reason}` : ' · Đã duyệt'}</p>}
+                            {inspection?.history?.length > 0 && <details style={{ marginBottom: 16 }}><summary>Lịch sử kiểm đếm và duyệt ({inspection.history.length})</summary>
+                              <ul>{inspection.history.map((event, index) => <li key={index}>{formatDate(event.createdAt)} · {event.username} · {({ SUBMITTED: 'Gửi kiểm đếm', APPROVED: 'Duyệt nhập kho', RETURNED: 'Yêu cầu kiểm tra lại' })[event.action]}{event.reason ? `: ${event.reason}` : ''}</li>)}</ul>
+                            </details>}
+                            {awaitingApproval && currentUser?.role !== 'ADMIN' && <p role="status">Đã lưu kết quả kiểm đếm. Đang chờ admin duyệt; bạn không cần nhập lại.</p>}
+                            {awaitingApproval && currentUser?.role === 'ADMIN' && rc.status === 'PENDING' && <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
+                              <label>Lý do yêu cầu kiểm tra lại <input className="form-input" maxLength={1000} value={reviewReason} onChange={event => setReviewReason(event.target.value)} /></label>
+                              <button type="button" className="admin-btn admin-btn-outline" disabled={updatingReceiptId !== null || !reviewReason.trim()} onClick={() => handleReceiptWorkflow(rc.id, 'review', false)}>Yêu cầu kiểm tra lại</button>
+                              <button type="button" className="admin-btn admin-btn-primary" disabled={updatingReceiptId !== null} onClick={() => handleReceiptWorkflow(rc.id, 'review', true)}>Duyệt nhập kho</button>
+                            </div>}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: '12px' }}>
                               <h4 style={{ margin: 0, fontSize: '0.88rem', fontWeight: 700, color: 'var(--admin-primary)' }}>
                                 Chi tiết danh mục nội thất trong phiếu nhập:
                               </h4>
 
                               {rc.status === 'PENDING' && (
-                                <div style={{ display: 'flex', gap: '8px' }}>
+                                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                                   <button
                                     type="button"
                                     className="admin-btn admin-btn-outline"
+                                    disabled={updatingReceiptId !== null}
                                     onClick={(e) => {
                                       e.stopPropagation()
                                       handleUpdateReceiptStatus(rc.id, 'CANCELLED')
@@ -1140,13 +1328,14 @@ export default function AdminSupplierManagement({ currentUser }) {
                                   <button
                                     type="button"
                                     className="admin-btn admin-btn-primary"
+                                    disabled={awaitingApproval || updatingReceiptId !== null || loadingItems || !receiptCountMatches(rc.id)}
                                     style={{ padding: '5px 12px', fontSize: '0.82rem', background: '#059669', borderColor: '#059669' }}
                                     onClick={(e) => {
                                       e.stopPropagation()
-                                      handleUpdateReceiptStatus(rc.id, 'COMPLETED')
+                                      handleReceiptWorkflow(rc.id, 'inspection')
                                     }}
                                   >
-                                    <Check size={14} /> <span>Duyệt nhập &amp; Cộng tồn kho</span>
+                                    <Check size={14} /> <span>{updatingReceiptId === rc.id ? 'Đang lưu...' : awaitingApproval ? 'Đã gửi admin duyệt' : 'Gửi admin duyệt'}</span>
                                   </button>
                                 </div>
                               )}
@@ -1156,11 +1345,17 @@ export default function AdminSupplierManagement({ currentUser }) {
                               <div style={{ padding: '16px', textAlign: 'center', color: 'var(--admin-text-muted)', fontSize: '0.85rem' }}>
                                 Đang tải danh sách mặt hàng...
                               </div>
+                            ) : receiptItemErrors[rc.id] ? (
+                              <div role="alert" style={{ padding: 16, background: '#fff', border: '1px solid #f3c5c5', borderRadius: 8 }}>
+                                <p>{receiptItemErrors[rc.id]}</p>
+                                <button type="button" className="admin-btn admin-btn-outline" onClick={() => handleToggleExpandReceipt(rc.id, activeSupplier.id, true)}>Thử lại</button>
+                              </div>
                             ) : items.length === 0 ? (
                               <div style={{ padding: '16px', textAlign: 'center', color: 'var(--admin-text-muted)', fontSize: '0.85rem' }}>
                                 Không có chi tiết sản phẩm nào.
                               </div>
                             ) : (
+                              <div className="admin-table-container">
                               <table className="admin-table" style={{ background: '#fff', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--admin-border)' }}>
                                 <thead>
                                   <tr>
@@ -1169,16 +1364,23 @@ export default function AdminSupplierManagement({ currentUser }) {
                                     <th style={{ fontSize: '0.78rem', textAlign: 'center' }}>Số Lượng</th>
                                     <th style={{ fontSize: '0.78rem', textAlign: 'right' }}>Giá Vốn Nhập</th>
                                     <th style={{ fontSize: '0.78rem', textAlign: 'right' }}>Thành Tiền</th>
+                                    {rc.status === 'PENDING' && <th>Số lượng thực nhận</th>}
                                   </tr>
                                 </thead>
                                 <tbody>
-                                  {items.map((it, idx) => (
+                                  {items.map((it, idx) => {
+                                    const received = countedItems[`${rc.id}-${it.productId}`] ?? ''
+                                    const empty = received === ''
+                                    const matched = !empty && Number(received) === it.quantity
+                                    const hintId = `receipt-count-${rc.id}-${it.productId}`
+                                    return (
                                     <tr key={idx}>
                                       <td style={{ fontWeight: 600, color: 'var(--admin-primary)' }}>
                                         {it.productName}
+                                        <div style={{ fontSize: '.75rem', fontWeight: 400 }}>Mã SP: #{it.productId}</div>
                                       </td>
                                       <td style={{ textAlign: 'center', color: 'var(--admin-text-muted)' }}>
-                                        {it.unit || 'Bộ'}
+                                        {formatProductUnit(it.unit)}
                                       </td>
                                       <td style={{ textAlign: 'center', fontWeight: 700, color: 'var(--admin-text-main)' }}>
                                         {it.quantity}
@@ -1189,10 +1391,26 @@ export default function AdminSupplierManagement({ currentUser }) {
                                       <td style={{ textAlign: 'right', fontWeight: 700, color: '#047857' }}>
                                         {formatCurrency(it.amount)}
                                       </td>
+                                      {rc.status === 'PENDING' && <td className="receipt-count-cell">
+                                        <div className="receipt-count" data-state={empty ? 'empty' : matched ? 'matched' : 'mismatch'}>
+                                          <div className="receipt-count-control">
+                                            <input type="number" min="0" step="1" inputMode="numeric" placeholder="—"
+                                              aria-label={`Thực nhận ${it.productName}`} aria-describedby={hintId} aria-invalid={!empty && !matched} value={received}
+                                              disabled={awaitingApproval || updatingReceiptId !== null}
+                                              onChange={event => setCountedItems(prev => ({ ...prev, [`${rc.id}-${it.productId}`]: event.target.value }))} />
+                                            <span>{formatProductUnit(it.unit)}</span>
+                                          </div>
+                                          <small id={hintId} className="receipt-count-hint">
+                                            {matched ? <CheckCircle2 size={13} /> : !empty ? <AlertCircle size={13} /> : null}
+                                            {empty ? `Chưa đếm · Cần ${it.quantity}` : matched ? 'Khớp số lượng' : `Chưa khớp · Cần ${it.quantity}`}
+                                          </small>
+                                        </div>
+                                      </td>}
                                     </tr>
-                                  ))}
+                                  )})}
                                 </tbody>
                               </table>
+                              </div>
                             )}
                           </div>
                         )}
@@ -1256,11 +1474,10 @@ export default function AdminSupplierManagement({ currentUser }) {
                       value={receiptForm.status}
                       onChange={(e) => setReceiptForm({ ...receiptForm, status: e.target.value })}
                     >
-                      <option value="COMPLETED">COMPLETED (Hoàn tất &amp; Tự động cộng tồn kho)</option>
-                      <option value="PENDING">PENDING (Lưu tạm chờ kiểm đếm thực tế)</option>
+                      <option value="PENDING">Chờ kiểm đếm → Gửi admin duyệt</option>
                     </select>
                     <p style={{ fontSize: '0.82rem', color: 'var(--admin-text-muted)' }}>
-                      Chỉ hoàn tất khi đã nhận và kiểm đủ hàng. Phiếu hoàn tất hoặc đã hủy sẽ bị khóa.
+                      Lưu phiếu, kiểm đếm số lượng thực nhận rồi gửi admin duyệt. Chỉ khi admin duyệt mới cộng tồn kho; phiếu đã hoàn tất sẽ bị khóa.
                     </p>
                   </div>
 

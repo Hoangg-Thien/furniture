@@ -114,7 +114,8 @@ public class AdminSupplierController {
             @RequestAttribute(AdminIdentity.ATTRIBUTE) AdminIdentity identity) {
         try {
             if ("STAFF".equals(identity.role())) req = new CreateReceiptRequest(identity.staffId(), req.status(), req.items());
-            Long receiptId = adminSupplierService.createReceipt(id, req);
+            if (!"PENDING".equalsIgnoreCase(req.status())) throw new IllegalArgumentException("Phiếu mới phải chờ kiểm đếm và gửi admin duyệt.");
+            Long receiptId = adminSupplierService.createReceipt(id, req, identity.userId());
             return ResponseEntity.status(HttpStatus.CREATED).body(Map.of(
                     "message", "Tạo phiếu nhập kho thành công",
                     "receiptId", receiptId
@@ -133,6 +134,7 @@ public class AdminSupplierController {
             @RequestBody Map<String, String> body) {
         try {
             String status = body.get("status");
+            if (!"CANCELLED".equalsIgnoreCase(status)) throw new IllegalArgumentException("Vui lòng dùng quy trình gửi kiểm đếm và admin duyệt để hoàn tất phiếu.");
             adminSupplierService.updateReceiptStatus(id, receiptId, status);
             return ResponseEntity.ok(Map.of("message", "Đã cập nhật trạng thái phiếu nhập"));
         } catch (IllegalArgumentException e) {

@@ -104,6 +104,10 @@ class AdminPermissionsTest {
         mvc.perform(put("/api/admin/suppliers/7").header("Authorization", warehouse)).andExpect(status().isOk());
         mvc.perform(post("/api/admin/suppliers/7/receipts").header("Authorization", warehouse)).andExpect(status().isOk());
         mvc.perform(patch("/api/admin/suppliers/7/receipts/8/status").header("Authorization", warehouse)).andExpect(status().isOk());
+        mvc.perform(post("/api/admin/suppliers/7/receipts/8/inspection").header("Authorization", warehouse)).andExpect(status().isOk());
+        mvc.perform(get("/api/admin/suppliers/7/receipts/8/inspection").header("Authorization", warehouse)).andExpect(status().isOk());
+        mvc.perform(post("/api/admin/suppliers/7/receipts/8/review").header("Authorization", warehouse)).andExpect(status().isForbidden());
+        mvc.perform(get("/api/admin/suppliers/receipt-approvals").header("Authorization", warehouse)).andExpect(status().isForbidden());
         mvc.perform(put("/api/admin/orders/3/confirm").header("Authorization", sales)).andExpect(status().isOk());
         mvc.perform(post("/api/admin/invoices/preview-calculation").header("Authorization", sales)).andExpect(status().isOk());
         mvc.perform(put("/api/admin/products/1/content").param("code", "400").header("Authorization", content)).andExpect(status().isBadRequest());
@@ -112,13 +116,13 @@ class AdminPermissionsTest {
         mvc.perform(get("/api/admin/products").header("Authorization", content)).andExpect(status().isOk());
         mvc.perform(put("/api/admin/products/1").header("Authorization", "Bearer " + token(1))).andExpect(status().isOk());
         var items = new AdminActivityRepository(jdbc).findRecent();
-        assertEquals(7, items.size());
+        assertEquals(8, items.size());
         assertEquals("Xác nhận đơn hàng #3", items.get(0).title());
         assertEquals("user2", items.get(0).actorUsername());
         assertEquals("orders", items.get(0).module());
         assertEquals(3L, items.get(0).recordId());
-        assertEquals("Xóa ảnh sản phẩm #1", items.get(5).title());
-        assertNull(items.get(5).recordId(), "Deleted records must not open a missing detail");
+        var deletion = items.stream().filter(item -> "Xóa ảnh sản phẩm #1".equals(item.title())).findFirst().orElseThrow();
+        assertNull(deletion.recordId(), "Deleted records must not open a missing detail");
         jdbc.update("UPDATE users SET username = 'renamed' WHERE id = 2");
         mvc.perform(get("/api/admin/notifications/activities").header("Authorization", "Bearer " + token(1)))
                 .andExpect(status().isOk())

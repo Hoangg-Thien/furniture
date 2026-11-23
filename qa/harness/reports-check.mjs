@@ -47,9 +47,10 @@ try {
         { dateLabel: '12/11', salesRevenue: 0, importCost: 0, ordersCount: 0 },
       ],
       'category-share': [{ categoryId: 1, categoryName: 'Sofa', totalRevenue: 1250000, percentage: 100 }],
-      'top-products': [{ productId: 1, productName: 'Sofa bán chạy', soldQuantity: 12, totalRevenue: 1250000, currentStock: 2 }],
+      'top-products': Array.from({ length: 23 }, (_, index) => ({ productId: index + 1, productName: `Sản phẩm ${index + 1}`, unit: 'cai', soldQuantity: index === 0 ? 12 : 0, totalRevenue: index === 0 ? 1250000 : 0, currentStock: 2 })).slice(0, Number(url.searchParams.get('limit')) || 23),
       'dead-stock': [{ productId: 2, productName: 'Bàn chưa bán', currentStock: 3, sellingPrice: 500000, daysSinceLastSold: null },
-        { productId: 3, productName: 'Ghế bán hôm nay', currentStock: 1, sellingPrice: 250000, daysSinceLastSold: 0 }],
+        { productId: 3, productName: 'Ghế bán hôm nay', currentStock: 1, sellingPrice: 250000, daysSinceLastSold: 0 },
+        ...Array.from({ length: 10 }, (_, i) => ({ productId: i + 4, productName: `Tồn kho ${i + 4}`, currentStock: 2, sellingPrice: 250000, daysSinceLastSold: i + 1 }))].slice(0, Number(url.searchParams.get('limit')) > 0 ? Number(url.searchParams.get('limit')) : 5),
       'voucher-efficiency': [{ voucherId: 1, voucherCode: 'SALE10', programName: 'Tháng 11', discountPercent: 10, usedQuantity: 2, totalQuantity: 10, totalDiscountGiven: 100000 }],
     }
     const key = url.pathname.split('/').at(-1)
@@ -57,8 +58,51 @@ try {
     await route.fulfill({ json: mode === 'empty' && key !== 'overview' ? [] : responses[key] })
   })
   await page.goto(new URL(path, server.resolvedUrls.local[0]).href)
+  await page.getByText('5 sản phẩm · Trang 1/1', { exact: true }).waitFor()
+  const originalChart = await page.locator('.admin-reports-charts-row').elementHandle()
+  await page.locator('.admin-report-product-toolbar').scrollIntoViewIfNeeded()
+  const originalScroll = await page.evaluate(() => scrollY)
+  const topRows = page.locator('.admin-report-tab-body tbody tr')
+  await page.getByRole('button', { name: 'Top 10', exact: true }).click()
+  await page.getByText('10 sản phẩm · Trang 1/1', { exact: true }).waitFor()
+  await page.getByRole('button', { name: 'Top 5', exact: true }).click()
+  await page.getByText('5 sản phẩm · Trang 1/1', { exact: true }).waitFor()
+  assert.equal(await page.evaluate(() => scrollY), originalScroll, 'changing Top keeps scroll position')
+  assert.equal(await originalChart.evaluate(element => element.isConnected), true, 'changing Top keeps charts mounted')
+  await page.getByRole('button', { name: 'Top 20', exact: true }).click()
+  await page.getByText('20 sản phẩm · Trang 1/2', { exact: true }).waitFor()
+  assert.equal(await topRows.count(), 10)
+  await page.getByRole('button', { name: 'Sau', exact: true }).click()
+  await topRows.first().getByText('Mã SP: #11', { exact: true }).waitFor()
+  await topRows.first().getByRole('cell', { name: '0 cái', exact: true }).waitFor()
+  await page.getByRole('button', { name: 'Tất cả', exact: true }).click()
+  await page.getByText('23 sản phẩm · Trang 1/3', { exact: true }).waitFor()
+  await page.getByRole('button', { name: 'Sau', exact: true }).click()
+  await page.getByRole('button', { name: 'Sau', exact: true }).click()
+  assert.equal(await topRows.count(), 3)
+  await topRows.last().getByText('Mã SP: #23', { exact: true }).waitFor()
+  await page.getByRole('button', { name: 'Top 20', exact: true }).click()
   await page.locator('.admin-kpi-card').first().waitFor()
-  assert.equal(requests.length, 6)
+  await page.getByText('20 sản phẩm · Trang 1/2', { exact: true }).waitFor()
+  assert.equal(await page.getByRole('button', { name: 'Top 20', exact: true }).getAttribute('aria-pressed'), 'true')
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 1000 })
+    const toolbar = page.locator('.admin-report-product-toolbar')
+    assert(await toolbar.evaluate(el => el.getBoundingClientRect().right <= innerWidth), 'product filter fits viewport')
+    await toolbar.screenshot({ path: fileURLToPath(new URL(`../artifacts/report-product-filter-${width}.png`, import.meta.url)) })
+  }
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  assert.equal(requests.length, 6, 'Top selection must not reload report APIs')
+  await page.getByRole('button', { name: /Hàng Tồn/ }).click()
+  await page.getByText('12 sản phẩm · Trang 1/2', { exact: true }).waitFor()
+  const stockPaging = page.getByRole('navigation', { name: 'Phân trang hàng tồn ứ đọng' })
+  await stockPaging.getByRole('button', { name: 'Sau', exact: true }).click()
+  await page.getByText('12 sản phẩm · Trang 2/2', { exact: true }).waitFor()
+  assert.equal(await page.locator('.admin-report-tab-body tbody tr').count(), 2)
+  await stockPaging.getByRole('button', { name: 'Trước', exact: true }).click()
+  assert.equal(await page.locator('.admin-report-tab-body tbody tr').count(), 10)
+  assert.equal(requests.filter(url => url.pathname.endsWith('/dead-stock')).every(url => Number(url.searchParams.get('limit')) > 20), true)
+  await page.getByRole('button', { name: /Top Sản Phẩm/ }).click()
   assert.equal(await page.getByLabel('Từ ngày:').inputValue(), '2026-10-13')
   assert.equal(await page.getByLabel('Đến ngày:').inputValue(), '2026-11-11')
   assert.match(await page.locator('.admin-kpi-card').first().innerText(), /1\.250\.000/)

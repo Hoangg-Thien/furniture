@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { getApiBaseUrl, getApiHeaders } from '../lib/apiConfig'
 import { productImageUrl } from '../lib/productImages'
+import { formatProductUnit } from '../lib/productUnits.js'
 import {
   Download,
   Flame,
@@ -36,7 +37,14 @@ export default function AdminReportsManagement() {
   const [revenueTrend, setRevenueTrend] = useState([])
   const [categoryShare, setCategoryShare] = useState([])
   const [topProducts, setTopProducts] = useState([])
+  const [topProductLimit, setTopProductLimit] = useState(5)
+  const [showAllTopProducts, setShowAllTopProducts] = useState(false)
+  const [topPage, setTopPage] = useState(0)
+  const visibleTopProducts = showAllTopProducts ? topProducts : topProducts.slice(0, topProductLimit)
+  const topPageCount = Math.max(1, Math.ceil(visibleTopProducts.length / 10))
   const [deadStock, setDeadStock] = useState([])
+  const [deadStockPage, setDeadStockPage] = useState(0)
+  const deadStockPageCount = Math.max(1, Math.ceil(deadStock.length / 10))
   const [voucherReport, setVoucherReport] = useState([])
   const [activeTab, setActiveTab] = useState('topSelling') // 'topSelling' | 'deadStock' | 'vouchers'
   const [hoveredTrendPoint, setHoveredTrendPoint] = useState(null)
@@ -71,8 +79,9 @@ export default function AdminReportsManagement() {
       setHoveredTrendPoint(null)
       try {
         const params = `?fromDate=${fromDate}&toDate=${toDate}`
+        // Older running backends interpret limit=0 as the default five rows.
         const paths = [`overview${params}`, `revenue-trend${params}`, `category-share${params}`,
-          'top-products?limit=6', 'dead-stock?limit=6', 'voucher-efficiency']
+          'top-products?limit=2147483647', 'dead-stock?limit=2147483647', 'voucher-efficiency']
         const [ovRes, trendRes, catRes, topRes, deadRes, voucherRes] = await Promise.all(paths.map(async path => {
           const response = await fetch(`${getApiBaseUrl()}/api/admin/statistics/${path}`, {
             headers: getApiHeaders(), signal: controller.signal
@@ -89,7 +98,9 @@ export default function AdminReportsManagement() {
         setRevenueTrend(trendRes)
         setCategoryShare(catRes)
         setTopProducts(topRes)
+        setTopPage(0)
         setDeadStock(deadRes)
+        setDeadStockPage(0)
         setVoucherReport(voucherRes)
       } catch (err) {
         if (!controller.signal.aborted) setError(err.message || 'Không thể kết nối máy chủ.')
@@ -451,6 +462,18 @@ export default function AdminReportsManagement() {
         {/* Nội dung Tab 1: Top bán chạy */}
         {activeTab === 'topSelling' && (
           <div className="admin-report-tab-body">
+            <div className="admin-report-product-toolbar">
+              <div className="admin-report-product-caption">
+                <strong>{showAllTopProducts ? 'Tất cả sản phẩm' : `Top ${topProductLimit} sản phẩm`}</strong>
+                <span>{showAllTopProducts ? 'Bao gồm sản phẩm chưa phát sinh bán hàng' : 'Xếp hạng theo số lượng đã bán'}</span>
+              </div>
+              <div className="admin-report-product-options" role="group" aria-label="Số sản phẩm hiển thị">
+                {[5, 10, 20].map(limit => <button key={limit} type="button"
+                  aria-pressed={!showAllTopProducts && topProductLimit === limit}
+                  onClick={() => { setTopProductLimit(limit); setShowAllTopProducts(false); setTopPage(0) }}>Top {limit}</button>)}
+                <button type="button" aria-pressed={showAllTopProducts} onClick={() => { setShowAllTopProducts(true); setTopPage(0) }}>Tất cả</button>
+              </div>
+            </div>
             <div className="admin-table-responsive">
               <table className="admin-table">
                 <thead>
@@ -465,17 +488,17 @@ export default function AdminReportsManagement() {
                   </tr>
                 </thead>
                 <tbody>
-                  {topProducts.length === 0 ? (
+                  {visibleTopProducts.length === 0 ? (
                     <tr>
                       <td colSpan="7" style={{ textAlign: 'center', padding: '24px', color: '#64748B' }}>
                         Chưa có dữ liệu sản phẩm bán ra
                       </td>
                     </tr>
                   ) : (
-                    topProducts.map((p, index) => (
+                    visibleTopProducts.slice(topPage * 10, (topPage + 1) * 10).map((p, index) => (
                       <tr key={p.productId || index}>
                         <td style={{ textAlign: 'center' }}>
-                          <span className={`admin-rank-badge rank-${index + 1}`}>{index + 1}</span>
+                          <span className={`admin-rank-badge rank-${topPage * 10 + index + 1}`}>{topPage * 10 + index + 1}</span>
                         </td>
                         <td>
                           <div className="admin-product-cell">
@@ -492,9 +515,9 @@ export default function AdminReportsManagement() {
                             </div>
                           </div>
                         </td>
-                        <td style={{ textAlign: 'center' }}>{p.unit || 'Chiếc'}</td>
+                        <td style={{ textAlign: 'center' }}>{formatProductUnit(p.unit)}</td>
                         <td style={{ textAlign: 'right', fontWeight: 600, color: '#0F766E' }}>
-                          {p.soldQuantity} {p.unit || ''}
+                          {p.soldQuantity ?? 0} {formatProductUnit(p.unit)}
                         </td>
                         <td style={{ textAlign: 'right', fontWeight: 600 }}>
                           {formatCurrency(p.totalRevenue)}
@@ -505,7 +528,7 @@ export default function AdminReportsManagement() {
                           </span>
                         </td>
                         <td style={{ textAlign: 'center' }}>
-                          <span className="admin-badge admin-badge-primary">Hot Seller</span>
+                          <span className="admin-badge admin-badge-primary">{p.soldQuantity > 0 ? 'Đã bán' : 'Chưa bán'}</span>
                         </td>
                       </tr>
                     ))
@@ -516,9 +539,21 @@ export default function AdminReportsManagement() {
           </div>
         )}
 
+        {activeTab === 'topSelling' && visibleTopProducts.length > 0 && <nav aria-label="Phân trang sản phẩm báo cáo" style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 12, flexWrap: 'wrap', padding: 16 }}>
+          <span>{visibleTopProducts.length} sản phẩm · Trang {topPage + 1}/{topPageCount}</span>
+          <button type="button" className="admin-btn admin-btn-outline" disabled={topPage === 0 || loading} onClick={() => setTopPage(value => value - 1)}>Trước</button>
+          <button type="button" className="admin-btn admin-btn-outline" disabled={topPage + 1 >= topPageCount || loading} onClick={() => setTopPage(value => value + 1)}>Sau</button>
+        </nav>}
+
         {/* Nội dung Tab 2: Hàng tồn chậm */}
         {activeTab === 'deadStock' && (
           <div className="admin-report-tab-body">
+            <div className="admin-report-product-toolbar">
+              <div className="admin-report-product-caption">
+                <strong>{deadStock.length} sản phẩm còn tồn kho · {deadStock.filter(item => item.daysSinceLastSold == null).length} sản phẩm chưa từng bán</strong>
+                <span>Hiển thị toàn bộ sản phẩm đang bán còn tồn kho, ưu tiên sản phẩm chưa từng bán.</span>
+              </div>
+            </div>
             <div className="admin-table-responsive">
               <table className="admin-table">
                 <thead>
@@ -540,7 +575,7 @@ export default function AdminReportsManagement() {
                       </td>
                     </tr>
                   ) : (
-                    deadStock.map((item, idx) => {
+                    deadStock.slice(deadStockPage * 10, (deadStockPage + 1) * 10).map((item, idx) => {
                       const totalDeadValue = (item.currentStock || 0) * Number(item.sellingPrice || 0)
                       return (
                         <tr key={item.productId || idx}>
@@ -559,7 +594,7 @@ export default function AdminReportsManagement() {
                               </div>
                             </div>
                           </td>
-                          <td style={{ textAlign: 'center' }}>{item.unit || 'Chiếc'}</td>
+                          <td style={{ textAlign: 'center' }}>{formatProductUnit(item.unit)}</td>
                           <td style={{ textAlign: 'center', fontWeight: 600, color: '#EF4444' }}>
                             {item.currentStock}
                           </td>
@@ -588,6 +623,12 @@ export default function AdminReportsManagement() {
             </div>
           </div>
         )}
+
+        {activeTab === 'deadStock' && deadStock.length > 0 && <nav aria-label="Phân trang hàng tồn ứ đọng" style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 12, flexWrap: 'wrap', padding: 16 }}>
+          <span>{deadStock.length} sản phẩm · Trang {deadStockPage + 1}/{deadStockPageCount}</span>
+          <button type="button" className="admin-btn admin-btn-outline" disabled={deadStockPage === 0 || loading} onClick={() => setDeadStockPage(value => value - 1)}>Trước</button>
+          <button type="button" className="admin-btn admin-btn-outline" disabled={deadStockPage + 1 >= deadStockPageCount || loading} onClick={() => setDeadStockPage(value => value + 1)}>Sau</button>
+        </nav>}
 
         {/* Nội dung Tab 3: Hiệu quả khuyến mãi */}
         {activeTab === 'vouchers' && (
