@@ -4425,7 +4425,10 @@
 .client-notifications-list { max-height: min(420px, 60vh); overflow-y: auto; }
 .client-notifications-status { padding: 16px; margin: 0; font-size: 13px; line-height: 1.6; }
 .client-notification-item { display: flex; flex-direction: column; gap: 6px; padding: 14px 16px; border-bottom: 1px solid var(--line); text-decoration: none; color: inherit; font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
-.client-notification-item.unread { background: #edf5f1; }
+.client-notification-row { display: flex; align-items: flex-start; border-bottom: 1px solid var(--line); }
+.client-notification-row.unread { background: #edf5f1; }
+.client-notification-row .client-notification-item { flex: 1; min-width: 0; border-bottom: 0; }
+.client-notification-delete { flex-shrink: 0; margin: 10px 8px 0 0; }
 .client-notification-item:hover, .client-notification-item:focus-visible { background: #f2eee6; }
 .client-notification-item span { color: var(--muted); }
 .client-notification-dot { display: inline-block; width: 7px; height: 7px; margin-right: 7px; border-radius: 50%; background: var(--forest); }

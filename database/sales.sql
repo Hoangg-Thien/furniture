@@ -356,41 +356,41 @@ INSERT INTO customers (id, user_id, full_name, email, phone, address) VALUES
 -- CATEGORIES (10)
 -- ---------------------------------------------------------------------
 INSERT INTO categories (id, name, description) VALUES
-(1,  'Sofa va ghe thu gian',  'Sofa goc, sofa bang, ghe thu gian phong khach'),
-(2,  'Ban an',                'Ban an go, ban an mat da cac kich thuoc'),
-(3,  'Ghe an va ghe bar',     'Ghe an, ghe bar, ghe quay bar'),
-(4,  'Giuong ngu',            'Giuong go, giuong boc nem, giuong ngu thong minh'),
-(5,  'Tu quan ao va tu giay', 'Tu quan ao canh mo, canh lua, tu giay'),
-(6,  'Ban va ghe van phong',  'Ban lam viec, ghe cong thai hoc'),
-(7,  'Ke sach va ke tivi',    'Ke sach, ke tivi, tu trung bay'),
-(8,  'Den trang tri',         'Den chum, den san, den ban, den tuong'),
-(9,  'Tham va rem cua',       'Tham trai san, rem vai, rem cuon'),
-(10, 'Nem va phu kien giuong','Nem cao su, nem lo xo, goi, chan ga');
+(1,  'Sofa và ghế thư giãn',  'Sofa góc, sofa băng, ghế thư giãn phòng khách'),
+(2,  'Bàn ăn',                'Bàn ăn gỗ, bàn ăn mặt đá các kích thước'),
+(3,  'Ghế ăn và ghế bar',     'Ghế ăn, ghế bar, ghế quầy bar'),
+(4,  'Giường ngủ',            'Giường gỗ, giường bọc nệm, giường ngủ thông minh'),
+(5,  'Tủ quần áo và tủ giày', 'Tủ quần áo cánh mở, cánh lùa, tủ giày'),
+(6,  'Bàn và ghế văn phòng',  'Bàn làm việc, ghế công thái học'),
+(7,  'Kệ sách và kệ tivi',    'Kệ sách, kệ tivi, tủ trưng bày'),
+(8,  'Đèn trang trí',         'Đèn chùm, đèn sàn, đèn bàn, đèn tường'),
+(9,  'Thảm và rèm cửa',       'Thảm trải sàn, rèm vải, rèm cuốn'),
+(10, 'Nệm và phụ kiện giường','Nệm cao su, nệm lò xo, gối, chăn ga');
  
 -- ---------------------------------------------------------------------
 -- PRODUCTS (20) - gia VND
 -- ---------------------------------------------------------------------
 INSERT INTO products (id, category_id, name, description, unit, selling_price, image_url, quantity) VALUES
-(1,  1,  'Sofa goc chu L vai boc Milan',         'Sofa goc 3m, khung go soi, vai boc chong tham',     'bo',   14500000, 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=900&q=85', 12),
-(2,  1,  'Sofa bang 3 cho da PU Oslo',           'Sofa bang dai 2m1, da PU cao cap',                  'cai',  9800000,  'https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?auto=format&fit=crop&w=900&q=85', 15),
-(3,  1,  'Ghe thu gian boc benh Relax',          'Ghe thu gian ngat lung, boc vai benh',              'cai',  4200000,  'https://images.unsplash.com/photo-1567538096630-e0c55bd6374c?auto=format&fit=crop&w=900&q=85', 20),
-(4,  2,  'Ban an go cao su 6 cho Nordic',        'Ban an chu nhat 1m6, go cao su tu nhien',           'cai',  6500000,  'https://images.unsplash.com/photo-1577140917170-285929fb55b7?auto=format&fit=crop&w=900&q=85', 18),
-(5,  2,  'Ban an mat da ceramic 4 cho Venus',    'Ban an mat da ceramic 1m2, chan thep son tinh dien','cai',  7800000,  'https://images.unsplash.com/photo-1615066390971-03e4e1c36ddf?auto=format&fit=crop&w=900&q=85', 10),
-(6,  3,  'Ghe an go soi dem boc Luna',           'Ghe an khung go soi, dem boc vai',                  'cai',  850000,   'https://images.unsplash.com/photo-1503602642458-232111445657?auto=format&fit=crop&w=900&q=85', 80),
-(7,  3,  'Ghe bar chan sat Loft',                'Ghe bar cao 75cm, chan sat son den',                'cai',  1200000,  'https://images.unsplash.com/photo-1507473885765-e6ed057f782c?auto=format&fit=crop&w=900&q=85', 40),
-(8,  4,  'Giuong ngu go soi 1m8 Hana',           'Giuong go soi tu nhien, kich thuoc 1m8 x 2m',       'cai',  8900000,  'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=900&q=85', 14),
-(9,  4,  'Giuong boc nem 1m6 Royal',             'Giuong boc nem dau giuong, kich thuoc 1m6 x 2m',    'cai',  7200000,  'https://images.unsplash.com/photo-1595526114035-0d45ed16cfbf?auto=format&fit=crop&w=900&q=85', 12),
-(10, 5,  'Tu quan ao 3 canh go MDF Alice',       'Tu quan ao 3 canh, go MDF chong am',                'cai',  6800000,  'https://images.unsplash.com/photo-1595428774223-ef52624120d2?auto=format&fit=crop&w=900&q=85', 16),
-(11, 5,  'Tu giay thong minh 5 tang',            'Tu giay canh lat, go cong nghiep',                  'cai',  2400000,  'https://images.unsplash.com/photo-1538688525198-9b88f6f53126?auto=format&fit=crop&w=900&q=85', 25),
-(12, 6,  'Ban lam viec chan sat 1m2 Office',     'Ban lam viec mat go MDF, chan sat chu U',           'cai',  1900000,  'https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?auto=format&fit=crop&w=900&q=85', 45),
-(13, 6,  'Ghe cong thai hoc Ergo',               'Ghe luoi tua lung, ke tay 3D, nang ha khi nen',     'cai',  3600000,  '/images/ghe_ergo.jpg', 30),
-(14, 7,  'Ke sach go 5 tang Bookie',             'Ke sach 5 tang, go cong nghiep phu melamine',       'cai',  2100000,  '/images/ke_5_tang.jpg', 35),
-(15, 7,  'Ke tivi go oc cho 1m8 Nova',           'Ke tivi 1m8 co ngan keo, go oc cho',                'cai',  3200000,  'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=900&q=85', 22),
-(16, 8,  'Den chum pha le 8 bong',               'Den chum phong khach, khung ma vang',               'cai',  5400000,  'https://images.unsplash.com/photo-1513506003901-1e6a229e2d15?auto=format&fit=crop&w=900&q=85', 10),
-(17, 8,  'Den san thong tru Arc',                'Den san cao 1m8, than kim loai',                    'cai',  1350000,  'https://images.unsplash.com/photo-1507473885765-e6ed057f782c?auto=format&fit=crop&w=900&q=85&sat=-40', 28),
-(18, 9,  'Tham long ngan phong khach 2x3m',      'Tham long ngan chong boi, kich thuoc 2m x 3m',      'tam',  2800000,  'https://images.unsplash.com/photo-1600121848594-d8644e57abab?auto=format&fit=crop&w=900&q=85', 24),
-(19, 9,  'Rem cua vai chong nang 2.4m',          'Rem vai 2 lop chong nang, cao 2m4',                 'bo',   1650000,  'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=900&q=85', 50),
-(20, 10, 'Nem cao su non 1m6 Dreamy',            'Nem cao su non 1m6 x 2m, day 15cm',                 'cai',  5900000,  'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?auto=format&fit=crop&w=900&q=85', 20);
+(1,  1,  'Sofa góc chữ L vải bọc Milan',         'Sofa goc 3m, khung go soi, vai boc chong tham',     'bo',   14500000, 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=900&q=85', 12),
+(2,  1,  'Sofa băng 3 chỗ da PU Oslo',           'Sofa bang dai 2m1, da PU cao cap',                  'cai',  9800000,  'https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?auto=format&fit=crop&w=900&q=85', 15),
+(3,  1,  'Ghế thư giãn bập bênh Relax',          'Ghe thu gian ngat lung, boc vai benh',              'cai',  4200000,  'https://images.unsplash.com/photo-1567538096630-e0c55bd6374c?auto=format&fit=crop&w=900&q=85', 20),
+(4,  2,  'Bàn ăn gỗ cao su 6 chỗ Nordic',        'Ban an chu nhat 1m6, go cao su tu nhien',           'cai',  6500000,  'https://images.unsplash.com/photo-1577140917170-285929fb55b7?auto=format&fit=crop&w=900&q=85', 18),
+(5,  2,  'Bàn ăn mặt đá ceramic 4 chỗ Venus',    'Ban an mat da ceramic 1m2, chan thep son tinh dien','cai',  7800000,  'https://images.unsplash.com/photo-1615066390971-03e4e1c36ddf?auto=format&fit=crop&w=900&q=85', 10),
+(6,  3,  'Ghế ăn gỗ sồi đệm bọc Luna',           'Ghe an khung go soi, dem boc vai',                  'cai',  850000,   'https://images.unsplash.com/photo-1503602642458-232111445657?auto=format&fit=crop&w=900&q=85', 80),
+(7,  3,  'Ghế bar chân sắt Loft',                'Ghe bar cao 75cm, chan sat son den',                'cai',  1200000,  'https://images.unsplash.com/photo-1507473885765-e6ed057f782c?auto=format&fit=crop&w=900&q=85', 40),
+(8,  4,  'Giường ngủ gỗ sồi 1m8 Hana',           'Giuong go soi tu nhien, kich thuoc 1m8 x 2m',       'cai',  8900000,  'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=900&q=85', 14),
+(9,  4,  'Giường bọc nệm 1m6 Royal',             'Giuong boc nem dau giuong, kich thuoc 1m6 x 2m',    'cai',  7200000,  'https://images.unsplash.com/photo-1595526114035-0d45ed16cfbf?auto=format&fit=crop&w=900&q=85', 12),
+(10, 5,  'Tủ quần áo 3 cánh gỗ MDF Alice',       'Tu quan ao 3 canh, go MDF chong am',                'cai',  6800000,  'https://images.unsplash.com/photo-1595428774223-ef52624120d2?auto=format&fit=crop&w=900&q=85', 16),
+(11, 5,  'Tủ giày thông minh 5 tầng',            'Tu giay canh lat, go cong nghiep',                  'cai',  2400000,  'https://images.unsplash.com/photo-1538688525198-9b88f6f53126?auto=format&fit=crop&w=900&q=85', 25),
+(12, 6,  'Bàn làm việc chân sắt 1m2 Office',     'Ban lam viec mat go MDF, chan sat chu U',           'cai',  1900000,  'https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?auto=format&fit=crop&w=900&q=85', 45),
+(13, 6,  'Ghế công thái học Ergo',               'Ghe luoi tua lung, ke tay 3D, nang ha khi nen',     'cai',  3600000,  '/images/ghe_ergo.jpg', 30),
+(14, 7,  'Kệ sách gỗ 5 tầng Bookie',             'Ke sach 5 tang, go cong nghiep phu melamine',       'cai',  2100000,  '/images/ke_5_tang.jpg', 35),
+(15, 7,  'Kệ tivi gỗ óc chó 1m8 Nova',           'Ke tivi 1m8 co ngan keo, go oc cho',                'cai',  3200000,  'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=900&q=85', 22),
+(16, 8,  'Đèn chùm pha lê 8 bóng',               'Den chum phong khach, khung ma vang',               'cai',  5400000,  'https://images.unsplash.com/photo-1513506003901-1e6a229e2d15?auto=format&fit=crop&w=900&q=85', 10),
+(17, 8,  'Đèn sàn thông trụ Arc',                'Den san cao 1m8, than kim loai',                    'cai',  1350000,  'https://images.unsplash.com/photo-1507473885765-e6ed057f782c?auto=format&fit=crop&w=900&q=85&sat=-40', 28),
+(18, 9,  'Thảm lông ngắn phòng khách 2x3m',      'Tham long ngan chong boi, kich thuoc 2m x 3m',      'tam',  2800000,  'https://images.unsplash.com/photo-1600121848594-d8644e57abab?auto=format&fit=crop&w=900&q=85', 24),
+(19, 9,  'Rèm cửa vải chống nắng 2.4m',          'Rem vai 2 lop chong nang, cao 2m4',                 'bo',   1650000,  'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=900&q=85', 50),
+(20, 10, 'Nệm cao su non 1m6 Dreamy',            'Nem cao su non 1m6 x 2m, day 15cm',                 'cai',  5900000,  'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?auto=format&fit=crop&w=900&q=85', 20);
  
 -- ---------------------------------------------------------------------
 -- CARTS (moi khach 1 gio hang) + CART_ITEMS

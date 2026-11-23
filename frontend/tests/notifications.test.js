@@ -31,6 +31,20 @@ test('reading one stage does not hide a later stage of the same order', () => {
   assert.equal(loadReadNotificationIds('admin_4').size, 0)
 })
 
+test('dismissals persist per customer and status without changing orders or read state', () => {
+  const orders = [{ id: 42, status: 'CONFIRMED' }, { id: 43, status: 'COMPLETED' }]
+  const original = structuredClone(orders)
+  const [item] = getOrderNotifications(orders)
+  saveReadNotificationIds('customer_4_dismissed', new Set([item.id]))
+  const dismissed = loadReadNotificationIds('customer_4_dismissed')
+  assert.deepEqual(getOrderNotifications(orders, dismissed).map(item => item.orderId), [43])
+  assert.deepEqual(orders, original)
+  assert.equal(getOrderNotifications(orders, loadReadNotificationIds('customer_5_dismissed')).length, 2)
+  assert.equal(loadReadNotificationIds('customer_4').size, 0)
+  assert.equal(getOrderNotifications([{ id: 42, status: 'SHIPPING' }], dismissed).length, 1)
+  assert.equal(getOrderNotifications([orders[0]], dismissed).length, 0)
+})
+
 test('corrupt and blocked storage never prevents reading notifications', () => {
   localStorage.setItem('broken', '{')
   localStorage.setItem('object', '{}')

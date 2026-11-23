@@ -93,6 +93,18 @@ try {
   assert.equal(await clientBell(0).evaluate(element => element === document.activeElement), true)
   await page.reload()
   await clientBell(0).waitFor()
+  await clientBell(0).click()
+  await page.locator('.client-notification-row').filter({ has: page.locator('a[href$="=42"]') }).getByRole('button').click()
+  assert.equal(await page.locator('.client-notification-item[href$="=42"]').count(), 0)
+  assert.equal(await page.locator('.client-notification-item[href$="=43"]').count(), 1)
+  await Promise.all([
+    page.waitForResponse(response => new URL(response.url()).pathname === '/api/orders'),
+    page.reload(),
+  ])
+  await clientBell(0).click()
+  await page.locator('.client-notification-item[href$="=43"]').waitFor()
+  assert.equal(await page.locator('.client-notification-item[href$="=42"]').count(), 0)
+  await page.keyboard.press('Escape')
   orders[0].status = 'SHIPPING'
   await page.evaluate(() => window.tickNotifications())
   await clientBell(1).click()

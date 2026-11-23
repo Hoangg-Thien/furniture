@@ -7,12 +7,12 @@ const ORDER_MESSAGES = {
 }
 
 // shortcut: show only each order's latest status, store server events when a full history is needed.
-export function getOrderNotifications(orders) {
+export function getOrderNotifications(orders, dismissedIds = new Set()) {
   return orders.flatMap(order => {
     const orderId = order?.orderId ?? order?.id
     const status = String(order?.status || '').toUpperCase()
     const message = ORDER_MESSAGES[status]
-    if (!orderId || !message) return []
+    if (!orderId || !message || dismissedIds.has(`order-${orderId}-${status}`)) return []
     return [{ id: `order-${orderId}-${status}`, orderId, title: message[0], description: `${order.orderCode || order.orderNumber || `#${orderId}`} · ${message[1]}` }]
   })
 }

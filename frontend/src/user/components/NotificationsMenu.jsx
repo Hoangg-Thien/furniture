@@ -1,16 +1,19 @@
 import { useEffect, useRef, useState } from 'react'
-import { Bell, X } from 'lucide-react'
+import { Bell, Trash2, X } from 'lucide-react'
 import { fetchOrders } from '../../lib/orders.js'
 import { getOrderNotifications, loadReadNotificationIds, saveReadNotificationIds } from '../../lib/notifications.js'
 
 export default function NotificationsMenu({ customerId, onLogin, onOpenOrder }) {
   const storageKey = `funi_notifications_customer_${customerId}`
+  // shortcut: dismissals stay in this browser, use server storage when cross-device sync is needed.
+  const dismissedStorageKey = `${storageKey}_dismissed`
   const [open, setOpen] = useState(false)
   const [refreshVersion, setRefreshVersion] = useState(0)
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(false)
   const [readIds, setReadIds] = useState(() => loadReadNotificationIds(storageKey))
+  const [dismissedIds, setDismissedIds] = useState(() => loadReadNotificationIds(dismissedStorageKey))
   const wrapperRef = useRef(null)
   const bellRef = useRef(null)
 
@@ -53,12 +56,19 @@ export default function NotificationsMenu({ customerId, onLogin, onOpenOrder }) 
     }
   }, [open])
 
-  const notifications = getOrderNotifications(orders)
+  const notifications = getOrderNotifications(orders, dismissedIds)
   const unreadCount = notifications.filter(item => !readIds.has(item.id)).length
   function markRead(ids) {
     const next = new Set([...readIds, ...ids])
     setReadIds(next)
     saveReadNotificationIds(storageKey, next)
+  }
+
+  function dismiss(id) {
+    const next = new Set([...dismissedIds, id])
+    setDismissedIds(next)
+    saveReadNotificationIds(dismissedStorageKey, next)
+    bellRef.current?.focus()
   }
 
   return (
@@ -88,16 +98,21 @@ export default function NotificationsMenu({ customerId, onLogin, onOpenOrder }) 
                 {error && <p className="client-notifications-status" role="status">Chưa cập nhật được thông báo. Mở lại để thử lại.</p>}
                 {!loading && !error && notifications.length === 0 && <p className="client-notifications-status">Chưa có thông báo đơn hàng.</p>}
                 {notifications.map(item => (
-                  <a key={item.id} className={`client-notification-item ${readIds.has(item.id) ? '' : 'unread'}`}
-                    href={`/order-success?id=${encodeURIComponent(item.orderId)}`}
-                    onClick={event => {
-                      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
-                      event.preventDefault()
-                      markRead([item.id]); setOpen(false); onOpenOrder(item.orderId)
-                    }}>
-                    <strong>{!readIds.has(item.id) && <span className="client-notification-dot" aria-label="Chưa đọc" />}{item.title}</strong>
-                    <span>{item.description}</span>
-                  </a>
+                  <div key={item.id} className={`client-notification-row ${readIds.has(item.id) ? '' : 'unread'}`}>
+                    <a className={`client-notification-item ${readIds.has(item.id) ? '' : 'unread'}`}
+                      href={`/order-success?id=${encodeURIComponent(item.orderId)}`}
+                      onClick={event => {
+                        if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+                        event.preventDefault()
+                        markRead([item.id]); setOpen(false); onOpenOrder(item.orderId)
+                      }}>
+                      <strong>{!readIds.has(item.id) && <span className="client-notification-dot" aria-label="Chưa đọc" />}{item.title}</strong>
+                      <span>{item.description}</span>
+                    </a>
+                    <button type="button" className="icon-button client-notification-delete"
+                      aria-label={`Xóa thông báo: ${item.description}`} title="Xóa thông báo"
+                      onClick={() => dismiss(item.id)}><Trash2 size={16} /></button>
+                  </div>
                 ))}
               </div>
             </>

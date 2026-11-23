@@ -27,7 +27,7 @@ import {
   ShoppingBag
 } from 'lucide-react'
 import { getApiBaseUrl, getApiHeaders } from '../lib/apiConfig'
-import { VOUCHER_TYPE_LABELS } from '../lib/vouchers'
+import { VOUCHER_TYPE_LABELS, parseVoucherCustomerId } from '../lib/vouchers'
 import AdminConfirmModal from './AdminConfirmModal'
 
 export default function AdminPromotionManagement({ currentUser }) {
@@ -136,9 +136,10 @@ export default function AdminPromotionManagement({ currentUser }) {
     setCheckResult(null)
     setCheckError('')
     try {
+      const customerId = parseVoucherCustomerId(voucherCheck.customerId)
       const response = await fetch(`${getApiBaseUrl()}/api/admin/promotions/vouchers/${voucherCheck.voucherId}/check`, {
         method: 'POST', headers: getApiHeaders({ 'Content-Type': 'application/json' }), signal: controller.signal,
-        body: JSON.stringify({ customerId: voucherCheck.customerId ? Number(voucherCheck.customerId) : null,
+        body: JSON.stringify({ customerId,
           items: voucherCheck.items.map(item => ({ productId: Number(item.productId), quantity: Number(item.quantity) })) })
       })
       const data = await response.json()
@@ -1602,7 +1603,7 @@ export default function AdminPromotionManagement({ currentUser }) {
                           {detailData.vouchers.map(v => <option key={v.id} value={v.id}>{v.code} — {VOUCHER_TYPE_LABELS[v.voucherType || 'ORDER']}</option>)}
                         </select></div>
                       <div><label htmlFor="check-customer" className="admin-form-label">Mã khách hàng (để trống nếu khách vãng lai)</label>
-                        <input id="check-customer" type="number" min="1" step="1" className="admin-form-input" value={voucherCheck.customerId} onChange={e => changeVoucherCheck({ ...voucherCheck, customerId: e.target.value })} /></div>
+                        <input id="check-customer" type="text" placeholder="Ví dụ: C021 hoặc 21" className="admin-form-input" value={voucherCheck.customerId} onChange={e => changeVoucherCheck({ ...voucherCheck, customerId: e.target.value })} /></div>
                     </div>
                     {voucherCheck.items.map((item, index) => <div key={index} className="promotion-voucher-grid">
                       <div><label htmlFor={`check-product-${index}`} className="admin-form-label">Sản phẩm {index + 1}</label>

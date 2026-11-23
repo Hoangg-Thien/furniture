@@ -187,7 +187,7 @@ public class AdminPromotionService {
         if (voucher == null) throw new IllegalArgumentException("Không tìm thấy voucher");
         if (voucher.archived()) throw new IllegalStateException("Voucher đã lưu trữ, không thể kiểm tra thử");
         var result = new java.util.LinkedHashMap<String, Object>(voucherService.simulateVoucher(
-                new ValidateVoucherRequest(voucher.code(), BigDecimal.ZERO, req.items()), req.customerId()));
+                new ValidateVoucherRequest(voucher.code(), null, req.items()), req.customerId()));
         var warnings = new java.util.ArrayList<String>();
         ProgramResponse program = getProgramById(voucher.promotionProgramId());
         if (!"ACTIVE".equals(voucher.status())) warnings.add("Voucher đang tạm ngưng");

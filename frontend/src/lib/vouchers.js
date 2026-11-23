@@ -1,4 +1,14 @@
-import { getApiBaseUrl } from './apiConfig'
+import { getApiBaseUrl } from './apiConfig.js'
+
+export function parseVoucherCustomerId(code) {
+  const value = code.trim()
+  if (!value) return null
+  const id = Number(value.replace(/^c/i, ''))
+  if (!/^c?\d+$/i.test(value) || !Number.isSafeInteger(id) || id <= 0) {
+    throw new Error('Mã khách hàng không hợp lệ. Nhập mã như C021 hoặc 21.')
+  }
+  return id
+}
 
 export const VOUCHER_TYPE_LABELS = { ORDER: 'Theo giá trị đơn hàng', PRODUCT: 'Theo sản phẩm', VIP: 'Dành riêng khách VIP' }
 
