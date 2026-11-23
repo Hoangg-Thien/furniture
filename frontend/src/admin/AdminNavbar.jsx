@@ -25,6 +25,7 @@ export default function AdminNavbar({
   onNavigateModule
 }) {
   const username = currentUser?.username || 'Admin'
+  const fullName = currentUser?.fullName?.trim()
   const role = currentUser?.role || 'ADMIN'
   const canReadOrders = canAccessModule(currentUser, 'orders')
   const monitorStock = role === 'ADMIN' || role === 'STAFF'
@@ -269,12 +270,13 @@ export default function AdminNavbar({
         </div>
 
         {/* Profile Pill */}
-        <div className="admin-profile-pill">
+        <div className="admin-profile-pill" title={`Tên đăng nhập: ${username}${fullName ? `\nHọ tên: ${fullName}` : ''}`}>
           <div className="admin-profile-avatar">
             {username.charAt(0).toUpperCase()}
           </div>
           <div className="admin-profile-info">
             <span className="admin-profile-name">{username}</span>
+            {fullName && fullName !== username && <span className="admin-profile-role">{fullName}</span>}
             <span className="admin-profile-role">
               {adminRoleLabel(currentUser)}
             </span>

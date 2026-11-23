@@ -60,7 +60,7 @@ public class AdminOrderService {
 
         Long targetStaffId = req != null ? req.staffId() : null;
         if (targetStaffId == null || !adminOrderRepository.existsStaffById(targetStaffId)) {
-            targetStaffId = adminOrderRepository.findFirstStaffId();
+            throw new IllegalArgumentException("Nhân viên duyệt đơn chưa được liên kết với hồ sơ nhân viên hợp lệ.");
         }
 
         if (targetStaffId == null || !adminOrderRepository.existsStaffById(targetStaffId)) {

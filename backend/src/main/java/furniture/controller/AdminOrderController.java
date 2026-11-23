@@ -74,6 +74,9 @@ public class AdminOrderController {
             @Valid @RequestBody ConfirmOrderRequest req,
             @RequestAttribute(AdminIdentity.ATTRIBUTE) AdminIdentity identity) {
         try {
+            if ("STAFF".equals(identity.role()) && identity.staffId() == null) {
+                throw new IllegalArgumentException("Tài khoản chưa được liên kết với hồ sơ nhân viên.");
+            }
             if ("STAFF".equals(identity.role())) req = new ConfirmOrderRequest(identity.staffId(), req.notes());
             adminOrderService.confirmOrder(id, req);
             return ResponseEntity.ok(Map.of("message", "Đã xác nhận đơn hàng và gán nhân viên phụ trách thành công!"));

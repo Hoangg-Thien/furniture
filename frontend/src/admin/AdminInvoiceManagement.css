@@ -29,8 +29,9 @@
 .inv-quick-summary dl { margin-top: 20px; }
 .inv-quick-total strong { display: block; margin-top: 4px; font-size: 1.15rem; font-weight: 700; color: var(--admin-accent, #0d9488); }
 .inv-quick-note { font-size: .85rem; white-space: pre-wrap; }
-.inv-quick-items { min-width: 0; }
+.inv-quick-items { min-width: 0; table-layout: auto; }
 .inv-quick-items th, .inv-quick-items td { padding: 8px; white-space: normal; overflow-wrap: anywhere; }
+.inv-quick-items th:nth-child(n+3), .inv-quick-items td:nth-child(n+3) { white-space: nowrap; overflow-wrap: normal; text-align: right; }
 .admin-table tbody tr.inv-quick-row { cursor: pointer; }
 .admin-table tbody tr.inv-quick-row:focus-visible { outline: 2px solid var(--admin-accent, #0d9488); outline-offset: -2px; }
 .admin-table tbody tr.inv-quick-selected > td { background: var(--admin-accent-light, #f0fdfa); }
@@ -39,7 +40,7 @@ button.inv-code-badge { font: inherit; cursor: pointer; }
   .inv-quick-customer { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (min-width: 1200px) {
-  .inv-review-layout:has(> .inv-quick-panel) { grid-template-columns: minmax(0, 3fr) minmax(380px, 2fr); }
+  .inv-review-layout:has(> .inv-quick-panel) { grid-template-columns: minmax(0, 1fr) minmax(480px, 1fr); }
   .inv-quick-heading { flex-direction: column; }
 }
 @media (max-width: 639px) {

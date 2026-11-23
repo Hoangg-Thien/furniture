@@ -28,6 +28,7 @@ import {
 } from 'lucide-react'
 import { getApiBaseUrl, getApiHeaders } from '../lib/apiConfig'
 import { productImageUrl } from '../lib/productImages'
+import { formatProductUnit } from '../lib/productUnits.js'
 import './AdminInvoiceManagement.css'
 
 export default function AdminInvoiceManagement({ currentUser }) {
@@ -99,9 +100,9 @@ export default function AdminInvoiceManagement({ currentUser }) {
 
   async function showQuickInvoice(invoiceId, pin = false) {
     clearTimeout(quickTimer.current)
-    if ((quickClosed || quickPinned) && !pin) return
+    if (quickPinned && !pin) return
+    setQuickClosed(false)
     if (pin) {
-      setQuickClosed(false)
       setQuickPinned(true)
       if (window.matchMedia('(max-width: 1199px)').matches) {
         window.requestAnimationFrame(() => quickPanelRef.current?.scrollIntoView({ block: 'start' }))
@@ -785,7 +786,7 @@ export default function AdminInvoiceManagement({ currentUser }) {
                         quickTimer.current = setTimeout(() => showQuickInvoice(inv.id), 250)
                       }}
                       onMouseLeave={() => clearTimeout(quickTimer.current)}
-                      onFocus={() => showQuickInvoice(inv.id)}
+                      onFocus={() => { if (!quickClosed) showQuickInvoice(inv.id) }}
                       onClick={(event) => {
                         if (!event.target.closest('button, a')) showQuickInvoice(inv.id, true)
                       }}
@@ -934,26 +935,6 @@ export default function AdminInvoiceManagement({ currentUser }) {
         {quickLoading ? <p role="status">Đang tải chi tiết hóa đơn...</p>
           : quickError ? <p role="alert">{quickError}</p>
           : quickInvoice ? <div className="inv-quick-grid">
-            <div className="inv-quick-main">
-              <h3>Thông tin khách hàng</h3>
-              <dl className="inv-quick-customer">
-                <div><dt>Khách hàng</dt><dd>{quickInvoice.customerName || 'Chưa cung cấp'}</dd></div>
-                <div><dt>Số điện thoại</dt><dd>{quickInvoice.phone || 'Chưa cung cấp'}</dd></div>
-                <div><dt>Địa chỉ giao hàng</dt><dd>{quickInvoice.address || 'Nhận tại showroom'}</dd></div>
-                {quickInvoice.email && <div><dt>Email</dt><dd>{quickInvoice.email}</dd></div>}
-              </dl>
-              <h3>Sản phẩm trong đơn #{quickInvoice.orderId}</h3>
-              <div className="admin-table-container">
-                <table className="admin-table inv-quick-items">
-                  <thead><tr><th>Sản phẩm</th><th>Số lượng</th><th>Đơn giá</th><th>Thành tiền</th></tr></thead>
-                  <tbody>{quickInvoice.items?.length ? quickInvoice.items.map((item, index) => <tr key={index}>
-                    <td>{item.productName}</td><td>{item.quantity} {item.unit || 'cái'}</td>
-                    <td>{formatVnd(item.unitPrice)}</td><td>{formatVnd(item.amount)}</td>
-                  </tr>) : <tr><td colSpan="4">Không có thông tin sản phẩm.</td></tr>}</tbody>
-                </table>
-              </div>
-              {quickInvoice.notes && <p className="inv-quick-note"><strong>Ghi chú:</strong> {quickInvoice.notes}</p>}
-            </div>
             <aside className="inv-quick-summary" aria-label="Tóm tắt hóa đơn">
               <h3>Hóa đơn {quickInvoice.invoiceCode}</h3>
               <div className="inv-quick-total"><span>Tổng thanh toán</span><strong>{formatVnd(quickInvoice.finalAmount)}</strong></div>
@@ -970,6 +951,26 @@ export default function AdminInvoiceManagement({ currentUser }) {
                 <div><dt>Thuế VAT</dt><dd>{formatVnd(quickInvoice.taxAmount)}</dd></div>
               </dl>
             </aside>
+            <div className="inv-quick-main">
+              <h3>Sản phẩm trong đơn #{quickInvoice.orderId}</h3>
+              <div className="admin-table-container">
+                <table className="admin-table inv-quick-items">
+                  <thead><tr><th>Sản phẩm</th><th>Số lượng</th><th>Đơn giá</th><th>Thành tiền</th></tr></thead>
+                  <tbody>{quickInvoice.items?.length ? quickInvoice.items.map((item, index) => <tr key={index}>
+                    <td>{item.productName}</td><td>{item.quantity} {formatProductUnit(item.unit)}</td>
+                    <td>{formatVnd(item.unitPrice)}</td><td>{formatVnd(item.amount)}</td>
+                  </tr>) : <tr><td colSpan="4">Không có thông tin sản phẩm.</td></tr>}</tbody>
+                </table>
+              </div>
+              {quickInvoice.notes && <p className="inv-quick-note"><strong>Ghi chú:</strong> {quickInvoice.notes}</p>}
+              <h3 style={{ marginTop: 20 }}>Thông tin khách hàng</h3>
+              <dl className="inv-quick-customer">
+                <div><dt>Khách hàng</dt><dd>{quickInvoice.customerName || 'Chưa cung cấp'}</dd></div>
+                <div><dt>Số điện thoại</dt><dd>{quickInvoice.phone || 'Chưa cung cấp'}</dd></div>
+                <div><dt>Địa chỉ giao hàng</dt><dd>{quickInvoice.address || 'Nhận tại showroom'}</dd></div>
+                {quickInvoice.email && <div><dt>Email</dt><dd>{quickInvoice.email}</dd></div>}
+              </dl>
+            </div>
           </div> : <p className="inv-quick-empty">Chọn hoặc rê chuột vào một hóa đơn trong danh sách để kiểm tra khách hàng, sản phẩm và số tiền ngay tại đây.</p>}
       </section>}
 
@@ -1075,7 +1076,7 @@ export default function AdminInvoiceManagement({ currentUser }) {
                                     <span>{it.productName}</span>
                                   </div>
                                 </td>
-                                <td style={{ textAlign: 'center' }}>{it.quantity} {it.unit}</td>
+                                <td style={{ textAlign: 'center' }}>{it.quantity} {formatProductUnit(it.unit)}</td>
                                 <td style={{ textAlign: 'right' }}>{formatVnd(it.unitPrice)}</td>
                                 <td style={{ textAlign: 'right', fontWeight: 600 }}>{formatVnd(it.amount)}</td>
                               </tr>
@@ -1336,7 +1337,7 @@ export default function AdminInvoiceManagement({ currentUser }) {
                             <td>
                               <strong>{item.productName}</strong>
                             </td>
-                            <td style={{ textAlign: 'center' }}>{item.unit || 'cái'}</td>
+                            <td style={{ textAlign: 'center' }}>{formatProductUnit(item.unit)}</td>
                             <td style={{ textAlign: 'center' }}>{item.quantity}</td>
                             <td style={{ textAlign: 'right' }}>{formatVnd(item.unitPrice)}</td>
                             <td style={{ textAlign: 'right' }}><strong>{formatVnd(item.amount)}</strong></td>

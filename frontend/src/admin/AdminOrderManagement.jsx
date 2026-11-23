@@ -244,10 +244,8 @@ export default function AdminOrderManagement({ currentUser, notificationTarget }
   const handleOpenConfirmModal = (order) => {
     setOrderToConfirm(order)
     setConfirmNotes('')
-    if (staffList.length > 0) {
-      const myStaff = staffList.find(s => s.userId === currentUser?.id || s.username === currentUser?.username)
-      setSelectedStaffId(myStaff ? myStaff.id : staffList[0].id)
-    }
+    const myStaff = staffList.find(s => String(s.userId) === String(currentUser?.id ?? currentUser?.userId))
+    setSelectedStaffId(myStaff?.id || '')
     setShowConfirmModal(true)
   }
 

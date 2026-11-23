@@ -25,8 +25,10 @@ try {
   const firstOrderReady = new Promise(resolve => { firstOrderStarted = resolve })
   let created = null
   const imageUrl = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"/>'
-  const order = id => ({ id, customerName: `Khách hàng ${id}`, phone: '0901234567', address: '123 Nguyễn Huệ, TP. Hồ Chí Minh', status: 'COMPLETED', voucherCode: 'EXPIRED', orderDate: '2026-11-05T10:00:00', items: [{ productName: 'Ghế nội thất', quantity: 1, unitPrice: id * 100000, amount: id * 100000, imageUrl }] })
+  const order = id => ({ id, customerName: `Khách hàng ${id}`, phone: '0901234567', address: '123 Nguyễn Huệ, TP. Hồ Chí Minh', status: 'COMPLETED', voucherCode: 'EXPIRED', orderDate: '2026-11-05T10:00:00', items: [{ productName: 'Ghế nội thất', quantity: 1, unit: 'cai', unitPrice: id * 100000, amount: id * 100000, imageUrl }] })
   const legacy = { ...order(3), id: 78, invoiceCode: 'OLD-78', orderId: 3, paymentMethod: 'BANK_TRANSFER', paymentStatus: 'PAID', subtotalAmount: 300000, paymentDate: '2026-11-05T10:00:00', staffName: 'Nguyễn Văn An', finalAmount: 300000, qrCodeUrl: 'https://example.test/legacy-qr.png' }
+  legacy.items = [{ ...order(3).items[0], productName: 'Sofa góc chữ L vải bọc Milan', unitPrice: 14500000, amount: 14500000 }]
+  legacy.subtotalAmount = legacy.finalAmount = 14500000
   page.on('pageerror', error => errors.push(error.message))
   page.on('dialog', dialog => dialog.accept())
   await page.addInitScript(() => {
@@ -93,6 +95,10 @@ try {
   assert.equal(await page.getByText(/VietQR|Quẹt.*POS|Tiền Mặt Tại Quầy/).count(), 0)
   const quickPanel = page.getByRole('region', { name: 'Xem nhanh hóa đơn' })
   const legacyRow = page.getByRole('row', { name: 'Xem chi tiết hóa đơn OLD-78' })
+  await legacyRow.getByText('Khách hàng 3', { exact: true }).hover()
+  await quickPanel.getByRole('heading', { name: 'Hóa đơn OLD-78' }).waitFor()
+  assert.equal(await quickPanel.getByRole('button', { name: 'Bỏ giữ chi tiết', exact: true }).count(), 0, 'initial hover opens detail without clicking or pinning')
+  await quickPanel.getByRole('button', { name: 'Đóng chi tiết', exact: true }).click()
   failDetail = true
   await legacyRow.getByText('Khách hàng 3', { exact: true }).hover()
   await quickPanel.getByRole('alert').waitFor()
@@ -100,24 +106,38 @@ try {
   await legacyRow.focus()
   await legacyRow.press('Enter')
   await quickPanel.getByRole('heading', { name: 'Hóa đơn OLD-78' }).waitFor()
-  await quickPanel.getByText('Ghế nội thất', { exact: true }).waitFor()
+  await quickPanel.getByText('Sofa góc chữ L vải bọc Milan', { exact: true }).waitFor()
+  await quickPanel.getByRole('cell', { name: '1 cái', exact: true }).waitFor()
+  assert.deepEqual(await quickPanel.locator('h3').allTextContents(), ['Hóa đơn OLD-78', 'Sản phẩm trong đơn #3', 'Thông tin khách hàng'])
   assert.equal(await page.locator('.inv-detail-page').count(), 0, 'quick view keeps list visible')
   await page.getByRole('button', { name: 'Bỏ giữ chi tiết', exact: true }).waitFor()
   await quickPanel.getByRole('button', { name: 'Đóng chi tiết', exact: true }).click()
   assert.equal(await quickPanel.count(), 0, 'close hides the detail panel')
   assert.equal(await page.locator('.inv-review-layout').evaluate(el => getComputedStyle(el).gridTemplateColumns.split(' ').length), 1, 'closed detail gives the list full width')
   await legacyRow.getByText('Khách hàng 3', { exact: true }).hover()
-  await page.waitForTimeout(350)
-  assert.equal(await quickPanel.count(), 0, 'hover must not reopen a closed panel')
+  await quickPanel.getByRole('heading', { name: 'Hóa đơn OLD-78' }).waitFor()
+  assert.equal(await quickPanel.getByRole('button', { name: 'Bỏ giữ chi tiết', exact: true }).count(), 0, 'hover reopens detail after closing')
   await legacyRow.focus()
   await legacyRow.press('Enter')
   await quickPanel.getByRole('heading', { name: 'Hóa đơn OLD-78' }).waitFor()
+  await quickPanel.getByRole('button', { name: 'Đóng chi tiết', exact: true }).click()
+  await legacyRow.getByText('Khách hàng 3', { exact: true }).click()
+  await quickPanel.getByRole('heading', { name: 'Hóa đơn OLD-78' }).waitFor()
   const columns = await page.locator('.inv-review-layout').evaluate(el => getComputedStyle(el).gridTemplateColumns.split(' ').map(parseFloat))
-  assert(Math.abs(columns[0] / columns[1] - 1.5) < 0.05, 'desktop places the wider list beside detail')
-  for (const width of [768, 390, 320]) {
+  assert(Math.abs(columns[0] / columns[1] - 1) < 0.05, 'desktop gives detail half the available width')
+  for (const width of [1440, 1280, 768, 390, 320]) {
     await page.setViewportSize({ width, height: 1000 })
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, `quick view fits ${width}px`)
     assert.equal(await page.locator('.inv-quick-grid').evaluate(el => getComputedStyle(el).gridTemplateColumns.split(' ').length), 1)
+    const priceCells = quickPanel.locator('.inv-quick-items tbody td:nth-child(n+3)')
+    assert.deepEqual(await priceCells.allTextContents(), ['14.500.000 đ', '14.500.000 đ'])
+    for (const cell of await priceCells.all()) {
+      assert.equal(await cell.evaluate(element => {
+        const range = document.createRange()
+        range.selectNodeContents(element)
+        return range.getClientRects().length
+      }), 1, `price and currency stay on one line at ${width}px`)
+    }
   }
   await page.setViewportSize({ width: 1440, height: 1000 })
   for (const viewport of [{ width: 1440, height: 1000 }, { width: 1193, height: 755 }]) {
@@ -191,6 +211,7 @@ try {
   failCreate = false
   await submit.click()
   await page.locator('#printable-invoice-paper').waitFor()
+  await page.locator('#printable-invoice-paper').getByRole('cell', { name: 'cái', exact: true }).waitFor()
   assert.equal(await page.locator('#printable-invoice-paper').innerText().then(text => text.includes('COD — thu tiền khi giao hàng')), true)
   assert.equal(await page.locator('.inv-paper-qr-img').count(), 0)
   assert.equal(await page.locator('.admin-modal-backdrop, .inv-create-page, .inv-stats-grid').count(), 0)

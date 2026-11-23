@@ -24,7 +24,7 @@ try {
         await new Promise(resolve => { releaseLogin = resolve })
         return route.fulfill({ status: 401, json: { error: 'Tên đăng nhập hoặc mật khẩu không chính xác.' } })
       }
-      return route.fulfill({ json: { user: { userId: 1, username: body.username, role: mode }, accessToken: 'qa-mock-token', staffType: mode === 'STAFF' ? 'SALES' : '' } })
+      return route.fulfill({ json: { user: { userId: 1, username: body.username, fullName: mode === 'STAFF' ? 'Nguyễn Văn An' : null, role: mode }, accessToken: 'qa-mock-token', staffType: mode === 'STAFF' ? 'SALES' : '' } })
     }
     if (path === '/api/products') return route.fulfill({ json: [{ id: 1, name: 'Sofa kiểm tra', price: 1000000, quantity: 5, imageUrl: '/vite.svg' }] })
     return route.fulfill({ json: path === '/api/admin/categories' ? [] : { content: [], total: 0, totalPages: 1 } })
@@ -76,6 +76,10 @@ try {
     await page.locator('#admin-password').fill('123456')
     await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click()
     await page.locator('.admin-navbar').waitFor()
+    const profile = page.locator('.admin-profile-pill')
+    assert.equal(await profile.locator('.admin-profile-name').textContent(), role === 'ADMIN' ? 'admin01' : 'staff01')
+    assert.equal(await profile.getAttribute('title'), role === 'STAFF' ? 'Tên đăng nhập: staff01\nHọ tên: Nguyễn Văn An' : 'Tên đăng nhập: admin01')
+    if (role === 'STAFF') await profile.getByText('Nguyễn Văn An', { exact: true }).waitFor()
     assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('furniture_admin_user')).role), role)
     await page.evaluate(() => localStorage.setItem('furniture_customer_user', JSON.stringify({ role: 'CUSTOMER', customerId: 8, username: 'old-customer', fullName: 'Lưu Gia Huy' })))
     await page.reload()
