@@ -10,7 +10,7 @@ spring:
     date-format: yyyy-MM-dd HH:mm:ss
   datasource:
     # Kết nối trực tiếp Supabase PostgreSQL
-    url: jdbc:postgresql://aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres?sslmode=require
+    url: jdbc:postgresql://aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres?sslmode=require&prepareThreshold=0
     username: postgres.nmdtwgmohaoarppengyo
     password: Vu892005@gmail
     driver-class-name: org.postgresql.Driver

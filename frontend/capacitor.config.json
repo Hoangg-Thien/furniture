@@ -1,6 +1,9 @@
 {
   "appId": "com.furniture.store",
   "appName": "Furniture Store",
-  "webDir": "dist"
+  "webDir": "dist",
+  "android": {
+    "allowMixedContent": true
+  }
 }
 

@@ -1421,12 +1421,15 @@ export default function OrderReviewPage({
 
         <div className="order-page-body">
           <div className="order-form-area">
-            <p className="cart-expiry-notice" role="status">
+            <div className="cart-expiry-notice order-expiry-notice" role="status">
+              <Clock size={18} aria-hidden="true" />
+              <div><strong>Lưu ý về giỏ hàng</strong><p>
               {cartItems.length === 0 ? 'Giỏ hàng đang trống hoặc đã hết hạn. Vui lòng quay lại và chọn lại sản phẩm.'
                 : `Giỏ hàng tự xóa sau ${CART_TIMEOUT_MS / 60000} phút không thêm hàng hoặc đổi số lượng. Nhập thông tin giao hàng không gia hạn giỏ.`}
-            </p>
+              </p></div>
+            </div>
             {step === 1 && (
-              <section className="order-form-section" aria-label="Thông tin giao hàng">
+              <section className="order-form-section order-shipping-section" aria-label="Thông tin giao hàng">
                 <div className="order-section-heading">
                   <Truck size={18} strokeWidth={1.6} />
                   <div>
@@ -1435,7 +1438,7 @@ export default function OrderReviewPage({
                   </div>
                 </div>
 
-                {!currentUser && <p className="catalog-note">Mua hàng không cần đăng nhập. Điền thông tin nhận hàng để tiếp tục.</p>}
+                {!currentUser && <p className="order-guest-note"><ShieldCheck size={18} aria-hidden="true" /><span>Mua hàng không cần đăng nhập. Điền thông tin nhận hàng để tiếp tục.</span></p>}
                 {currentUser && (
                   <div className="order-use-default-box">
                     <label className="order-use-default-label">
@@ -1457,7 +1460,7 @@ export default function OrderReviewPage({
                 )}
 
                 <div className="order-form-grid">
-                  <div className={`order-field order-field-full ${errors.fullName ? 'has-error' : ''}`}>
+                  <div className={`order-field ${errors.fullName ? 'has-error' : ''}`}>
                     <label htmlFor="ord-fullName">
                       <User size={12} /> Họ và tên người nhận <i>*</i>
                     </label>
@@ -1488,7 +1491,7 @@ export default function OrderReviewPage({
                     {errors.phone && <span className="order-field-error">{errors.phone}</span>}
                   </div>
 
-                  <div className={`order-field ${errors.city ? 'has-error' : ''}`}>
+                  <div className={`order-field order-field-full ${errors.city ? 'has-error' : ''}`}>
                     <label htmlFor="ord-city">
                       <MapPin size={12} /> Tỉnh / Thành phố <i>*</i>
                     </label>

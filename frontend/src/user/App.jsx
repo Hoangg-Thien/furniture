@@ -321,10 +321,17 @@ function App() {
     }
     refreshProducts()
     window.addEventListener('focus', refreshProducts)
+    window.addEventListener('online', refreshProducts)
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') refreshProducts()
+    }
+    document.addEventListener('visibilitychange', refreshWhenVisible)
 
     return () => {
       cancelled = true
       window.removeEventListener('focus', refreshProducts)
+      window.removeEventListener('online', refreshProducts)
+      document.removeEventListener('visibilitychange', refreshWhenVisible)
     }
   }, [cartOpen, completedOrder?.orderId])
 
@@ -1035,7 +1042,7 @@ function App() {
 
           {catalogError && (
             <p className="catalog-note" role="status">
-              Chưa tải được tồn kho mới nhất. Vui lòng tải lại trang để xác nhận số lượng trước khi mua.
+              Chưa tải được tồn kho mới nhất. Hãy kiểm tra kết nối và backend. <button type="button" onClick={() => window.dispatchEvent(new Event('focus'))}>Thử lại</button>
             </p>
           )}
 

@@ -2016,7 +2016,8 @@
   background: #fff;
   border: 1px solid var(--line);
   padding: 28px;
-  border-radius: 2px;
+  border-radius: 16px;
+  box-shadow: 0 4px 24px rgba(25,60,53,.035);
 }
 
 .order-section-heading {
@@ -2042,12 +2043,13 @@
 /* ── Form Grid ── */
 .order-form-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 15px;
 }
 .order-field-full { grid-column: 1 / -1; }
 
 .order-field {
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -2057,36 +2059,39 @@
   align-items: center;
   gap: 5px;
   color: var(--forest);
-  font-size: 10px;
+  font-size: 13px;
   font-weight: 700;
   letter-spacing: .3px;
 }
 .order-field label i { color: var(--coral); font-style: normal; }
 .order-field input,
-.order-field textarea {
+.order-field textarea,
+.order-field select {
   width: 100%;
-  min-height: 42px;
-  padding: 10px 12px;
+  min-height: 48px;
+  padding: 12px 14px;
   border: 1px solid #deddd5;
   outline: 0;
   color: var(--ink);
   background: #fffefa;
   font: inherit;
-  font-size: 12px;
-  border-radius: 2px;
+  font-size: 16px;
+  border-radius: 10px;
   transition: border-color 160ms ease, box-shadow 160ms ease;
   box-sizing: border-box;
 }
 .order-field textarea { min-height: 76px; resize: vertical; line-height: 1.7; }
 .order-field input:focus,
-.order-field textarea:focus {
+.order-field textarea:focus,
+.order-field select:focus {
   border-color: var(--forest-light);
   box-shadow: 0 0 0 3px rgba(25,60,53,.08);
 }
 .order-field input::placeholder,
 .order-field textarea::placeholder { color: #b2b5ad; }
 .order-field.has-error input,
-.order-field.has-error textarea { border-color: #dc2626; }
+.order-field.has-error textarea,
+.order-field.has-error select { border-color: #dc2626; }
 .order-field-error {
   color: #dc2626;
   font-size: 10px;
@@ -6045,6 +6050,49 @@
 .order-select {
   cursor: pointer;
   background-color: #fffefa;
+}
+.order-select-wrapper { position: relative; min-width: 0; }
+.order-select-wrapper::after {
+  content: '';
+  position: absolute;
+  right: 17px;
+  top: 19px;
+  width: 7px;
+  height: 7px;
+  border-right: 1.5px solid var(--forest);
+  border-bottom: 1.5px solid var(--forest);
+  transform: rotate(45deg);
+  pointer-events: none;
+}
+.order-field select { appearance: none; padding-right: 38px; text-overflow: ellipsis; }
+.order-field select:disabled { background: #f2f3ef; color: #737a72; cursor: not-allowed; opacity: 1; }
+.order-field input::placeholder { color: #858b82; }
+.order-field-error { font-size: 12px; line-height: 1.5; }
+.order-shipping-section .order-form-grid { gap: 22px 16px; }
+.order-shipping-section .order-section-heading { align-items: center; }
+.order-shipping-section .order-section-heading > svg {
+  box-sizing: content-box;
+  padding: 13px;
+  border-radius: 12px;
+  background: #edf3ef;
+  margin: 0;
+}
+.order-shipping-section .order-section-heading h2 { font-size: clamp(25px, 2.4vw, 32px); line-height: 1.2; }
+.order-guest-note { display: flex; align-items: flex-start; gap: 10px; margin: 0 0 24px; color: var(--muted); font-size: 13px; line-height: 1.65; }
+.order-guest-note svg { flex-shrink: 0; margin-top: 2px; color: var(--forest); }
+.order-expiry-notice { display: flex; align-items: flex-start; gap: 12px; margin: 0 0 20px; padding: 16px; border-color: #e8ddc9; background: #faf6ed; border-radius: 12px; }
+.order-expiry-notice > svg { flex-shrink: 0; margin-top: 2px; }
+.order-expiry-notice strong { font-size: 13px; }
+.order-expiry-notice p { margin: 4px 0 0; font-size: 12px; line-height: 1.65; }
+.order-form-nav > button { border-radius: 10px; font-size: 14px; min-height: 48px; justify-content: center; }
+.order-form-nav > button:focus-visible { outline: 2px solid var(--forest); outline-offset: 3px; }
+@media (max-width: 600px) {
+  .order-shipping-section { padding: 22px 18px; }
+  .order-shipping-section .order-form-grid { gap: 18px; }
+  .order-shipping-section .order-section-heading { gap: 12px; padding-bottom: 20px; margin-bottom: 20px; }
+  .order-shipping-section .order-section-heading > svg { padding: 10px; }
+  .order-form-nav { padding-bottom: env(safe-area-inset-bottom); }
+  .order-form-nav .order-next-btn, .order-form-nav .order-place-btn { flex: 1; }
 }
 
 /* ── Account location picker in AccountModal ── */
