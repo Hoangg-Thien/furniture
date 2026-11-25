@@ -74,9 +74,10 @@ public class VoucherRepository {
                 FROM public.vouchers v
                 JOIN public.promotion_programs pp ON pp.id = v.promotion_program_id
                 WHERE v.is_deleted = FALSE AND v.status = 'ACTIVE' AND pp.status = 'ACTIVE'
-                  AND v.start_date <= CURRENT_TIMESTAMP
-                  AND v.end_date >= CURRENT_TIMESTAMP
-                  AND pp.start_date <= CURRENT_TIMESTAMP AND pp.end_date >= CURRENT_TIMESTAMP
+                  AND v.start_date <= CAST(CURRENT_TIMESTAMP AT TIME ZONE INTERVAL '7' HOUR AS TIMESTAMP)
+                  AND v.end_date >= CAST(CURRENT_TIMESTAMP AT TIME ZONE INTERVAL '7' HOUR AS TIMESTAMP)
+                  AND pp.start_date <= CAST(CURRENT_TIMESTAMP AT TIME ZONE INTERVAL '7' HOUR AS TIMESTAMP)
+                  AND pp.end_date >= CAST(CURRENT_TIMESTAMP AT TIME ZONE INTERVAL '7' HOUR AS TIMESTAMP)
                   AND v.quantity > v.used_quantity
                 ORDER BY v.minimum_amount ASC, v.id DESC
                 """;
@@ -94,9 +95,9 @@ public class VoucherRepository {
                        pp.status AS program_status,
                        CASE
                          WHEN pp.status = 'DRAFT' THEN 'PENDING_APPROVAL'
-                         WHEN v.end_date < CURRENT_TIMESTAMP OR pp.end_date < CURRENT_TIMESTAMP THEN 'EXPIRED'
+                         WHEN v.end_date < CAST(CURRENT_TIMESTAMP AT TIME ZONE INTERVAL '7' HOUR AS TIMESTAMP) OR pp.end_date < CAST(CURRENT_TIMESTAMP AT TIME ZONE INTERVAL '7' HOUR AS TIMESTAMP) THEN 'EXPIRED'
                          WHEN pp.status = 'ACTIVE' AND v.status = 'ACTIVE'
-                           AND (v.start_date > CURRENT_TIMESTAMP OR pp.start_date > CURRENT_TIMESTAMP) THEN 'SCHEDULED'
+                           AND (v.start_date > CAST(CURRENT_TIMESTAMP AT TIME ZONE INTERVAL '7' HOUR AS TIMESTAMP) OR pp.start_date > CAST(CURRENT_TIMESTAMP AT TIME ZONE INTERVAL '7' HOUR AS TIMESTAMP)) THEN 'SCHEDULED'
                          WHEN pp.status = 'ACTIVE' AND v.status = 'ACTIVE' AND v.quantity > v.used_quantity THEN 'ACTIVE'
                          ELSE 'INACTIVE'
                        END AS approval_state
@@ -177,8 +178,8 @@ public class VoucherRepository {
                 SELECT v.id, v.code, v.voucher_type, v.product_id, v.customer_tier, v.discount_percent, v.minimum_amount, v.maximum_discount,
                        v.quantity, v.used_quantity,
                        pp.name AS program_name, pp.status AS program_status, v.status AS voucher_status, v.is_deleted,
-                       (v.end_date < CURRENT_TIMESTAMP OR pp.end_date < CURRENT_TIMESTAMP) AS is_expired,
-                       (v.start_date > CURRENT_TIMESTAMP OR pp.start_date > CURRENT_TIMESTAMP) AS is_not_started
+                       (v.end_date < CAST(CURRENT_TIMESTAMP AT TIME ZONE INTERVAL '7' HOUR AS TIMESTAMP) OR pp.end_date < CAST(CURRENT_TIMESTAMP AT TIME ZONE INTERVAL '7' HOUR AS TIMESTAMP)) AS is_expired,
+                       (v.start_date > CAST(CURRENT_TIMESTAMP AT TIME ZONE INTERVAL '7' HOUR AS TIMESTAMP) OR pp.start_date > CAST(CURRENT_TIMESTAMP AT TIME ZONE INTERVAL '7' HOUR AS TIMESTAMP)) AS is_not_started
                 FROM public.vouchers v
                 JOIN public.promotion_programs pp ON pp.id = v.promotion_program_id
                 WHERE v.is_deleted = FALSE AND UPPER(v.code) = UPPER(?)

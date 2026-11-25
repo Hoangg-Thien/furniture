@@ -428,7 +428,7 @@ public class AdminInvoiceRepository {
                        v.discount_percent, v.minimum_amount, v.maximum_discount, v.voucher_type, v.product_id, v.customer_tier,
                        v.quantity, v.used_quantity, (v.quantity - v.used_quantity) AS remaining_quantity,
                        v.start_date, v.end_date, v.status,
-                       (v.end_date < CURRENT_TIMESTAMP) AS is_expired
+                       (v.end_date < CAST(CURRENT_TIMESTAMP AT TIME ZONE INTERVAL '7' HOUR AS TIMESTAMP)) AS is_expired
                 FROM public.vouchers v
                 JOIN public.promotion_programs pp ON pp.id = v.promotion_program_id
                 WHERE UPPER(v.code) = UPPER(?)

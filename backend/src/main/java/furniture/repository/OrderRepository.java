@@ -66,7 +66,7 @@ public class OrderRepository {
         jdbcTemplate.update(connection -> {
             PreparedStatement ps = connection.prepareStatement(
                     "INSERT INTO public.orders (customer_id, order_date, status, total_amount, voucher_id, discount_amount, shipping_address, stock_deducted, recipient_name, recipient_phone, discount_label) " +
-                            "VALUES (?, date_trunc('second', CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh'), 'PENDING', ?, ?, ?, ?, TRUE, ?, ?, ?)",
+                            "VALUES (?, date_trunc('second', CURRENT_TIMESTAMP AT TIME ZONE INTERVAL '7' HOUR), 'PENDING', ?, ?, ?, ?, TRUE, ?, ?, ?)",
                     new String[] { "id" });
             ps.setLong(1, customerId);
             ps.setBigDecimal(2, finalTotal);
@@ -121,14 +121,14 @@ public class OrderRepository {
                            SUM(ROUND(l.unit_price * l.quantity * pd.discount_percent / 100, 0)) AS discount_amount
                     FROM lines l JOIN public.product_discounts pd ON pd.product_id = l.product_id
                     JOIN public.promotion_programs pp ON pp.id = pd.promotion_program_id
-                    WHERE pp.status = 'ACTIVE' AND CURRENT_TIMESTAMP BETWEEN pp.start_date AND pp.end_date
-                      AND CURRENT_TIMESTAMP BETWEEN pd.start_date AND pd.end_date
+                    WHERE pp.status = 'ACTIVE' AND CAST(CURRENT_TIMESTAMP AT TIME ZONE INTERVAL '7' HOUR AS TIMESTAMP) BETWEEN pp.start_date AND pp.end_date
+                      AND CAST(CURRENT_TIMESTAMP AT TIME ZONE INTERVAL '7' HOUR AS TIMESTAMP) BETWEEN pd.start_date AND pd.end_date
                     GROUP BY pp.id, pp.name
                     UNION ALL
                     SELECT pp.name AS discount_label, pp.id AS program_id, 'ORDER' AS promotion_type, ROUND(? * od.discount_percent / 100, 0) AS discount_amount
                     FROM public.order_discounts od JOIN public.promotion_programs pp ON pp.id = od.promotion_program_id
-                    WHERE ? = FALSE AND pp.status = 'ACTIVE' AND CURRENT_TIMESTAMP BETWEEN pp.start_date AND pp.end_date
-                      AND CURRENT_TIMESTAMP BETWEEN od.start_date AND od.end_date AND od.minimum_amount <= ?
+                    WHERE ? = FALSE AND pp.status = 'ACTIVE' AND CAST(CURRENT_TIMESTAMP AT TIME ZONE INTERVAL '7' HOUR AS TIMESTAMP) BETWEEN pp.start_date AND pp.end_date
+                      AND CAST(CURRENT_TIMESTAMP AT TIME ZONE INTERVAL '7' HOUR AS TIMESTAMP) BETWEEN od.start_date AND od.end_date AND od.minimum_amount <= ?
                 ) SELECT discount_label, discount_amount, promotion_type, program_id FROM candidates
                 WHERE discount_amount > 0 ORDER BY discount_amount DESC, discount_label, promotion_type LIMIT 1
                 """.formatted(values), params.toArray());
@@ -138,8 +138,8 @@ public class OrderRepository {
         var rates = jdbcTemplate.queryForList("""
                 SELECT pd.product_id, MAX(pd.discount_percent) AS discount_percent
                 FROM public.product_discounts pd JOIN public.promotion_programs pp ON pp.id = pd.promotion_program_id
-                WHERE pp.status = 'ACTIVE' AND CURRENT_TIMESTAMP BETWEEN pp.start_date AND pp.end_date
-                  AND CURRENT_TIMESTAMP BETWEEN pd.start_date AND pd.end_date
+                WHERE pp.status = 'ACTIVE' AND CAST(CURRENT_TIMESTAMP AT TIME ZONE INTERVAL '7' HOUR AS TIMESTAMP) BETWEEN pp.start_date AND pp.end_date
+                  AND CAST(CURRENT_TIMESTAMP AT TIME ZONE INTERVAL '7' HOUR AS TIMESTAMP) BETWEEN pd.start_date AND pd.end_date
                 GROUP BY pd.product_id
                 """);
         var result = new ArrayList<furniture.model.OrderItemDiscount>();
@@ -159,10 +159,10 @@ public class OrderRepository {
             int updated = jdbcTemplate.update("""
                     UPDATE public.vouchers SET used_quantity = used_quantity + 1
                     WHERE id = ? AND is_deleted = FALSE AND used_quantity < quantity AND status = 'ACTIVE'
-                      AND start_date <= CURRENT_TIMESTAMP AND end_date >= CURRENT_TIMESTAMP
+                      AND start_date <= CAST(CURRENT_TIMESTAMP AT TIME ZONE INTERVAL '7' HOUR AS TIMESTAMP) AND end_date >= CAST(CURRENT_TIMESTAMP AT TIME ZONE INTERVAL '7' HOUR AS TIMESTAMP)
                       AND EXISTS (SELECT 1 FROM public.promotion_programs pp
                           WHERE pp.id = promotion_program_id AND pp.status = 'ACTIVE'
-                            AND pp.start_date <= CURRENT_TIMESTAMP AND pp.end_date >= CURRENT_TIMESTAMP)
+                            AND pp.start_date <= CAST(CURRENT_TIMESTAMP AT TIME ZONE INTERVAL '7' HOUR AS TIMESTAMP) AND pp.end_date >= CAST(CURRENT_TIMESTAMP AT TIME ZONE INTERVAL '7' HOUR AS TIMESTAMP))
                     """, voucherId);
             if (updated != 1) {
                 throw new IllegalArgumentException("Voucher không còn hiệu lực hoặc đã hết lượt dùng. Vui lòng chọn lại.");

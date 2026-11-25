@@ -1474,7 +1474,7 @@ export default function AdminPromotionManagement({ currentUser }) {
                     <div>
                       <label className="admin-form-label" htmlFor="voucher-status-filter">Lọc trạng thái voucher</label>
                       <select id="voucher-status-filter" className="admin-form-input" value={voucherFilter} onChange={e => setVoucherFilter(e.target.value)}>
-                        <option value="ALL">Tất cả</option><option value="ACTIVE">Đang hoạt động</option><option value="INACTIVE">Tạm ngưng</option><option value="ARCHIVED">Đã lưu trữ</option>
+                        <option value="ALL">Tất cả</option><option value="ACTIVE">Đã kích hoạt</option><option value="INACTIVE">Tạm ngưng</option><option value="ARCHIVED">Đã lưu trữ</option>
                       </select>
                     </div>
                   </div>
@@ -1565,7 +1565,7 @@ export default function AdminPromotionManagement({ currentUser }) {
                                         : 'bg-slate-100 text-slate-600'
                                     }
                                   >
-                                    {v.archived ? 'Đã lưu trữ' : v.status === 'ACTIVE' ? 'Đang hoạt động' : 'Tạm ngưng'}
+                                    {v.archived ? 'Đã lưu trữ' : v.status === 'ACTIVE' ? 'Đã kích hoạt' : 'Tạm ngưng'}
                                   </span>
                                 </button>
                               </td>

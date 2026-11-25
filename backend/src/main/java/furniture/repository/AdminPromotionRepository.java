@@ -71,7 +71,7 @@ public class AdminPromotionRepository {
                        (SELECT COUNT(*) FROM public.product_discounts pd WHERE pd.promotion_program_id = pp.id) AS product_discounts_count,
                        (SELECT COUNT(*) FROM public.order_discounts od WHERE od.promotion_program_id = pp.id) AS order_discounts_count,
                        (SELECT COUNT(*) FROM public.vouchers v WHERE v.promotion_program_id = pp.id) AS vouchers_count,
-                       (pp.status = 'ACTIVE' AND CURRENT_TIMESTAMP BETWEEN pp.start_date AND pp.end_date) AS is_currently_running
+                       (pp.status = 'ACTIVE' AND CAST(CURRENT_TIMESTAMP AT TIME ZONE INTERVAL '7' HOUR AS TIMESTAMP) BETWEEN pp.start_date AND pp.end_date) AS is_currently_running
                 FROM public.promotion_programs pp
                 WHERE 1=1
                 """);
@@ -115,7 +115,7 @@ public class AdminPromotionRepository {
                        (SELECT COUNT(*) FROM public.product_discounts pd WHERE pd.promotion_program_id = pp.id) AS product_discounts_count,
                        (SELECT COUNT(*) FROM public.order_discounts od WHERE od.promotion_program_id = pp.id) AS order_discounts_count,
                        (SELECT COUNT(*) FROM public.vouchers v WHERE v.promotion_program_id = pp.id) AS vouchers_count,
-                       (pp.status = 'ACTIVE' AND CURRENT_TIMESTAMP BETWEEN pp.start_date AND pp.end_date) AS is_currently_running
+                       (pp.status = 'ACTIVE' AND CAST(CURRENT_TIMESTAMP AT TIME ZONE INTERVAL '7' HOUR AS TIMESTAMP) BETWEEN pp.start_date AND pp.end_date) AS is_currently_running
                 FROM public.promotion_programs pp
                 WHERE pp.id = ?
                 """;
@@ -362,7 +362,7 @@ public class AdminPromotionRepository {
                        v.quantity, v.used_quantity, (v.quantity - v.used_quantity) AS remaining_quantity,
                        v.start_date, v.end_date, v.status, v.is_deleted,
                        (SELECT COUNT(*) FROM public.orders o WHERE o.voucher_id = v.id) AS orders_count,
-                       (v.end_date < CURRENT_TIMESTAMP) AS is_expired
+                       (v.end_date < CAST(CURRENT_TIMESTAMP AT TIME ZONE INTERVAL '7' HOUR AS TIMESTAMP)) AS is_expired
                 FROM public.vouchers v
                 JOIN public.promotion_programs pp ON pp.id = v.promotion_program_id
                 WHERE v.promotion_program_id = ?
@@ -401,7 +401,7 @@ public class AdminPromotionRepository {
                        v.quantity, v.used_quantity, (v.quantity - v.used_quantity) AS remaining_quantity,
                        v.start_date, v.end_date, v.status, v.is_deleted,
                        (SELECT COUNT(*) FROM public.orders o WHERE o.voucher_id = v.id) AS orders_count,
-                       (v.end_date < CURRENT_TIMESTAMP) AS is_expired
+                       (v.end_date < CAST(CURRENT_TIMESTAMP AT TIME ZONE INTERVAL '7' HOUR AS TIMESTAMP)) AS is_expired
                 FROM public.vouchers v
                 JOIN public.promotion_programs pp ON pp.id = v.promotion_program_id
                 WHERE 1=1
@@ -484,7 +484,7 @@ public class AdminPromotionRepository {
                        v.quantity, v.used_quantity, (v.quantity - v.used_quantity) AS remaining_quantity,
                        v.start_date, v.end_date, v.status, v.is_deleted,
                        (SELECT COUNT(*) FROM public.orders o WHERE o.voucher_id = v.id) AS orders_count,
-                       (v.end_date < CURRENT_TIMESTAMP) AS is_expired
+                       (v.end_date < CAST(CURRENT_TIMESTAMP AT TIME ZONE INTERVAL '7' HOUR AS TIMESTAMP)) AS is_expired
                 FROM public.vouchers v
                 JOIN public.promotion_programs pp ON pp.id = v.promotion_program_id
                 WHERE v.id = ?

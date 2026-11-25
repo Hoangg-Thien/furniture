@@ -43,8 +43,8 @@ public class ProductRepository {
                     SELECT pd.product_id, MAX(pd.discount_percent) AS discount_percent
                     FROM public.product_discounts pd
                     JOIN public.promotion_programs pp ON pp.id = pd.promotion_program_id
-                    WHERE pp.status = 'ACTIVE' AND CURRENT_TIMESTAMP BETWEEN pp.start_date AND pp.end_date
-                      AND CURRENT_TIMESTAMP BETWEEN pd.start_date AND pd.end_date
+                    WHERE pp.status = 'ACTIVE' AND CAST(CURRENT_TIMESTAMP AT TIME ZONE INTERVAL '7' HOUR AS TIMESTAMP) BETWEEN pp.start_date AND pp.end_date
+                      AND CAST(CURRENT_TIMESTAMP AT TIME ZONE INTERVAL '7' HOUR AS TIMESTAMP) BETWEEN pd.start_date AND pd.end_date
                       AND pd.discount_percent > 0 AND pd.discount_percent <= 100
                     GROUP BY pd.product_id
                 ) offer ON offer.product_id = p.id
