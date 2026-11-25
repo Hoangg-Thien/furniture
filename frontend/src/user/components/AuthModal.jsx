@@ -1,6 +1,9 @@
 import { useState } from 'react'
 import { LogIn, UserPlus, X, User, Lock, Mail, Phone, MapPin, AlertCircle, CheckCircle } from 'lucide-react'
 import { loginUser, registerUser } from '../../lib/auth'
+import { getAllProvinces, VIETNAM_LOCATIONS } from '../lib/vietnamLocations'
+
+const provinces = getAllProvinces()
 
 export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
   const [mode, setMode] = useState('login') // 'login' | 'register'
@@ -15,6 +18,13 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
   const [address, setAddress] = useState('')
+  const [city, setCity] = useState('')
+  const [district, setDistrict] = useState('')
+  const [ward, setWard] = useState('')
+  const [otherDistrict, setOtherDistrict] = useState('')
+  const [otherWard, setOtherWard] = useState('')
+  const districts = VIETNAM_LOCATIONS.find(location => location.name === city)?.districts ?? []
+  const wards = districts.find(location => location.name === district)?.wards ?? []
 
   if (!isOpen) return null
 
@@ -27,6 +37,11 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
     setEmail('')
     setPhone('')
     setAddress('')
+    setCity('')
+    setDistrict('')
+    setWard('')
+    setOtherDistrict('')
+    setOtherWard('')
   }
 
   async function handleSubmit(e) {
@@ -65,25 +80,29 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
           setLoading(false)
           return
         }
+        const addressParts = [address, ward === 'other' ? otherWard : ward, district === 'other' ? otherDistrict : district, city].map(part => part.trim())
+        if (!email.trim() || !phone.trim() || addressParts.some(part => !part)) {
+          setError('Vui lòng điền email, số điện thoại và đầy đủ địa chỉ giao hàng.')
+          return
+        }
 
-        const { user, error: regErr } = await registerUser({
-          username: username.trim(),
+        const registeredUsername = username.trim()
+        const { error: regErr } = await registerUser({
+          username: registeredUsername,
           password,
           fullName: fullName.trim(),
           email: email.trim(),
           phone: phone.trim(),
-          address: address.trim(),
+          address: addressParts.join(', '),
         })
 
         if (regErr) {
           setError(regErr)
         } else {
-          setSuccess('Đăng ký tài khoản thành công!')
-          setTimeout(() => {
-            onAuthSuccess(user)
-            onClose()
-            resetForm()
-          }, 800)
+          resetForm()
+          setUsername(registeredUsername)
+          setMode('login')
+          setSuccess('Đăng ký thành công. Vui lòng đăng nhập để tiếp tục.')
         }
       }
     } catch {
@@ -206,11 +225,13 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
           {mode === 'register' && (
             <>
               <div className="auth-field">
-                <label>Email liên hệ</label>
+                <label htmlFor="register-email">Email liên hệ <span className="req">*</span></label>
                 <div className="auth-input-wrapper">
                   <Mail size={16} className="auth-icon" />
                   <input
                     type="email"
+                    id="register-email"
+                    required
                     placeholder="name@example.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -219,11 +240,13 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
               </div>
 
               <div className="auth-field">
-                <label>Số điện thoại</label>
+                <label htmlFor="register-phone">Số điện thoại <span className="req">*</span></label>
                 <div className="auth-input-wrapper">
                   <Phone size={16} className="auth-icon" />
                   <input
                     type="tel"
+                    id="register-phone"
+                    required
                     placeholder="0912 345 678"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
@@ -231,18 +254,61 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
                 </div>
               </div>
 
-              <div className="auth-field">
-                <label>Địa chỉ giao hàng</label>
+              <fieldset className="auth-address">
+                <legend>Địa chỉ giao hàng <span className="req">*</span></legend>
+                <div className="auth-field">
+                  <label htmlFor="register-city">Tỉnh / Thành phố</label>
+                  <select id="register-city" className="account-select" required value={city} onChange={event => {
+                    setCity(event.target.value)
+                    setDistrict('')
+                    setWard('')
+                    setOtherDistrict('')
+                    setOtherWard('')
+                  }}>
+                    <option value="">Chọn tỉnh hoặc thành phố</option>
+                    {provinces.map(province => <option key={province}>{province}</option>)}
+                  </select>
+                </div>
+                <div className="auth-field">
+                  <label htmlFor="register-district">Quận / Huyện</label>
+                  <select id="register-district" className="account-select" required disabled={!city} value={district} onChange={event => {
+                    setDistrict(event.target.value)
+                    setWard('')
+                    setOtherDistrict('')
+                    setOtherWard('')
+                  }}>
+                    <option value="">{city ? 'Chọn quận hoặc huyện' : 'Chọn tỉnh hoặc thành phố trước'}</option>
+                    {districts.map(({ name }) => <option key={name}>{name}</option>)}
+                    <option value="other">Khác (nhập tên)</option>
+                  </select>
+                  {district === 'other' && <input aria-label="Tên quận hoặc huyện" placeholder="Nhập tên quận hoặc huyện" className="account-select" required value={otherDistrict} onChange={event => setOtherDistrict(event.target.value)} />}
+                </div>
+                <div className="auth-field">
+                  <label htmlFor="register-ward">Phường / Xã</label>
+                  <select id="register-ward" className="account-select" required disabled={!district} value={ward} onChange={event => {
+                    setWard(event.target.value)
+                    setOtherWard('')
+                  }}>
+                    <option value="">{district ? 'Chọn phường hoặc xã' : 'Chọn quận hoặc huyện trước'}</option>
+                    {wards.map(name => <option key={name}>{name}</option>)}
+                    <option value="other">Khác (nhập tên)</option>
+                  </select>
+                  {ward === 'other' && <input aria-label="Tên phường hoặc xã" placeholder="Nhập tên phường hoặc xã" className="account-select" required value={otherWard} onChange={event => setOtherWard(event.target.value)} />}
+                </div>
+                <label htmlFor="register-street">Số nhà, tên đường</label>
                 <div className="auth-input-wrapper">
                   <MapPin size={16} className="auth-icon" />
                   <input
                     type="text"
-                    placeholder="Số nhà, đường, quận/huyện, thành phố"
+                    id="register-street"
+                    required
+                    autoComplete="street-address"
+                    placeholder="VD: 123 Nguyễn Thị Minh Khai"
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
                   />
                 </div>
-              </div>
+              </fieldset>
             </>
           )}
 

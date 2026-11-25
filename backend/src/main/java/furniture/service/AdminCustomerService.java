@@ -9,6 +9,7 @@ import java.util.Map;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import furniture.model.CustomerTier;
 import furniture.model.admin.PageResponse;
 import furniture.model.admin.customer.CustomerCartItemDto;
 import furniture.model.admin.customer.CustomerDetailResponse;
@@ -54,7 +55,7 @@ public class AdminCustomerService {
         Timestamp ts = (Timestamp) customer.get("created_at");
         LocalDateTime createdAt = ts != null ? ts.toLocalDateTime() : null;
 
-        String customerTier = AdminCustomerRepository.computeTier(totalSpent, completedOrders);
+        String customerTier = CustomerTier.forSpend(totalSpent).name();
 
         List<CustomerOrderDto> orders = adminCustomerRepository.findOrdersByCustomerId(customerId);
         List<CustomerCartItemDto> cartItems = adminCustomerRepository.findCartItemsByCustomerId(customerId);

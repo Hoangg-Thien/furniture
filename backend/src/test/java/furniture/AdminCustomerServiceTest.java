@@ -35,17 +35,13 @@ public class AdminCustomerServiceTest {
     }
 
     @Test
-    void testComputeTier() {
-        assertEquals("SILVER", AdminCustomerRepository.computeTier(BigDecimal.ZERO, 1));
-        assertEquals("SILVER", AdminCustomerRepository.computeTier(new BigDecimal("14999999"), 1));
-        assertEquals("GOLD", AdminCustomerRepository.computeTier(new BigDecimal("49999999"), 1));
-        assertEquals("VIP_DIAMOND", AdminCustomerRepository.computeTier(new BigDecimal("68500000"), 4));
-        assertEquals("VIP_DIAMOND", AdminCustomerRepository.computeTier(new BigDecimal("50000000"), 1));
-        assertEquals("GOLD", AdminCustomerRepository.computeTier(new BigDecimal("24200000"), 2));
-        assertEquals("GOLD", AdminCustomerRepository.computeTier(new BigDecimal("15000000"), 1));
-        assertEquals("SILVER", AdminCustomerRepository.computeTier(new BigDecimal("8000000"), 1));
-        assertEquals("NEW", AdminCustomerRepository.computeTier(BigDecimal.ZERO, 0));
-        assertEquals("NEW", AdminCustomerRepository.computeTier(null, 0));
+    void tierChangesOnlyWhenCumulativeSpendingReachesTheNextThreshold() {
+        String[] tiers = {"NEW", "SILVER", "GOLD", "PLATINUM", "VIP_DIAMOND"};
+        long[] thresholds = {10_000_000, 50_000_000, 100_000_000, 300_000_000};
+        for (int i = 0; i < thresholds.length; i++) {
+            assertEquals(tiers[i], furniture.model.CustomerTier.forSpend(BigDecimal.valueOf(thresholds[i] - 1)).name());
+            assertEquals(tiers[i + 1], furniture.model.CustomerTier.forSpend(BigDecimal.valueOf(thresholds[i])).name());
+        }
     }
 
     @Test
@@ -73,7 +69,7 @@ public class AdminCustomerServiceTest {
         CustomerDetailResponse detail = adminCustomerService.getCustomerDetail(customerId);
 
         assertEquals("Nguyễn Văn An", detail.fullName());
-        assertEquals("VIP_DIAMOND", detail.customerTier());
+        assertEquals("GOLD", detail.customerTier());
         assertEquals(4L, detail.totalOrders());
         assertEquals(new BigDecimal("68500000"), detail.totalSpent());
     }

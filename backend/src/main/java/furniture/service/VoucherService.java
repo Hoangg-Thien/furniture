@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import furniture.model.CreateVoucherRequest;
+import furniture.model.CustomerTier;
 import furniture.model.ValidateVoucherRequest;
 import furniture.repository.VoucherRepository;
 
@@ -61,7 +62,7 @@ public class VoucherService {
             throw new IllegalArgumentException("Phần trăm giảm giá phải từ 1 đến 100");
         }
 
-        if (!List.of("SILVER", "GOLD", "VIP_DIAMOND").contains(req.customerTier()))
+        if (!CustomerTier.isVoucherTier(req.customerTier()))
             throw new IllegalArgumentException("Hạng khách hàng không hợp lệ");
         String cleanCode = req.code().trim().toUpperCase();
         if (voucherRepository.countByCode(cleanCode) > 0) {

@@ -143,4 +143,12 @@ export async function validateVoucherApi(codeOrObj, maybeSubtotal) {
   }
 }
 
-export const VIP_TIER_LABELS = { SILVER: 'Bạc (ít nhất 1 đơn hoàn thành, dưới 15 triệu)', GOLD: 'Vàng (từ 15 đến dưới 50 triệu)', VIP_DIAMOND: 'Kim cương (từ 50 triệu)' }
+export const MEMBERSHIP_MILESTONES = {
+  SILVER: { label: 'Bạc', millions: 10 },
+  GOLD: { label: 'Vàng', millions: 50 },
+  PLATINUM: { label: 'Bạch kim', millions: 100 },
+  VIP_DIAMOND: { label: 'Kim cương', millions: 300 },
+}
+
+export const VIP_TIER_LABELS = Object.fromEntries(Object.entries(MEMBERSHIP_MILESTONES)
+  .map(([tier, { label, millions }]) => [tier, `${label} (từ ${millions} triệu)`]))

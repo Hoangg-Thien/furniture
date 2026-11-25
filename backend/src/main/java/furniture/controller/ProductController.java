@@ -23,6 +23,12 @@ public class ProductController {
         this.productService = productService;
     }
 
+    @GetMapping("/{id}")
+    public ResponseEntity<?> getDetail(@org.springframework.web.bind.annotation.PathVariable long id) {
+        var detail = productService.getDetail(id);
+        return detail == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(detail);
+    }
+
     @GetMapping
     public ResponseEntity<?> getProducts() {
         try {

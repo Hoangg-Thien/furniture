@@ -81,7 +81,7 @@ class AdminPermissionsTest {
         activitySchema.execute(database);
         jdbc.update("UPDATE staff SET staff_type = 'WAREHOUSE' WHERE user_id = 3");
         jdbc.update("UPDATE staff SET staff_type = 'CONTENT' WHERE user_id = 4");
-        sessions = new AdminSessionService(jdbc, new AuthService(new AuthRepository(jdbc)));
+        sessions = new AdminSessionService(jdbc, new AuthService(new AuthRepository(jdbc), new furniture.repository.VoucherRepository(jdbc)));
         var activities = new AdminActivityRepository(jdbc);
         mvc = MockMvcBuilders.standaloneSetup(new Probe(), new AdminSessionController(sessions), new AdminNotificationController(activities))
                 .addInterceptors(new AdminAccessInterceptor(sessions, jdbc), new AdminActivityInterceptor(activities)).build();

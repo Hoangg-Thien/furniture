@@ -5,6 +5,9 @@ import java.sql.PreparedStatement;
 import java.util.List;
 import java.util.Map;
 
+import furniture.model.CustomerTierProgress;
+import furniture.model.CustomerTier;
+
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
@@ -199,8 +202,19 @@ public class VoucherRepository {
 
     public String findCustomerTier(Long customerId) {
         if (customerId == null) return "NEW";
+        return findCustomerTierProgress(customerId).tier();
+    }
+
+    public CustomerTierProgress findCustomerTierProgress(long customerId) {
         return jdbcTemplate.queryForObject("SELECT COALESCE(SUM(total_amount), 0) AS spent, COUNT(*) AS completed FROM public.orders WHERE customer_id = ? AND status = 'COMPLETED'",
-                (rs, row) -> AdminCustomerRepository.computeTier(rs.getBigDecimal("spent"), rs.getLong("completed")), customerId);
+                (rs, row) -> {
+                    var spent = rs.getBigDecimal("spent");
+                    long completed = rs.getLong("completed");
+                    var tier = CustomerTier.forSpend(spent);
+                    var next = tier.next();
+                    return new CustomerTierProgress(tier.name(), spent, completed,
+                            next == null ? null : next.name(), next == null ? null : next.minimumSpend());
+                }, customerId);
     }
 
 }

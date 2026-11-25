@@ -18,6 +18,7 @@ import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 
+import furniture.model.CustomerTier;
 import furniture.model.admin.PageResponse;
 import furniture.model.admin.invoice.EligibleOrderDto;
 import furniture.model.admin.invoice.InvoiceDetailDto;
@@ -417,8 +418,8 @@ public class AdminInvoiceRepository {
     }
 
     public boolean matchesVoucherTier(Long customerId, String tier) {
-        return jdbcTemplate.queryForObject("SELECT COALESCE(SUM(total_amount), 0) AS spent, COUNT(*) AS completed FROM public.orders WHERE customer_id = ? AND status = 'COMPLETED'",
-                (rs, row) -> tier.equals(AdminCustomerRepository.computeTier(rs.getBigDecimal("spent"), rs.getLong("completed"))), customerId);
+        return jdbcTemplate.queryForObject("SELECT COALESCE(SUM(total_amount), 0) AS spent FROM public.orders WHERE customer_id = ? AND status = 'COMPLETED'",
+                (rs, row) -> tier.equals(CustomerTier.forSpend(rs.getBigDecimal("spent")).name()), customerId);
     }
 
     public Optional<VoucherDto> findVoucherByCode(String code) {

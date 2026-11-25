@@ -31,6 +31,18 @@ class ProductStockTest {
                     .andExpect(jsonPath("$.length()").value(2))
                     .andExpect(jsonPath("$[0].quantity").value(2))
                     .andExpect(jsonPath("$[1].quantity").value(0));
+            jdbc.execute("CREATE TABLE product_details (product_id BIGINT UNIQUE, sku VARCHAR(50), brand VARCHAR(100), origin VARCHAR(100), material TEXT, dimensions VARCHAR(150), weight_kg NUMERIC, color VARCHAR(100), warranty_months INT, care_instructions TEXT, detailed_description TEXT)");
+            jdbc.execute("INSERT INTO product_details (product_id, sku, material, warranty_months) VALUES (1, 'SOFA-1', 'Oak', 24)");
+            mvc.perform(get("/api/products/1")).andExpect(status().isOk())
+                    .andExpect(jsonPath("$.price").value(100))
+                    .andExpect(jsonPath("$.category").value("Sofa"))
+                    .andExpect(jsonPath("$.sku").value("SOFA-1"))
+                    .andExpect(jsonPath("$.material").value("Oak"))
+                    .andExpect(jsonPath("$.warranty_months").value(24));
+            mvc.perform(get("/api/products/2")).andExpect(status().isOk())
+                    .andExpect(jsonPath("$.name").value("Sold out"));
+            mvc.perform(get("/api/products/3")).andExpect(status().isNotFound());
+            mvc.perform(get("/api/products/999")).andExpect(status().isNotFound());
             jdbc.update("UPDATE products SET quantity = 1 WHERE id = 1");
             mvc.perform(get("/api/products")).andExpect(jsonPath("$[0].quantity").value(1));
         } finally {

@@ -14,6 +14,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import furniture.model.admin.PageResponse;
+import furniture.model.CustomerTier;
 import furniture.model.admin.customer.CustomerCartItemDto;
 import furniture.model.admin.customer.CustomerOrderDto;
 import furniture.model.admin.customer.CustomerTableItemDto;
@@ -25,19 +26,6 @@ public class AdminCustomerRepository {
 
     public AdminCustomerRepository(JdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
-    }
-
-    public static String computeTier(BigDecimal totalSpent, long completedOrders) {
-        if (totalSpent == null) totalSpent = BigDecimal.ZERO;
-        if (totalSpent.compareTo(new BigDecimal("50000000")) >= 0) {
-            return "VIP_DIAMOND";
-        } else if (totalSpent.compareTo(new BigDecimal("15000000")) >= 0) {
-            return "GOLD";
-        } else if (completedOrders >= 1) {
-            return "SILVER";
-        } else {
-            return "NEW";
-        }
     }
 
     public PageResponse<CustomerTableItemDto> searchCustomers(
@@ -76,17 +64,18 @@ public class AdminCustomerRepository {
             params.add(kw);
         }
 
-        if (tier != null && !tier.trim().isEmpty() && !"ALL".equalsIgnoreCase(tier.trim())) {
-            String t = tier.trim().toUpperCase();
-            if ("VIP_DIAMOND".equals(t) || "VIP".equals(t)) {
-                whereClause.append(" AND total_spent >= 50000000 ");
-            } else if ("GOLD".equals(t)) {
-                whereClause.append(" AND total_spent >= 15000000 AND total_spent < 50000000 ");
-            } else if ("SILVER".equals(t)) {
-                whereClause.append(" AND completed_orders >= 1 AND total_spent < 15000000 ");
-            } else if ("NEW".equals(t)) {
-                whereClause.append(" AND completed_orders = 0 ");
+        String filter = tier == null ? "" : tier.trim();
+        for (CustomerTier candidate : CustomerTier.values()) {
+            if (!candidate.name().equalsIgnoreCase(filter) && !(candidate == CustomerTier.VIP_DIAMOND && "VIP".equalsIgnoreCase(filter))) continue;
+            if (candidate != CustomerTier.NEW) {
+                whereClause.append(" AND total_spent >= ? ");
+                params.add(candidate.minimumSpend());
             }
+            if (candidate.next() != null) {
+                whereClause.append(" AND total_spent < ? ");
+                params.add(candidate.next().minimumSpend());
+            }
+            break;
         }
 
         if (minSpent != null && minSpent.compareTo(BigDecimal.ZERO) > 0) {
@@ -129,7 +118,7 @@ public class AdminCustomerRepository {
             Timestamp ts = rs.getTimestamp("created_at");
             LocalDateTime createdAt = ts != null ? ts.toLocalDateTime() : null;
 
-            String computedTier = computeTier(totalSpent, completedOrders);
+            String computedTier = CustomerTier.forSpend(totalSpent).name();
             return new CustomerTableItemDto(
                     id, userId, username, fullName, phone, email, address,
                     totalOrders, completedOrders, totalSpent, computedTier, isUserActive, createdAt);

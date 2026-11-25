@@ -1,6 +1,6 @@
 import { getApiBaseUrl } from './apiConfig.js'
 
-const SESSION_CUSTOMER_KEY = 'furniture_customer_user'
+export const SESSION_CUSTOMER_KEY = 'furniture_customer_user'
 const SESSION_ADMIN_KEY = 'furniture_admin_user'
 const LEGACY_SESSION_KEY = 'furniture_logged_in_user'
 
@@ -117,9 +117,7 @@ export async function registerUser({ username, password, fullName, email, phone,
       return { user: null, error: data.error || 'Đăng ký tài khoản thất bại' }
     }
 
-    const user = { ...data, apiBaseUrl }
-    setCurrentUser(user)
-    return { user, error: null }
+    return { user: { ...data, apiBaseUrl }, error: null }
   } catch (err) {
     return {
       user: null,

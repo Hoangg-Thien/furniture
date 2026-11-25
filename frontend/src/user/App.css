@@ -213,6 +213,10 @@
 
 .announcement-note { color: #d4c8a8; }
 
+.store-toolbar { display: contents; }
+.store-toolbar-detail { display: block; position: sticky; top: 0; z-index: 100; }
+.store-toolbar-detail .site-header, .store-toolbar-detail .mobile-sub-nav { position: relative; top: auto; }
+
 .site-header {
   position: sticky;
   top: 0;
@@ -267,7 +271,7 @@
 }
 
 .main-nav, .header-actions { display: flex; align-items: center; }
-.main-nav { gap: 32px; }
+.main-nav { gap: clamp(10px, 2vw, 28px); }
 .main-nav a {
   position: relative;
   padding: 8px 4px;
@@ -362,6 +366,8 @@
   font-size: 11px;
   transition: transform 0.2s ease, color 0.2s ease;
 }
+.bag-icon { display: inline-flex; align-items: center; gap: 4px; }
+.bag-label { white-space: nowrap; }
 .bag-button.cart-bounce {
   animation: cart-bounce-pop 0.55s cubic-bezier(0.17, 0.89, 0.32, 1.49) both;
 }
@@ -373,12 +379,17 @@
 }
 .bag-count {
   display: grid;
-  width: 20px;
-  aspect-ratio: 1;
+  min-width: 20px;
+  height: 20px;
+  padding-inline: 4px;
   place-items: center;
-  border: 1px solid #c8cec5;
-  border-radius: 50%;
+  border: 1px solid var(--forest);
+  border-radius: 999px;
+  background: var(--forest);
+  color: #fff;
   font-size: 10px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
   transition: all 0.2s ease;
 }
 @keyframes cart-bounce-pop {
@@ -777,6 +788,7 @@
 }
 .product-card:hover .quick-add,
 .quick-add:focus-visible,
+.quick-add.has-in-cart,
 .quick-add.is-added {
   opacity: 1;
   transform: translateY(0);
@@ -845,6 +857,21 @@
 .story-band > a { display: grid; width: 42px; aspect-ratio: 1; place-items: center; border: 1px solid #82958a; border-radius: 50%; color: #fff; }
 .site-footer { display: flex; min-height: 92px; align-items: center; justify-content: space-between; gap: 20px; padding: 18px clamp(24px, 8vw, 128px); color: #858a81; font-size: 10px; }
 .footer-wordmark { color: var(--forest); }
+
+.contact-page { display: grid; gap: 28px; max-width: 1100px; margin-inline: auto; padding: clamp(36px, 8vw, 100px) clamp(20px, 5vw, 64px); }
+.contact-intro h1 { margin: 0 0 14px; color: var(--forest); font: 600 clamp(36px, 5vw, 64px)/1.1 var(--display); letter-spacing: -.03em; }
+.contact-intro p, .contact-support p { margin: 0; color: #59645d; line-height: 1.65; }
+.contact-support { padding: clamp(20px, 4vw, 32px); border: 1px solid var(--line); border-radius: 16px; background: #fff; }
+.contact-support h2 { margin: 0 0 12px; color: var(--forest); font-size: 18px; }
+.contact-phone { display: inline-flex; align-items: center; gap: 10px; min-height: 48px; margin-top: 20px; padding: 8px 14px; border-radius: 8px; background: var(--forest); color: #fff; font-size: 20px; font-weight: 700; text-decoration: none; transition: background .2s ease; }
+.contact-phone:hover { background: var(--forest-light); }
+.contact-fields { display: grid; gap: 14px; margin-top: 20px; }
+.contact-fields label { display: grid; gap: 6px; color: var(--forest); font-size: 14px; font-weight: 600; }
+.contact-fields :is(input, textarea) { width: 100%; min-width: 0; min-height: 44px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); color: var(--ink); font: 400 16px var(--sans); }
+.contact-fields textarea { resize: vertical; }
+@media (min-width: 760px) {
+  .contact-page { grid-template-columns: 1.15fr 1fr; align-items: start; gap: clamp(28px, 6vw, 80px); }
+}
 
 .cart-layer { 
   position: fixed; 
@@ -1215,6 +1242,7 @@
   /* Thanh điều hướng phụ cho Mobile/Tablet */
   .mobile-sub-nav {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: center;
     gap: 8px;
@@ -1241,6 +1269,7 @@
     font-family: inherit;
     color: #656c65;
     cursor: pointer;
+    text-decoration: none;
     transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
   }
   .mobile-nav-chip:hover {
@@ -1271,7 +1300,7 @@
   .search-box:focus-within { position: static; }
   .search-box:focus-within input { top: 96px; opacity: 1; pointer-events: auto; }
   .bag-button { gap: 4px; font-size: 10px; padding: 0 10px; height: 36px; }
-  .bag-button > span:nth-child(2) { display: none; }
+  .bag-button .bag-label { display: none; }
   .user-display-name { max-width: 70px; }
   .user-logged-box { height: 36px; padding: 3px 8px 3px 5px; }
   .user-avatar-badge { width: 26px; height: 26px; font-size: 11px; }
@@ -1608,6 +1637,10 @@
   color: var(--muted);
   pointer-events: none;
 }
+
+.auth-address { display: grid; gap: 10px; min-width: 0; margin: 0; padding: 12px 14px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); }
+.auth-address legend { padding: 0 4px; color: var(--forest); font-weight: 700; }
+.auth-address .account-select { min-height: 42px; margin-top: 4px; border-radius: 8px; font-size: 14px; }
 
 .auth-input-wrapper input {
   width: 100%;
@@ -2951,6 +2984,9 @@
   box-shadow: 0 12px 36px rgba(25, 60, 53, 0.16), 0 2px 8px rgba(0, 0, 0, 0.05);
   animation: cart-toast-slide 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
+.cart-toast.cart-toast-compact { right: 14px; bottom: 14px; left: auto; width: min(310px, calc(100% - 28px)); padding: 10px; gap: 8px; }
+.cart-toast-compact .cart-toast-thumb-wrap { width: 32px; height: 32px; }
+.cart-toast-compact .cart-toast-view-btn { padding-inline: 8px; }
 @keyframes cart-toast-slide {
   from {
     opacity: 0;
@@ -4525,6 +4561,40 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+.account-avatar-name-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.account-avatar-name-row .account-avatar-name { max-width: 100%; }
+.account-tier { padding: 3px 8px; border-radius: 999px; background: #e9eee9; color: #31544a; font-size: 11px; font-weight: 700; }
+.account-tier[data-tier="SILVER"] { background: #ebeff3; color: #3e5162; }
+.account-tier[data-tier="GOLD"] { background: #f8ecd1; color: #704811; }
+.account-tier[data-tier="PLATINUM"] { background: #ece6f6; color: #573d73; }
+.account-tier[data-tier="VIP_DIAMOND"] { background: #e4edf8; color: #284e79; }
+.membership-dialog { width: calc(100% - 32px); margin: auto; border: 0; color: var(--ink); }
+.membership-dialog::backdrop { background: rgb(25 60 53 / 45%); }
+.membership-progress { display: grid; gap: 10px; }
+.membership-progress p { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; margin: 0; font-size: 14px; }
+.membership-progress strong { color: var(--forest); font-variant-numeric: tabular-nums; }
+.membership-progress progress { width: 100%; height: 12px; border: 0; border-radius: 999px; overflow: hidden; background: #e8eee9; accent-color: var(--forest); }
+.membership-progress progress::-webkit-progress-bar { background: #e8eee9; }
+.membership-progress progress::-webkit-progress-value { background: var(--forest); }
+.membership-guide { margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--line); }
+.membership-guide h3 { margin: 0 0 6px; color: var(--forest); font-size: 16px; }
+.membership-guide p { margin: 0; color: #536058; font-size: 13px; line-height: 1.55; }
+.membership-milestones { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding: 0; margin: 14px 0 0; list-style: none; }
+.membership-milestones li { display: grid; justify-items: start; align-content: start; gap: 4px; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: #faf9f6; color: #3e5162; font-size: 14px; }
+.membership-milestone-amount { font-size: 13px; font-weight: 700; }
+.membership-milestones p { margin-top: 3px; font-size: 12px; }
+.membership-medal { display: grid; place-items: center; width: 34px; height: 34px; margin-bottom: 2px; border-radius: 50%; background: #ebeff3; }
+.membership-milestones [data-tier="GOLD"] { color: #704811; }
+.membership-milestones [data-tier="GOLD"] .membership-medal { background: #f8ecd1; }
+.membership-milestones [data-tier="PLATINUM"] { color: #573d73; }
+.membership-milestones [data-tier="PLATINUM"] .membership-medal { background: #ece6f6; }
+.membership-milestones [data-tier="VIP_DIAMOND"] { color: #284e79; }
+.membership-milestones [data-tier="VIP_DIAMOND"] .membership-medal { background: #e4edf8; }
+.membership-milestones [aria-current="step"] { border-color: currentColor; background: #fff; }
+.membership-vouchers { display: grid; justify-items: start; gap: 10px; margin-top: 14px; padding: 12px; border-radius: 12px; background: #edf3ef; }
+.membership-vouchers button { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px 12px; border: 0; border-radius: 8px; background: var(--forest); color: #fff; font-size: 13px; font-weight: 700; cursor: pointer; transition: background .2s ease; }
+.membership-vouchers button:hover { background: var(--forest-light); }
 
 .account-avatar-username {
   font-size: 12px;

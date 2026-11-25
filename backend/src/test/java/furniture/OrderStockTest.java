@@ -170,20 +170,32 @@ class OrderStockTest {
     }
 
     @Test
-    void voucherAndInvoiceTiersUseCompletedOrderCountsAndOriginalSpendingThresholds() {
+    void voucherAndInvoiceTiersUseTheSameCumulativeCompletedSpendingThresholds() {
         var repository = new VoucherRepository(jdbc);
         var invoices = new furniture.repository.AdminInvoiceRepository(jdbc);
         assertEquals("NEW", repository.findCustomerTier(1L));
-        jdbc.execute("INSERT INTO orders (customer_id, status, total_amount) VALUES (1, 'PENDING', 50000000)");
+        jdbc.execute("INSERT INTO orders (customer_id, status, total_amount) VALUES (1, 'PENDING', 300000000)");
         assertEquals("NEW", repository.findCustomerTier(1L));
+        assertEquals("SILVER", repository.findCustomerTierProgress(1L).nextTier());
+        assertEquals(new BigDecimal("10000000"), repository.findCustomerTierProgress(1L).nextThreshold());
+        assertEquals(0L, repository.findCustomerTierProgress(1L).completedOrders());
         jdbc.execute("UPDATE orders SET status = 'COMPLETED', total_amount = 0");
+        assertEquals("NEW", repository.findCustomerTier(1L));
+        jdbc.execute("UPDATE orders SET total_amount = 10000000");
         assertEquals("SILVER", repository.findCustomerTier(1L));
         assertTrue(invoices.matchesVoucherTier(1L, "SILVER"));
-        jdbc.execute("UPDATE orders SET total_amount = 15000000");
+        assertEquals(new BigDecimal("50000000"), repository.findCustomerTierProgress(1L).nextThreshold());
+        jdbc.execute("UPDATE orders SET total_amount = 50000000");
         assertEquals("GOLD", repository.findCustomerTier(1L));
         assertTrue(invoices.matchesVoucherTier(1L, "GOLD"));
-        jdbc.execute("UPDATE orders SET total_amount = 50000000");
+        assertEquals(new BigDecimal("100000000"), repository.findCustomerTierProgress(1L).nextThreshold());
+        jdbc.execute("UPDATE orders SET total_amount = 100000000");
+        assertEquals("PLATINUM", repository.findCustomerTier(1L));
+        assertTrue(invoices.matchesVoucherTier(1L, "PLATINUM"));
+        assertEquals(new BigDecimal("300000000"), repository.findCustomerTierProgress(1L).nextThreshold());
+        jdbc.execute("UPDATE orders SET total_amount = 300000000");
         assertEquals("VIP_DIAMOND", repository.findCustomerTier(1L));
+        assertNull(repository.findCustomerTierProgress(1L).nextTier());
         assertTrue(invoices.matchesVoucherTier(1L, "VIP_DIAMOND"));
         assertFalse(invoices.matchesVoucherTier(1L, "SILVER"));
     }
@@ -193,11 +205,11 @@ class OrderStockTest {
         jdbc.execute("UPDATE vouchers SET voucher_type = 'VIP'");
         assertThrows(IllegalArgumentException.class, () -> buy(item(1, 1)));
         assertEquals(10, stock(1));
-        jdbc.execute("INSERT INTO orders (customer_id, status, total_amount) VALUES (1, 'PENDING', 50000000)");
+        jdbc.execute("INSERT INTO orders (customer_id, status, total_amount) VALUES (1, 'PENDING', 300000000)");
         assertThrows(IllegalArgumentException.class, () -> buy(item(1, 1)));
-        jdbc.execute("UPDATE orders SET status = 'COMPLETED', total_amount = 49999999");
+        jdbc.execute("UPDATE orders SET status = 'COMPLETED', total_amount = 299999999");
         assertThrows(IllegalArgumentException.class, () -> buy(item(1, 1)));
-        jdbc.execute("UPDATE orders SET total_amount = 50000000");
+        jdbc.execute("UPDATE orders SET total_amount = 300000000");
         assertEquals(1L, buy(item(1, 1)).voucherId());
     }
 
@@ -273,7 +285,7 @@ class OrderStockTest {
     void vipSimulationUsesProductPricesForMinimumSpendAndDiscountCap() {
         jdbc.execute("UPDATE products SET selling_price = 14500000 WHERE id = 1");
         jdbc.execute("UPDATE vouchers SET voucher_type = 'VIP', minimum_amount = 15000000, discount_percent = 5, maximum_discount = 300000");
-        jdbc.execute("INSERT INTO orders (customer_id, status, total_amount) VALUES (1, 'COMPLETED', 50000000)");
+        jdbc.execute("INSERT INTO orders (customer_id, status, total_amount) VALUES (1, 'COMPLETED', 300000000)");
         var repository = new furniture.repository.AdminPromotionRepository(jdbc);
         var service = new furniture.service.AdminPromotionService(repository, mock(furniture.repository.AdminProductRepository.class), new VoucherService(new VoucherRepository(jdbc)));
         var error = assertThrows(IllegalArgumentException.class, () -> service.checkVoucher(1L,
@@ -297,7 +309,7 @@ class OrderStockTest {
                 null, 10, java.time.LocalDateTime.now().plusHours(1), java.time.LocalDateTime.now().plusHours(2), "ACTIVE");
         var voucher = transaction.execute(tx -> service.createVoucher(1L, request));
         assertEquals("INACTIVE", voucher.status());
-        jdbc.update("INSERT INTO orders (customer_id, status, total_amount) VALUES (1, 'COMPLETED', 50000000)");
+        jdbc.update("INSERT INTO orders (customer_id, status, total_amount) VALUES (1, 'COMPLETED', 300000000)");
         var check = service.checkVoucher(voucher.id(), new furniture.model.admin.promotion.VoucherCheckRequest(1L, List.of(item(1, 2))));
         assertEquals(true, check.get("simulation"));
         assertEquals(2, ((List<?>) check.get("warnings")).size());

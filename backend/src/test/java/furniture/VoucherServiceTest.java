@@ -74,7 +74,7 @@ class VoucherServiceTest {
 
     @Test
     void vipVouchersAreVisibleAndUsableOnlyForTheirExactTier() {
-        for (String tier : List.of("SILVER", "GOLD", "VIP_DIAMOND")) {
+        for (String tier : List.of("SILVER", "GOLD", "PLATINUM", "VIP_DIAMOND")) {
             var voucher = scopedVoucher("VIP");
             voucher.put("customer_tier", tier);
             when(repository.findCustomerTier(7L)).thenReturn(tier);

@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import furniture.model.CustomerTier;
 import furniture.model.ValidateVoucherRequest;
 import furniture.model.admin.promotion.VoucherCheckRequest;
 
@@ -214,7 +215,7 @@ public class AdminPromotionService {
     }
 
     private void validateVoucherRequest(ProgramResponse program, CreateVoucherRequest req, VoucherDto existing) {
-        if (!List.of("SILVER", "GOLD", "VIP_DIAMOND").contains(req.customerTier())) {
+        if (!CustomerTier.isVoucherTier(req.customerTier())) {
             throw new IllegalArgumentException("Hạng khách hàng không hợp lệ");
         }
         if (req.status() != null && !List.of("ACTIVE", "INACTIVE").contains(req.status().trim().toUpperCase())) {

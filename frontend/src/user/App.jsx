@@ -1,5 +1,6 @@
-import { lazy, Suspense, useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import {
+  ArrowLeft,
   ArrowRight,
   ArrowUpDown,
   Check,
@@ -8,6 +9,7 @@ import {
   Heart,
   LogOut,
   Minus,
+  Phone,
   Plus,
   RotateCcw,
   Search,
@@ -21,11 +23,12 @@ import {
 } from 'lucide-react'
 import { loadProducts } from '../lib/products'
 import { productImageUrl } from '../lib/productImages'
-import { loadCart, saveCart, loadCartExpiresAt, CART_TIMEOUT_MS, getProductStock, limitCartToStock } from './lib/cart'
+import { readCart, saveCart, cartStorageKey, CART_TIMEOUT_MS, getProductStock, limitCartToStock } from './lib/cart'
 import { isCheckoutPath } from './lib/checkout'
 import { fetchOrderById, getLocalOrders, previewOrder } from '../lib/orders'
 import {
   getCurrentUser,
+  SESSION_CUSTOMER_KEY,
   logoutUser,
   updateProfile,
   getCurrentAdminUser,
@@ -33,12 +36,13 @@ import {
 } from '../lib/auth'
 import AuthModal from './components/AuthModal'
 import ProfileModal from './components/ProfileModal'
-import AccountModal from './components/AccountModal'
+import AccountModal, { AccountTier, MembershipModal } from './components/AccountModal'
 import OrderReviewPage from './components/OrderReviewPage'
 import MyOrdersPage from './components/MyOrdersPage'
 import NotificationsMenu from './components/NotificationsMenu'
 import VouchersModal from './components/VouchersModal'
 import NotFoundPage from './components/NotFoundPage'
+import ProductDetails from './components/ProductDetails'
 import './App.css'
 
 const formatPrice = (price) => `${new Intl.NumberFormat('vi-VN').format(price)}₫`
@@ -53,13 +57,55 @@ function App() {
   function getCurrentRoute() {
     if (typeof window === 'undefined') return 'store'
     const path = window.location.pathname.toLowerCase().replace(/\/+$/, '')
+    if (/^\/products\/[1-9]\d*$/.test(path)) return path
     if (path === '/orders') return 'orders'
+    if (path === '/contact') return 'contact'
     if (path === '' || path === '/' || isCheckoutPath(path) || path.startsWith('/order-success')) return 'store'
     if (path === '/admin' || path.startsWith('/admin/')) return 'admin'
     return '404'
   }
 
   const [currentRoute, setCurrentRoute] = useState(() => getCurrentRoute())
+  const [contactFromProduct, setContactFromProduct] = useState(() => window.history.state?.fromStockWarning === true)
+  const [detailReturnScroll, setDetailReturnScroll] = useState(null)
+  const detailProductId = currentRoute.startsWith('/products/') ? currentRoute.split('/')[2] : null
+  const showContactBack = currentRoute === 'contact' && contactFromProduct
+  const activeRoute = useRef(currentRoute)
+  const productReturn = useRef(null)
+
+  function openContact(event, fromStockWarning = false) {
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+    event.preventDefault()
+    setContactFromProduct(fromStockWarning)
+    if (currentRoute === 'contact') {
+      window.history.replaceState(null, '', '/contact')
+      return
+    }
+    if (detailProductId) {
+      window.history.replaceState({ ...window.history.state, contactReturnScrollY: window.scrollY }, '')
+    }
+    window.history.pushState(fromStockWarning ? { fromStockWarning: true } : null, '', '/contact')
+    setCurrentRoute('contact')
+  }
+
+  function openProduct(productId) {
+    const history = window.history
+    const path = `/products/${productId}`
+    history.replaceState({ ...history.state, productReturn: { productId, scrollY: window.scrollY } }, '')
+    history.pushState({ fromProductList: true }, '', path)
+    setDetailReturnScroll(null)
+    setCurrentRoute(path)
+  }
+
+  function backFromProduct() {
+    if (window.history.state?.fromProductList) {
+      window.history.back()
+      return
+    }
+    productReturn.current = { sectionId: 'products' }
+    window.history.replaceState(null, '', '/')
+    setCurrentRoute('store')
+  }
 
   function handleBackToStore() {
     if (currentRoute === 'admin' && (adminUser?.role === 'ADMIN' || adminUser?.role === 'STAFF')) {
@@ -71,8 +117,14 @@ function App() {
   }
 
   useEffect(() => {
-    function handleLocationChange() {
-      setCurrentRoute(getCurrentRoute())
+    function handleLocationChange(event) {
+      const route = getCurrentRoute()
+      setDetailReturnScroll(activeRoute.current === 'contact' && route.startsWith('/products/') ? event.state?.contactReturnScrollY : null)
+      setContactFromProduct(event.state?.fromStockWarning === true)
+      const target = route === 'store' && activeRoute.current.startsWith('/products/') ? event.state?.productReturn : null
+      productReturn.current = target ? { ...target, scrollRestoration: window.history.scrollRestoration } : null
+      if (target) window.history.scrollRestoration = 'manual'
+      setCurrentRoute(route)
     }
     // Xóa hash sót lại nếu có
     if (window.location.hash.toLowerCase().includes('admin')) {
@@ -85,6 +137,32 @@ function App() {
   }, [])
 
   const [products, setProducts] = useState([])
+  useLayoutEffect(() => {
+    activeRoute.current = currentRoute
+    if (currentRoute.startsWith('/products/')) {
+      window.scrollTo({ top: 0, behavior: 'instant' })
+    }
+    if (currentRoute === 'contact') {
+      window.scrollTo({ top: 0, behavior: 'instant' })
+      document.getElementById('contact-title')?.focus({ preventScroll: true })
+    }
+  }, [currentRoute])
+
+  useLayoutEffect(() => {
+    const target = productReturn.current
+    if (currentRoute !== 'store' || !target) return
+    if (target.sectionId) {
+      const section = document.getElementById(target.sectionId)
+      const headerHeight = document.querySelector('.site-header').offsetHeight + document.querySelector('.mobile-sub-nav').offsetHeight
+      window.scrollTo({ top: section ? section.getBoundingClientRect().top + window.scrollY - headerHeight : 0, behavior: 'instant' })
+    } else {
+      if (!products.length) return
+      document.getElementById(`product-image-${target.productId}`)?.focus({ preventScroll: true })
+      window.scrollTo({ top: target.scrollY, behavior: 'instant' })
+      window.history.scrollRestoration = target.scrollRestoration
+    }
+    productReturn.current = null
+  }, [currentRoute, products.length])
   const [catalogError, setCatalogError] = useState('')
   const [activeCategory, setActiveCategory] = useState('Tất cả')
 
@@ -142,9 +220,12 @@ function App() {
   }
 
   const [searchTerm, setSearchTerm] = useState('')
-  const [cart, setCart] = useState(loadCart)
+  const [customerUser, setCustomerUser] = useState(getCurrentUser)
+  const cartKey = cartStorageKey(customerUser?.customerId)
+  const [initialCart] = useState(() => readCart(cartKey))
+  const [cart, setCart] = useState(initialCart.items)
   const syncedCart = useRef(null)
-  const [cartExpiresAt, setCartExpiresAt] = useState(() => loadCartExpiresAt() || (Object.keys(cart).length ? Date.now() + CART_TIMEOUT_MS : 0))
+  const [cartExpiresAt, setCartExpiresAt] = useState(initialCart.expiresAt)
   const [cartExpired, setCartExpired] = useState(false)
   const [favorites, setFavorites] = useState([])
   const [showFavorites, setShowFavorites] = useState(false)
@@ -155,7 +236,6 @@ function App() {
   const [productFormOpen, setProductFormOpen] = useState(false)
   const [productImagePreview, setProductImagePreview] = useState('')
   const [notice, setNotice] = useState('')
-  const [customerUser, setCurrentUser] = useState(() => getCurrentUser())
   const [adminUser, setAdminUser] = useState(() => getCurrentAdminUser())
   const [storePreview, setStorePreview] = useState(() => {
     try { return sessionStorage.getItem('furniture_store_preview') === 'true' } catch { return false }
@@ -171,6 +251,7 @@ function App() {
   const [authOpen, setAuthOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const [accountOpen, setAccountOpen] = useState(false)
+  const [membershipOpen, setMembershipOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const userMenuRef = useRef(null)
   const [vouchersOpen, setVouchersOpen] = useState(false)
@@ -180,28 +261,51 @@ function App() {
   const [cartToast, setCartToast] = useState(null)
   const [activeSection, setActiveSection] = useState('home')
 
+  const setCurrentUser = useCallback(user => {
+    const nextCartKey = cartStorageKey(user?.customerId)
+    if (nextCartKey !== cartKey) {
+      const { items, expiresAt } = readCart(nextCartKey)
+      syncedCart.current = items
+      setCart(items)
+      setCartExpiresAt(expiresAt)
+      setCartExpired(false)
+      setCartToast(null)
+      setJustAddedId(null)
+      setCartBump(false)
+      setCartOpen(false)
+      setOrderOpen(false)
+      setCompletedOrder(null)
+    }
+    setCustomerUser(user)
+  }, [cartKey])
+
   useEffect(() => {
     const expireSession = () => { logoutUser(); setCurrentUser(null); setAuthOpen(true) }
     window.addEventListener('customer-session-expired', expireSession)
     return () => window.removeEventListener('customer-session-expired', expireSession)
-  }, [])
+  }, [setCurrentUser])
 
   useEffect(() => {
     // Do not echo a storage event over a newer change made in another tab.
-    if (cart !== syncedCart.current) saveCart(cart, cartExpiresAt)
-  }, [cart, cartExpiresAt])
+    if (cart !== syncedCart.current) saveCart(cart, cartExpiresAt, cartKey)
+  }, [cart, cartExpiresAt, cartKey])
 
   useEffect(() => {
     const syncCart = event => {
-      if (event.key !== null && !['furniture_cart', 'furniture_cart_expires_at'].includes(event.key)) return
-      const received = loadCart()
-      syncedCart.current = received
-      setCart(received)
-      setCartExpiresAt(loadCartExpiresAt())
+      if (event.key === SESSION_CUSTOMER_KEY || event.key === null) {
+        const user = getCurrentUser()
+        setCurrentUser(user)
+        if (cartStorageKey(user?.customerId) !== cartKey) return
+      }
+      if (event.key !== null && event.key !== cartKey) return
+      const { items, expiresAt } = readCart(cartKey)
+      syncedCart.current = items
+      setCart(items)
+      setCartExpiresAt(expiresAt)
     }
     window.addEventListener('storage', syncCart)
     return () => window.removeEventListener('storage', syncCart)
-  }, [])
+  }, [cartKey, setCurrentUser])
 
   useEffect(() => {
     if (Object.keys(cart).length === 0) return
@@ -223,9 +327,9 @@ function App() {
   }, [cart, cartExpiresAt])
 
   function scrollToSection(sectionId) {
-    if (currentRoute === 'orders') {
+    if (currentRoute !== 'store') {
+      productReturn.current = { sectionId }
       handleBackToStore()
-      window.requestAnimationFrame(() => document.getElementById(sectionId === 'home' ? 'top' : sectionId)?.scrollIntoView())
       return
     }
     setActiveSection(sectionId)
@@ -281,6 +385,7 @@ function App() {
     logoutUser()
     setCurrentUser(null)
     setAccountOpen(false)
+    setMembershipOpen(false)
     setOrderOpen(false)
     setCompletedOrder(null)
     setUserMenuOpen(false)
@@ -347,7 +452,7 @@ function App() {
       if (storeReadOnly) return
       if (isCheckoutPath(window.location.pathname)) {
         setCompletedOrder(null)
-        if (Object.keys(loadCart()).length === 0) {
+        if (Object.keys(readCart(cartKey).items).length === 0) {
           setOrderOpen(false)
           setCartOpen(true)
           window.history.replaceState({}, '', '/')
@@ -446,7 +551,7 @@ function App() {
       cancelled = true
       window.removeEventListener('popstate', handlePopState)
     }
-  }, [currentUser?.customerId, storeReadOnly])
+  }, [cartKey, currentUser?.customerId, storeReadOnly])
 
   // Khóa cuộn nền khi mở giỏ hoặc đặt hàng; Escape đóng giỏ hàng.
   useEffect(() => {
@@ -522,11 +627,12 @@ function App() {
     })
   }
 
-  function handleAddToCart(product, event) {
-    if (storeReadOnly) return
-    if (event) event.stopPropagation()
-    if ((cart[product.id] || 0) >= getProductStock(product)) return
-    updateQuantity(product.id, 1)
+  function handleAddToCart(product, requestedQuantity = 1) {
+    if (storeReadOnly || !product) return
+    const currentQuantity = cartExpiresAt > Date.now() ? (cart[product.id] || 0) : 0
+    const quantity = Math.min(requestedQuantity, getProductStock(product) - currentQuantity)
+    if (quantity <= 0) return
+    updateQuantity(product.id, quantity)
 
     // 1. Phản hồi trực quan ngay trên nút
     setJustAddedId(product.id)
@@ -543,10 +649,9 @@ function App() {
     }, 600)
 
     // 3. Thông báo nổi Toast Notification
-    const newQuantity = Math.min((cart[product.id] || 0) + 1, getProductStock(product))
     setCartToast({
       product,
-      quantity: newQuantity,
+      quantity,
       show: true,
     })
     window.clearTimeout(window.__cartToastTimer)
@@ -572,6 +677,7 @@ function App() {
       return
     }
     window.history.pushState({}, '', '/checkout')
+    if (detailProductId || currentRoute === 'contact') setCurrentRoute('store')
     setCompletedOrder(null)
     setCartOpen(false)
     setOrderOpen(true)
@@ -686,6 +792,8 @@ function App() {
     return <NotFoundPage onBackToStore={handleBackToStore} />
   }
 
+  const detailProduct = detailProductId && products.find(product => String(product.id) === detailProductId)
+
   return (
     <div className="storefront">
       {storeReadOnly && (
@@ -696,6 +804,7 @@ function App() {
         <span className="announcement-note">Thiết kế tử tế, sống an yên</span>
       </div>
 
+      <div className={detailProductId || showContactBack ? 'store-toolbar store-toolbar-detail' : 'store-toolbar'}>
       <header className="site-header">
         <a
           className="wordmark"
@@ -721,7 +830,7 @@ function App() {
             Trang chủ
           </a>
           <a
-            className={currentRoute === 'store' && activeSection === 'products' ? 'nav-active' : ''}
+            className={detailProductId || (currentRoute === 'store' && activeSection === 'products') ? 'nav-active' : ''}
             href="#products"
             onClick={(e) => {
               e.preventDefault()
@@ -740,6 +849,7 @@ function App() {
           >
             Câu chuyện FuniStore
           </a>
+          <a className={currentRoute === 'contact' ? 'nav-active' : ''} aria-current={currentRoute === 'contact' ? 'page' : undefined} href="/contact" onClick={openContact}>Liên hệ</a>
         </nav>
         <div className="header-actions">
         <label className="search-box">
@@ -750,7 +860,7 @@ function App() {
               value={searchTerm}
               onChange={(event) => {
                 setSearchTerm(event.target.value)
-                if (currentRoute === 'orders') scrollToSection('products')
+                if (currentRoute !== 'store') scrollToSection('products')
               }}
             />
           </label>
@@ -773,9 +883,11 @@ function App() {
             onClick={() => setCartOpen(true)}
             aria-label={`Mở giỏ hàng, ${cartCount} sản phẩm`}
           >
-            <ShoppingBag size={19} strokeWidth={1.7} />
-            <span>Giỏ hàng</span>
-            <span className="bag-count">{cartCount}</span>
+            <span className="bag-icon">
+              <ShoppingBag size={19} strokeWidth={1.7} />
+              <span className="bag-count">{cartCount}</span>
+            </span>
+            <span className="bag-label">Giỏ hàng</span>
           </button>
           {currentUser ? (
             <div className="user-menu-wrapper" ref={userMenuRef}>
@@ -798,7 +910,10 @@ function App() {
               {userMenuOpen && (
                 <div className="user-dropdown-menu" role="menu">
                   <div className="user-dropdown-header">
-                    <span className="user-dropdown-name">{currentUser.fullName || currentUser.username}</span>
+                    <div className="account-avatar-name-row">
+                      <span className="user-dropdown-name">{currentUser.fullName || currentUser.username}</span>
+                      {currentUser.userId != null && <AccountTier key={currentUser.userId} userId={currentUser.userId} />}
+                    </div>
                     <span className="user-dropdown-sub">@{currentUser.username}</span>
                   </div>
                   <div className="user-dropdown-divider" />
@@ -828,6 +943,12 @@ function App() {
                     }}
                   >
                     <Tag size={15} /> Voucher của tôi
+                  </button>
+                  <button className="user-dropdown-item" role="menuitem" type="button" onClick={() => {
+                    setUserMenuOpen(false)
+                    setMembershipOpen(true)
+                  }}>
+                    <TrendingUp size={15} /> Xem hạng thành viên
                   </button>
                   <div className="user-dropdown-divider" />
                   <button
@@ -866,7 +987,7 @@ function App() {
         </button>
         <button
           type="button"
-          className={`mobile-nav-chip ${currentRoute === 'store' && activeSection === 'products' ? 'active' : ''}`}
+          className={`mobile-nav-chip ${detailProductId || (currentRoute === 'store' && activeSection === 'products') ? 'active' : ''}`}
           onClick={() => scrollToSection('products')}
         >
           Sản phẩm
@@ -878,9 +999,47 @@ function App() {
         >
           Câu chuyện FuniStore
         </button>
+        <a className={`mobile-nav-chip ${currentRoute === 'contact' ? 'active' : ''}`} aria-current={currentRoute === 'contact' ? 'page' : undefined} href="/contact" onClick={openContact}>Liên hệ</a>
       </nav>
+      {(detailProductId || showContactBack) && <div className="product-detail-nav">
+        <button type="button" onClick={showContactBack ? () => window.history.back() : backFromProduct}>
+          <ArrowLeft size={20} /> {showContactBack ? 'Quay lại chi tiết sản phẩm' : 'Quay lại sản phẩm'}
+        </button>
+      </div>}
+      </div>
 
-      {currentRoute === 'orders' ? (
+      {detailProductId ? (
+        <ProductDetails
+          key={detailProductId}
+          productId={detailProductId}
+          product={detailProduct}
+          cartQuantity={cart[detailProductId] || 0}
+          returnScrollY={detailReturnScroll}
+          onContact={event => openContact(event, true)}
+          onChangeQuantity={storeReadOnly ? undefined : change => {
+            if (change > 0) handleAddToCart(detailProduct, change)
+            else updateQuantity(detailProductId, change)
+          }}
+        />
+      ) : currentRoute === 'contact' ? (
+        <main className="contact-page">
+          <div className="contact-intro">
+            <h1 id="contact-title" tabIndex={-1}>Liên hệ FuniStore</h1>
+            <p>Gọi cho cửa hàng để hỏi về sản phẩm, đặt số lượng lớn hoặc được hỗ trợ với đơn hàng của bạn.</p>
+            <a className="contact-phone" href="tel:19006868"><Phone size={20} aria-hidden="true" /> 1900 6868</a>
+          </div>
+          <section key={currentUser?.customerId ?? 'guest'} className="contact-support" aria-labelledby="contact-support-title">
+            <h2 id="contact-support-title">Thông tin liên hệ của bạn</h2>
+            <p>Chuẩn bị thông tin để cung cấp cho cửa hàng khi gọi hotline.</p>
+            <div className="contact-fields">
+              <label>Họ và tên<input name="fullName" autoComplete="name" defaultValue={currentUser?.fullName ?? ''} /></label>
+              <label>Email<input type="email" name="email" autoComplete="email" defaultValue={currentUser?.email ?? ''} /></label>
+              <label>Số điện thoại<input type="tel" name="phone" autoComplete="tel" defaultValue={currentUser?.phone ?? ''} /></label>
+              <label>Nội dung cần liên hệ (không bắt buộc)<textarea name="message" rows={4} /></label>
+            </div>
+          </section>
+        </main>
+      ) : currentRoute === 'orders' ? (
         !storeReadOnly && currentUser?.customerId ? (
           <MyOrdersPage
             key={`orders-${currentUser.customerId}`}
@@ -1051,7 +1210,9 @@ function App() {
               {filteredProducts.map((product, index) => (
                 <article className="product-card" key={product.id} style={{ '--item-index': index }}>
                   <div className="product-image-wrap">
-                    <img className="product-image" src={product.image} alt={product.name} loading={index < 4 ? 'eager' : 'lazy'} decoding="async" />
+                    <button type="button" id={`product-image-${product.id}`} className="product-detail-trigger" onClick={() => openProduct(product.id)} aria-label={`Xem chi tiết ${product.name}`}>
+                      <img className="product-image" src={product.image} alt={product.name} loading={index < 4 ? 'eager' : 'lazy'} decoding="async" />
+                    </button>
                     {product.badge && <span className="product-badge">{product.badge}</span>}
                     {cart[product.id] > 0 && (
                       <span className="product-cart-tag" title={`Đang có ${cart[product.id]} sản phẩm trong giỏ`}>
@@ -1071,24 +1232,17 @@ function App() {
                     <button
                       className={`quick-add ${justAddedId === product.id ? 'is-added' : ''} ${cart[product.id] > 0 ? 'has-in-cart' : ''}`}
                       type="button"
-                      aria-label={`Thêm ${product.name} vào giỏ hàng`}
+                      aria-label={cart[product.id] > 0 && !storeReadOnly ? `Đã thêm ${product.name} vào giỏ hàng` : `Thêm ${product.name} vào giỏ hàng`}
                       disabled={storeReadOnly || (cart[product.id] || 0) >= getProductStock(product)}
-                      onClick={(e) => handleAddToCart(product, e)}
+                      onClick={() => handleAddToCart(product)}
                     >
-                      {storeReadOnly ? <span>Chỉ xem</span> : getProductStock(product) === 0 ? (
+                      {storeReadOnly ? <span>Chỉ xem</span> : cart[product.id] > 0 ? (
+                        <>
+                          <Check size={16} strokeWidth={2.5} className={justAddedId === product.id ? 'quick-add-check-icon' : undefined} />
+                          <span>Đã thêm</span>
+                        </>
+                      ) : getProductStock(product) === 0 ? (
                         <span>{product.quantity == null ? 'Chưa xác nhận tồn kho' : 'Hết hàng'}</span>
-                      ) : (cart[product.id] || 0) >= getProductStock(product) ? (
-                        <span>Đã đủ {getProductStock(product)} trong giỏ</span>
-                      ) : justAddedId === product.id ? (
-                        <>
-                          <Check size={16} strokeWidth={2.5} className="quick-add-check-icon" />
-                          <span>Đã thêm! ({cart[product.id] || 1})</span>
-                        </>
-                      ) : cart[product.id] > 0 ? (
-                        <>
-                          <Plus size={15} />
-                          <span>Thêm tiếp (đang có {cart[product.id]})</span>
-                        </>
                       ) : (
                         <>
                           <Plus size={15} />
@@ -1180,7 +1334,7 @@ function App() {
 
       {/* Thông báo nổi (Toast Notification) xác nhận thêm vào giỏ hàng */}
       {cartToast?.show && (
-        <aside className="cart-toast" role="status" aria-live="polite">
+        <aside className={detailProductId ? 'cart-toast cart-toast-compact' : 'cart-toast'} role="status" aria-live="polite">
           <div className="cart-toast-thumb-wrap">
             <img src={cartToast.product.image} alt="" />
             <span className="cart-toast-badge">
@@ -1191,10 +1345,10 @@ function App() {
             <div className="cart-toast-headline">
               <span className="cart-toast-status">Đã thêm vào giỏ</span>
               <span className="cart-toast-dot">•</span>
-              <span className="cart-toast-qty">x{cartToast.quantity}</span>
+              <span className="cart-toast-qty">+{cartToast.quantity}</span>
             </div>
             <p className="cart-toast-name">{cartToast.product.name}</p>
-            <p className="cart-toast-price">{formatPrice(cartToast.product.price)}</p>
+            {!detailProductId && <p className="cart-toast-price">{formatPrice(cartToast.product.price)}</p>}
           </div>
           <div className="cart-toast-actions">
             <button
@@ -1419,6 +1573,12 @@ function App() {
         onClose={() => setAccountOpen(false)}
         onUserUpdate={handleUserUpdate}
       />
+      {currentUser?.userId != null && membershipOpen && <MembershipModal
+        key={currentUser.userId}
+        user={currentUser}
+        onClose={() => setMembershipOpen(false)}
+        onViewVouchers={() => { setMembershipOpen(false); setVouchersOpen(true) }}
+      />}
       {!storeReadOnly && orderOpen && (
         <OrderReviewPage
           key={currentUser?.customerId || 'guest'}

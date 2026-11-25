@@ -10,9 +10,11 @@ public record AuthResponse(
         String address,
         String role,
         String message,
-        String accessToken) {
+        String accessToken,
+        String customerTier,
+        CustomerTierProgress tierProgress) {
     public AuthResponse withAccessToken(String token) {
-        return new AuthResponse(userId, customerId, username, fullName, email, phone, address, role, message, token);
+        return new AuthResponse(userId, customerId, username, fullName, email, phone, address, role, message, token, customerTier, tierProgress);
     }
 }
 

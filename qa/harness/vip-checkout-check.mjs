@@ -16,7 +16,7 @@ try {
       page.on('pageerror', error => errors.push(error.message))
       await page.addInitScript(tier => {
         localStorage.setItem('furniture_custom_api_url', 'http://localhost:8080')
-        localStorage.setItem('furniture_cart', JSON.stringify({ items: { 7: 1 }, expiresAt: Date.now() + 300000 }))
+        localStorage.setItem(tier === 'guest' ? 'furniture_cart' : 'furniture_cart:21', JSON.stringify({ items: { 7: 1 }, expiresAt: Date.now() + 300000 }))
         if (tier !== 'guest') localStorage.setItem('furniture_customer_user', JSON.stringify({ id: 31, customerId: 21, username: 'vip-test', fullName: 'QA Customer', role: 'CUSTOMER', accessToken: tier, apiBaseUrl: 'http://localhost:8080' }))
       }, tier)
       await page.route('https://**', route => route.abort())

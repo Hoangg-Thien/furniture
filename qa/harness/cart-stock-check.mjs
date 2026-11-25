@@ -54,7 +54,7 @@ try {
   })
   const url = server.resolvedUrls.local[0]
   await page.goto(url, { waitUntil: 'domcontentloaded' })
-  const add = page.getByRole('button', { name: 'Thêm Ghế giới hạn vào giỏ hàng', exact: true })
+  const add = page.locator('.product-card').filter({ has: page.getByRole('heading', { name: 'Ghế giới hạn', exact: true }) }).locator('.quick-add')
   await add.waitFor()
   assert.equal(await page.getByRole('button', { name: 'Thêm Ghế hết hàng vào giỏ hàng', exact: true }).isDisabled(), true)
   assert.equal(await page.getByRole('button', { name: 'Thêm Ghế chưa xác nhận vào giỏ hàng', exact: true }).isDisabled(), true)
@@ -122,11 +122,11 @@ try {
   await page.goto(new URL('/orders', url).href, { waitUntil: 'domcontentloaded' })
   await page.getByRole('button', { name: 'Mua Lại', exact: true }).click()
   await page.locator('.cart-item').waitFor()
-  await page.waitForFunction(() => JSON.parse(localStorage.getItem('furniture_cart'))?.items?.['1'] === 2)
+  await page.waitForFunction(() => JSON.parse(localStorage.getItem('furniture_cart:4'))?.items?.['1'] === 2)
   assert.equal(await plus.isDisabled(), true)
   offline = true
   await page.evaluate(() => window.dispatchEvent(new Event('focus')))
-  await page.getByText('Chưa tải được tồn kho mới nhất. Vui lòng tải lại trang để xác nhận số lượng trước khi mua.').waitFor()
+  await page.locator('.cart-drawer').getByText('Chưa xác nhận tồn kho', { exact: true }).waitFor()
   assert.equal(await plus.isDisabled(), true)
   assert.equal(await page.getByRole('button', { name: /Tiếp tục đặt hàng/ }).isDisabled(), true)
   assert.deepEqual(errors, [])

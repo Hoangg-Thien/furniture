@@ -25,6 +25,7 @@ import {
 } from 'lucide-react'
 import { getApiBaseUrl, getApiHeaders } from '../lib/apiConfig'
 import { productImageUrl } from '../lib/productImages'
+import { MEMBERSHIP_MILESTONES, VIP_TIER_LABELS } from '../lib/vouchers'
 
 export default function AdminCustomerManagement({ currentUser }) {
   const [customers, setCustomers] = useState([])
@@ -325,6 +326,13 @@ export default function AdminCustomerManagement({ currentUser }) {
             Kim cương
           </span>
         )
+      case 'PLATINUM':
+        return (
+          <span className="customer-tier-badge platinum">
+            <Award size={12} />
+            Bạch kim
+          </span>
+        )
       case 'GOLD':
         return (
           <span className="customer-tier-badge gold">
@@ -423,10 +431,8 @@ export default function AdminCustomerManagement({ currentUser }) {
             <label>Phân hạng:</label>
             <select value={selectedTier} onChange={(e) => setSelectedTier(e.target.value)}>
               <option value="ALL">Tất cả phân hạng</option>
-              <option value="VIP_DIAMOND">Kim cương (&ge; 50 triệu)</option>
-              <option value="GOLD">Vàng (15 - dưới 50 triệu)</option>
-              <option value="SILVER">Bạc (1+ đơn hoàn thành, dưới 15 triệu)</option>
-              <option value="NEW">Khách hàng mới (0 đơn hoàn thành)</option>
+              {Object.entries(VIP_TIER_LABELS).reverse().map(([tier, label]) => <option key={tier} value={tier}>{label}</option>)}
+              <option value="NEW">Khách hàng mới (dưới {MEMBERSHIP_MILESTONES.SILVER.millions} triệu)</option>
             </select>
           </div>
 

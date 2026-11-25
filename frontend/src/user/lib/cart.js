@@ -2,6 +2,10 @@ const CART_KEY = 'furniture_cart'
 const CART_EXPIRY_KEY = 'furniture_cart_expires_at'
 export const CART_TIMEOUT_MS = 5 * 60 * 1000
 
+export function cartStorageKey(customerId) {
+  return customerId == null ? CART_KEY : `${CART_KEY}:${customerId}`
+}
+
 export function loadCartExpiresAt() {
   return readCart().expiresAt
 }
@@ -24,9 +28,9 @@ export function loadCart() {
   return readCart().items
 }
 
-function readCart() {
+export function readCart(key = CART_KEY) {
   try {
-    const saved = JSON.parse(localStorage.getItem(CART_KEY) || '{}')
+    const saved = JSON.parse(localStorage.getItem(key) || '{}')
     if (!saved || typeof saved !== 'object' || Array.isArray(saved)) return { items: {}, expiresAt: 0 }
     const legacy = !Object.hasOwn(saved, 'items')
     const items = legacy ? saved : saved.items
@@ -36,24 +40,24 @@ function readCart() {
     ))
     if (Object.keys(cart).length === 0) return { items: {}, expiresAt: 0 }
     const now = Date.now()
-    const rawExpiry = legacy ? localStorage.getItem(CART_EXPIRY_KEY) : saved.expiresAt
+    const rawExpiry = legacy && key === CART_KEY ? localStorage.getItem(CART_EXPIRY_KEY) : saved.expiresAt
     const expiresAt = legacy && rawExpiry === null ? now + CART_TIMEOUT_MS : Number(rawExpiry)
     if (!Number.isSafeInteger(expiresAt) || Number.isNaN(new Date(expiresAt).getTime()) || expiresAt <= now) {
-      saveCart({})
+      saveCart({}, 0, key)
       return { items: {}, expiresAt: 0 }
     }
     // Shortening the policy caps the old deadline once without discarding its items.
     const deadline = Math.min(expiresAt, now + CART_TIMEOUT_MS)
-    if (legacy || deadline !== expiresAt) saveCart(cart, deadline)
+    if (legacy || deadline !== expiresAt) saveCart(cart, deadline, key)
     return { items: cart, expiresAt: deadline }
   } catch {
     return { items: {}, expiresAt: 0 }
   }
 }
 
-export function saveCart(cart, expiresAt = Date.now() + CART_TIMEOUT_MS) {
+export function saveCart(cart, expiresAt = Date.now() + CART_TIMEOUT_MS, key = CART_KEY) {
   try {
-    localStorage.setItem(CART_KEY, JSON.stringify({ items: cart, expiresAt: Object.keys(cart).length ? expiresAt : 0 }))
+    localStorage.setItem(key, JSON.stringify({ items: cart, expiresAt: Object.keys(cart).length ? expiresAt : 0 }))
   } catch {
     // Shopping remains available if browser storage is blocked or full.
   }

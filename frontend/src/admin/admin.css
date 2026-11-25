@@ -1306,6 +1306,8 @@
   border: 1px solid #FCD34D;
 }
 
+.customer-tier-badge.platinum { background: #ece6f6; color: #573d73; border: 1px solid #d8cce9; }
+
 .customer-tier-badge.silver {
   background: #F1F5F9;
   color: #334155;

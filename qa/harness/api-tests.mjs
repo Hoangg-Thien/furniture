@@ -56,7 +56,7 @@ await check('Registration missing full name', 'POST', '/api/auth/register', { us
 const user = await check('Registration valid', 'POST', '/api/auth/register', { username: `qa${suffix}`, password, fullName: 'QA Customer', email: `qa${suffix}@example.test`, phone: '0901234567', address: 'QA Address' }, [201])
 if (!user?.customerId) throw Error('Cannot create QA customer; inspect api-results.json')
 fs.writeFileSync(new URL('../artifacts/fixtures.json', import.meta.url), JSON.stringify({ user, password }, null, 2))
-await check('Registration duplicate username', 'POST', '/api/auth/register', { username: user.username, password, fullName: 'QA' }, [400])
+await check('Registration duplicate username', 'POST', '/api/auth/register', { username: user.username, password, fullName: 'QA', email: `duplicate${suffix}@example.test`, phone: '0901234567', address: 'QA Address' }, [400])
 await check('Login valid by username', 'POST', '/api/auth/login', { username: user.username, password }, [200], d => d.userId === user.userId)
 await check('Login valid by email', 'POST', '/api/auth/login', { username: user.email, password }, [200])
 await check('Login wrong password', 'POST', '/api/auth/login', { username: user.username, password: 'wrong-password' }, [401])

@@ -32,6 +32,20 @@ try {
     }
     console.log(`PASS stock visibility at ${width}px: 0, 1, 5, 6, 30 and unknown stock`)
   }
+  const available = page.locator('.product-card').filter({ hasText: 'Stock fixture 3' })
+  const add = available.locator('.quick-add')
+  await add.click()
+  await available.locator('.quick-add.is-added').waitFor({ state: 'detached' })
+  assert.equal(await add.textContent(), 'Đã thêm')
+  assert.equal(await add.locator('.lucide-check').count(), 1)
+  await add.click()
+  assert.equal(await available.locator('.product-cart-tag strong').textContent(), '2')
+
+  const lastInStock = page.locator('.product-card').filter({ hasText: 'Stock fixture 1' }).locator('.quick-add')
+  await lastInStock.click()
+  assert.equal(await lastInStock.textContent(), 'Đã thêm')
+  assert.equal(await lastInStock.locator('.lucide-check').count(), 1)
+  assert.equal(await lastInStock.isDisabled(), true)
   assert.deepEqual(errors, [])
 } finally {
   await browser.close()

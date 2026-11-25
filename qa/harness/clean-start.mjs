@@ -83,7 +83,7 @@ try {
   const seedPath = path.resolve(runtime, '../database/sales.sql')
   const seedBefore = fs.readFileSync(seedPath, 'utf8')
   const registration = await fetch(`${base}/api/auth/register`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username: `seed_check_${Date.now()}`, password: 'QaPass123!', fullName: 'Seed check' }) })
+    body: JSON.stringify({ username: `seed_check_${Date.now()}`, password: 'QaPass123!', fullName: 'Seed check', email: `seed-${Date.now()}@example.test`, phone: '0901234567', address: '123 Nguyen Hue, Phuong Ben Nghe, Quan 1, TP. Ho Chi Minh' }) })
   assert.equal(registration.status, 201)
   assert.equal(fs.readFileSync(seedPath, 'utf8'), seedBefore, 'Registration must not write personal data into seed SQL')
   await db.exec("UPDATE orders SET order_date='2020-01-02 03:04:05', total_amount=1, discount_amount=10, voucher_id=(SELECT id FROM vouchers ORDER BY id LIMIT 1) WHERE id=23")

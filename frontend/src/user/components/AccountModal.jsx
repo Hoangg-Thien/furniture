@@ -1,7 +1,109 @@
-import { useState } from 'react'
-import { X, User, Mail, Phone, MapPin, Lock, Check, AlertCircle, Pencil } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { X, User, Mail, Phone, MapPin, Lock, Check, AlertCircle, Pencil, Award, Gem, Tag, ArrowRight } from 'lucide-react'
 import { updateProfile } from '../../lib/auth'
+import { getApiBaseUrl } from '../../lib/apiConfig'
+import { MEMBERSHIP_MILESTONES } from '../../lib/vouchers'
 import { getAllProvinces, getDistricts, getWards, splitSavedAddress } from '../lib/vietnamLocations'
+
+const tierLabels = { NEW: 'Khách mới', ...Object.fromEntries(Object.entries(MEMBERSHIP_MILESTONES).map(([code, { label }]) => [code, label])) }
+const tierBenefits = {
+  SILVER: 'Mở cơ hội nhận voucher dành riêng cho thành viên Bạc.',
+  GOLD: 'Săn voucher hạng Vàng để tiết kiệm cho lần mua tiếp theo.',
+  PLATINUM: 'Khám phá các chương trình dành riêng cho thành viên Bạch kim.',
+  VIP_DIAMOND: 'Ở hạng cao nhất, bạn đủ điều kiện nhận voucher Kim cương khi có chương trình.',
+}
+
+const formatSpend = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format
+
+function useAccountProfile(userId) {
+  const [profile, setProfile] = useState(undefined)
+
+  useEffect(() => {
+    const controller = new AbortController()
+    fetch(`${getApiBaseUrl()}/api/auth/me?userId=${encodeURIComponent(userId)}`, { signal: controller.signal })
+      .then(response => {
+        if (!response.ok) throw new Error('Could not load customer tier')
+        return response.json()
+      })
+      .then(profile => { if (!controller.signal.aborted) setProfile(profile) })
+      .catch(() => { if (!controller.signal.aborted) setProfile(null) })
+    return () => controller.abort()
+  }, [userId])
+  return profile
+}
+
+export function AccountTier({ userId }) {
+  const profile = useAccountProfile(userId)
+  const tier = profile?.customerTier
+  return <span className="account-tier" data-tier={tier} role="status">
+    {profile === undefined ? 'Đang tải hạng…' : Object.hasOwn(tierLabels, tier) ? `Hạng ${tierLabels[tier]}` : 'Chưa tải được hạng'}
+  </span>
+}
+
+export function MembershipModal({ user, onClose, onViewVouchers }) {
+  const dialog = useRef(null)
+  const profile = useAccountProfile(user.userId)
+  const progress = profile?.tierProgress
+  const tier = profile?.customerTier
+
+  useEffect(() => { dialog.current.showModal() }, [])
+
+  return (
+    <dialog ref={dialog} className="account-modal-card membership-dialog" aria-labelledby="membership-title" onClose={onClose}>
+      <div className="account-modal-header">
+        <h2 className="account-modal-title" id="membership-title">Hạng thành viên</h2>
+        <button className="icon-button" type="button" aria-label="Đóng" onClick={() => dialog.current.close()}><X size={20} /></button>
+      </div>
+      <div className="account-avatar-section membership-identity">
+        <div className="account-avatar-info">
+          <div className="account-avatar-name-row">
+            <p className="account-avatar-name">{user.fullName || user.username}</p>
+            {Object.hasOwn(tierLabels, tier) && <span className="account-tier" data-tier={tier}>Hạng {tierLabels[tier]}</span>}
+          </div>
+          <p className="account-avatar-username">@{user.username}</p>
+        </div>
+      </div>
+      {profile === undefined && <p role="status">Đang tải tiến độ hạng…</p>}
+      {profile === null && <p role="status">Chưa tải được hồ sơ. Hãy thử lại sau.</p>}
+      {profile && !progress && <p role="status">Máy chủ chưa cung cấp dữ liệu tiến độ hạng.</p>}
+      {progress && <div className="membership-progress">
+        <p>Đã chi từ đơn hoàn tất <strong>{formatSpend(progress.totalSpent)}</strong></p>
+        {progress.nextTier ? <>
+          <p>Lên hạng {tierLabels[progress.nextTier]} <strong>{progress.nextThreshold == null
+            ? `${progress.completedOrders} / 1 đơn hoàn tất`
+            : `${formatSpend(progress.totalSpent)} / ${formatSpend(progress.nextThreshold)}`}</strong></p>
+          <progress aria-label={`Tiến độ lên hạng ${tierLabels[progress.nextTier]}`}
+            value={progress.nextThreshold == null ? progress.completedOrders : progress.totalSpent}
+            max={progress.nextThreshold ?? 1} />
+          {progress.nextThreshold != null && <p>Còn {formatSpend(Math.max(0, progress.nextThreshold - progress.totalSpent))} để lên hạng {tierLabels[progress.nextTier]}.</p>}
+        </> : <>
+          <p>Bạn đã đạt hạng thành viên cao nhất.</p>
+          <progress aria-label="Đã đạt hạng cao nhất" value={1} max={1} />
+        </>}
+      </div>}
+      <section className="membership-guide" aria-labelledby="membership-guide-title">
+        <h3 id="membership-guide-title">Chi tiết các hạng mức</h3>
+        <p>Tích lũy chi tiêu từ các đơn đã hoàn tất để mở ưu đãi theo hạng. Khách mới bắt đầu từ 0 ₫.</p>
+        <ol className="membership-milestones">
+          {Object.entries(MEMBERSHIP_MILESTONES).map(([code, { label, millions }]) => (
+            <li key={code} data-tier={code} aria-current={tier === code ? 'step' : undefined}>
+              <span className="membership-medal" aria-hidden="true">
+                {code === 'VIP_DIAMOND' || code === 'PLATINUM' ? <Gem size={19} /> : <Award size={19} />}
+              </span>
+              <strong>{label}</strong>
+              <span className="membership-milestone-amount">Từ {millions} triệu ₫</span>
+              <p>{tierBenefits[code]}</p>
+            </li>
+          ))}
+        </ol>
+        <div className="membership-vouchers">
+          <p>Voucher theo hạng xuất hiện trong kho khi chương trình mở. Mỗi mã có điều kiện và thời hạn riêng.</p>
+          <button type="button" onClick={onViewVouchers}><Tag size={16} /> Xem voucher của tôi <ArrowRight size={16} /></button>
+        </div>
+      </section>
+    </dialog>
+  )
+}
 
 export default function AccountModal({ isOpen, user, onClose, onUserUpdate }) {
   const [editing, setEditing] = useState(false)
@@ -159,7 +261,10 @@ export default function AccountModal({ isOpen, user, onClose, onUserUpdate }) {
         <div className="account-avatar-section">
           <div className="account-avatar-circle">{avatarLetter}</div>
           <div className="account-avatar-info">
-            <p className="account-avatar-name">{user.fullName || user.username}</p>
+            <div className="account-avatar-name-row">
+              <p className="account-avatar-name">{user.fullName || user.username}</p>
+              {user.userId != null && <AccountTier key={user.userId} userId={user.userId} />}
+            </div>
             <p className="account-avatar-username">@{user.username}</p>
           </div>
           {!editing && (

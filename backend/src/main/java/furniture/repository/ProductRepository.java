@@ -15,6 +15,23 @@ public class ProductRepository {
         this.jdbcTemplate = jdbcTemplate;
     }
 
+    public java.util.Map<String, Object> findActiveDetail(long id) {
+        var rows = jdbcTemplate.queryForList("""
+                SELECT p.name, p.description, p.selling_price AS price, p.image_url,
+                       c.name AS category, d.sku, d.brand, d.origin, d.material,
+                       d.dimensions, d.weight_kg, d.color, d.warranty_months,
+                       d.care_instructions, d.detailed_description
+                FROM public.products p
+                LEFT JOIN public.product_details d ON d.product_id = p.id
+                LEFT JOIN public.categories c ON c.id = p.category_id
+                WHERE p.id = ? AND COALESCE(p.is_active, TRUE) = TRUE
+                """, id);
+        if (rows.isEmpty()) return null;
+        var detail = new java.util.LinkedHashMap<String, Object>();
+        rows.get(0).forEach((key, value) -> detail.put(key.toLowerCase(java.util.Locale.ROOT), value));
+        return detail;
+    }
+
     public List<ProductResponse> findAllActiveProducts() {
         return jdbcTemplate.query("""
                 WITH sales AS (

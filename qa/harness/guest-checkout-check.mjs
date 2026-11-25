@@ -64,7 +64,7 @@ assert.equal(invoiceDetail.phone, body.phone)
 assert.equal((await api(`/orders/${second.orderId}`, { headers: tokenHeaders(second) })).order.status, 'COMPLETED')
 const customers = await api('/admin/customers?keyword=QA%20Guest%20Receiver', { headers: admin })
 assert(customers.content.some(row => row.userId === null && row.fullName === body.fullName))
-const account = await api('/auth/register', { method: 'POST', status: 201, body: { username: `guest_regression_${Date.now()}`, password: 'QaPass123!', fullName: 'QA Account' } })
+const account = await api('/auth/register', { method: 'POST', status: 201, body: { username: `guest_regression_${Date.now()}`, password: 'QaPass123!', fullName: 'QA Account', email: `guest-regression-${Date.now()}@example.test`, phone: '0901234567', address: '123 Nguyen Hue, Phuong Ben Nghe, Quan 1, TP. Ho Chi Minh' } })
 const accountHeaders = { Authorization: `Bearer ${account.accessToken}` }
 const accountOrder = await api('/orders', { method: 'POST', headers: accountHeaders, body: { ...body, customerId: account.customerId, userId: account.userId } })
 assert.equal(accountOrder.guestToken, null)

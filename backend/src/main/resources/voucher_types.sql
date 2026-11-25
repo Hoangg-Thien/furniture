@@ -4,6 +4,5 @@ ALTER TABLE public.vouchers ADD COLUMN IF NOT EXISTS product_id BIGINT REFERENCE
 
 ALTER TABLE public.vouchers ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN NOT NULL DEFAULT FALSE;
 
--- Preserve legacy PLATINUM voucher records; new vouchers only accept the original three tiers.
 ALTER TABLE public.vouchers ADD COLUMN IF NOT EXISTS customer_tier VARCHAR(16) NOT NULL DEFAULT 'VIP_DIAMOND'
     CHECK (customer_tier IN ('SILVER', 'GOLD', 'PLATINUM', 'VIP_DIAMOND'));

@@ -15,6 +15,10 @@ public class ProductService {
         this.productRepository = productRepository;
     }
 
+    public java.util.Map<String, Object> getDetail(long id) {
+        return productRepository.findActiveDetail(id);
+    }
+
     public List<ProductResponse> getAllProducts() {
         return productRepository.findAllActiveProducts();
     }

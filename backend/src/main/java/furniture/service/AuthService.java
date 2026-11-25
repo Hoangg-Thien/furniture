@@ -11,15 +11,18 @@ import furniture.model.LoginRequest;
 import furniture.model.RegisterRequest;
 import furniture.model.UpdateProfileRequest;
 import furniture.repository.AuthRepository;
+import furniture.repository.VoucherRepository;
 import furniture.util.PasswordUtil;
 
 @Service
 public class AuthService {
 
     private final AuthRepository authRepository;
+    private final VoucherRepository voucherRepository;
 
-    public AuthService(AuthRepository authRepository) {
+    public AuthService(AuthRepository authRepository, VoucherRepository voucherRepository) {
         this.authRepository = authRepository;
+        this.voucherRepository = voucherRepository;
     }
 
     @Transactional
@@ -33,22 +36,27 @@ public class AuthService {
         if (req.fullName() == null || req.fullName().trim().isEmpty()) {
             throw new IllegalArgumentException("Họ và tên không được để trống");
         }
+        if (req.email() == null || req.email().isBlank()
+                || req.phone() == null || req.phone().isBlank()
+                || req.address() == null || req.address().isBlank()) {
+            throw new IllegalArgumentException("Email, số điện thoại và địa chỉ giao hàng không được để trống");
+        }
 
         String username = req.username().trim();
         if (authRepository.countByUsername(username) > 0) {
             throw new IllegalArgumentException("Tên đăng nhập đã tồn tại");
         }
 
-        String email = (req.email() != null && !req.email().trim().isEmpty()) ? req.email().trim() : null;
-        if (email != null && authRepository.countByEmail(email) > 0) {
+        String email = req.email().trim();
+        if (authRepository.countByEmail(email) > 0) {
             throw new IllegalArgumentException("Email này đã được sử dụng");
         }
 
         String passwordHash = PasswordUtil.hash(req.password());
         Long userId = authRepository.insertUser(username, passwordHash, "CUSTOMER");
 
-        String phone = (req.phone() != null && !req.phone().trim().isEmpty()) ? req.phone().trim() : null;
-        String address = (req.address() != null && !req.address().trim().isEmpty()) ? req.address().trim() : null;
+        String phone = req.phone().trim();
+        String address = req.address().trim();
 
         Long customerId = authRepository.insertCustomer(userId, "CUSTOMER", req.fullName().trim(), email, phone, address);
 
@@ -61,7 +69,7 @@ public class AuthService {
                 phone,
                 address,
                 "CUSTOMER",
-                "Đăng ký tài khoản thành công!", null);
+                "Đăng ký tài khoản thành công!", null, null, null);
     }
 
     public AuthResponse login(LoginRequest req) {
@@ -100,7 +108,7 @@ public class AuthService {
                 (String) user.get("phone"),
                 (String) user.get("address"),
                 (String) user.get("role"),
-                "Đăng nhập thành công!", null);
+                "Đăng nhập thành công!", null, null, null);
     }
 
     public AuthResponse getProfile(Long userId) {
@@ -112,6 +120,7 @@ public class AuthService {
         Map<String, Object> user = rows.get(0);
         Number userIdNum = (Number) user.get("user_id");
         Number customerIdNum = (Number) user.get("customer_id");
+        var tier = customerIdNum == null ? null : voucherRepository.findCustomerTierProgress(customerIdNum.longValue());
 
         return new AuthResponse(
                 userIdNum != null ? userIdNum.longValue() : null,
@@ -122,7 +131,7 @@ public class AuthService {
                 (String) user.get("phone"),
                 (String) user.get("address"),
                 (String) user.get("role"),
-                "OK", null);
+                "OK", null, tier == null ? null : tier.tier(), tier);
     }
 
     @Transactional
@@ -176,7 +185,7 @@ public class AuthService {
                 phone,
                 address,
                 (String) user.get("role"),
-                "Cập nhật thông tin thành công!", null);
+                "Cập nhật thông tin thành công!", null, null, null);
     }
 
     public List<Map<String, Object>> getAllUsers() {
