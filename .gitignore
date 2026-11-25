@@ -14,6 +14,7 @@ target/
 .sts4-cache
 
 # Node / Frontend
+graphify-out/
 node_modules/
 frontend/node_modules/
 dist/
