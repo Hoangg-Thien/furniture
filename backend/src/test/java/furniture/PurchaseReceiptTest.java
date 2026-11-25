@@ -19,7 +19,7 @@ import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseBuilder;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseType;
 import org.springframework.transaction.support.TransactionTemplate;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import furniture.model.admin.supplier.CreateReceiptRequest;
 import furniture.model.admin.supplier.CreateReceiptRequest.ReceiptItemRequest;
 import furniture.repository.AdminSupplierRepository;
@@ -192,7 +192,7 @@ class PurchaseReceiptTest {
     @Test
     void fractionalQuantityIsRejectedBeforeItCanBeTruncated() throws Exception {
         var mapper = new ObjectMapper();
-        assertThrows(com.fasterxml.jackson.core.JsonProcessingException.class, () -> mapper.readValue(
+        assertThrows(tools.jackson.core.JacksonException.class, () -> mapper.readValue(
                 "{\"items\":[{\"productId\":1,\"quantity\":1.5,\"unitPrice\":0}]}", CreateReceiptRequest.class));
         assertEquals(5, mapper.readValue(
                 "{\"items\":[{\"productId\":1,\"quantity\":5,\"unitPrice\":0}]}", CreateReceiptRequest.class)

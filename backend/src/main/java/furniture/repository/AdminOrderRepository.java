@@ -74,7 +74,6 @@ public class AdminOrderRepository {
         return null;
     }
 
-    @SuppressWarnings("null")
     public PageResponse<OrderSummaryDto> findOrders(
             String search,
             String status,

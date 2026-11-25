@@ -1,7 +1,7 @@
 package furniture.model;
 
 import java.math.BigDecimal;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import tools.jackson.databind.annotation.JsonDeserialize;
 import furniture.util.IntegerQuantityDeserializer;
 
 public record OrderItemDto(

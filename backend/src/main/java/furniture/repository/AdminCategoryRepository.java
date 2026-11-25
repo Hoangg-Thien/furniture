@@ -52,7 +52,6 @@ public class AdminCategoryRepository {
         }
     }
 
-    @SuppressWarnings("null")
     public List<CategoryResponse> findAllWithProductCount(String search, Boolean isActive) {
         StringBuilder sql = new StringBuilder("""
                 SELECT c.id, c.name, c.description, COUNT(p.id) AS product_count,

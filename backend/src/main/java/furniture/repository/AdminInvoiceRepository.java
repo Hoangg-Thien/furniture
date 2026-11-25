@@ -102,7 +102,6 @@ public class AdminInvoiceRepository {
         return list.isEmpty() ? Optional.empty() : Optional.of(list.get(0));
     }
 
-    @SuppressWarnings("null")
     public PageResponse<InvoiceSummaryDto> findInvoices(
             String search,
             String paymentMethod,

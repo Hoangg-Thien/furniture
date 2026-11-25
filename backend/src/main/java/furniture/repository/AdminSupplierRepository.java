@@ -66,7 +66,6 @@ public class AdminSupplierRepository {
         }
     }
 
-    @SuppressWarnings("null")
     public List<SupplierResponse> findAllWithReceiptCount(String search) {
         StringBuilder sql = new StringBuilder("""
                 SELECT s.id, s.name, s.phone, s.email, s.address,

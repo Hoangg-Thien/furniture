@@ -1,7 +1,6 @@
 package furniture.service;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.Year;
 import java.time.ZoneId;
 import java.security.SecureRandom;
@@ -137,7 +136,7 @@ public class OrderService {
         String automaticLabel = null;
         var productOffers = orderRepository.findProductDiscountLines(items);
         List<furniture.model.OrderItemDiscount> itemDiscounts = List.of();
-        if (preferProductDiscounts && !productOffers.isEmpty()) {
+        if (requestedVoucherId == null && preferProductDiscounts && !productOffers.isEmpty()) {
             automaticDiscount = productOffers.stream().map(furniture.model.OrderItemDiscount::discountAmount)
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
             automaticLabel = "Ưu đãi sản phẩm";
@@ -145,25 +144,10 @@ public class OrderService {
             itemDiscounts = productOffers;
         }
 
-        List<OrderItemDto> voucherCheckItems = items;
-        BigDecimal netSubtotal = subtotal.subtract(automaticDiscount);
-        if (automaticDiscount.signum() > 0) {
-            voucherCheckItems = new ArrayList<>();
-            for (var item : items) {
-                var offer = productOffers.stream().filter(o -> o.productId().equals(item.productId())).findFirst().orElse(null);
-                if (offer != null) {
-                    BigDecimal unitPrice = offer.finalAmount().divide(BigDecimal.valueOf(item.quantity()), 0, RoundingMode.HALF_UP);
-                    voucherCheckItems.add(new OrderItemDto(item.productId(), item.quantity(), unitPrice));
-                } else {
-                    voucherCheckItems.add(item);
-                }
-            }
-        }
-
         if (requestedVoucherId != null) {
             try {
                 var voucher = vouchers.validateVoucher(new ValidateVoucherRequest(
-                        orderRepository.findVoucherCode(requestedVoucherId), netSubtotal, voucherCheckItems), customerId, voucherCheckItems);
+                        orderRepository.findVoucherCode(requestedVoucherId), subtotal, items), customerId, items);
                 voucherDiscount = (BigDecimal) voucher.get("discountAmount");
                 voucherId = requestedVoucherId;
                 voucherCode = (String) voucher.get("code");

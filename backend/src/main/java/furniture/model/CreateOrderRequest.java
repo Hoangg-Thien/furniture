@@ -16,7 +16,10 @@ public record CreateOrderRequest(
         Long voucherId,
         BigDecimal discountAmount,
         List<OrderItemDto> items,
-        boolean preferProductDiscounts) {
+        Boolean preferProductDiscounts) {
+    public CreateOrderRequest {
+        preferProductDiscounts = Boolean.TRUE.equals(preferProductDiscounts);
+    }
     public CreateOrderRequest(Long customerId, Long userId, String fullName, String phone, String address,
             String ward, String district, String city, BigDecimal totalAmount, Long voucherId,
             BigDecimal discountAmount, List<OrderItemDto> items) {

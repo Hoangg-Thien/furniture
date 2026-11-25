@@ -6,8 +6,8 @@ import java.util.Objects;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 import furniture.model.admin.product.ProductAuditDto;
 
 @Repository
@@ -49,7 +49,7 @@ public class ProductAuditRepository {
     private String encode(Object value) {
         if (value == null) return null;
         try { return json.writeValueAsString(value); }
-        catch (JsonProcessingException e) { throw new IllegalStateException("Không thể ghi giá trị nhật ký", e); }
+        catch (JacksonException e) { throw new IllegalStateException("Không thể ghi giá trị nhật ký", e); }
     }
 
     public List<ProductAuditDto> findByProductId(Long productId, Long beforeId) {

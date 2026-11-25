@@ -60,10 +60,6 @@ public class AdminOrderService {
 
         Long targetStaffId = req != null ? req.staffId() : null;
         if (targetStaffId == null || !adminOrderRepository.existsStaffById(targetStaffId)) {
-            throw new IllegalArgumentException("Nhân viên duyệt đơn chưa được liên kết với hồ sơ nhân viên hợp lệ.");
-        }
-
-        if (targetStaffId == null || !adminOrderRepository.existsStaffById(targetStaffId)) {
             throw new IllegalArgumentException("Không tìm thấy nhân viên phụ trách hợp lệ trong hệ thống. Vui lòng tạo nhân viên trong Quản lý Nhân Viên.");
         }
 

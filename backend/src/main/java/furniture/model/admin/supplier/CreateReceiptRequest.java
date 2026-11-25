@@ -2,7 +2,7 @@ package furniture.model.admin.supplier;
 
 import java.math.BigDecimal;
 import java.util.List;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import tools.jackson.databind.annotation.JsonDeserialize;
 import furniture.util.IntegerQuantityDeserializer;
 
 public record CreateReceiptRequest(

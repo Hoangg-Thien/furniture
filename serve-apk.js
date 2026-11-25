@@ -2,7 +2,6 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
-const { exec } = require('child_process');
 
 const PORT = 5555;
 const APK_PATH = path.join(__dirname, 'furniture-app.apk');
@@ -76,7 +75,7 @@ const server = http.createServer((req, res) => {
             <img src="${qrCodeUrl}" alt="Mã QR tải ứng dụng" />
           </div>
           <div>
-            <a class="btn" href="/furniture-app.apk">Tải trực tiếp APK (6.9 MB)</a>
+            <a class="btn" href="/furniture-app.apk">Tải trực tiếp APK</a>
           </div>
           <p class="tip">Lưu ý: Điện thoại và máy tính cần kết nối cùng mạng Wi-Fi.</p>
         </div>

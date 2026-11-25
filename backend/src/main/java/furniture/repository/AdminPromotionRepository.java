@@ -65,7 +65,6 @@ public class AdminPromotionRepository {
         }
     }
 
-    @SuppressWarnings("null")
     public List<ProgramResponse> findAllPrograms(String search, String status) {
         StringBuilder sql = new StringBuilder("""
                 SELECT pp.id, pp.name, pp.description, pp.start_date, pp.end_date, pp.status,
@@ -395,7 +394,6 @@ public class AdminPromotionRepository {
         }, programId);
     }
 
-    @SuppressWarnings("null")
     public List<VoucherDto> findAllVouchers(String search, String status) {
         StringBuilder sql = new StringBuilder("""
                 SELECT v.id, v.promotion_program_id, pp.name AS program_name, v.code,

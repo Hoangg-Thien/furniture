@@ -159,7 +159,6 @@ class AdminOrderServiceTest {
         );
         when(adminOrderRepository.findDetailById(101L)).thenReturn(pendingOrder);
         when(adminOrderRepository.existsStaffById(999L)).thenReturn(false);
-        when(adminOrderRepository.findFirstStaffId()).thenReturn(null);
 
         ConfirmOrderRequest req = new ConfirmOrderRequest(999L, "Ghi chú");
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
