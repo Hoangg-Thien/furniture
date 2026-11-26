@@ -40,9 +40,9 @@ try {
   let invalidCheck = false
   const checks = []
   await page.addInitScript(() => {
-    localStorage.setItem('furniture_custom_api_url', 'http://localhost:8080')
-    localStorage.setItem('furniture_cart', JSON.stringify({ items: localStorage.getItem('qa_mixed_basket') ? { 7: 1, 8: 1 } : { 7: 1 }, expiresAt: Date.now() + 300000 }))
-    localStorage.setItem('furniture_admin_user', JSON.stringify({ userId: 1, role: 'ADMIN', accessToken: 'qa-mock-token', apiBaseUrl: 'http://localhost:8080' }))
+    sessionStorage.setItem('furniture_custom_api_url', 'http://localhost:8080')
+    sessionStorage.setItem('furniture_cart', JSON.stringify({ items: localStorage.getItem('qa_mixed_basket') ? { 7: 1, 8: 1 } : { 7: 1 }, expiresAt: Date.now() + 300000 }))
+    sessionStorage.setItem('furniture_admin_user', JSON.stringify({ userId: 1, role: 'ADMIN', accessToken: 'qa-mock-token', apiBaseUrl: 'http://localhost:8080' }))
   })
   await page.route('https://**', route => route.abort())
   await page.route('**/api/**', async route => {
@@ -274,7 +274,7 @@ try {
   await page.getByRole('region', { name: 'L\u1ecbch s\u1eed s\u1eed d\u1ee5ng voucher' }).getByText('#42', { exact: true }).waitFor()
   const newRow = page.getByRole('row').filter({ has: page.getByText('NEW74', { exact: true }) })
   await newRow.getByTitle('Bật/Tắt mã voucher', { exact: true }).click()
-  await newRow.getByRole('button', { name: 'Đang hoạt động', exact: true }).waitFor()
+  await newRow.getByRole('button', { name: 'Đã kích hoạt', exact: true }).waitFor()
   assert.equal(await newRow.getByRole('button', { name: 'Sửa', exact: true }).isDisabled(), true)
   await newRow.getByTitle('Bật/Tắt mã voucher', { exact: true }).click()
   await newRow.getByRole('button', { name: 'Tạm ngưng', exact: true }).waitFor()
@@ -343,7 +343,7 @@ try {
   await page.getByRole('button', { name: 'sale_november', exact: true }).waitFor()
   await page.keyboard.press('Escape')
   await page.addInitScript(() => {
-    localStorage.setItem('furniture_admin_user', JSON.stringify({ userId: 2, staffId: 2, role: 'STAFF', staffType: 'SALES', accessToken: 'sales-token', apiBaseUrl: 'http://localhost:8080' }))
+    sessionStorage.setItem('furniture_admin_user', JSON.stringify({ userId: 2, staffId: 2, role: 'STAFF', staffType: 'SALES', accessToken: 'sales-token', apiBaseUrl: 'http://localhost:8080' }))
   })
   await page.goto(new URL('/admin/promotions', origin).href)
   assert.equal(await page.getByRole('button', { name: 'Tạo chiến dịch', exact: true }).isDisabled(), true)

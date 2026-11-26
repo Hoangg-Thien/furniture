@@ -2,6 +2,7 @@ package furniture.controller;
 
 import java.util.Map;
 
+import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -33,7 +34,8 @@ public class VoucherController {
     @GetMapping("/active")
     public ResponseEntity<?> getActiveVouchers(@RequestAttribute(value = AdminIdentity.ATTRIBUTE, required = false) AdminIdentity identity) {
         try {
-            return ResponseEntity.ok(voucherService.getActiveVouchers(identity != null && "CUSTOMER".equals(identity.role()) ? identity.customerId() : null));
+            return ResponseEntity.ok().cacheControl(CacheControl.noStore())
+                    .body(voucherService.getActiveVouchers(identity != null && "CUSTOMER".equals(identity.role()) ? identity.customerId() : null));
         } catch (Exception ex) {
             ex.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)

@@ -13,7 +13,7 @@ try {
   const errors = []
   const requests = []
   page.on('pageerror', error => errors.push(error.message))
-  await page.addInitScript(() => localStorage.setItem('furniture_admin_user', JSON.stringify({ id: 1, role: 'ADMIN', accessToken: 'qa-mock-token', apiBaseUrl: 'http://localhost:8080', username: 'search-test' })))
+  await page.addInitScript(() => sessionStorage.setItem('furniture_admin_user', JSON.stringify({ id: 1, role: 'ADMIN', accessToken: 'qa-mock-token', apiBaseUrl: 'http://localhost:8080', username: 'search-test' })))
   await page.route('https://**', route => route.fulfill({ contentType: 'text/css', body: '' }))
   await page.route('**/api/**', async route => {
     const url = new URL(route.request().url())

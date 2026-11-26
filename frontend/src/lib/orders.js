@@ -1,58 +1,8 @@
 import { getApiBaseUrl } from './apiConfig.js'
 
-const HISTORY_KEYS = ['funi_orders_history', 'nep_orders_history']
-const LAST_ORDER_KEYS = ['funi_last_order', 'nep_last_order']
-
-function orderKey(order) {
-  const value = order.orderId ?? order.id ?? order.orderCode ?? order.orderNumber
-  return String(value ?? '').replace(/^FUNI-\d{4}-0*/, '')
-}
-
 export function getOrderUrl(order) {
   const id = order.orderNumber || order.orderCode || order.orderId || order.id
   return `/order-success?id=${encodeURIComponent(id)}${order.guestToken ? `#token=${encodeURIComponent(order.guestToken)}` : ''}`
-}
-
-function readStoredOrders() {
-  const orders = new Map()
-  for (const key of [...HISTORY_KEYS, ...LAST_ORDER_KEYS]) {
-    try {
-      const value = JSON.parse(localStorage.getItem(key) || 'null')
-      const list = HISTORY_KEYS.includes(key) ? value : [value]
-      if (!Array.isArray(list)) continue
-      for (const order of list) {
-        if (order && orderKey(order) && !orders.has(orderKey(order))) {
-          orders.set(orderKey(order), order)
-        }
-      }
-    } catch { /* Ignore an invalid cache entry. */ }
-  }
-  return [...orders.values()]
-}
-
-export function getLocalOrders(customerId) {
-  if (!customerId) return []
-  return readStoredOrders().filter((order) =>
-    String(order.customerId ?? order.customer_id ?? '') === String(customerId)
-  )
-}
-
-function cacheCancelledOrder(id) {
-  try {
-    const key = orderKey({ id })
-    const updated = readStoredOrders().map((order) =>
-      orderKey(order) === key ? { ...order, status: 'CANCELLED' } : order
-    )
-    for (const historyKey of HISTORY_KEYS) {
-      localStorage.setItem(historyKey, JSON.stringify(updated))
-    }
-    for (const lastKey of LAST_ORDER_KEYS) {
-      const last = JSON.parse(localStorage.getItem(lastKey) || 'null')
-      if (last && orderKey(last) === key) {
-        localStorage.setItem(lastKey, JSON.stringify({ ...last, status: 'CANCELLED' }))
-      }
-    }
-  } catch { /* A cache failure must not change a successful server response. */ }
 }
 
 /**
@@ -152,10 +102,10 @@ export async function fetchOrders(customerId) {
       }
     }
   } catch (err) {
-    console.warn('Backend fetchOrders error, reading local fallback:', err)
+    console.warn('Backend fetchOrders error:', err)
   }
 
-  return { orders: getLocalOrders(customerId), error: 'Không tải được đơn hàng mới nhất. Đang hiển thị dữ liệu đã lưu trên thiết bị.' }
+  return { orders: [], error: 'Không tải được đơn hàng mới nhất.' }
 }
 
 export async function fetchOrderById(id, guestToken, signal) {
@@ -194,24 +144,10 @@ export async function cancelOrderApi(id, guestToken) {
     })
     const data = await response.json()
     if (response.ok) {
-      cacheCancelledOrder(id)
       return { success: true, message: data.message || 'Đã hủy đơn thành công' }
     }
     return { success: false, error: data.error || 'Không thể hủy đơn' }
   } catch {
     return { success: false, error: 'Chưa xác nhận được việc hủy đơn. Vui lòng kiểm tra kết nối và tải lại trạng thái đơn hàng.' }
-  }
-}
-
-export function saveOrderToLocalHistory(order) {
-  if (!order) return
-  try {
-    const current = readStoredOrders()
-    const updated = [order, ...current.filter((item) => orderKey(item) !== orderKey(order))]
-    for (const key of HISTORY_KEYS) {
-      localStorage.setItem(key, JSON.stringify(updated))
-    }
-  } catch (err) {
-    console.error('Cannot save order to local history:', err)
   }
 }

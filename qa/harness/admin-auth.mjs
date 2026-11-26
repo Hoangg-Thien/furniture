@@ -15,7 +15,7 @@ export async function adminApiHeaders(origin = 'http://127.0.0.1:18080') {
 
 export async function mockAdminSession(target) {
   await target.route('**/api/auth/admin/session', async route => {
-    const user = await route.request().frame().evaluate(() => JSON.parse(localStorage.getItem('furniture_admin_user') || 'null'))
+    const user = await route.request().frame().evaluate(() => JSON.parse(sessionStorage.getItem('furniture_admin_user') || 'null'))
     if (!user?.accessToken || route.request().headers().authorization !== `Bearer ${user.accessToken}`) {
       return route.fulfill({ status: 401, json: { error: 'QA session is missing' } })
     }

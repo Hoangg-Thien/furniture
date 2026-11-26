@@ -11,8 +11,8 @@ try {
   const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } })
   await context.addInitScript(() => {
     if (!localStorage.getItem('qa_notifications_initialized')) {
-      localStorage.setItem('furniture_customer_user', JSON.stringify({ customerId: 4, role: 'CUSTOMER', username: 'notification-test' }))
-      localStorage.setItem('furniture_admin_user', JSON.stringify({ id: 1, role: 'ADMIN', accessToken: 'qa-mock-token', apiBaseUrl: 'http://localhost:8080', username: 'admin-test' }))
+      sessionStorage.setItem('furniture_customer_user', JSON.stringify({ customerId: 4, role: 'CUSTOMER', username: 'notification-test' }))
+      sessionStorage.setItem('furniture_admin_user', JSON.stringify({ id: 1, role: 'ADMIN', accessToken: 'qa-mock-token', apiBaseUrl: 'http://localhost:8080', username: 'admin-test' }))
       localStorage.setItem('qa_notifications_initialized', 'yes')
     }
     const timers = new Map()
@@ -115,13 +115,13 @@ try {
   const bounds = await page.locator('#client-notifications-panel').boundingBox()
   assert.ok(bounds.x >= 0 && bounds.x + bounds.width <= 390, 'mobile panel stays inside the viewport')
   await page.keyboard.press('Escape')
-  await page.evaluate(() => localStorage.setItem('furniture_customer_user', JSON.stringify({ customerId: 5, role: 'CUSTOMER', username: 'other-customer' })))
+  await page.evaluate(() => sessionStorage.setItem('furniture_customer_user', JSON.stringify({ customerId: 5, role: 'CUSTOMER', username: 'other-customer' })))
   await page.goto(url('/'))
   await clientBell(1).click()
   assert.equal(await page.locator('.client-notification-item').count(), 1)
   assert.equal(await page.locator('.client-notification-item[href$="=44"]').count(), 1)
   await page.keyboard.press('Escape')
-  await page.evaluate(() => localStorage.removeItem('furniture_customer_user'))
+  await page.evaluate(() => sessionStorage.removeItem('furniture_customer_user'))
   notificationRequests = 0
   await page.goto(url('/'))
   await clientBell(0).click()
@@ -200,7 +200,7 @@ try {
   await page.evaluate(() => Object.defineProperty(document, 'hidden', { configurable: true, value: false }))
   paginateStock = true
   for (const [index, staffType] of ['SALES', 'WAREHOUSE', 'CONTENT'].entries()) {
-    await page.evaluate(user => localStorage.setItem('furniture_admin_user', JSON.stringify(user)), {
+    await page.evaluate(user => sessionStorage.setItem('furniture_admin_user', JSON.stringify(user)), {
       id: 20 + index, role: 'STAFF', staffType, staffId: 20 + index, accessToken: 'qa-mock-token', apiBaseUrl: 'http://localhost:8080', username: `${staffType}-staff`,
     })
     activityRequests = 0

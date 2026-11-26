@@ -1,8 +1,8 @@
 import { getApiBaseUrl } from './apiConfig.js'
+import { clearNotificationState } from './notifications.js'
 
-export const SESSION_CUSTOMER_KEY = 'furniture_customer_user'
+const SESSION_CUSTOMER_KEY = 'furniture_customer_user'
 const SESSION_ADMIN_KEY = 'furniture_admin_user'
-const LEGACY_SESSION_KEY = 'furniture_logged_in_user'
 
 /**
  * ====================================================================
@@ -13,43 +13,23 @@ const LEGACY_SESSION_KEY = 'furniture_logged_in_user'
  */
 
 /**
- * Lấy thông tin tài khoản Khách hàng từ localStorage
+ * Lấy thông tin tài khoản Khách hàng trong tab hiện tại
  */
 export function getCurrentUser() {
   try {
-    // 1. Kiểm tra session khách hàng chuẩn
-    let raw = localStorage.getItem(SESSION_CUSTOMER_KEY)
-    
-    // 2. Migration từ legacy key nếu có
-    if (!raw) {
-      raw = localStorage.getItem(LEGACY_SESSION_KEY)
-    }
-
-    if (!raw) return null
-    const user = JSON.parse(raw)
-
-    // QUAN TRỌNG: Nếu tài khoản trong session KHÔNG PHẢI là CUSTOMER (vd: staff01, admin01),
-    // lập tức xóa bỏ để tránh hiển thị sai trên giao diện Cửa hàng!
-    if (!user || user.role !== 'CUSTOMER') {
-      localStorage.removeItem(SESSION_CUSTOMER_KEY)
-      localStorage.removeItem(LEGACY_SESSION_KEY)
-      return null
-    }
-
-    localStorage.setItem(SESSION_CUSTOMER_KEY, JSON.stringify(user))
-    localStorage.removeItem(LEGACY_SESSION_KEY)
-    return user
+    const user = JSON.parse(sessionStorage.getItem(SESSION_CUSTOMER_KEY) || 'null')
+    return user?.role === 'CUSTOMER' ? user : null
   } catch {
     return null
   }
 }
 
 export function setCurrentUser(user) {
+  if (!user || user.customerId !== getCurrentUser()?.customerId) clearNotificationState('customer')
   if (user && user.role === 'CUSTOMER') {
-    localStorage.setItem(SESSION_CUSTOMER_KEY, JSON.stringify(user))
+    sessionStorage.setItem(SESSION_CUSTOMER_KEY, JSON.stringify(user))
   } else {
-    localStorage.removeItem(SESSION_CUSTOMER_KEY)
-    localStorage.removeItem(LEGACY_SESSION_KEY)
+    try { sessionStorage.removeItem(SESSION_CUSTOMER_KEY) } catch { /* No stored session is available. */ }
   }
 }
 
@@ -63,11 +43,12 @@ export function logoutUser() {
  * Đăng nhập dành riêng cho Khách hàng tại Cửa hàng (Storefront)
  * Chặn tài khoản ADMIN / STAFF không cho đăng nhập tại modal mua sắm
  */
-export async function loginCustomer(username, password) {
+export async function loginCustomer(username, password, signal) {
   const apiBaseUrl = getApiBaseUrl()
   try {
     const response = await fetch(`${apiBaseUrl}/api/auth/login`, {
       method: 'POST',
+      signal,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password }),
     })
@@ -87,7 +68,7 @@ export async function loginCustomer(username, password) {
     }
 
     const user = { ...data, apiBaseUrl }
-    setCurrentUser(user)
+    if (!signal?.aborted) setCurrentUser(user)
     return { user, error: null }
   } catch (err) {
     return {
@@ -103,11 +84,12 @@ export const loginUser = loginCustomer
 /**
  * Đăng ký tài khoản Khách hàng
  */
-export async function registerUser({ username, password, fullName, email, phone, address }) {
+export async function registerUser({ username, password, fullName, email, phone, address }, signal) {
   const apiBaseUrl = getApiBaseUrl()
   try {
     const response = await fetch(`${apiBaseUrl}/api/auth/register`, {
       method: 'POST',
+      signal,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password, fullName, email, phone, address }),
     })
@@ -131,6 +113,7 @@ export async function registerUser({ username, password, fullName, email, phone,
  */
 export async function updateProfile(userId, { fullName, email, phone, address, currentPassword, newPassword }) {
   const apiBaseUrl = getApiBaseUrl()
+  const accessToken = getCurrentUser()?.accessToken
   try {
     const response = await fetch(`${apiBaseUrl}/api/auth/update/${userId}`, {
       method: 'PUT',
@@ -143,6 +126,7 @@ export async function updateProfile(userId, { fullName, email, phone, address, c
       return { user: null, error: data.error || 'Cập nhật thất bại' }
     }
 
+    if (getCurrentUser()?.accessToken !== accessToken) return { user: null, error: 'Phiên đăng nhập đã thay đổi.' }
     const user = { ...data, apiBaseUrl }
     setCurrentUser(user)
     return { user, error: null }
@@ -164,13 +148,13 @@ export async function updateProfile(userId, { fullName, email, phone, address, c
  */
 export function getCurrentAdminUser() {
   try {
-    const raw = localStorage.getItem(SESSION_ADMIN_KEY)
+    const raw = sessionStorage.getItem(SESSION_ADMIN_KEY)
     if (!raw) return null
     const user = JSON.parse(raw)
     if (user?.accessToken && (user.role === 'ADMIN' || user.role === 'STAFF')) {
       return user
     }
-    localStorage.removeItem(SESSION_ADMIN_KEY)
+    sessionStorage.removeItem(SESSION_ADMIN_KEY)
     return null
   } catch {
     return null
@@ -178,10 +162,12 @@ export function getCurrentAdminUser() {
 }
 
 export function setCurrentAdminUser(user) {
+  const previous = getCurrentAdminUser()
+  if (!user || user.username !== previous?.username || user.role !== previous?.role) clearNotificationState('admin')
   if (user && (user.role === 'ADMIN' || user.role === 'STAFF')) {
-    localStorage.setItem(SESSION_ADMIN_KEY, JSON.stringify(user))
+    sessionStorage.setItem(SESSION_ADMIN_KEY, JSON.stringify(user))
   } else {
-    localStorage.removeItem(SESSION_ADMIN_KEY)
+    try { sessionStorage.removeItem(SESSION_ADMIN_KEY) } catch { /* No stored session is available. */ }
   }
 }
 

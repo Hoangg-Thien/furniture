@@ -4,12 +4,12 @@ import { getOrderNotifications, loadReadNotificationIds, saveReadNotificationIds
 
 beforeEach(() => {
   const values = new Map()
-  globalThis.localStorage = {
+  globalThis.sessionStorage = {
     getItem: key => values.get(key) ?? null,
     setItem: (key, value) => values.set(key, value),
   }
 })
-afterEach(() => { delete globalThis.localStorage })
+afterEach(() => { delete globalThis.sessionStorage })
 
 test('order notifications cover the actual lifecycle and ignore unsupported records', () => {
   const statuses = ['PENDING', 'CONFIRMED', 'SHIPPING', 'COMPLETED', 'CANCELLED']
@@ -46,13 +46,13 @@ test('dismissals persist per customer and status without changing orders or read
 })
 
 test('corrupt and blocked storage never prevents reading notifications', () => {
-  localStorage.setItem('broken', '{')
-  localStorage.setItem('object', '{}')
-  localStorage.setItem('mixed', '["order-42-SHIPPING", null, 5]')
+  sessionStorage.setItem('broken', '{')
+  sessionStorage.setItem('object', '{}')
+  sessionStorage.setItem('mixed', '["order-42-SHIPPING", null, 5]')
   assert.equal(loadReadNotificationIds('broken').size, 0)
   assert.equal(loadReadNotificationIds('object').size, 0)
   assert.deepEqual([...loadReadNotificationIds('mixed')], ['order-42-SHIPPING'])
-  globalThis.localStorage = {
+  globalThis.sessionStorage = {
     getItem() { throw new Error('blocked') },
     setItem() { throw new Error('blocked') },
   }

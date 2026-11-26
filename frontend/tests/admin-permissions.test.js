@@ -28,7 +28,7 @@ test('content and stock permissions never grant full product writes or order pro
 
 test('admin token is attached only to its backend and expired API sessions emit a sign-out event', async () => {
   const storage = new Map()
-  globalThis.localStorage = { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value), removeItem: key => storage.delete(key) }
+  globalThis.sessionStorage = { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value), removeItem: key => storage.delete(key) }
   storage.set('furniture_admin_user', JSON.stringify({ accessToken: 'test-token', apiBaseUrl: 'http://localhost:8080' }))
   const calls = []
   const events = []
@@ -54,6 +54,6 @@ test('admin token is attached only to its backend and expired API sessions emit 
     assert.equal(calls.at(-1).headers.get('Authorization'), null)
   } finally {
     delete globalThis.window
-    delete globalThis.localStorage
+    delete globalThis.sessionStorage
   }
 })

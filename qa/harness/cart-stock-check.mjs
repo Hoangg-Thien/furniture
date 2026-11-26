@@ -59,7 +59,7 @@ try {
   assert.equal(await page.getByRole('button', { name: 'Thêm Ghế hết hàng vào giỏ hàng', exact: true }).isDisabled(), true)
   assert.equal(await page.getByRole('button', { name: 'Thêm Ghế chưa xác nhận vào giỏ hàng', exact: true }).isDisabled(), true)
   await add.evaluate(button => { for (let i = 0; i < 20; i++) button.click() })
-  await page.waitForFunction(() => JSON.parse(localStorage.getItem('furniture_cart'))?.items?.['1'] === 2)
+  await page.waitForFunction(() => JSON.parse(sessionStorage.getItem('furniture_cart'))?.items?.['1'] === 2)
   assert.equal(await add.isDisabled(), true)
   await page.getByRole('button', { name: /Mở giỏ hàng/ }).click()
   const summary = page.locator('.cart-summary')
@@ -105,19 +105,19 @@ try {
   await summary.locator('.subtotal strong').filter({ hasText: /^100\.000₫$/ }).waitFor()
   await page.locator('.cart-drawer').screenshot({ path: fileURLToPath(new URL('../artifacts/cart-promotion-desktop.png', import.meta.url)), animations: 'disabled' })
 
-  await page.evaluate(timeout => localStorage.setItem('furniture_cart', JSON.stringify({ items: { 1: 99, 2: 3, 999: 1 }, expiresAt: Date.now() + timeout })), CART_TIMEOUT_MS)
+  await page.evaluate(timeout => sessionStorage.setItem('furniture_cart', JSON.stringify({ items: { 1: 99, 2: 3, 999: 1 }, expiresAt: Date.now() + timeout })), CART_TIMEOUT_MS)
   await page.reload({ waitUntil: 'domcontentloaded' })
-  await page.waitForFunction(() => JSON.stringify(JSON.parse(localStorage.getItem('furniture_cart')).items) === '{"1":2}')
+  await page.waitForFunction(() => JSON.stringify(JSON.parse(sessionStorage.getItem('furniture_cart')).items) === '{"1":2}')
   stock = 1
   await page.evaluate(() => window.dispatchEvent(new Event('focus')))
-  await page.waitForFunction(() => JSON.parse(localStorage.getItem('furniture_cart'))?.items?.['1'] === 1)
+  await page.waitForFunction(() => JSON.parse(sessionStorage.getItem('furniture_cart'))?.items?.['1'] === 1)
   stock = 0
   await page.evaluate(() => window.dispatchEvent(new Event('focus')))
-  await page.waitForFunction(() => JSON.stringify(JSON.parse(localStorage.getItem('furniture_cart')).items) === '{}')
+  await page.waitForFunction(() => JSON.stringify(JSON.parse(sessionStorage.getItem('furniture_cart')).items) === '{}')
   assert.equal(await add.isDisabled(), true)
   stock = 2
   await page.evaluate(() => {
-    localStorage.setItem('furniture_customer_user', JSON.stringify({ userId: 5, customerId: 4, role: 'CUSTOMER', fullName: 'Test customer' }))
+    sessionStorage.setItem('furniture_customer_user', JSON.stringify({ userId: 5, customerId: 4, role: 'CUSTOMER', fullName: 'Test customer' }))
   })
   await page.goto(new URL('/orders', url).href, { waitUntil: 'domcontentloaded' })
   await page.getByRole('button', { name: 'Mua Lại', exact: true }).click()

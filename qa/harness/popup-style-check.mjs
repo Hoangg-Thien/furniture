@@ -43,7 +43,7 @@ try {
     await page.keyboard.press('Escape')
     assert.equal(await page.locator('.cart-layer').count(), 0)
   }
-  await page.evaluate(() => localStorage.setItem('furniture_admin_user', JSON.stringify({ role: 'ADMIN', username: 'admin01', accessToken: 'qa-token', apiBaseUrl: 'http://localhost:8080' })))
+  await page.evaluate(() => sessionStorage.setItem('furniture_admin_user', JSON.stringify({ role: 'ADMIN', username: 'admin01', accessToken: 'qa-token', apiBaseUrl: 'http://localhost:8080' })))
   await page.goto(new URL('/admin/promotions', origin).href)
   await page.locator('.promotion-page-header .btn-admin-primary').click()
   await checkPopup('.admin-modal-overlay', '.admin-modal-card')

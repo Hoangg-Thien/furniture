@@ -13,7 +13,7 @@ const errors = []
 page.on('pageerror', error => errors.push(error.message))
 const program = { id: 1, name: 'Tri ân mùa đông', description: 'Ưu đãi nội thất', startDate: '2026-12-08T00:00:00', endDate: '2026-12-10T23:59:00', status: 'ACTIVE', vouchersCount: 2, productDiscountsCount: 0, orderDiscountsCount: 0 }
 const vouchers = ['ORDER', 'VIP'].map((voucherType, index) => ({ id: index + 1, promotionProgramId: 1, code: index ? 'VIPWINTER' : 'TRI92', voucherType, discountPercent: 50, minimumAmount: 0, quantity: 100, usedQuantity: 1, ordersCount: 1, status: index ? 'INACTIVE' : 'ACTIVE', archived: false }))
-await page.addInitScript(() => localStorage.setItem('furniture_admin_user', JSON.stringify({ id: 1, username: 'admin01', role: 'ADMIN', accessToken: 'qa-mock-token', apiBaseUrl: 'http://localhost:8080' })))
+await page.addInitScript(() => sessionStorage.setItem('furniture_admin_user', JSON.stringify({ id: 1, username: 'admin01', role: 'ADMIN', accessToken: 'qa-mock-token', apiBaseUrl: 'http://localhost:8080' })))
 await page.route('**/api/**', route => {
   const path = new URL(route.request().url()).pathname
   let data = []

@@ -1,6 +1,4 @@
-import { VIP_TIER_LABELS } from '../../lib/vouchers'
-import { useEffect, useState, useMemo } from 'react'
-import { VOUCHER_TYPE_LABELS } from '../../lib/vouchers'
+import { useEffect, useState, useMemo, useRef } from 'react'
 import {
   X,
   Tag,
@@ -21,6 +19,9 @@ import {
   Layers,
 } from 'lucide-react'
 import {
+  MEMBERSHIP_MILESTONES,
+  VIP_TIER_LABELS,
+  VOUCHER_TYPE_LABELS,
   fetchActiveVouchers,
   fetchAllVouchersForAdmin,
   approveVoucherApi,
@@ -31,20 +32,24 @@ import {
 const formatPrice = (price) => `${new Intl.NumberFormat('vi-VN').format(price || 0)}₫`
 
 export default function VouchersModal({
-  isOpen,
   onClose,
   currentUser,
+  cartSubtotal,
+  cartPriceError,
+  onRetryCartPrice,
   onUseVoucher,
   onOpenStore,
 }) {
   const isAdmin = currentUser?.role === 'ADMIN'
   const isStaff = currentUser?.role === 'STAFF'
   const canManageVouchers = isAdmin || isStaff
+  const dialog = useRef(null)
 
   const [activeTab, setActiveTab] = useState('KHO') // 'KHO' | 'DUYET' | 'CREATE'
   const [activeVouchers, setActiveVouchers] = useState([])
   const [adminVouchers, setAdminVouchers] = useState([])
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [copiedCode, setCopiedCode] = useState(null)
   const [actionAlert, setActionAlert] = useState(null) // { type: 'success'|'error', message: '' }
@@ -73,6 +78,7 @@ export default function VouchersModal({
       canManageVouchers ? fetchAllVouchersForAdmin() : Promise.resolve({ vouchers: [] }),
     ])
     setActiveVouchers(activeRes.vouchers || [])
+    setLoadError(activeRes.error)
     if (adminRes.vouchers) {
       setAdminVouchers(adminRes.vouchers || [])
     }
@@ -80,12 +86,12 @@ export default function VouchersModal({
   }
 
   useEffect(() => {
-    if (isOpen) {
-      loadData()
-      setActionAlert(null)
-      setCopiedCode(null)
-    }
-  }, [isOpen, canManageVouchers, currentUser?.customerId])
+    loadData()
+  }, [canManageVouchers, currentUser?.customerId])
+
+  useEffect(() => { dialog.current.showModal() }, [])
+
+  const closeWallet = () => dialog.current.close()
 
   // Xử lý sao chép mã
   const handleCopy = async (code) => {
@@ -105,7 +111,7 @@ export default function VouchersModal({
     if (onUseVoucher) {
       onUseVoucher(voucher.code)
     }
-    onClose()
+    closeWallet()
   }
 
   // Admin duyệt voucher
@@ -186,10 +192,8 @@ export default function VouchersModal({
     return adminVouchers.filter((v) => v.approval_state === 'PENDING_APPROVAL')
   }, [adminVouchers])
 
-  if (!isOpen) return null
-
   return (
-    <div className="vouchers-overlay" onClick={onClose} role="dialog" aria-modal="true">
+    <dialog ref={dialog} className="vouchers-overlay" onClick={closeWallet} onClose={onClose} aria-labelledby="vouchers-title">
       <div className="vouchers-container" onClick={(e) => e.stopPropagation()}>
         {/* Header Modal */}
         <header className="vouchers-header">
@@ -198,7 +202,7 @@ export default function VouchersModal({
               <Tag size={20} />
             </div>
             <div>
-              <h2 className="vouchers-title">Kho Voucher & Ưu Đãi</h2>
+              <h2 id="vouchers-title" className="vouchers-title">Kho Voucher & Ưu Đãi</h2>
               <p className="vouchers-subtitle">
                 Thu thập và sử dụng mã giảm giá độc quyền từ FuniStore
               </p>
@@ -207,7 +211,7 @@ export default function VouchersModal({
           <button
             className="vouchers-close-btn"
             type="button"
-            onClick={onClose}
+            onClick={closeWallet}
             aria-label="Đóng cửa sổ"
           >
             <X size={20} />
@@ -260,6 +264,7 @@ export default function VouchersModal({
               <Search size={15} />
               <input
                 type="text"
+                aria-label="Tìm mã voucher hoặc chương trình ưu đãi"
                 placeholder="Tìm mã voucher hoặc chương trình ưu đãi..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -268,6 +273,7 @@ export default function VouchersModal({
                 <button
                   type="button"
                   className="vouchers-search-clear"
+                  aria-label="Xóa nội dung tìm voucher"
                   onClick={() => setSearchTerm('')}
                 >
                   <X size={13} />
@@ -292,14 +298,25 @@ export default function VouchersModal({
         {/* Nội dung chính Modal */}
         <div className="vouchers-content">
           {loading ? (
-            <div className="vouchers-loading">
+            <div className="vouchers-loading" role="status">
               <div className="vouchers-spinner" />
               <p>Đang tải thông tin ưu đãi...</p>
             </div>
           ) : activeTab === 'KHO' ? (
             /* TAB 1: KHO VOUCHER KHÁCH HÀNG */
             <div className="vouchers-grid-list">
-              {filteredActiveVouchers.length === 0 ? (
+              {cartSubtotal === null && filteredActiveVouchers.some(v => Number(v.minimum_amount) > 0) && (
+                <div className="cart-price-feedback vouchers-price-feedback" role="status">
+                  {cartPriceError ? 'Chưa kiểm tra được giá trị giỏ hàng.' : 'Đang kiểm tra giá trị giỏ hàng…'}
+                  {onRetryCartPrice && <button type="button" onClick={onRetryCartPrice}>Thử lại</button>}
+                </div>
+              )}
+              {loadError ? (
+                <div className="vouchers-empty-state">
+                  <p role="alert">Không tải được danh sách voucher.</p>
+                  <button type="button" className="vouchers-shop-now-btn" onClick={loadData}>Thử lại</button>
+                </div>
+              ) : filteredActiveVouchers.length === 0 ? (
                 <div className="vouchers-empty-state">
                   <Gift size={52} strokeWidth={1.3} />
                   <h3>Chưa tìm thấy voucher phù hợp</h3>
@@ -311,7 +328,7 @@ export default function VouchersModal({
                       type="button"
                       className="vouchers-shop-now-btn"
                       onClick={() => {
-                        onClose()
+                        closeWallet()
                         onOpenStore()
                       }}
                     >
@@ -324,9 +341,12 @@ export default function VouchersModal({
                   const minAmt = Number(voucher.minimum_amount || 0)
                   const maxDisc = Number(voucher.maximum_discount || 0)
                   const pct = Number(voucher.discount_percent || 0)
-                  const remaining = Number(voucher.remaining_quantity || 0)
-                  const totalQty = Number(voucher.quantity || 100)
                   const is500kSpecial = voucher.code === 'FUNI500K' || voucher.code === 'NEP500K' || maxDisc >= 500000
+                  const type = voucher.voucher_type || 'ORDER'
+                  const memberTier = MEMBERSHIP_MILESTONES[voucher.customer_tier || 'VIP_DIAMOND']?.label
+                  const fixedDiscount = type !== 'PRODUCT' && maxDisc > 0 && minAmt * pct >= maxDisc * 100
+                  const missingAmount = cartSubtotal === null ? 0 : minAmt - cartSubtotal
+                  const checkingMinimum = cartSubtotal === null && minAmt > 0
 
                   return (
                     <article
@@ -339,7 +359,7 @@ export default function VouchersModal({
                           <span className="voucher-ribbon-tag">Hot Funi</span>
                         )}
                         <div className="voucher-discount-val">
-                          {maxDisc > 0 && pct >= 10 ? (
+                          {fixedDiscount ? (
                             <>
                               <span className="unit">Giảm</span>
                               <strong>{formatPrice(maxDisc).replace('₫', '')}</strong>
@@ -368,25 +388,29 @@ export default function VouchersModal({
                           <h4 className="voucher-program-title">
                             {voucher.program_name || 'Ưu đãi FuniStore'}
                           </h4>
-                          <p className="voucher-condition-text">{VOUCHER_TYPE_LABELS[voucher.voucher_type || 'ORDER']}{voucher.voucher_type === 'PRODUCT' ? ` — sản phẩm #${voucher.product_id}` : voucher.voucher_type === 'VIP' ? ` — ${VIP_TIER_LABELS[voucher.customer_tier] || ''}` : ''}</p>
+                          <p className="voucher-condition-text">
+                            {type === 'VIP' ? `Dành cho thành viên${memberTier ? ` ${memberTier}` : ''}`
+                              : type === 'PRODUCT' ? `${VOUCHER_TYPE_LABELS.PRODUCT} — sản phẩm #${voucher.product_id}`
+                              : VOUCHER_TYPE_LABELS.ORDER}
+                          </p>
                           <p className="voucher-condition-text">
                             {minAmt > 0
                               ? `Áp dụng cho đơn hàng từ ${formatPrice(minAmt)}`
                               : 'Áp dụng cho mọi giá trị đơn hàng'}
-                            {maxDisc > 0 && pct < 100 && (
+                            {maxDisc > 0 && !fixedDiscount && (
                               <span className="voucher-max-hint">
                                 {' '}(Giảm tối đa {formatPrice(maxDisc)})
                               </span>
                             )}
                           </p>
-                          <div className="voucher-meta-line">
-                            <span className="voucher-expiry">
-                              <Clock size={12} /> HSD: {voucher.end_date?.slice(0, 10)}
-                            </span>
-                            <span className="voucher-remaining">
-                              Còn lại: <strong>{remaining}</strong> lượt
-                            </span>
-                          </div>
+                          {missingAmount > 0 && (
+                            <p className="voucher-condition-text voucher-shortfall">
+                              Chưa đủ điều kiện. Mua thêm {formatPrice(missingAmount)} để dùng mã.
+                            </p>
+                          )}
+                          <span className="voucher-expiry">
+                            <Clock size={12} /> HSD: {voucher.end_date?.slice(0, 10)}
+                          </span>
                         </div>
 
                         {/* Thanh code và nút sử dụng */}
@@ -413,6 +437,7 @@ export default function VouchersModal({
                           <button
                             type="button"
                             className="voucher-use-btn"
+                            disabled={checkingMinimum || missingAmount > 0}
                             onClick={() => handleApplyNow(voucher)}
                           >
                             <span>Dùng ngay</span>
@@ -786,7 +811,7 @@ export default function VouchersModal({
           )}
         </div>
       </div>
-    </div>
+    </dialog>
   )
 }
 

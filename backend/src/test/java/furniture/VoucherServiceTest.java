@@ -108,16 +108,22 @@ class VoucherServiceTest {
     @Test
     void vipValidationUsesAuthenticatedIdentityAndNeverAClaimedCustomerId() throws Exception {
         var vip = scopedVoucher("VIP");
-        when(repository.findActiveVouchers()).thenReturn(List.of(vip));
+        var order = Map.<String, Object>of("code", "ORDER10", "voucher_type", "ORDER", "minimum_amount", 10_000_000);
+        var gold = Map.<String, Object>of("code", "GOLD10", "voucher_type", "VIP", "customer_tier", "GOLD");
+        when(repository.findActiveVouchers()).thenReturn(List.of(order, gold, vip));
         when(repository.findCustomerTier(7L)).thenReturn("VIP_DIAMOND");
         var sessions = mock(furniture.service.AdminSessionService.class);
         when(sessions.authenticate("Bearer vip")).thenReturn(new furniture.model.admin.AdminIdentity(3L, null, "CUSTOMER", null, 7L));
         var mvc = org.springframework.test.web.servlet.setup.MockMvcBuilders.standaloneSetup(new furniture.controller.VoucherController(service))
                 .addInterceptors(new furniture.config.AdminAccessInterceptor(sessions, mock(org.springframework.jdbc.core.JdbcTemplate.class))).build();
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/vouchers/active"))
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.length()").value(0));
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.length()").value(1))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$[0].code").value("ORDER10"));
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/vouchers/active").header("Authorization", "Bearer vip"))
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.length()").value(1));
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header().string("Cache-Control", "no-store"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.length()").value(2))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$[0].code").value("ORDER10"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$[1].code").value("SCOPE"));
         org.mockito.Mockito.clearInvocations(repository);
         String body = "{\"code\":\"SCOPE\",\"subtotal\":500000,\"customerId\":7}";
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/vouchers/validate")

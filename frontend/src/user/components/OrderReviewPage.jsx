@@ -30,11 +30,11 @@ import {
   UserCheck,
   RefreshCw,
 } from 'lucide-react'
-import { createOrder, previewOrder, saveOrderToLocalHistory, fetchOrderById, getOrderUrl } from '../../lib/orders'
+import { createOrder, previewOrder, fetchOrderById, getOrderUrl } from '../../lib/orders'
 import CancelOrderDialog from './CancelOrderDialog'
 import OrderShippingInfo from './OrderShippingInfo'
-import { validateVoucherApi, fetchActiveVouchers, VOUCHER_TYPE_LABELS } from '../../lib/vouchers'
-import { loadCheckoutDraft, saveCheckoutDraft, clearCheckoutDraft, voucherDiscount, suggestedVoucher as findSuggestedVoucher } from '../lib/checkout'
+import { validateVoucherApi, fetchActiveVouchers } from '../../lib/vouchers'
+import { voucherDiscount, suggestedVoucher as findSuggestedVoucher } from '../lib/checkout'
 import { CART_TIMEOUT_MS } from '../lib/cart'
 import { getAllProvinces, getDistricts, getWards, splitSavedAddress } from '../lib/vietnamLocations'
 
@@ -111,7 +111,7 @@ function OrderSummary({
   const voucherDiscountAmount = Number(quote?.voucherDiscountAmount ?? (quote?.voucherId ? Math.max(0, discount - productDiscountAmount) : 0))
   const rawSubtotal = Number(quote?.subtotal ?? subtotal)
   const subtotalAfterProductDiscount = Math.max(0, rawSubtotal - productDiscountAmount)
-  const voucherBase = subtotalAfterProductDiscount
+  const voucherBase = rawSubtotal
   const shippingFee = quote ? Number(quote.shippingFee) : (subtotalAfterProductDiscount >= FREE_SHIP_THRESHOLD ? 0 : SHIPPING_FEE)
   const total = quote ? Number(quote.totalAmount) : subtotalAfterProductDiscount - voucherDiscountAmount + shippingFee
 
@@ -273,7 +273,6 @@ function OrderSummary({
                           <strong>{voucher.code}</strong>
                           {isBest && <span className="voucher-best-badge">Ưu đãi tốt nhất</span>}
                         </div>
-                        <span>{VOUCHER_TYPE_LABELS[voucher.voucher_type] || voucher.voucher_type || 'Đơn hàng'}</span>
                         <p>Giảm <strong>{formatPrice(voucherChoices[voucher.id].quote.voucherDiscountAmount)}</strong> cho đơn này</p>
                         <p>Đơn từ {formatPrice(Number(voucher.minimum_amount || 0))}</p>
                       </div>
@@ -301,7 +300,6 @@ function OrderSummary({
                     <div className="checkout-voucher-option disabled" key={voucher.id}>
                       <div className="voucher-option-info">
                         <strong>{voucher.code}</strong>
-                        <span>{VOUCHER_TYPE_LABELS[type] || type}</span>
                         <p>Giảm {voucher.discount_percent}%{Number(voucher.maximum_discount) > 0 ? `, tối đa ${formatPrice(voucher.maximum_discount)}` : ''}</p>
                         <p className="voucher-reason-note">
                           {voucherChoices[voucher.id]?.error || (missing > 0
@@ -404,8 +402,7 @@ export default function OrderReviewPage({
   const shippingFee = subtotal >= FREE_SHIP_THRESHOLD ? 0 : SHIPPING_FEE
   const total = subtotal + shippingFee
 
-  const [checkoutDraft] = useState(() => initialOrder ? null : loadCheckoutDraft(currentUser?.customerId))
-  const [step, setStep] = useState(() => (initialOrder ? 3 : checkoutDraft?.step || 1))
+  const [step, setStep] = useState(initialOrder ? 3 : 1)
   const [orderSnapshot, setOrderSnapshot] = useState(initialOrder)
   const [liveStatus, setLiveStatus] = useState(initialOrder?.status || 'PENDING')
   const [isRefreshingStatus, setIsRefreshingStatus] = useState(false)
@@ -482,7 +479,6 @@ export default function OrderReviewPage({
   )
 
   const [useDefaultAccountInfo, setUseDefaultAccountInfo] = useState(() => {
-    if (checkoutDraft) return checkoutDraft.useDefaultAccountInfo
     return Boolean(currentUser && (currentUser.fullName || currentUser.phone || currentUser.address))
   })
 
@@ -495,17 +491,8 @@ export default function OrderReviewPage({
       ward: initialOrder?.shippingInfo?.ward || savedAddress.ward,
       district: initialOrder?.shippingInfo?.district || savedAddress.district,
       city: initialOrder?.shippingInfo?.city || savedAddress.city,
-      ...checkoutDraft?.form,
     }
   })
-
-  useEffect(() => {
-    if (step === 3) {
-      clearCheckoutDraft(currentUser?.customerId)
-    } else {
-      saveCheckoutDraft(currentUser?.customerId, { form, step, useDefaultAccountInfo })
-    }
-  }, [currentUser?.customerId, form, step, useDefaultAccountInfo])
 
   const provinces = useMemo(() => getAllProvinces(), [])
   const districts = useMemo(() => getDistricts(form.city), [form.city])
@@ -675,7 +662,7 @@ export default function OrderReviewPage({
     setVoucherLoading(true)
     setVoucherError('')
     try {
-      const res = await validateVoucherApi({ code, subtotal: quote ? quote.subtotal - Number(quote.automaticDiscountAmount || 0) : subtotal, items: JSON.parse(quoteKey).items })
+      const res = await validateVoucherApi({ code, subtotal: quote?.subtotal ?? subtotal, items: JSON.parse(quoteKey).items })
       if (version !== voucherVersion.current) return
       if (!res.valid) {
         setVoucherError(res.error || 'Mã giảm giá không hợp lệ')
@@ -911,19 +898,8 @@ export default function OrderReviewPage({
     setOrderSnapshot(currentOrderSnapshot)
     setStep(3)
 
-    // Lưu vào localStorage để hỗ trợ xem lại và refresh
-    try {
-      localStorage.setItem('funi_last_order', JSON.stringify(currentOrderSnapshot));
-      localStorage.setItem('nep_last_order', JSON.stringify(currentOrderSnapshot));
-    } catch (e) {
-      console.warn('Could not save order snapshot to localStorage', e)
-    }
-
-    // Lưu ngay vào danh sách Đơn mua của tôi (Shopee history)
-    saveOrderToLocalHistory(currentOrderSnapshot)
-
-    // Cập nhật browser URL
-    const orderUrl = getOrderUrl(currentOrderSnapshot)
+    // Keep the guest access token out of navigation history.
+    const orderUrl = getOrderUrl({ orderNumber: assignedOrderNumber })
     window.history.pushState({ orderId: assignedOrderNumber }, '', orderUrl)
 
     onOrderSuccess?.(currentOrderSnapshot)
@@ -1470,7 +1446,7 @@ export default function OrderReviewPage({
                       value={form.fullName}
                       onChange={handleFormChange}
                       placeholder="Nguyễn Văn A"
-                      autoComplete="name"
+                      autoComplete="off"
                     />
                     {errors.fullName && <span className="order-field-error">{errors.fullName}</span>}
                   </div>
@@ -1485,7 +1461,7 @@ export default function OrderReviewPage({
                       value={form.phone}
                       onChange={handleFormChange}
                       placeholder="0901 234 567"
-                      autoComplete="tel"
+                      autoComplete="off"
                       inputMode="tel"
                     />
                     {errors.phone && <span className="order-field-error">{errors.phone}</span>}
@@ -1582,7 +1558,7 @@ export default function OrderReviewPage({
                       value={form.address}
                       onChange={handleFormChange}
                       placeholder="VD: 123 Nguyễn Thị Minh Khai, Tòa nhà Bitexco..."
-                      autoComplete="street-address"
+                      autoComplete="off"
                     />
                     {errors.address && <span className="order-field-error">{errors.address}</span>}
                   </div>

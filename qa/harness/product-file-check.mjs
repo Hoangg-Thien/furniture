@@ -16,8 +16,8 @@ try {
   const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a7S8AAAAASUVORK5CYII=', 'base64')
   page.on('pageerror', error => errors.push(error.message))
   await page.addInitScript(() => {
-    localStorage.setItem('furniture_custom_api_url', 'http://127.0.0.1:18080')
-    localStorage.setItem('furniture_admin_user', JSON.stringify({ role: 'ADMIN', accessToken: 'file-test', apiBaseUrl: 'http://127.0.0.1:18080' }))
+    sessionStorage.setItem('furniture_custom_api_url', 'http://127.0.0.1:18080')
+    sessionStorage.setItem('furniture_admin_user', JSON.stringify({ role: 'ADMIN', accessToken: 'file-test', apiBaseUrl: 'http://127.0.0.1:18080' }))
   })
   const path = '/__product_file_check'
   await page.route(`**${path}`, async route => route.fulfill({ contentType: 'text/html', body: await server.transformIndexHtml(path, `

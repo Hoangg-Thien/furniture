@@ -102,8 +102,8 @@ try {
 
   const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } })
   await context.addInitScript(() => {
-    localStorage.setItem('furniture_customer_user', JSON.stringify({ id: 4, customerId: 4, role: 'CUSTOMER', username: 'refresh-test' }))
-    localStorage.setItem('furniture_admin_user', JSON.stringify({ id: 1, role: 'ADMIN', accessToken: 'qa-mock-token', apiBaseUrl: 'http://localhost:8080', username: 'admin-test' }))
+    sessionStorage.setItem('furniture_customer_user', JSON.stringify({ id: 4, customerId: 4, role: 'CUSTOMER', username: 'refresh-test' }))
+    sessionStorage.setItem('furniture_admin_user', JSON.stringify({ id: 1, role: 'ADMIN', accessToken: 'qa-mock-token', apiBaseUrl: 'http://localhost:8080', username: 'admin-test' }))
     const timers = new Map()
     let nextId = 0
     const set = window.setInterval
@@ -157,7 +157,9 @@ try {
   await clientStatus('CHỜ XÁC NHẬN')
   await admin.goto(url('/admin/orders'))
   await admin.getByTitle('Duyệt đơn & Gán nhân viên phụ trách').click()
-  await admin.getByRole('button', { name: 'Xác Nhận & Điều Phối' }).click()
+  const confirmOrder = admin.getByRole('button', { name: 'Xác Nhận & Điều Phối' })
+  await admin.locator('form').filter({ has: confirmOrder }).getByRole('combobox').selectOption('1')
+  await confirmOrder.click()
   await admin.getByTitle('Bắt đầu vận chuyển').waitFor()
   await client.evaluate(() => window.pollOrders())
   await clientStatus('ĐÃ DUYỆT')

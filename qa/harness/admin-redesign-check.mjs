@@ -31,7 +31,7 @@ const fixtures = () => Array.from({ length: 13 }, (_, index) => ({
 }))
 
 await page.addInitScript(() => {
-  localStorage.setItem('furniture_admin_user', JSON.stringify({ id: 1, username: 'admin01', role: 'ADMIN', accessToken: 'qa-mock-token', apiBaseUrl: 'http://localhost:8080' }))
+  sessionStorage.setItem('furniture_admin_user', JSON.stringify({ id: 1, username: 'admin01', role: 'ADMIN', accessToken: 'qa-mock-token', apiBaseUrl: 'http://localhost:8080' }))
 })
 await page.route('**/api/**', async route => {
   const url = new URL(route.request().url())

@@ -61,8 +61,8 @@ await scenario('Favorites and cart', async () => {
   await page.getByPlaceholder('Tên đăng nhập hoặc Email').fill(f.user.username)
   await page.getByPlaceholder('Nhập mật khẩu của bạn').fill(f.password)
   await page.locator('.auth-submit-btn').click()
-  await page.waitForFunction(() => JSON.parse(localStorage.getItem('furniture_customer_user'))?.role === 'CUSTOMER')
-  record('Customer login through UI', await page.evaluate(() => JSON.parse(localStorage.getItem('furniture_customer_user'))?.role === 'CUSTOMER'))
+  await page.waitForFunction(() => JSON.parse(sessionStorage.getItem('furniture_customer_user'))?.role === 'CUSTOMER')
+  record('Customer login through UI', await page.evaluate(() => JSON.parse(sessionStorage.getItem('furniture_customer_user'))?.role === 'CUSTOMER'))
   await page.getByRole('button', { name: /Mở giỏ hàng/ }).click()
   await page.getByRole('button', { name: 'Tiếp tục đặt hàng' }).click()
   await page.locator('#ord-fullName').waitFor()
@@ -91,7 +91,7 @@ await scenario('Favorites and cart', async () => {
   await page.screenshot({ path: 'qa/artifacts/checkout-after-reload.png', fullPage: true })
   await page.getByRole('button', { name: 'Tiếp tục mua sắm', exact: true }).click()
 })
-await scenario('Order fallback and browser storage', async () => {
+await scenario('Cart and browser storage', async () => {
   await page.goto('http://127.0.0.1:5175')
   await page.locator('.product-card').first().waitFor()
   await page.getByRole('button', { name: /^Thêm .* vào giỏ hàng$/ }).first().click()
@@ -106,14 +106,13 @@ await scenario('Order fallback and browser storage', async () => {
   })
   record('Offline cancellation must not claim server success', offline.success === false, { offline })
   await page.unroute('**/api/orders/**/cancel')
-  const history = await page.evaluate(async () => {
-    const { saveOrderToLocalHistory } = await import('/src/lib/orders.js')
+  await page.evaluate(() => {
     localStorage.setItem('funi_orders_history', JSON.stringify([{ id: 'OLD' }]))
-    localStorage.removeItem('nep_orders_history')
-    saveOrderToLocalHistory({ id: 'NEW' })
-    return { preferred: JSON.parse(localStorage.getItem('funi_orders_history')), legacy: JSON.parse(localStorage.getItem('nep_orders_history')) }
+    localStorage.setItem('nep_orders_history', JSON.stringify([{ id: 'OLD' }]))
   })
-  record('Local order history writes preferred key', history.preferred.some(o => o.id === 'NEW'), history)
+  await page.reload()
+  await page.locator('.product-card').first().waitFor()
+  record('Legacy order copies are removed', await page.evaluate(() => !localStorage.getItem('funi_orders_history') && !localStorage.getItem('nep_orders_history')))
 })
 await scenario('Admin login and every module', async () => {
   await page.goto('http://127.0.0.1:5175/admin')

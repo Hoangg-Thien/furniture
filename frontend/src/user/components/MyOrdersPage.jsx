@@ -14,7 +14,7 @@ import {
   Tag,
   Truck,
 } from 'lucide-react'
-import { fetchOrders, getLocalOrders } from '../../lib/orders'
+import { fetchOrders } from '../../lib/orders'
 import CancelOrderDialog from './CancelOrderDialog'
 import OrderShippingInfo from './OrderShippingInfo'
 import { productImageUrl } from '../../lib/productImages'
@@ -165,9 +165,7 @@ export default function MyOrdersPage({
   onViewOrderDetail,
   onReorder,
 }) {
-  const [orders, setOrders] = useState(() =>
-    normalizeOrders(getLocalOrders(currentUser?.customerId), currentUser, catalogProducts)
-  )
+  const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(false)
   const [activeTab, setActiveTab] = useState('ALL')
   const [searchTerm, setSearchTerm] = useState('')
@@ -190,7 +188,7 @@ export default function MyOrdersPage({
         const normalized = normalizeOrders(result.orders, currentUser, catalogProducts)
         normalized.sort((a, b) => Number(b.orderId || 0) - Number(a.orderId || 0))
         if (!result.error) setOrders(normalized)
-        setLoadError(result.error ? 'Không thể cập nhật đơn hàng mới nhất. Đang giữ dữ liệu đã tải; trạng thái có thể đã thay đổi.' : '')
+        setLoadError(result.error ? 'Không thể cập nhật đơn hàng mới nhất. Vui lòng thử lại.' : '')
       } finally {
         fetching = false
         if (!cancelled && initial) setLoading(false)

@@ -1,15 +1,15 @@
 import assert from 'node:assert/strict'
 import { beforeEach, afterEach, test } from 'node:test'
-import { loadCart, saveCart, loadCartExpiresAt, CART_TIMEOUT_MS, getProductStock, limitCartToStock } from '../src/user/lib/cart.js'
+import { loadCart, saveCart, loadCartExpiresAt, CART_TIMEOUT_MS, cartStorageKey, readCart, getProductStock, limitCartToStock } from '../src/user/lib/cart.js'
 
 beforeEach(() => {
   const storage = new Map()
-  globalThis.localStorage = {
+  globalThis.sessionStorage = {
     getItem: (key) => storage.get(key) ?? null,
     setItem: (key, value) => storage.set(key, value),
   }
 })
-afterEach(() => { delete globalThis.localStorage })
+afterEach(() => { delete globalThis.sessionStorage })
 
 test('cart expires exactly at the configured deadline and cannot reappear on reload', t => {
   t.mock.method(Date, 'now', () => 1000000)
@@ -21,7 +21,7 @@ test('cart expires exactly at the configured deadline and cannot reappear on rel
   assert.equal(loadCartExpiresAt(), expiresAt, 'Reading does not extend the deadline')
   Date.now.mock.mockImplementation(() => expiresAt)
   assert.deepEqual(loadCart(), {})
-  assert.deepEqual(JSON.parse(localStorage.getItem('furniture_cart')).items, {})
+  assert.deepEqual(JSON.parse(sessionStorage.getItem('furniture_cart')).items, {})
   assert.equal(loadCartExpiresAt(), 0)
   assert.deepEqual(loadCart(), {})
 })
@@ -40,8 +40,7 @@ test('user changes renew the deadline, while stock synchronization preserves it'
 
 test('reducing the timeout keeps an existing cart and caps its old deadline once', t => {
   t.mock.method(Date, 'now', () => 1000000)
-  localStorage.setItem('furniture_cart', '{"1":2}')
-  localStorage.setItem('furniture_cart_expires_at', String(Date.now() + 30 * 60 * 1000))
+  saveCart({ 1: 2 }, Date.now() + 30 * 60 * 1000)
   assert.deepEqual(loadCart(), { 1: 2 })
   const deadline = loadCartExpiresAt()
   assert.equal(deadline, Date.now() + CART_TIMEOUT_MS)
@@ -52,27 +51,22 @@ test('reducing the timeout keeps an existing cart and caps its old deadline once
 
 test('items and their deadline are saved in one atomic storage write', () => {
   const writes = []
-  const original = localStorage.setItem
-  localStorage.setItem = (key, value) => { writes.push([key, JSON.parse(value)]); original(key, value) }
+  const original = sessionStorage.setItem
+  sessionStorage.setItem = (key, value) => { writes.push([key, JSON.parse(value)]); original(key, value) }
   const deadline = Date.now() + CART_TIMEOUT_MS
   saveCart({ 1: 2 }, deadline)
   assert.deepEqual(writes, [['furniture_cart', { items: { 1: 2 }, expiresAt: deadline }]])
 })
 
-test('legacy carts receive a deadline only once, without losing valid quantities', t => {
+test('old carts without an owner and deadline are not restored', t => {
   t.mock.method(Date, 'now', () => 1000000)
-  localStorage.setItem('furniture_cart', '{"1":2}')
-  assert.deepEqual(loadCart(), { 1: 2 })
-  const expiresAt = loadCartExpiresAt()
-  Date.now.mock.mockImplementation(() => 1000000 + 60 * 1000)
-  assert.deepEqual(loadCart(), { 1: 2 })
-  assert.equal(loadCartExpiresAt(), expiresAt)
+  sessionStorage.setItem('furniture_cart', '{"1":2}')
+  assert.deepEqual(loadCart(), {})
 })
 
 test('malformed deadlines cannot keep an abandoned cart alive', () => {
   for (const expiresAt of ['broken', 'Infinity', '-1', '0', '1.5', String(Number.MAX_SAFE_INTEGER)]) {
-    localStorage.setItem('furniture_cart', '{"1":2}')
-    localStorage.setItem('furniture_cart_expires_at', expiresAt)
+    sessionStorage.setItem('furniture_cart', JSON.stringify({ items: { 1: 2 }, expiresAt }))
     assert.deepEqual(loadCart(), {})
   }
 })
@@ -117,16 +111,16 @@ test('missing or malformed stock never means unlimited availability', () => {
 })
 
 test('corrupt storage and invalid cart entries do not break the storefront', () => {
-  localStorage.setItem('furniture_cart', '{invalid')
+  sessionStorage.setItem('furniture_cart', '{invalid')
   assert.deepEqual(loadCart(), {})
-  localStorage.setItem('furniture_cart', '[1, 2]')
+  sessionStorage.setItem('furniture_cart', '[1, 2]')
   assert.deepEqual(loadCart(), {})
   saveCart({ 1: 2, 2: -1, 3: '3', 4: 1.5, 5: 0, invalid: 1 })
   assert.deepEqual(loadCart(), { 1: 2 })
 })
 
 test('unavailable browser storage does not prevent shopping', () => {
-  globalThis.localStorage = {
+  globalThis.sessionStorage = {
     getItem: () => { throw new Error('blocked') },
     setItem: () => { throw new Error('blocked') },
   }
@@ -134,10 +128,20 @@ test('unavailable browser storage does not prevent shopping', () => {
   assert.doesNotThrow(() => saveCart({ 1: 2 }))
 })
 
-test('a legacy cart remains readable when browser storage rejects writes', () => {
+test('an authenticated cart is only restored for its own account', () => {
+  const values = new Map()
   globalThis.localStorage = {
-    getItem: key => key === 'furniture_cart' ? '{"1":2}' : null,
-    setItem: () => { throw new Error('full') },
+    getItem: key => values.get(key) ?? null,
+    setItem: (key, value) => values.set(key, value),
   }
-  assert.deepEqual(loadCart(), { 1: 2 })
+  try {
+    saveCart({ 1: 2 }, Date.now() + CART_TIMEOUT_MS, cartStorageKey(21))
+    saveCart({ 2: 1 })
+    assert.deepEqual(readCart(cartStorageKey(21)).items, { 1: 2 })
+    assert.deepEqual(readCart(cartStorageKey(22)).items, {})
+    assert.deepEqual(loadCart(), { 2: 1 })
+    assert.equal(values.has('furniture_cart'), false)
+  } finally {
+    delete globalThis.localStorage
+  }
 })

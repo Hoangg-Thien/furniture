@@ -105,7 +105,7 @@ export function MembershipModal({ user, onClose, onViewVouchers }) {
   )
 }
 
-export default function AccountModal({ isOpen, user, onClose, onUserUpdate }) {
+export default function AccountModal({ user, onClose, onUserUpdate }) {
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [successMsg, setSuccessMsg] = useState('')
@@ -129,8 +129,6 @@ export default function AccountModal({ isOpen, user, onClose, onUserUpdate }) {
     newPassword: '',
     confirmPassword: '',
   })
-
-  if (!isOpen || !user) return null
 
   function startEdit() {
     setForm({

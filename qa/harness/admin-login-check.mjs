@@ -67,7 +67,7 @@ try {
   mode = 'CUSTOMER'
   await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click()
   await page.getByRole('alert').waitFor()
-  assert.equal(await page.evaluate(() => localStorage.getItem('furniture_admin_user')), null)
+  assert.equal(await page.evaluate(() => sessionStorage.getItem('furniture_admin_user')), null)
   await page.setViewportSize({ width: 1440, height: 1000 })
   await page.clock.install()
   for (const role of ['ADMIN', 'STAFF']) {
@@ -80,8 +80,8 @@ try {
     assert.equal(await profile.locator('.admin-profile-name').textContent(), role === 'ADMIN' ? 'admin01' : 'staff01')
     assert.equal(await profile.getAttribute('title'), role === 'STAFF' ? 'Tên đăng nhập: staff01\nHọ tên: Nguyễn Văn An' : 'Tên đăng nhập: admin01')
     if (role === 'STAFF') await profile.getByText('Nguyễn Văn An', { exact: true }).waitFor()
-    assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('furniture_admin_user')).role), role)
-    await page.evaluate(() => localStorage.setItem('furniture_customer_user', JSON.stringify({ role: 'CUSTOMER', customerId: 8, username: 'old-customer', fullName: 'Lưu Gia Huy' })))
+    assert.equal(await page.evaluate(() => JSON.parse(sessionStorage.getItem('furniture_admin_user')).role), role)
+    await page.evaluate(() => sessionStorage.setItem('furniture_customer_user', JSON.stringify({ role: 'CUSTOMER', customerId: 8, username: 'old-customer', fullName: 'Lưu Gia Huy' })))
     await page.reload()
     await page.locator('.admin-navbar').waitFor()
     for (const selector of ['.admin-store-link-btn', '.admin-navbar button[title="Xem Cửa hàng FuniStore"]']) {
@@ -115,8 +115,8 @@ try {
         }
         await page.setViewportSize({ width: 1440, height: 1000 })
       }
-      assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('furniture_admin_user')).role), role)
-      assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('furniture_customer_user')).fullName), 'Lưu Gia Huy')
+      assert.equal(await page.evaluate(() => JSON.parse(sessionStorage.getItem('furniture_admin_user')).role), role)
+      assert.equal(await page.evaluate(() => JSON.parse(sessionStorage.getItem('furniture_customer_user')).fullName), 'Lưu Gia Huy')
       await page.goto(new URL('/checkout', origin).href)
       await page.locator('.site-header').waitFor()
       assert.equal(await page.locator('#ord-fullName, .cart-layer').count(), 0)
@@ -128,16 +128,16 @@ try {
     assert.equal(await page.locator('.admin-store-notice').count(), 0)
     await page.locator('.quick-add').first().waitFor()
     assert(await page.locator('.quick-add').first().isEnabled(), 'customer can shop again after admin session ends')
-    await page.evaluate(() => localStorage.removeItem('furniture_customer_user'))
+    await page.evaluate(() => sessionStorage.removeItem('furniture_customer_user'))
     await page.reload()
     await page.locator('.user-auth-button').waitFor()
     assert.equal(await page.locator('.admin-store-notice').count(), 0)
-    assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('furniture_admin_user')).role), role)
+    assert.equal(await page.evaluate(() => JSON.parse(sessionStorage.getItem('furniture_admin_user')).role), role)
     await page.locator('.user-auth-button').click()
     await page.locator('.auth-modal-card').waitFor()
     await page.getByRole('button', { name: 'Đăng ký', exact: true }).click()
     await page.getByPlaceholder('Ví dụ: Nguyễn Văn An').waitFor()
-    await page.evaluate(() => localStorage.removeItem('furniture_admin_user'))
+    await page.evaluate(() => sessionStorage.removeItem('furniture_admin_user'))
     await page.goto(new URL('/admin', origin).href)
     await page.getByRole('heading', { name: 'Chào mừng trở lại.' }).waitFor()
   }

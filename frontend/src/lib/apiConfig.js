@@ -1,16 +1,15 @@
 /**
  * Quản lý Base URL kết nối đến máy chủ Backend Spring Boot
- * - Tự động ưu tiên cấu hình do người dùng lưu trong localStorage (furniture_custom_api_url)
+ * - Ưu tiên cấu hình cho tab hiện tại (furniture_custom_api_url)
  * - Tiếp theo lấy từ biến môi trường VITE_API_BASE_URL (.env)
  * - Fallback mặc định: http://localhost:8080
  */
 export function getApiBaseUrl() {
   if (typeof window !== 'undefined') {
     try {
-      const custom = localStorage.getItem('furniture_custom_api_url')
-      // Nếu trong localStorage lưu link ngrok cũ, tự động xóa để chuyển về localhost theo yêu cầu
+      const custom = sessionStorage.getItem('furniture_custom_api_url')
       if (custom && custom.includes('ngrok')) {
-        localStorage.removeItem('furniture_custom_api_url')
+        sessionStorage.removeItem('furniture_custom_api_url')
       } else if (custom && custom.trim()) {
         return custom.trim().replace(/\/+$/, '')
       }
@@ -29,9 +28,9 @@ export function getApiBaseUrl() {
 export function setCustomApiBaseUrl(url) {
   if (typeof window !== 'undefined') {
     if (url && url.trim()) {
-      localStorage.setItem('furniture_custom_api_url', url.trim().replace(/\/+$/, ''))
+      sessionStorage.setItem('furniture_custom_api_url', url.trim().replace(/\/+$/, ''))
     } else {
-      localStorage.removeItem('furniture_custom_api_url')
+      sessionStorage.removeItem('furniture_custom_api_url')
     }
   }
 }
@@ -62,7 +61,8 @@ if (typeof window !== 'undefined' && window.fetch) {
           && (customerRequest || apiPath.startsWith('/api/admin/') || apiPath.startsWith('/api/auth/admin/')
             || /^\/api\/auth\/(users|customers)$/.test(apiPath) || apiPath.startsWith('/api/vouchers'))) {
         let user
-        try { user = JSON.parse(localStorage.getItem(customerRequest ? 'furniture_customer_user' : 'furniture_admin_user') || 'null') } catch {}
+        try { user = JSON.parse(sessionStorage.getItem(customerRequest ? 'furniture_customer_user' : 'furniture_admin_user') || 'null') } catch {}
+        init = { ...init, cache: 'no-store' }
         if (user?.accessToken && user.apiBaseUrl === getApiBaseUrl()) {
           const headers = new Headers(init?.headers || (typeof resource === 'object' && resource?.headers) || {})
           if (!headers.has('Authorization')) headers.set('Authorization', `Bearer ${user.accessToken}`)
@@ -87,7 +87,13 @@ if (typeof window !== 'undefined' && window.fetch) {
     if (authenticatedAdminRequest && response.status === 401 && target?.pathname.includes('/api/admin/')) {
       window.dispatchEvent(new Event('admin-session-expired'))
     }
-    if (customerRequest && response.status === 401) window.dispatchEvent(new Event('customer-session-expired'))
+    if (customerRequest && response.status === 401 && init.headers instanceof Headers) {
+      const sentToken = init.headers.get('Authorization')
+      try {
+        const current = JSON.parse(sessionStorage.getItem('furniture_customer_user') || 'null')
+        if (current?.accessToken && sentToken === `Bearer ${current.accessToken}`) window.dispatchEvent(new Event('customer-session-expired'))
+      } catch { /* No customer session to expire. */ }
+    }
     return response
   }
 }

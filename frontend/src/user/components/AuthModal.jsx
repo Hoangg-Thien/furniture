@@ -1,11 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { LogIn, UserPlus, X, User, Lock, Mail, Phone, MapPin, AlertCircle, CheckCircle } from 'lucide-react'
 import { loginUser, registerUser } from '../../lib/auth'
 import { getAllProvinces, VIETNAM_LOCATIONS } from '../lib/vietnamLocations'
 
 const provinces = getAllProvinces()
 
-export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
+export default function AuthModal({ onClose, onAuthSuccess }) {
   const [mode, setMode] = useState('login') // 'login' | 'register'
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -26,7 +26,8 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
   const districts = VIETNAM_LOCATIONS.find(location => location.name === city)?.districts ?? []
   const wards = districts.find(location => location.name === district)?.wards ?? []
 
-  if (!isOpen) return null
+  const request = useRef(null)
+  useEffect(() => () => request.current?.abort(), [])
 
   function resetForm() {
     setError('')
@@ -46,6 +47,10 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
 
   async function handleSubmit(e) {
     e.preventDefault()
+    if (request.current) return
+    const controller = new AbortController()
+    request.current = controller
+    const { signal } = controller
     setError('')
     setSuccess('')
     setLoading(true)
@@ -58,16 +63,13 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
           return
         }
 
-        const { user, error: loginErr } = await loginUser(username.trim(), password)
+        const { user, error: loginErr } = await loginUser(username.trim(), password, signal)
+        if (signal.aborted) return
         if (loginErr) {
           setError(loginErr)
         } else {
-          setSuccess(`Chào mừng trở lại, ${user.fullName || user.username}!`)
-          setTimeout(() => {
-            onAuthSuccess(user)
-            onClose()
-            resetForm()
-          }, 800)
+          onAuthSuccess(user)
+          onClose()
         }
       } else {
         if (!fullName.trim() || !username.trim() || !password.trim()) {
@@ -94,7 +96,8 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
           email: email.trim(),
           phone: phone.trim(),
           address: addressParts.join(', '),
-        })
+        }, signal)
+        if (signal.aborted) return
 
         if (regErr) {
           setError(regErr)
@@ -106,9 +109,10 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
         }
       }
     } catch {
-      setError('Đã có lỗi xảy ra. Vui lòng thử lại.')
+      if (!signal.aborted) setError('Đã có lỗi xảy ra. Vui lòng thử lại.')
     } finally {
-      setLoading(false)
+      request.current = null
+      if (!signal.aborted) setLoading(false)
     }
   }
 
@@ -120,10 +124,11 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
             <button
               type="button"
               className={mode === 'login' ? 'auth-tab active' : 'auth-tab'}
+              disabled={loading}
               onClick={() => {
+                if (mode === 'login') return
+                resetForm()
                 setMode('login')
-                setError('')
-                setSuccess('')
               }}
             >
               <LogIn size={16} />
@@ -132,10 +137,11 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
             <button
               type="button"
               className={mode === 'register' ? 'auth-tab active' : 'auth-tab'}
+              disabled={loading}
               onClick={() => {
+                if (mode === 'register') return
+                resetForm()
                 setMode('register')
-                setError('')
-                setSuccess('')
               }}
             >
               <UserPlus size={16} />
@@ -175,7 +181,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="auth-form">
+        <form key={mode} onSubmit={handleSubmit} className="auth-form" autoComplete="off">
           {mode === 'register' && (
             <div className="auth-field">
               <label>Họ và tên <span className="req">*</span></label>
@@ -202,7 +208,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 required
-                autoComplete="username"
+                autoComplete="off"
               />
             </div>
           </div>
@@ -217,7 +223,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                autoComplete={mode === 'register' ? 'new-password' : 'off'}
               />
             </div>
           </div>
@@ -302,7 +308,6 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
                     type="text"
                     id="register-street"
                     required
-                    autoComplete="street-address"
                     placeholder="VD: 123 Nguyễn Thị Minh Khai"
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}

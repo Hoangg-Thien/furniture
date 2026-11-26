@@ -81,13 +81,13 @@ try {
       assert(searchedModules.every(module => module === 'products'))
       await page.keyboard.press('Escape')
       await page.evaluate(() => {
-        const user = JSON.parse(localStorage.getItem('furniture_admin_user'))
-        localStorage.setItem('furniture_admin_user', JSON.stringify({ ...user, role: 'ADMIN', staffType: 'WAREHOUSE' }))
+        const user = JSON.parse(sessionStorage.getItem('furniture_admin_user'))
+        sessionStorage.setItem('furniture_admin_user', JSON.stringify({ ...user, role: 'ADMIN', staffType: 'WAREHOUSE' }))
       })
       await page.reload({ waitUntil: 'domcontentloaded' })
       await page.locator('.admin-navbar').waitFor()
       assert.equal(await page.locator('.admin-nav-item').count(), 1, 'Changing localStorage must not grant admin access')
-      assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('furniture_admin_user')).staffType), 'CONTENT')
+      assert.equal(await page.evaluate(() => JSON.parse(sessionStorage.getItem('furniture_admin_user')).staffType), 'CONTENT')
     }
     await page.screenshot({ path: fileURLToPath(new URL(`${staffType.toLowerCase()}.png`, artifacts)), fullPage: true, animations: 'disabled' })
     if (staffType === 'WAREHOUSE') {

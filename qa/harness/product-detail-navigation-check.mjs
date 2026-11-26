@@ -136,7 +136,7 @@ try {
         : { tier: customerTier, totalSpent: 300000000, completedOrders: 2 }
       return route.fulfill({ json: { customerTier, tierProgress } })
     })
-    await page.evaluate(() => localStorage.setItem('furniture_customer_user', JSON.stringify({
+    await page.evaluate(() => sessionStorage.setItem('furniture_customer_user', JSON.stringify({
       role: 'CUSTOMER', userId: 321, customerId: 123, fullName: 'Nguyễn An', email: 'an@example.test', phone: '0901234567',
       accessToken: 'qa-customer-token', apiBaseUrl: 'http://localhost:8080',
     })))
@@ -145,7 +145,7 @@ try {
     assert.equal(await page.getByLabel('Email', { exact: true }).inputValue(), 'an@example.test')
     assert.equal(await page.getByLabel('Số điện thoại', { exact: true }).inputValue(), '0901234567')
     await contactName.fill('Nguyễn An Mới')
-    assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('furniture_customer_user')).fullName), 'Nguyễn An')
+    assert.equal(await page.evaluate(() => JSON.parse(sessionStorage.getItem('furniture_customer_user')).fullName), 'Nguyễn An')
     await toolbar.getByText('Sản phẩm', { exact: true }).click()
     await product.waitFor()
     assert.equal(await cartBadge.textContent(), '0')
@@ -225,7 +225,7 @@ try {
       for (let i = 0; i < 10; i++) await nextCard.locator('.quick-add').click()
       assert.equal(await cartBadge.textContent(), '10')
       await logout()
-      assert.equal(await cartBadge.textContent(), '13')
+      assert.equal(await cartBadge.textContent(), '0')
       await page.locator('.header-actions').getByRole('button', { name: 'Đăng nhập' }).click()
       await page.getByRole('button', { name: 'Đăng ký', exact: true }).click()
       await page.getByPlaceholder('Ví dụ: Nguyễn Văn An').fill('Khách B')
@@ -242,8 +242,8 @@ try {
       await page.getByText('Đăng ký thành công. Vui lòng đăng nhập để tiếp tục.').waitFor()
       assert.equal(await page.getByPlaceholder('Tên đăng nhập hoặc Email').inputValue(), 'qa-b')
       assert.equal(await page.getByPlaceholder('Nhập mật khẩu của bạn').inputValue(), '')
-      assert.equal(await page.evaluate(() => localStorage.getItem('furniture_customer_user')), null)
-      assert.equal(await cartBadge.textContent(), '13')
+      assert.equal(await page.evaluate(() => sessionStorage.getItem('furniture_customer_user')), null)
+      assert.equal(await cartBadge.textContent(), '0')
       await login('qa-b')
       assert.equal(await cartBadge.textContent(), '0')
       await logout()

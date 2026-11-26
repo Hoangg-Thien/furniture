@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict'
 import { beforeEach, afterEach, test } from 'node:test'
-import { createOrder, previewOrder, fetchOrders, fetchOrderById, getLocalOrders, cancelOrderApi, saveOrderToLocalHistory, getOrderUrl } from '../src/lib/orders.js'
-import { getCurrentUser } from '../src/lib/auth.js'
+import { createOrder, previewOrder, fetchOrders, fetchOrderById, cancelOrderApi, getOrderUrl } from '../src/lib/orders.js'
+import { getCurrentUser, loginCustomer, setCurrentUser } from '../src/lib/auth.js'
+import { clearLegacyBrowserData } from '../src/lib/browserStorage.js'
 import { loadProducts } from '../src/lib/products.js'
 import { splitSavedAddress } from '../src/user/lib/vietnamLocations.js'
 import { getApiBaseUrl } from '../src/lib/apiConfig.js'
@@ -9,7 +10,7 @@ import { getApiBaseUrl } from '../src/lib/apiConfig.js'
 const originalFetch = globalThis.fetch
 test('blocked browser storage still uses the configured backend', () => {
   globalThis.window = {}
-  localStorage.getItem = () => { throw new Error('blocked') }
+  sessionStorage.getItem = () => { throw new Error('blocked') }
   try { assert.equal(getApiBaseUrl(), 'http://localhost:8080') }
   finally { delete globalThis.window }
 })
@@ -31,16 +32,20 @@ test('checkout preview uses server totals and supports cancellation and server e
   await assert.rejects(previewOrder([], null), /báo giá không hợp lệ/)
 })
 beforeEach(() => {
-  const values = new Map()
-  globalThis.localStorage = {
-    getItem: (key) => values.get(key) ?? null,
-    setItem: (key, value) => values.set(key, value),
-    removeItem: (key) => values.delete(key),
+  function storage() {
+    return Object.defineProperties({}, {
+      getItem: { value(key) { return this[key] ?? null }, writable: true },
+      setItem: { value(key, value) { this[key] = String(value) } },
+      removeItem: { value(key) { delete this[key] } },
+    })
   }
+  globalThis.localStorage = storage()
+  globalThis.sessionStorage = storage()
 })
 afterEach(() => {
   globalThis.fetch = originalFetch
   delete globalThis.localStorage
+  delete globalThis.sessionStorage
 })
 
 test('explicit product offer choice reaches preview and placement; invalid line discounts are rejected', async () => {
@@ -58,18 +63,40 @@ test('explicit product offer choice reaches preview and placement; invalid line 
   await assert.rejects(previewOrder(items, null), /giảm giá sản phẩm không hợp lệ/)
 })
 
-test('legacy customer session survives repeated reads after migration', () => {
-  const user = { userId: 12, customerId: 4, role: 'CUSTOMER' }
-  localStorage.setItem('furniture_logged_in_user', JSON.stringify(user))
-  assert.deepEqual(getCurrentUser(), user)
-  assert.deepEqual(getCurrentUser(), user)
-  assert.equal(localStorage.getItem('furniture_logged_in_user'), null)
+test('legacy browser data is discarded and account carts are retained', () => {
+  for (const key of ['furniture_customer_user', 'furniture_admin_user', 'furniture_logged_in_user', 'furniture_cart',
+    'furniture_cart_expires_at', 'furniture_cached_products', 'furniture_custom_api_url', 'funi_last_order',
+    'nep_last_order', 'funi_orders_history', 'nep_orders_history', 'funi_admin_active_module', 'funi_notifications_customer_4']) {
+    localStorage.setItem(key, 'old')
+  }
+  localStorage.setItem('furniture_cart:4', 'account cart')
+  localStorage.setItem('unrelated', 'keep')
+  sessionStorage.setItem('furniture_checkout_guest', 'old checkout')
+  sessionStorage.setItem('furniture_checkout_4', 'old checkout')
+  assert.equal(getCurrentUser(), null)
+  clearLegacyBrowserData()
+  assert.deepEqual(Object.keys(localStorage), ['furniture_cart:4', 'unrelated'])
+  assert.deepEqual(Object.keys(sessionStorage), [])
 })
 
-test('storefront rejects an admin session', () => {
-  localStorage.setItem('furniture_logged_in_user', JSON.stringify({ role: 'ADMIN' }))
-  assert.equal(getCurrentUser(), null)
+test('a customer session exists only in the current tab and logout clears notification state', () => {
+  const user = { userId: 12, customerId: 4, role: 'CUSTOMER' }
+  setCurrentUser(user)
+  assert.deepEqual(getCurrentUser(), user)
   assert.equal(localStorage.getItem('furniture_customer_user'), null)
+  sessionStorage.setItem('funi_notifications_customer_4', '[]')
+  setCurrentUser(null)
+  assert.deepEqual(Object.keys(sessionStorage), [])
+})
+
+test('closing login before its response cannot save an old session', async () => {
+  const controller = new AbortController()
+  globalThis.fetch = async () => ({ ok: true, json: async () => {
+    controller.abort()
+    return { role: 'CUSTOMER', customerId: 4 }
+  } })
+  await loginCustomer('test', 'secret', controller.signal)
+  assert.equal(getCurrentUser(), null)
 })
 
 test('order history never requests all system orders without a customer', async () => {
@@ -103,75 +130,34 @@ test('guest links keep credentials in the fragment and send them only in the ord
   }
   assert.equal((await fetchOrderById(order.orderNumber, order.guestToken)).order.id, 42)
   assert.equal((await cancelOrderApi(order.orderNumber, order.guestToken)).success, true)
-  assert.deepEqual(getLocalOrders(null), [])
 })
 
-test('an empty server history stays empty instead of resurrecting cached orders', async () => {
-  saveOrderToLocalHistory({ id: 42, customerId: 4 })
+test('order history never restores legacy orders, even when the server is offline', async () => {
+  localStorage.setItem('funi_orders_history', JSON.stringify([{ id: 42, customerId: 4 }]))
   globalThis.fetch = async (url) => {
     assert.match(url, /\?customerId=4$/)
     return { ok: true, json: async () => [] }
   }
   assert.deepEqual(await fetchOrders(4), { orders: [], error: null })
-})
-
-test('offline history excludes other customers and old orders with unknown owners', async () => {
-  localStorage.setItem('funi_orders_history', JSON.stringify([
-    { id: 1, customerId: 4 }, { id: 2, customer_id: 5 }, { id: 3 },
-  ]))
   globalThis.fetch = async () => { throw new Error('offline') }
   const result = await fetchOrders(4)
-  assert.deepEqual(result.orders.map((order) => order.id), [1])
+  assert.deepEqual(result.orders, [])
   assert.ok(result.error)
-  assert.deepEqual(getLocalOrders(null), [])
 })
 
-test('saving history combines both old keys and updates existing orders', () => {
-  localStorage.setItem('funi_orders_history', JSON.stringify([{ id: 1, customerId: 4 }]))
-  localStorage.setItem('nep_orders_history', JSON.stringify([{ id: 2, customer_id: 4 }]))
-  saveOrderToLocalHistory({ orderNumber: 'FUNI-2026-000001', customerId: 4, status: 'CONFIRMED' })
-  const orders = getLocalOrders(4)
-  assert.equal(orders.length, 2)
-  assert.equal(orders[0].status, 'CONFIRMED')
-  assert.equal(localStorage.getItem('funi_orders_history'), localStorage.getItem('nep_orders_history'))
-})
-
-test('a corrupt history key does not hide valid data in another key', () => {
-  localStorage.setItem('funi_orders_history', '{invalid')
-  localStorage.setItem('nep_orders_history', JSON.stringify([{ id: 42, customerId: 4 }]))
-  assert.equal(getLocalOrders(4).length, 1)
-})
-
-test('offline cancellation reports failure and keeps the cached status', async () => {
-  saveOrderToLocalHistory({ id: 42, customerId: 4, status: 'PENDING' })
+test('cancellation reports the server result without keeping a local order copy', async () => {
   globalThis.fetch = async () => { throw new Error('offline') }
-  const result = await cancelOrderApi(42)
-  assert.equal(result.success, false)
-  assert.equal(getLocalOrders(4)[0].status, 'PENDING')
-})
-
-test('successful cancellation updates history and the last-order snapshot', async () => {
-  const order = { id: 42, customerId: 4, status: 'PENDING' }
-  saveOrderToLocalHistory(order)
-  localStorage.setItem('funi_last_order', JSON.stringify(order))
+  assert.equal((await cancelOrderApi(42)).success, false)
   globalThis.fetch = async () => ({ ok: true, json: async () => ({}) })
   assert.equal((await cancelOrderApi('FUNI-2026-000042')).success, true)
-  assert.equal(getLocalOrders(4)[0].status, 'CANCELLED')
-  assert.equal(JSON.parse(localStorage.getItem('funi_last_order')).status, 'CANCELLED')
-})
-
-test('a server rejection does not change local order status', async () => {
-  saveOrderToLocalHistory({ id: 42, customerId: 4, status: 'CONFIRMED' })
-  globalThis.fetch = async () => ({ ok: false, json: async () => ({ error: 'Already processed' }) })
-  assert.equal((await cancelOrderApi(42)).success, false)
-  assert.equal(getLocalOrders(4)[0].status, 'CONFIRMED')
+  assert.deepEqual(Object.keys(localStorage), [])
 })
 
 test('an empty product catalog does not show cached or demo products', async () => {
   localStorage.setItem('furniture_cached_products', JSON.stringify([{ id: 42 }]))
   globalThis.fetch = async () => ({ ok: true, json: async () => [] })
   assert.deepEqual(await loadProducts(), { products: [], error: null })
-  assert.equal(localStorage.getItem('furniture_cached_products'), '[]')
+  assert.equal(localStorage.getItem('furniture_cached_products'), '[{"id":42}]')
 })
 
 test('catalog carries live inventory, including sold-out products', async () => {
@@ -193,7 +179,11 @@ test('catalog carries live inventory, including sold-out products', async () => 
 })
 
 test('an offline catalog does not pass old cached inventory off as current', async () => {
-  localStorage.setItem('furniture_cached_products', JSON.stringify([{ id: 1, name: 'Sofa', quantity: 99, discountPercent: 50, discountedPrice: 50, soldQuantity: 15, bestSeller: true }]))
+  globalThis.fetch = async () => ({ ok: true, json: async () => [
+    { id: 42, name: 'Sofa', quantity: 99, discountPercent: 50, discountedPrice: 50, soldQuantity: 15, bestSeller: true },
+  ] })
+  await loadProducts()
+  assert.deepEqual(Object.keys(localStorage), [])
   globalThis.fetch = async () => { throw new Error('offline') }
   const result = await loadProducts()
   assert.ok(result.error)

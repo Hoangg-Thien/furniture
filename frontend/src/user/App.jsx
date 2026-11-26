@@ -25,10 +25,9 @@ import { loadProducts } from '../lib/products'
 import { productImageUrl } from '../lib/productImages'
 import { readCart, saveCart, cartStorageKey, CART_TIMEOUT_MS, getProductStock, limitCartToStock } from './lib/cart'
 import { isCheckoutPath } from './lib/checkout'
-import { fetchOrderById, getLocalOrders, previewOrder } from '../lib/orders'
+import { fetchOrderById, previewOrder } from '../lib/orders'
 import {
   getCurrentUser,
-  SESSION_CUSTOMER_KEY,
   logoutUser,
   updateProfile,
   getCurrentAdminUser,
@@ -255,6 +254,7 @@ function App() {
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const userMenuRef = useRef(null)
   const [vouchersOpen, setVouchersOpen] = useState(false)
+  const showVoucherWallet = !storeReadOnly && !!currentUser && vouchersOpen
   const [completedOrder, setCompletedOrder] = useState(null)
   const [justAddedId, setJustAddedId] = useState(null)
   const [cartBump, setCartBump] = useState(false)
@@ -264,6 +264,7 @@ function App() {
   const setCurrentUser = useCallback(user => {
     const nextCartKey = cartStorageKey(user?.customerId)
     if (nextCartKey !== cartKey) {
+      saveCart({}, 0, cartStorageKey(null))
       const { items, expiresAt } = readCart(nextCartKey)
       syncedCart.current = items
       setCart(items)
@@ -273,8 +274,15 @@ function App() {
       setJustAddedId(null)
       setCartBump(false)
       setCartOpen(false)
+      setProfileOpen(false)
+      setAccountOpen(false)
+      setMembershipOpen(false)
+      setUserMenuOpen(false)
+      setVouchersOpen(false)
       setOrderOpen(false)
       setCompletedOrder(null)
+      setFavorites([])
+      setShowFavorites(false)
     }
     setCustomerUser(user)
   }, [cartKey])
@@ -291,21 +299,18 @@ function App() {
   }, [cart, cartExpiresAt, cartKey])
 
   useEffect(() => {
+    if (!customerUser?.customerId) return
     const syncCart = event => {
-      if (event.key === SESSION_CUSTOMER_KEY || event.key === null) {
-        const user = getCurrentUser()
-        setCurrentUser(user)
-        if (cartStorageKey(user?.customerId) !== cartKey) return
+      if (event.storageArea === localStorage && (event.key === cartKey || event.key === null)) {
+        const { items, expiresAt } = readCart(cartKey)
+        syncedCart.current = items
+        setCart(items)
+        setCartExpiresAt(expiresAt)
       }
-      if (event.key !== null && event.key !== cartKey) return
-      const { items, expiresAt } = readCart(cartKey)
-      syncedCart.current = items
-      setCart(items)
-      setCartExpiresAt(expiresAt)
     }
     window.addEventListener('storage', syncCart)
     return () => window.removeEventListener('storage', syncCart)
-  }, [cartKey, setCurrentUser])
+  }, [cartKey, customerUser?.customerId])
 
   useEffect(() => {
     if (Object.keys(cart).length === 0) return
@@ -381,7 +386,7 @@ function App() {
   }, [])
 
   function handleLogout() {
-    if (isCheckoutPath(window.location.pathname)) window.history.replaceState({}, '', '/')
+    if (isCheckoutPath(window.location.pathname) || window.location.pathname === '/order-success') window.history.replaceState({}, '', '/')
     logoutUser()
     setCurrentUser(null)
     setAccountOpen(false)
@@ -447,8 +452,9 @@ function App() {
   }, [productImagePreview])
 
   useEffect(() => {
-    let cancelled = false
-    async function restoreOrderFromUrlOrStorage() {
+    let orderRequest
+    async function restoreOrderFromUrl() {
+      orderRequest?.abort()
       if (storeReadOnly) return
       if (isCheckoutPath(window.location.pathname)) {
         setCompletedOrder(null)
@@ -469,9 +475,12 @@ function App() {
         setCompletedOrder(null)
 
         if (orderIdParam) {
+          const request = new AbortController()
+          orderRequest = request
           try {
-            const { order, items, error } = await fetchOrderById(orderIdParam, guestToken)
-            if (cancelled) return
+            const { order, items, error } = await fetchOrderById(orderIdParam, guestToken, request.signal)
+            if (request.signal.aborted) return
+            if (guestToken) window.history.replaceState(null, '', window.location.pathname + window.location.search)
             if (order && !error) {
               const liveOrder = {
                 guestToken,
@@ -509,9 +518,6 @@ function App() {
               }
               setCompletedOrder(liveOrder)
               setOrderOpen(true)
-              try {
-                localStorage.setItem('funi_last_order', JSON.stringify(liveOrder))
-              } catch (e) {}
               return
             }
           } catch (err) {
@@ -519,36 +525,24 @@ function App() {
           }
         }
 
-        // Fallback từ localStorage nếu không tìm thấy id hoặc backend offline
-        try {
-          const saved = getLocalOrders(currentUser?.customerId).find((order) =>
-            !orderIdParam || [order.orderNumber, order.orderCode, String(order.orderId ?? order.id)].includes(orderIdParam)
-          )
-          if (saved) {
-            setCompletedOrder(saved)
-            setOrderOpen(true)
-            return
-          }
-        } catch (err) {
-          console.error('Cannot restore order:', err)
-        }
         setNotice('Không thể mở đơn hàng. Vui lòng kiểm tra kết nối và dùng đầy đủ liên kết đơn hàng đã lưu.')
       }
     }
 
-    restoreOrderFromUrlOrStorage()
+    restoreOrderFromUrl()
 
     function handlePopState() {
       if (isCheckoutPath(window.location.pathname) || window.location.pathname.includes('/order-success')) {
-        restoreOrderFromUrlOrStorage()
+        restoreOrderFromUrl()
       } else {
+        orderRequest?.abort()
         setOrderOpen(false)
         setCompletedOrder(null)
       }
     }
     window.addEventListener('popstate', handlePopState)
     return () => {
-      cancelled = true
+      orderRequest?.abort()
       window.removeEventListener('popstate', handlePopState)
     }
   }, [cartKey, currentUser?.customerId, storeReadOnly])
@@ -592,12 +586,12 @@ function App() {
   const cartItems = products.filter((product) => cart[product.id])
   const cartCount = Object.values(cart).reduce((sum, quantity) => sum + quantity, 0)
   const subtotal = cartItems.reduce((sum, product) => sum + product.price * cart[product.id], 0)
-  const cartQuoteKey = JSON.stringify({ items: cartItems.map(product => ({ productId: product.id, quantity: cart[product.id] })), prices: cartItems.map(product => product.price) })
+  const cartQuoteKey = JSON.stringify({ cartKey, items: cartItems.map(product => ({ productId: product.id, quantity: cart[product.id] })), prices: cartItems.map(product => product.price) })
   const cartQuote = cartQuoteState.key === cartQuoteKey ? cartQuoteState.quote : null
   const cartQuoteError = cartQuoteState.key === cartQuoteKey ? cartQuoteState.error : null
 
   useEffect(() => {
-    if (!cartOpen || !JSON.parse(cartQuoteKey).items.length) {
+    if ((!cartOpen && !showVoucherWallet) || !JSON.parse(cartQuoteKey).items.length) {
       setCartQuoteState({})
       return
     }
@@ -609,7 +603,7 @@ function App() {
       if (!controller.signal.aborted) setCartQuoteState({ key: cartQuoteKey, error: error.message })
     })
     return () => controller.abort()
-  }, [cartOpen, cartQuoteKey, products, cartQuoteAttempt])
+  }, [cartOpen, showVoucherWallet, cartQuoteKey, products, cartQuoteAttempt])
 
 
   function updateQuantity(productId, change) {
@@ -1538,15 +1532,14 @@ function App() {
           </section>
         </div>
       )}
-      <AuthModal
-        isOpen={!storeReadOnly && authOpen}
+      {!storeReadOnly && authOpen && <AuthModal
         onClose={() => setAuthOpen(false)}
         onAuthSuccess={(user) => {
           setCurrentUser(user)
           setNotice(`Xin chào ${user.fullName || user.username}!`)
           setTimeout(() => setNotice(''), 3500)
         }}
-      />
+      />}
       <ProfileModal
         isOpen={!storeReadOnly && profileOpen}
         user={currentUser}
@@ -1554,10 +1547,13 @@ function App() {
         onLogout={handleLogout}
         onOpenMyOrders={handleOpenMyOrders}
       />
-      <VouchersModal
-        isOpen={!storeReadOnly && vouchersOpen}
+      {showVoucherWallet && <VouchersModal
+        key={cartKey}
         onClose={() => setVouchersOpen(false)}
         currentUser={currentUser}
+        cartSubtotal={cartCount === 0 ? 0 : cartQuote?.subtotal ?? null}
+        cartPriceError={cartQuoteError || catalogError}
+        onRetryCartPrice={cartQuoteError ? () => setCartQuoteAttempt(attempt => attempt + 1) : undefined}
         onUseVoucher={(code) => {
           setCartOpen(true)
           setNotice(`Nhập mã ${code} ở bước đặt hàng để áp dụng ưu đãi.`)
@@ -1566,13 +1562,12 @@ function App() {
         onOpenStore={() => {
           document.getElementById('products')?.scrollIntoView({ behavior: 'smooth' })
         }}
-      />
-      <AccountModal
-        isOpen={!storeReadOnly && accountOpen}
+      />}
+      {!storeReadOnly && accountOpen && currentUser && <AccountModal
         user={currentUser}
         onClose={() => setAccountOpen(false)}
         onUserUpdate={handleUserUpdate}
-      />
+      />}
       {currentUser?.userId != null && membershipOpen && <MembershipModal
         key={currentUser.userId}
         user={currentUser}

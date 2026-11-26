@@ -4806,14 +4806,23 @@
 .vouchers-overlay {
   position: fixed;
   inset: 0;
-  z-index: 1000;
-  background: rgba(18, 22, 20, 0.62);
-  backdrop-filter: blur(6px);
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  max-height: none;
+  border: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 20px;
-  animation: fadeIn 0.22s ease-out;
+}
+
+.vouchers-overlay:not([open]) {
+  display: none;
+}
+
+.vouchers-overlay::backdrop {
+  background: transparent;
 }
 
 .vouchers-container {
@@ -5115,6 +5124,10 @@
   gap: 18px;
 }
 
+.vouchers-price-feedback {
+  grid-column: 1 / -1;
+}
+
 .voucher-card {
   position: relative;
   background: #ffffff;
@@ -5254,6 +5267,7 @@
 /* Cột phải: Chi tiết */
 .voucher-right-col {
   flex: 1;
+  min-width: 0;
   padding: 16px 18px 16px 20px;
   display: flex;
   flex-direction: column;
@@ -5282,33 +5296,29 @@
   line-height: 1.4;
 }
 
-.voucher-max-hint {
-  color: #b5651d;
+.voucher-shortfall {
+  color: #8b4513;
   font-weight: 600;
 }
 
-.voucher-meta-line {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 11px;
-  color: #8c8577;
-  margin-top: 4px;
+.voucher-max-hint {
+  color: #b5651d;
+  font-weight: 600;
 }
 
 .voucher-expiry {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-}
-
-.voucher-remaining strong {
-  color: var(--forest);
+  font-size: 11px;
+  color: #8c8577;
+  margin-top: 4px;
 }
 
 /* Footer & Nút */
 .voucher-footer-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
@@ -5318,6 +5328,8 @@
 
 .voucher-code-pill {
   display: inline-flex;
+  min-width: 0;
+  max-width: 100%;
   align-items: center;
   background: #f4efe4;
   border: 1px dashed #c8bead;
@@ -5327,6 +5339,7 @@
 }
 
 .voucher-code-pill .code-text {
+  overflow-wrap: anywhere;
   font-family: monospace;
   font-size: 13px;
   font-weight: 700;
@@ -5369,9 +5382,15 @@
   transition: all 0.2s ease;
 }
 
-.voucher-use-btn:hover {
+.voucher-use-btn:enabled:hover {
   background: #112d26;
   transform: translateX(1px);
+}
+
+.voucher-use-btn:disabled {
+  background: #eeeae1;
+  color: #695f50;
+  cursor: not-allowed;
 }
 
 /* ========================================================

@@ -102,13 +102,6 @@ function AdminWorkspace({ currentUser, onLogout, onBackToStore }) {
           return sub
         }
       }
-      const saved = localStorage.getItem('funi_admin_active_module')
-      if (saved) {
-        if (!canAccessModule(currentUser, saved)) {
-          return defaultModule
-        }
-        return saved
-      }
     }
     return defaultModule
   }
@@ -122,13 +115,10 @@ function AdminWorkspace({ currentUser, onLogout, onBackToStore }) {
     if (!canAccessModule(currentUser, mod)) mod = defaultModule
     setNotificationTarget(recordId ? { module: mod, id: recordId } : null)
     setActiveModule(mod)
-    try {
-      localStorage.setItem('funi_admin_active_module', mod)
-      const targetPath = `/admin/${mod}`
-      if (window.location.pathname !== targetPath) {
-        window.history.pushState({ adminModule: mod }, '', targetPath)
-      }
-    } catch (e) {}
+    const targetPath = `/admin/${mod}`
+    if (window.location.pathname !== targetPath) {
+      window.history.pushState(null, '', targetPath)
+    }
   }
 
   // Đồng bộ activeModule khi người dùng bấm Back/Forward của trình duyệt

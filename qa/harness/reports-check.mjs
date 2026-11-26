@@ -17,8 +17,8 @@ try {
   page.on('pageerror', error => errors.push(error.message))
   await page.addInitScript(() => {
     Date.now = () => Date.parse('2026-11-10T18:30:00Z')
-    localStorage.setItem('furniture_custom_api_url', 'http://127.0.0.1:18080')
-    localStorage.setItem('furniture_admin_user', JSON.stringify({ role: 'ADMIN', accessToken: 'reports-test', apiBaseUrl: 'http://127.0.0.1:18080' }))
+    sessionStorage.setItem('furniture_custom_api_url', 'http://127.0.0.1:18080')
+    sessionStorage.setItem('furniture_admin_user', JSON.stringify({ role: 'ADMIN', accessToken: 'reports-test', apiBaseUrl: 'http://127.0.0.1:18080' }))
   })
   const path = '/__reports_check'
   await page.route(`**${path}`, async route => route.fulfill({ contentType: 'text/html', body: await server.transformIndexHtml(path, `

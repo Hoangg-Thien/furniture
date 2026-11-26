@@ -7,17 +7,21 @@ const server = await createServer({ root: fileURLToPath(new URL('../../frontend'
 await server.listen()
 const browser = await chromium.launch({ executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: true })
 try {
-  for (const width of [1440, 390]) {
+  const orderVoucher = { id: 79, code: 'DON10TR', voucher_type: 'ORDER', program_name: 'Ưu đãi đơn từ 10 triệu', discount_percent: 10, minimum_amount: 10000000, maximum_discount: 1500000, remaining_quantity: 12 }
+  const diamondVoucher = { id: 78, code: 'DIAMOND20', voucher_type: 'VIP', customer_tier: 'VIP_DIAMOND', program_name: 'Ưu đãi Kim cương', discount_percent: 10, minimum_amount: 20000000, maximum_discount: 2000000, remaining_quantity: 5 }
+  const goldVoucher = { id: 80, code: 'GOLD5', voucher_type: 'VIP', customer_tier: 'GOLD', program_name: 'Ưu đãi Vàng', discount_percent: 5, minimum_amount: 0, maximum_discount: 500000, remaining_quantity: 5 }
+  for (const width of [1440, 390, 320]) {
     for (const tier of ['guest', 'GOLD', 'VIP_DIAMOND']) {
       const page = await browser.newPage({ viewport: { width, height: 1000 } })
       const errors = []
       const activeHeaders = []
       const quoteHeaders = []
+      let failCartQuote = false
       page.on('pageerror', error => errors.push(error.message))
       await page.addInitScript(tier => {
-        localStorage.setItem('furniture_custom_api_url', 'http://localhost:8080')
-        localStorage.setItem(tier === 'guest' ? 'furniture_cart' : 'furniture_cart:21', JSON.stringify({ items: { 7: 1 }, expiresAt: Date.now() + 300000 }))
-        if (tier !== 'guest') localStorage.setItem('furniture_customer_user', JSON.stringify({ id: 31, customerId: 21, username: 'vip-test', fullName: 'QA Customer', role: 'CUSTOMER', accessToken: tier, apiBaseUrl: 'http://localhost:8080' }))
+        sessionStorage.setItem('furniture_custom_api_url', 'http://localhost:8080')
+        ;(tier === 'guest' ? sessionStorage : localStorage).setItem(tier === 'guest' ? 'furniture_cart' : 'furniture_cart:21', JSON.stringify({ items: { 7: location.pathname === '/checkout' ? 5 : 1 }, expiresAt: Date.now() + 300000 }))
+        if (tier !== 'guest') sessionStorage.setItem('furniture_customer_user', JSON.stringify({ id: 31, customerId: 21, username: 'vip-test', fullName: 'QA Customer', role: 'CUSTOMER', accessToken: tier, apiBaseUrl: 'http://localhost:8080' }))
       }, tier)
       await page.route('https://**', route => route.abort())
       await page.route('**/api/**', route => {
@@ -25,25 +29,81 @@ try {
         const auth = route.request().headers().authorization
         const send = (json, status = 200) => route.fulfill({ json, status })
         if (route.request().method() === 'OPTIONS') return send({})
-        if (path === '/api/products') return send([{ id: 7, name: 'Sofa QA', price: 25000000, quantity: 10, category: 'Sofa', imageUrl: 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=' }])
+        if (path === '/api/products') return send([{ id: 7, name: 'Sofa QA', price: 12000000, quantity: 10, category: 'Sofa', imageUrl: 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=' }])
         if (path === '/api/vouchers/active') {
           activeHeaders.push(auth)
-          return send(auth === 'Bearer VIP_DIAMOND' ? [{ id: 78, code: 'DIAMOND20', voucher_type: 'VIP', customer_tier: 'VIP_DIAMOND', discount_percent: 10, minimum_amount: 20000000, maximum_discount: 2000000 }] : [])
+          const available = [orderVoucher, diamondVoucher, goldVoucher].filter(voucher => !voucher.customer_tier || auth === `Bearer ${voucher.customer_tier}`)
+          return send(available)
+        }
+        if (path === '/api/vouchers/validate') {
+          const body = route.request().postDataJSON()
+          assert.equal(body.code, orderVoucher.code)
+          assert.equal(body.subtotal, orderVoucher.minimum_amount)
+          return send({ voucherId: orderVoucher.id, code: orderVoucher.code, discountAmount: 1000000, discountPercent: 10, finalTotal: 9000000 })
         }
         if (path === '/api/orders/preview') {
           const body = route.request().postDataJSON()
-          if (body.voucherId === 78) {
+          const items = body.items.map(item => ({ ...item, unitPrice: 5000000 }))
+          const subtotal = items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0)
+          const voucher = [orderVoucher, diamondVoucher, goldVoucher].find(v => v.id === body.voucherId)
+          if (!voucher && failCartQuote) return send({ error: 'Tạm thời không báo giá được' }, 503)
+          if (voucher?.customer_tier) {
             quoteHeaders.push(auth)
-            if (auth !== 'Bearer VIP_DIAMOND') return send({ error: 'Wrong tier' }, 400)
+            if (auth !== `Bearer ${voucher.customer_tier}`) return send({ error: 'Sai hạng' }, 400)
           }
-          const discount = body.voucherId === 78 ? 2000000 : 0
-          return send({ items: [{ productId: 7, quantity: 1, unitPrice: 25000000 }], subtotal: 25000000,
-            automaticDiscountAmount: 0, voucherDiscountAmount: discount, discountAmount: discount,
-            shippingFee: 0, totalAmount: 25000000 - discount, itemDiscounts: [], productOffers: [],
-            voucherId: discount ? 78 : null, voucherCode: discount ? 'DIAMOND20' : null, discountLabel: discount ? 'Voucher DIAMOND20' : null })
+          if (voucher && subtotal < voucher.minimum_amount) return send({ error: 'Đơn chưa đạt mức tối thiểu' }, 400)
+          const discount = voucher ? Math.min(subtotal * voucher.discount_percent / 100, voucher.maximum_discount) : 0
+          const automaticDiscountAmount = !voucher && body.preferProductDiscounts ? 500000 : 0
+          return send({ items, subtotal, automaticDiscountAmount, voucherDiscountAmount: discount, discountAmount: discount + automaticDiscountAmount,
+            shippingFee: 0, totalAmount: subtotal - discount - automaticDiscountAmount, itemDiscounts: [], productOffers: [],
+            voucherId: voucher?.id ?? null, voucherCode: voucher?.code ?? null, discountLabel: voucher ? `Voucher ${voucher.code}` : null })
         }
         return send([])
       })
+      if (tier !== 'guest') {
+        await page.goto(server.resolvedUrls.local[0])
+        const openWallet = async () => {
+          await page.locator('button.user-logged-box').click()
+          await page.getByRole('menuitem', { name: 'Voucher của tôi' }).click()
+        }
+        failCartQuote = true
+        await openWallet()
+        const wallet = page.getByRole('dialog', { name: 'Kho Voucher & Ưu Đãi' })
+        const orderCard = wallet.getByRole('article').filter({ hasText: orderVoucher.code })
+        const useOrderVoucher = orderCard.getByRole('button', { name: 'Dùng ngay' })
+        const shortfall = orderCard.getByText(/Chưa đủ điều kiện.*5\.000\.000₫/)
+        await wallet.getByText('Chưa kiểm tra được giá trị giỏ hàng.').waitFor()
+        assert(await useOrderVoucher.isDisabled())
+        failCartQuote = false
+        await wallet.getByRole('button', { name: 'Thử lại' }).click()
+        await shortfall.waitFor()
+        assert(await useOrderVoucher.isDisabled())
+        assert.equal(await orderCard.locator('.voucher-discount-val strong').innerText(), '10%')
+        await wallet.getByText(tier === 'GOLD' ? 'Dành cho thành viên Vàng' : 'Dành cho thành viên Kim cương', { exact: true }).waitFor()
+        assert.equal(await wallet.getByText(tier === 'GOLD' ? diamondVoucher.code : goldVoucher.code, { exact: true }).count(), 0)
+        assert(await orderCard.locator('.voucher-footer-row').evaluate(el => el.scrollWidth <= el.clientWidth + 1))
+        assert(await wallet.locator('.vouchers-content').evaluate(el => el.scrollWidth <= el.clientWidth + 1))
+
+        await page.keyboard.press('Escape')
+        await wallet.waitFor({ state: 'hidden' })
+        await page.getByRole('button', { name: /Mở giỏ hàng/ }).click()
+        await page.getByRole('button', { name: 'Tăng số lượng Sofa QA' }).click()
+        await page.getByRole('button', { name: 'Đóng giỏ hàng' }).click()
+        await openWallet()
+        await page.waitForFunction(() => [...document.querySelectorAll('.voucher-card')].some(card => card.textContent.includes('DON10TR') && !card.querySelector('.voucher-use-btn').disabled))
+        assert.equal(await shortfall.count(), 0)
+        await useOrderVoucher.click()
+        const cart = page.getByRole('dialog', { name: /Món đã chọn/ })
+        await cart.waitFor()
+        if (tier === 'GOLD' && width === 1440) {
+          await cart.getByRole('button', { name: 'Tiếp tục đặt hàng' }).click()
+          await page.getByRole('button', { name: 'Bỏ chọn', exact: true }).click()
+          await page.locator('.order-product-discount').waitFor()
+          await page.getByRole('textbox', { name: 'Mã giảm giá', exact: true }).fill(orderVoucher.code)
+          await page.getByRole('button', { name: 'Áp dụng', exact: true }).click()
+          await page.getByText('Đã áp dụng mã:', { exact: false }).waitFor()
+        }
+      }
       await page.goto(new URL('/checkout', server.resolvedUrls.local[0]).href)
       const trigger = page.locator('.checkout-voucher-trigger')
       await trigger.waitFor()
@@ -65,7 +125,7 @@ try {
       await page.close()
     }
   }
-  console.log('PASS VIP checkout desktop/mobile: customer token, exact tier visibility, guest excluded, 25m basket -> 2m capped discount -> 23m total')
+  console.log('PASS tier and order vouchers at 320–1440px: authenticated visibility, wallet quote retry, below/exact minimum, and VIP checkout total')
 } finally {
   await browser.close()
   await server.close()

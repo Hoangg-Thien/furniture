@@ -186,7 +186,7 @@ try {
   })
   await check('Staff UI has no history button', async () => {
     const content = await browser.newPage()
-    await content.addInitScript(({ user, token, base }) => localStorage.setItem('furniture_admin_user', JSON.stringify({ ...user, accessToken: token, staffType: 'CONTENT', apiBaseUrl: base })), { user: { userId: staff.CONTENT.userId, username: staff.CONTENT.username, role: 'STAFF' }, token: tokens.CONTENT, base })
+    await content.addInitScript(({ user, token, base }) => sessionStorage.setItem('furniture_admin_user', JSON.stringify({ ...user, accessToken: token, staffType: 'CONTENT', apiBaseUrl: base })), { user: { userId: staff.CONTENT.userId, username: staff.CONTENT.username, role: 'STAFF' }, token: tokens.CONTENT, base })
     await content.route('https://**', route => route.fulfill({ contentType: 'text/css', body: '' }))
     await content.goto(`${origin}/admin/products`, { waitUntil: 'domcontentloaded' })
     await content.locator('.admin-table tbody tr').first().waitFor()

@@ -24,8 +24,8 @@ const initialList = new Promise(resolve => { releaseInitialList = resolve })
 const writes = []
 await page.route('https://fonts.googleapis.com/**', route => route.fulfill({ contentType: 'text/css', body: '' }))
 await page.addInitScript(() => {
-  localStorage.setItem('furniture_custom_api_url', 'http://localhost:8080')
-  localStorage.setItem('furniture_admin_user', JSON.stringify({ id: 1, username: 'admin01', role: 'ADMIN', accessToken: 'qa-mock-token', apiBaseUrl: 'http://localhost:8080' }))
+  sessionStorage.setItem('furniture_custom_api_url', 'http://localhost:8080')
+  sessionStorage.setItem('furniture_admin_user', JSON.stringify({ id: 1, username: 'admin01', role: 'ADMIN', accessToken: 'qa-mock-token', apiBaseUrl: 'http://localhost:8080' }))
 })
 await page.route('**/api/**', async route => {
   const url = new URL(route.request().url())

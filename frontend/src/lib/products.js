@@ -1,7 +1,7 @@
 import { getApiBaseUrl } from './apiConfig.js'
 import { productImageUrl } from './productImages.js'
 
-const CACHE_KEY = 'furniture_cached_products'
+let cachedProducts = []
 
 /**
  * Tải danh sách sản phẩm từ Backend API với cơ chế tự động cache và fallback
@@ -28,33 +28,16 @@ export async function loadProducts() {
         quantity: Number.isSafeInteger(row.quantity) && row.quantity >= 0 ? row.quantity : null,
       }))
 
-      // Lưu vào cache để nếu mạng chập chờn thì app vẫn luôn hiển thị sản phẩm
-      try {
-        localStorage.setItem(CACHE_KEY, JSON.stringify(mapped))
-      } catch {
-        // Bỏ qua lỗi quota
-      }
-
+      cachedProducts = mapped
       return { products: mapped, error: null }
     }
     throw new Error('Danh sách sản phẩm trống')
   } catch (error) {
     console.warn('Lỗi kết nối Backend products, đang kiểm tra cache...', error)
 
-    // Fallback 1: Lấy từ cache localStorage nếu đã từng tải thành công
-    try {
-      const cached = localStorage.getItem(CACHE_KEY)
-      if (cached) {
-        const parsed = JSON.parse(cached)
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return { products: parsed.map(product => ({ ...product, quantity: null, discountPercent: null, discountedPrice: null, soldQuantity: null, bestSeller: false })), error }
-        }
-      }
-    } catch {
-      // Bỏ qua lỗi parse
+    if (cachedProducts.length) {
+      return { products: cachedProducts.map(product => ({ ...product, quantity: null, discountPercent: null, discountedPrice: null, soldQuantity: null, bestSeller: false })), error }
     }
-
-    // Fallback 2: Danh sách mặc định từ hệ thống để giao diện không bao giờ bị trắng trơn
     return {
       products: DEFAULT_PRODUCTS,
       error,

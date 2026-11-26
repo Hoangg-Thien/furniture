@@ -57,7 +57,7 @@ Playwright được dùng từ runtime có sẵn tại `C:/Users/LENOVO/.cache/c
 
 Chạy riêng `node qa/harness/order-refresh-check.mjs` để kiểm tra cập nhật ngầm, API chậm/lỗi, tab ẩn, dọn timer và trang `/orders` (URL trực tiếp, reload, Back/Forward, mobile, trạng thái từ admin, hủy đơn, mua lại, khách chưa đăng nhập). Script tự mở Vite, giả lập API và timer trên Chrome, không cần backend hay fixtures.
 
-Chạy `node qa/harness/notifications-check.mjs` để kiểm tra chuông client/admin, cập nhật trạng thái, lưu đã đọc, tách tài khoản, điều hướng, khách chưa đăng nhập, lỗi API và giao diện mobile. Script dùng API giả lập, không ghi database. Thông báo client hiển thị trạng thái mới nhất của từng đơn; dấu đã đọc lưu riêng từng tài khoản trong localStorage của trình duyệt.
+Chạy `node qa/harness/notifications-check.mjs` để kiểm tra chuông client/admin, cập nhật trạng thái, lưu đã đọc, tách tài khoản, điều hướng, khách chưa đăng nhập, lỗi API và giao diện mobile. Script dùng API giả lập, không ghi database. Thông báo khách hàng hiển thị trạng thái mới nhất của từng đơn. Dấu đã đọc theo tài khoản được lưu trong tab hiện tại.
 
 Chạy `node qa/harness/search-check.mjs` để kiểm tra tìm kiếm admin: gọi song song ba API, hiện kết quả từng nhóm, debounce, bỏ phản hồi cũ, hủy khi đóng, lỗi từng API và điều khiển bàn phím. Script giữ phản hồi API giả lập để xác nhận truy vấn nhanh không phải chờ truy vấn chậm; không đo hiệu năng phần cứng hoặc backend thật.
 

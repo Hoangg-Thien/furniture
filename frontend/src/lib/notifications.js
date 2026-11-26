@@ -19,7 +19,7 @@ export function getOrderNotifications(orders, dismissedIds = new Set()) {
 
 export function loadReadNotificationIds(key) {
   try {
-    const ids = JSON.parse(localStorage.getItem(key) || '[]')
+    const ids = JSON.parse(sessionStorage.getItem(key) || '[]')
     return new Set(Array.isArray(ids) ? ids.filter(id => typeof id === 'string') : [])
   } catch {
     return new Set()
@@ -28,6 +28,14 @@ export function loadReadNotificationIds(key) {
 
 export function saveReadNotificationIds(key, ids) {
   try {
-    localStorage.setItem(key, JSON.stringify([...ids]))
+    sessionStorage.setItem(key, JSON.stringify([...ids]))
   } catch { /* Unavailable storage must not prevent reading notifications. */ }
+}
+
+export function clearNotificationState(role) {
+  try {
+    for (const key of Object.keys(sessionStorage)) {
+      if (key.startsWith(`funi_notifications_${role}_`)) sessionStorage.removeItem(key)
+    }
+  } catch { /* Nothing can be read when storage is unavailable. */ }
 }
