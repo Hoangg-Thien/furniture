@@ -31,6 +31,10 @@ public class VoucherService {
                 || (tier != null && v.getOrDefault("customer_tier", "VIP_DIAMOND").equals(tier))).toList();
     }
 
+    boolean hasMemberTier(Long customerId) {
+        return CustomerTier.isVoucherTier(voucherRepository.findCustomerTier(customerId));
+    }
+
     public List<Map<String, Object>> getActiveVouchers() {
         return voucherRepository.findActiveVouchers();
     }

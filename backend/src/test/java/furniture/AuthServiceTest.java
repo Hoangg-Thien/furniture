@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import furniture.model.UpdateProfileRequest;
 import furniture.model.RegisterRequest;
 import furniture.model.CustomerTierProgress;
+import furniture.model.LoginRequest;
 import furniture.repository.AuthRepository;
 import furniture.repository.VoucherRepository;
 import furniture.service.AuthService;
@@ -48,5 +49,24 @@ class AuthServiceTest {
         var profile = new AuthService(repository, vouchers).getProfile(1L);
         assertEquals("GOLD", profile.customerTier());
         assertEquals(progress, profile.tierProgress());
+    }
+
+    @Test
+    void loginReturnsTheCurrentTierForTheAccountBeingSignedIn() {
+        var repository = mock(AuthRepository.class);
+        var vouchers = mock(VoucherRepository.class);
+        var service = new AuthService(repository, vouchers);
+        String hash = PasswordUtil.hash("test123");
+        when(repository.findUserWithCustomerByIdentifier("diamond")).thenReturn(List.of(Map.of(
+                "user_id", 1L, "customer_id", 7L, "username", "diamond", "role", "CUSTOMER", "password_hash", hash)));
+        when(repository.findUserWithCustomerByIdentifier("new")).thenReturn(List.of(Map.of(
+                "user_id", 2L, "customer_id", 8L, "username", "new", "role", "CUSTOMER", "password_hash", hash)));
+        when(vouchers.findCustomerTierProgress(7L)).thenReturn(new CustomerTierProgress(
+                "VIP_DIAMOND", new BigDecimal("300000000"), 3, null, null));
+        when(vouchers.findCustomerTierProgress(8L)).thenReturn(new CustomerTierProgress(
+                "NEW", BigDecimal.ZERO, 0, "SILVER", new BigDecimal("10000000")));
+
+        assertEquals("VIP_DIAMOND", service.login(new LoginRequest("diamond", "test123")).customerTier());
+        assertEquals("NEW", service.login(new LoginRequest("new", "test123")).customerTier());
     }
 }

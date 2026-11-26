@@ -202,7 +202,7 @@ try {
       await page.route('**/api/orders?customerId=124', route => route.fulfill({ json: [] }))
       await page.route('**/api/auth/login', route => {
         const { username } = route.request().postDataJSON()
-        return route.fulfill({ json: { role: 'CUSTOMER', customerId: username === 'qa-a' ? 123 : 124, fullName: username } })
+        return route.fulfill({ json: { role: 'CUSTOMER', customerId: username === 'qa-a' ? 123 : 124, customerTier: 'NEW', fullName: username } })
       })
       await page.route('**/api/auth/register', route => {
         assert.equal(route.request().postDataJSON().address, '123 Nguyễn Thị Minh Khai, Phường Bến Thành, Quận 1, TP. Hồ Chí Minh')
@@ -221,6 +221,7 @@ try {
         await page.getByPlaceholder('Nhập mật khẩu của bạn').fill('mock-password')
         await page.locator('.auth-form').getByRole('button', { name: 'Đăng nhập' }).click()
         await page.locator('button.user-logged-box').waitFor()
+        await page.getByRole('dialog', { name: 'Miễn phí giao hàng' }).getByRole('button', { name: 'Tiếp tục mua sắm' }).click()
       }
       for (let i = 0; i < 10; i++) await nextCard.locator('.quick-add').click()
       assert.equal(await cartBadge.textContent(), '10')

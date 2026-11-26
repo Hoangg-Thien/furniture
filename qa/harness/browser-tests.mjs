@@ -62,6 +62,9 @@ await scenario('Favorites and cart', async () => {
   await page.getByPlaceholder('Nhập mật khẩu của bạn').fill(f.password)
   await page.locator('.auth-submit-btn').click()
   await page.waitForFunction(() => JSON.parse(sessionStorage.getItem('furniture_customer_user'))?.role === 'CUSTOMER')
+  if (await page.evaluate(() => JSON.parse(sessionStorage.getItem('furniture_customer_user'))?.customerTier === 'NEW')) {
+    await page.getByRole('dialog', { name: 'Miễn phí giao hàng' }).getByRole('button', { name: 'Tiếp tục mua sắm' }).click()
+  }
   record('Customer login through UI', await page.evaluate(() => JSON.parse(sessionStorage.getItem('furniture_customer_user'))?.role === 'CUSTOMER'))
   await page.getByRole('button', { name: /Mở giỏ hàng/ }).click()
   await page.getByRole('button', { name: 'Tiếp tục đặt hàng' }).click()

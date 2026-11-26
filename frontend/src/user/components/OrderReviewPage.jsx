@@ -34,7 +34,7 @@ import { createOrder, previewOrder, fetchOrderById, getOrderUrl } from '../../li
 import CancelOrderDialog from './CancelOrderDialog'
 import OrderShippingInfo from './OrderShippingInfo'
 import { validateVoucherApi, fetchActiveVouchers } from '../../lib/vouchers'
-import { voucherDiscount, suggestedVoucher as findSuggestedVoucher } from '../lib/checkout'
+import { FREE_SHIP_THRESHOLD, estimateShippingFee, voucherDiscount, suggestedVoucher as findSuggestedVoucher } from '../lib/checkout'
 import { CART_TIMEOUT_MS } from '../lib/cart'
 import { getAllProvinces, getDistricts, getWards, splitSavedAddress } from '../lib/vietnamLocations'
 
@@ -46,9 +46,6 @@ const PAYMENT_METHOD = {
   label: 'Thanh toán khi nhận hàng (COD)',
   desc: 'Trả tiền mặt trực tiếp cho shipper khi nhận được hàng. Không cần thanh toán trước.',
 }
-
-const SHIPPING_FEE = 35000
-const FREE_SHIP_THRESHOLD = 2000000
 
 function StepIndicator({ step }) {
   const steps = [
@@ -77,6 +74,7 @@ function OrderSummary({
   cartItems,
   cart,
   subtotal,
+  customerTier,
   appliedVoucher,
   voucherInput,
   setVoucherInput,
@@ -112,7 +110,7 @@ function OrderSummary({
   const rawSubtotal = Number(quote?.subtotal ?? subtotal)
   const subtotalAfterProductDiscount = Math.max(0, rawSubtotal - productDiscountAmount)
   const voucherBase = rawSubtotal
-  const shippingFee = quote ? Number(quote.shippingFee) : (subtotalAfterProductDiscount >= FREE_SHIP_THRESHOLD ? 0 : SHIPPING_FEE)
+  const shippingFee = quote ? Number(quote.shippingFee) : estimateShippingFee(rawSubtotal, customerTier)
   const total = quote ? Number(quote.totalAmount) : subtotalAfterProductDiscount - voucherDiscountAmount + shippingFee
 
   const suggestedVoucher = useMemo(() => appliedVoucher || !quote || voucherBase <= 0 ? null : findSuggestedVoucher(availableVouchers, voucherBase),
@@ -362,9 +360,9 @@ function OrderSummary({
             )}
           </span>
         </div>
-        {shippingFee > 0 && (
+        {shippingFee > 0 && rawSubtotal < FREE_SHIP_THRESHOLD && (
           <p className="order-freeship-hint">
-            Mua thêm {formatPrice(FREE_SHIP_THRESHOLD - subtotalAfterProductDiscount)} để được miễn phí giao hàng
+            Mua thêm {formatPrice(FREE_SHIP_THRESHOLD - rawSubtotal)} để được miễn phí giao hàng
           </p>
         )}
         <div className="order-total-row order-grand-total">
@@ -399,7 +397,7 @@ export default function OrderReviewPage({
   onReorder = null,
   onOpenMyOrders = null,
 }) {
-  const shippingFee = subtotal >= FREE_SHIP_THRESHOLD ? 0 : SHIPPING_FEE
+  const shippingFee = estimateShippingFee(subtotal, currentUser?.customerTier)
   const total = subtotal + shippingFee
 
   const [step, setStep] = useState(initialOrder ? 3 : 1)
@@ -1022,13 +1020,12 @@ export default function OrderReviewPage({
       appliedVoucher?.code ||
       ''
 
-    const activeShippingFee = currentOrder.shippingFee !== undefined
-      ? currentOrder.shippingFee
-      : (activeSubtotal >= FREE_SHIP_THRESHOLD ? 0 : SHIPPING_FEE)
+    const recordedTotal = currentOrder.total_amount ?? currentOrder.total
+    const activeShippingFee = currentOrder.shippingFee ?? (recordedTotal == null ? shippingFee
+      : Math.max(0, Math.round((Number(recordedTotal) - activeSubtotal + activeDiscountAmount) * 100) / 100))
 
     const activeTotal = Number(
-      currentOrder.total_amount ??
-      (currentOrder.total ?? Math.max(0, activeSubtotal - activeDiscountAmount + activeShippingFee))
+      recordedTotal ?? Math.max(0, activeSubtotal - activeDiscountAmount + activeShippingFee)
     )
 
     const {
@@ -1676,6 +1673,7 @@ export default function OrderReviewPage({
             cartItems={cartItems}
             cart={cart}
             subtotal={Number(quote?.subtotal ?? subtotal)}
+            customerTier={currentUser?.customerTier}
             quote={quote}
             quoteError={quoteError}
             onRetryQuote={() => setQuoteAttempt(value => value + 1)}

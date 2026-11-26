@@ -17,6 +17,7 @@ import {
   SlidersHorizontal,
   Tag,
   TrendingUp,
+  Truck,
   Upload,
   User,
   X,
@@ -24,7 +25,7 @@ import {
 import { loadProducts } from '../lib/products'
 import { productImageUrl } from '../lib/productImages'
 import { readCart, saveCart, cartStorageKey, CART_TIMEOUT_MS, getProductStock, limitCartToStock } from './lib/cart'
-import { isCheckoutPath } from './lib/checkout'
+import { FREE_SHIP_THRESHOLD, isCheckoutPath } from './lib/checkout'
 import { fetchOrderById, previewOrder } from '../lib/orders'
 import {
   getCurrentUser,
@@ -248,6 +249,11 @@ function App() {
     }
   }, [currentRoute])
   const [authOpen, setAuthOpen] = useState(false)
+  const [welcomeOpen, setWelcomeOpen] = useState(false)
+  const welcomeDialog = useRef(null)
+  useEffect(() => {
+    if (welcomeOpen) welcomeDialog.current?.showModal()
+  }, [welcomeOpen])
   const [profileOpen, setProfileOpen] = useState(false)
   const [accountOpen, setAccountOpen] = useState(false)
   const [membershipOpen, setMembershipOpen] = useState(false)
@@ -794,7 +800,7 @@ function App() {
         <div className="toast admin-store-notice" role="status">Bạn đang xem cửa hàng với vai trò {adminUser.role === 'ADMIN' ? 'admin' : 'nhân viên'}. Chỉ xem, không thể mua hàng.</div>
       )}
       <div className="announcement">
-        <span>Giao hàng miễn phí cho đơn từ 2.000.000₫</span>
+        <span>Giao hàng miễn phí cho đơn từ {formatPrice(FREE_SHIP_THRESHOLD)}</span>
         <span className="announcement-note">Thiết kế tử tế, sống an yên</span>
       </div>
 
@@ -1536,10 +1542,30 @@ function App() {
         onClose={() => setAuthOpen(false)}
         onAuthSuccess={(user) => {
           setCurrentUser(user)
-          setNotice(`Xin chào ${user.fullName || user.username}!`)
-          setTimeout(() => setNotice(''), 3500)
+          setWelcomeOpen(user.role === 'CUSTOMER' && user.customerTier === 'NEW')
         }}
       />}
+      {!storeReadOnly && welcomeOpen && currentUser && (
+        <dialog ref={welcomeDialog} className="shipping-welcome" aria-labelledby="shipping-welcome-title"
+          aria-describedby="shipping-welcome-description shipping-welcome-members" onClose={() => setWelcomeOpen(false)}>
+          <div className="shipping-welcome-layout">
+            <div className="shipping-welcome-photo" aria-hidden="true" />
+            <form method="dialog" className="shipping-welcome-content">
+              <button type="submit" className="shipping-welcome-close" aria-label="Đóng thông báo"><X size={20} /></button>
+              <header className="shipping-welcome-heading">
+                <span><Truck size={22} aria-hidden="true" /></span>
+                <h2 id="shipping-welcome-title">Miễn phí giao hàng</h2>
+              </header>
+              <p id="shipping-welcome-description" className="shipping-welcome-threshold">
+                <span>Đơn hàng từ</span>
+                <strong>{formatPrice(FREE_SHIP_THRESHOLD)}</strong>
+              </p>
+              <p id="shipping-welcome-members">Thành viên từ hạng Bạc luôn được miễn phí giao hàng.</p>
+              <button type="submit" className="auth-submit-btn">Tiếp tục mua sắm <ArrowRight size={17} aria-hidden="true" /></button>
+            </form>
+          </div>
+        </dialog>
+      )}
       <ProfileModal
         isOpen={!storeReadOnly && profileOpen}
         user={currentUser}

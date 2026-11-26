@@ -70,8 +70,8 @@ class AdminPermissionsTest {
                 id, "user" + id, PasswordUtil.hash("testpass"), id == 1 ? "ADMIN" : id == 5 ? "CUSTOMER" : "STAFF");
         for (int id = 2; id <= 4; id++) jdbc.update("INSERT INTO staff (id, user_id, full_name) VALUES (?, ?, ?)", id * 10, id, "Staff " + id);
         jdbc.update("INSERT INTO customers (id, user_id) VALUES (50, 5)");
-        jdbc.execute("CREATE TABLE orders (id BIGINT PRIMARY KEY, customer_id BIGINT)");
-        jdbc.execute("INSERT INTO orders VALUES (1, 50), (2, 51)");
+        jdbc.execute("CREATE TABLE orders (id BIGINT PRIMARY KEY, customer_id BIGINT, total_amount NUMERIC, status VARCHAR(20))");
+        jdbc.execute("INSERT INTO orders (id, customer_id) VALUES (1, 50), (2, 51)");
         migrate();
         // shortcut: H2 does not support RLS, verify that statement on PostgreSQL.
         String activityMigration = new ClassPathResource("admin_activity.sql").getContentAsString(StandardCharsets.UTF_8)

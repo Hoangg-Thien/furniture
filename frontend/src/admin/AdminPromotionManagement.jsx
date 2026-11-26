@@ -240,14 +240,15 @@ export default function AdminPromotionManagement({ currentUser }) {
   }
 
   // Format datetime for display
-  const formatDateTime = (dateStr) => {
+  const formatDateTime = (dateStr, showTime = false) => {
     if (!dateStr) return '—'
     try {
       const d = new Date(dateStr)
-      return d.toLocaleDateString('vi-VN', {
+      return d.toLocaleString('vi-VN', {
         day: '2-digit',
         month: '2-digit',
-        year: 'numeric'
+        year: 'numeric',
+        ...(showTime ? { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' } : {})
       })
     } catch {
       return dateStr
@@ -1305,7 +1306,7 @@ export default function AdminPromotionManagement({ currentUser }) {
                   <dl>
                     <div><dt>Trạng thái</dt><dd>{voucherStatusLabel(quickVoucher)}</dd></div>
                     <div><dt>Chiến dịch</dt><dd>{quickVoucher.programName || quickVoucherProgram?.name || '—'}</dd></div>
-                    <div><dt>Thời gian áp dụng</dt><dd>{formatDateTime(quickVoucher.startDate ?? quickVoucherProgram?.startDate)} – {formatDateTime(quickVoucher.endDate ?? quickVoucherProgram?.endDate)}</dd></div>
+                    <div><dt>Thời gian áp dụng</dt><dd>{formatDateTime(quickVoucher.startDate ?? quickVoucherProgram?.startDate, true)} – {formatDateTime(quickVoucher.endDate ?? quickVoucherProgram?.endDate, true)}{quickVoucher.isExpired && <div>Đã hết hạn</div>}</dd></div>
                     <div><dt>Lượt đã dùng</dt><dd>{quickVoucher.usedQuantity} / {quickVoucher.quantity}</dd></div>
                   </dl>
                   <div className="promotion-voucher-actions">

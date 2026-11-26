@@ -22,7 +22,12 @@ try {
     if (path === '/api/auth/login' && route.request().method() === 'POST') {
       const { username } = route.request().postDataJSON()
       const customerId = username === 'cart-owner' ? 21 : 22
-      return route.fulfill({ json: { customerId, userId: customerId, username, role: 'CUSTOMER', accessToken: username } })
+      const customerTier = customerId === 21 ? null : 'VIP_DIAMOND'
+      return route.fulfill({ json: { customerId, userId: customerId, username, role: 'CUSTOMER', customerTier, accessToken: username } })
+    }
+    if (path === '/api/auth/me' && new URL(route.request().url()).searchParams.get('userId') === '21') {
+      assert.equal(route.request().headers().authorization, 'Bearer cart-owner')
+      return route.fulfill({ json: { userId: 21, customerTier: 'NEW' } })
     }
     if (path === '/api/orders/preview') {
       const items = route.request().postDataJSON().items.map(item => ({ ...item, unitPrice: 100000 }))
@@ -136,6 +141,30 @@ try {
     await tab.locator('.auth-form input[type="password"]').fill('test-password')
     await tab.locator('.auth-submit-btn').click()
     await tab.waitForFunction(name => document.querySelector('button.user-logged-box .user-display-name')?.textContent === name, username)
+    const welcome = tab.getByRole('dialog', { name: 'Miễn phí giao hàng' })
+    if (username === 'cart-owner') {
+      await welcome.getByText('3.000.000₫', { exact: true }).waitFor()
+      await welcome.getByText('Thành viên từ hạng Bạc luôn được miễn phí giao hàng.', { exact: true }).waitFor()
+      if (tab === page) {
+        const before = await tab.evaluate(() => window.scrollY)
+        assert.equal(await tab.evaluate(() => getComputedStyle(document.documentElement).overflowY), 'hidden')
+        await tab.mouse.move(5, 100)
+        await tab.mouse.wheel(0, 350)
+        await tab.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))))
+        assert.equal(await tab.evaluate(() => window.scrollY), before, 'The page must not scroll behind the popup')
+      }
+      await welcome.getByRole('button', { name: 'Tiếp tục mua sắm' }).click()
+    } else {
+      assert.equal(await welcome.count(), 0, 'Diamond customers must not see the new customer popup')
+    }
+    await welcome.waitFor({ state: 'hidden' })
+    if (tab === page) {
+      assert.notEqual(await tab.evaluate(() => getComputedStyle(document.documentElement).overflowY), 'hidden')
+      await tab.mouse.move(5, 100)
+      await tab.mouse.wheel(0, 350)
+      await tab.waitForFunction(() => window.scrollY > 0)
+      await tab.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }))
+    }
   }
   await login(page, 'cart-owner')
   await page.getByRole('button', { name: 'Mở giỏ hàng, 0 sản phẩm', exact: true }).waitFor()

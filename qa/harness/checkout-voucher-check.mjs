@@ -80,7 +80,7 @@ try {
       const automaticDiscountAmount = automaticPromotion && automaticType === 'PRODUCT' && body.preferProductDiscounts ? 600000 : 0
       const netSubtotal = subtotal - automaticDiscountAmount
       const voucherDiscountAmount = selected ? Math.min(netSubtotal * chosen.discount_percent / 100, chosen.maximum_discount) : 0
-      const shippingFee = subtotal >= 2000000 ? 0 : 35000
+      const shippingFee = subtotal >= 3000000 ? 0 : 35000
       return send({ items, subtotal, automaticDiscountAmount, voucherDiscountAmount,
         automaticDiscountLabel: automaticDiscountAmount ? (automaticType === 'ORDER' ? program.name : 'Giảm sản phẩm') : null,
         itemDiscounts: automaticDiscountAmount && automaticType === 'PRODUCT' ? [offer] : [], productOffers: automaticPromotion ? [offer] : [],

@@ -191,6 +191,7 @@
   --paper: #f9f8f4;
   --line: #e8e5dc;
   --coral: #c96c4e;
+  --storefront-room: url('https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=2200&q=90');
   width: 100%;
   overflow-x: clip;
   color: var(--ink);
@@ -407,7 +408,7 @@
   padding: 56px clamp(28px, 10vw, 160px);
   color: white;
   background-color: #526b5b;
-  background-image: linear-gradient(90deg, rgba(20, 44, 37, .92) 0%, rgba(20, 44, 37, .73) 34%, rgba(20, 44, 37, .04) 70%), url('https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=2200&q=90');
+  background-image: linear-gradient(90deg, rgba(20, 44, 37, .92) 0%, rgba(20, 44, 37, .73) 34%, rgba(20, 44, 37, .04) 70%), var(--storefront-room);
   background-position: center 57%;
   background-size: cover;
   animation: hero-arrive 700ms ease both;
@@ -1492,6 +1493,83 @@
   border-radius: 50%;
   display: flex;
   transition: all 0.2s;
+}
+
+html:has(.shipping-welcome[open]) { overflow: hidden; }
+
+.shipping-welcome {
+  position: fixed;
+  inset: 0;
+  width: min(680px, calc(100% - 32px));
+  max-height: calc(100dvh - 32px);
+  margin: auto;
+  padding: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--paper);
+  color: var(--forest);
+  box-shadow: 0 24px 64px rgb(17 37 30 / 26%);
+}
+
+.shipping-welcome::backdrop { background: rgb(16 31 26 / 62%); }
+
+.shipping-welcome-layout { display: grid; }
+
+.shipping-welcome-photo {
+  min-height: clamp(104px, 32vw, 144px);
+  background: #36564a var(--storefront-room) 68% 61% / cover;
+}
+
+.shipping-welcome-content {
+  display: grid;
+  gap: 16px;
+  padding: 22px;
+  text-align: left;
+}
+
+.shipping-welcome-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--paper);
+  color: var(--forest);
+  cursor: pointer;
+  transition: background .2s ease;
+}
+
+.shipping-welcome-close:hover { background: #e6eee8; }
+.shipping-welcome button:focus-visible { outline: 2px solid #426e5e; outline-offset: 3px; }
+.shipping-welcome-heading { display: flex; align-items: center; gap: 10px; }
+.shipping-welcome-heading span { display: grid; flex: 0 0 38px; height: 38px; place-items: center; border-radius: 9px; background: #e4eee7; }
+.shipping-welcome :is(h2, p) { margin: 0; }
+.shipping-welcome h2 { font-size: clamp(20px, 4.6vw, 27px); line-height: 1.22; letter-spacing: -.025em; }
+.shipping-welcome-threshold { display: grid; gap: 2px; padding: 12px 0; border-block: 1px solid #dedfd6; }
+.shipping-welcome-threshold span, #shipping-welcome-members { color: #4a5a50; font-size: 14px; line-height: 1.55; }
+.shipping-welcome-threshold strong {
+  color: #4b695c;
+  font-size: clamp(29px, 7vw, 42px);
+  font-weight: 500;
+  line-height: 1.15;
+  letter-spacing: -.025em;
+}
+.shipping-welcome .auth-submit-btn { margin-top: 2px; min-height: 46px; }
+
+@media (min-width: 620px) {
+  .shipping-welcome-layout { grid-template-columns: 1fr 38%; }
+  .shipping-welcome-content { grid-row: 1; grid-column: 1; padding: 32px; }
+  .shipping-welcome-photo { grid-row: 1; grid-column: 2; background-position: 72% center; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shipping-welcome button { transition: none; }
 }
 
 .auth-modal-close:hover {

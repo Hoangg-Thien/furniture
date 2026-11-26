@@ -1,3 +1,11 @@
+import { MEMBERSHIP_MILESTONES } from '../../lib/vouchers.js'
+
+export const FREE_SHIP_THRESHOLD = 3000000
+
+export function estimateShippingFee(subtotal, customerTier) {
+  return subtotal >= FREE_SHIP_THRESHOLD || Object.hasOwn(MEMBERSHIP_MILESTONES, customerTier) ? 0 : 35000
+}
+
 export function isCheckoutPath(pathname) {
   return pathname.toLowerCase().replace(/\/+$/, '') === '/checkout'
 }

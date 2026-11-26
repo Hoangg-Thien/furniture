@@ -443,11 +443,26 @@ class OrderStockTest {
 
     @Test
     void guestVoucherAndFreeShippingAreCalculatedOnServer() {
-        jdbc.update("UPDATE products SET selling_price = 2000000 WHERE id = 1");
+        jdbc.update("UPDATE products SET selling_price = 2999999 WHERE id = 1");
+        assertEquals(0, new BigDecimal("35000").compareTo(guest(null, item(1, 1)).shippingFee()));
+        jdbc.update("UPDATE products SET selling_price = 3000000 WHERE id = 1");
         OrderResponse order = guest(1L, item(1, 1));
-        assertEquals(0, new BigDecimal("1800000").compareTo(order.totalAmount()));
-        assertEquals(0, new BigDecimal("200000").compareTo(order.discountAmount()));
+        assertEquals(0, new BigDecimal("2700000").compareTo(order.totalAmount()));
+        assertEquals(0, new BigDecimal("300000").compareTo(order.discountAmount()));
         assertEquals(0, BigDecimal.ZERO.compareTo(order.shippingFee()));
+    }
+
+    @Test
+    void silverMemberGetsFreeShippingBelowMinimumInPreviewAndOrder() {
+        var request = new CreateOrderRequest(1L, 1L, "Customer", "0901234567", "Street", null,
+                "District", "City", BigDecimal.ZERO, null, BigDecimal.ZERO, List.of(item(1, 1)));
+        assertEquals(0, new BigDecimal("35000").compareTo(orders.previewOrder(request, 1L).shippingFee()));
+
+        jdbc.update("INSERT INTO orders (customer_id, status, total_amount) VALUES (1, 'COMPLETED', 10000000)");
+        assertEquals(0, BigDecimal.ZERO.compareTo(orders.previewOrder(request, 1L).shippingFee()));
+        var placed = transaction.execute(tx -> orders.createOrder(request));
+        assertEquals(0, BigDecimal.ZERO.compareTo(placed.shippingFee()));
+        assertEquals(0, BigDecimal.TEN.compareTo(placed.totalAmount()));
     }
 
     @Test

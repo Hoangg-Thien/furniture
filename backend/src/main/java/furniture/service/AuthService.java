@@ -98,6 +98,9 @@ public class AuthService {
 
         Number userIdNum = (Number) user.get("user_id");
         Number customerIdNum = (Number) user.get("customer_id");
+        String role = (String) user.get("role");
+        var tier = customerIdNum != null && "CUSTOMER".equals(role)
+                ? voucherRepository.findCustomerTierProgress(customerIdNum.longValue()) : null;
 
         return new AuthResponse(
                 userIdNum != null ? userIdNum.longValue() : null,
@@ -107,8 +110,8 @@ public class AuthService {
                 (String) user.get("email"),
                 (String) user.get("phone"),
                 (String) user.get("address"),
-                (String) user.get("role"),
-                "Đăng nhập thành công!", null, null, null);
+                role,
+                "Đăng nhập thành công!", null, tier == null ? null : tier.tier(), tier);
     }
 
     public AuthResponse getProfile(Long userId) {

@@ -68,6 +68,14 @@ export async function loginCustomer(username, password, signal) {
     }
 
     const user = { ...data, apiBaseUrl }
+    if (!user.customerTier && user.userId != null && user.accessToken && !signal?.aborted) {
+      // Older backends return the tier only from the profile endpoint.
+      const profile = await fetch(`${apiBaseUrl}/api/auth/me?userId=${encodeURIComponent(user.userId)}`, {
+        signal,
+        headers: { Authorization: `Bearer ${user.accessToken}` },
+      }).then(res => res.ok ? res.json() : null).catch(() => null)
+      user.customerTier = profile?.customerTier ?? null
+    }
     if (!signal?.aborted) setCurrentUser(user)
     return { user, error: null }
   } catch (err) {
