@@ -68,7 +68,7 @@ try {
     row = page.locator('.admin-table tbody tr').filter({ hasText: suffix }).first()
     if (!editable) {
       await row.getByRole('button', { name: 'Ảnh', exact: true }).click()
-      await page.getByRole('dialog', { name: 'Album ảnh sản phẩm' }).waitFor()
+      await page.getByRole('dialog', { name: 'Thư viện ảnh sản phẩm' }).waitFor()
       assert.equal(await page.locator('.gallery-upload-zone').count(), 0)
       await page.getByRole('dialog').getByRole('button', { name: 'Đóng', exact: true }).first().click()
     }

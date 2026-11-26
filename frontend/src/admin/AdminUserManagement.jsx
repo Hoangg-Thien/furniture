@@ -20,6 +20,7 @@ import {
   X
 } from 'lucide-react'
 import { getApiBaseUrl, getApiHeaders } from '../lib/apiConfig'
+import { adminErrorMessage, accountRoleLabel } from './adminDisplay'
 
 export default function AdminUserManagement({ currentUser }) {
   const [users, setUsers] = useState([])
@@ -109,7 +110,7 @@ export default function AdminUserManagement({ currentUser }) {
       setTotalElements(data.totalElements || 0)
     } catch (err) {
       console.error('Error fetching admin users:', err)
-      setError(err.message)
+      setError(adminErrorMessage(err))
     } finally {
       setLoading(false)
     }
@@ -174,7 +175,7 @@ export default function AdminUserManagement({ currentUser }) {
         throw new Error(data.error || 'Tạo tài khoản thất bại')
       }
 
-      showToast(`Đã tạo tài khoản "${data.username}" (${data.role}) thành công!`, 'success')
+      showToast(`Đã tạo tài khoản "${data.username}" (${accountRoleLabel(data.role)}) thành công!`, 'success')
       setShowCreateModal(false)
       setCreateForm({
         username: '',
@@ -184,7 +185,7 @@ export default function AdminUserManagement({ currentUser }) {
       })
       loadUsers(0)
     } catch (err) {
-      setCreateError(err.message)
+      setCreateError(adminErrorMessage(err))
     } finally {
       setCreateSubmitting(false)
     }
@@ -225,7 +226,7 @@ export default function AdminUserManagement({ currentUser }) {
       setActiveUser(null)
       loadUsers(page)
     } catch (err) {
-      showToast(err.message, 'error')
+      showToast(adminErrorMessage(err), 'error')
       setShowToggleModal(false)
     }
   }
@@ -272,7 +273,7 @@ export default function AdminUserManagement({ currentUser }) {
       setShowResetModal(false)
       setActiveUser(null)
     } catch (err) {
-      showToast(err.message, 'error')
+      showToast(adminErrorMessage(err), 'error')
     } finally {
       setResetSubmitting(false)
     }
@@ -319,7 +320,7 @@ export default function AdminUserManagement({ currentUser }) {
       <div className="admin-page-header">
         <div>
           <div className="admin-breadcrumb">
-            Trang chủ &gt; Quản lý tài khoản & Phân quyền &gt; <span>Module 01</span>
+            Trang chủ &gt; Quản lý tài khoản & Phân quyền &gt; <span>Mục 01</span>
           </div>
           <h1 className="admin-page-title">Quản Lý Tài Khoản & Phân Quyền</h1>
         </div>
@@ -344,7 +345,7 @@ export default function AdminUserManagement({ currentUser }) {
             <Search size={16} color="var(--admin-text-muted)" />
             <input
               type="text"
-              placeholder="Tìm kiếm theo tên đăng nhập (username)..."
+              placeholder="Tìm kiếm theo tên đăng nhập..."
               value={searchKeyword}
               onChange={(e) => setSearchKeyword(e.target.value)}
             />
@@ -360,9 +361,9 @@ export default function AdminUserManagement({ currentUser }) {
             <label>Vai trò:</label>
             <select value={selectedRole} onChange={(e) => setSelectedRole(e.target.value)}>
               <option value="ALL">Tất cả vai trò</option>
-              <option value="ADMIN">ADMIN (Quản trị viên)</option>
-              <option value="STAFF">STAFF (Nhân viên)</option>
-              <option value="CUSTOMER">CUSTOMER (Khách hàng)</option>
+              <option value="ADMIN">Quản trị viên</option>
+              <option value="STAFF">Nhân viên</option>
+              <option value="CUSTOMER">Khách hàng</option>
             </select>
           </div>
 
@@ -384,7 +385,7 @@ export default function AdminUserManagement({ currentUser }) {
           <table className="admin-table">
             <thead>
               <tr>
-                <th style={{ width: '70px' }}>ID</th>
+                <th style={{ width: '70px' }}>Mã</th>
                 <th>Tên Đăng Nhập</th>
                 <th>Vai Trò (Role)</th>
                 <th>Trạng Thái</th>
@@ -424,7 +425,7 @@ export default function AdminUserManagement({ currentUser }) {
 
                   return (
                     <tr key={u.id} className={isCurrentSelf ? 'current-user-row' : ''}>
-                      <td style={{ fontWeight: 600, color: 'var(--admin-text-muted)' }}>
+                      <td style={{ color: 'var(--admin-text-muted)' }}>
                         #{u.id}
                       </td>
                       <td>
@@ -443,17 +444,17 @@ export default function AdminUserManagement({ currentUser }) {
                         {u.role === 'ADMIN' ? (
                           <span className="user-role-badge admin">
                             <Shield size={13} />
-                            ADMIN
+                            Quản trị viên
                           </span>
                         ) : u.role === 'STAFF' ? (
                           <span className="user-role-badge staff">
                             <UserCheck size={13} />
-                            STAFF
+                            Nhân viên
                           </span>
                         ) : (
                           <span className="user-role-badge customer">
                             <Users size={13} />
-                            CUSTOMER
+                            Khách hàng
                           </span>
                         )}
                       </td>
@@ -681,7 +682,7 @@ export default function AdminUserManagement({ currentUser }) {
                       <div className="radio-content">
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                           <UserCheck size={16} color="#0284C7" />
-                          <strong>STAFF (Nhân viên)</strong>
+                          <strong>Nhân viên</strong>
                         </div>
                         <span>Quản lý đơn hàng, kho sản phẩm, danh mục và chăm sóc khách hàng.</span>
                       </div>
@@ -698,7 +699,7 @@ export default function AdminUserManagement({ currentUser }) {
                       <div className="radio-content">
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                           <Shield size={16} color="#D97706" />
-                          <strong>ADMIN (Quản trị viên)</strong>
+                          <strong>Quản trị viên</strong>
                         </div>
                         <span>Toàn quyền cao nhất: Quản trị tài khoản, nhân sự, báo cáo doanh thu tài chính.</span>
                       </div>
@@ -750,7 +751,7 @@ export default function AdminUserManagement({ currentUser }) {
                 <div>
                   <h3 className="modal-title">Đặt Lại Mật Khẩu</h3>
                   <p className="modal-subtitle">
-                    Tài khoản: <strong>{activeUser.username}</strong> ({activeUser.role})
+                    Tài khoản: <strong>{activeUser.username}</strong> ({accountRoleLabel(activeUser.role)})
                   </p>
                 </div>
               </div>
@@ -857,7 +858,7 @@ export default function AdminUserManagement({ currentUser }) {
             <div className="admin-modal-body">
               <p style={{ fontSize: '0.92rem', color: 'var(--admin-text-main)', margin: '0 0 12px 0' }}>
                 Bạn có chắc chắn muốn {activeUser.isActive ? 'tạm khóa' : 'mở khóa kích hoạt lại'} tài khoản{' '}
-                <strong>"{activeUser.username}"</strong> (Vai trò: <strong>{activeUser.role}</strong>)?
+                <strong>"{activeUser.username}"</strong> (Vai trò: <strong>{accountRoleLabel(activeUser.role)}</strong>)?
               </p>
               {activeUser.isActive ? (
                 <div className="modal-alert-warning">

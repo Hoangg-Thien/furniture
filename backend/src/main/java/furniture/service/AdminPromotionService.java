@@ -205,13 +205,36 @@ public class AdminPromotionService {
     public VoucherDto createVoucher(Long programId, CreateVoucherRequest req) {
         ProgramResponse program = getProgramById(programId);
 
-        if (!"VIP".equals(req.voucherType()) || req.productId() != null) {
-            throw new IllegalArgumentException("Mã voucher mới chỉ dành cho VIP. Giảm theo đơn hàng hoặc sản phẩm được quản lý ở nhóm ưu đãi tự động.");
+        if (!List.of("ORDER", "VIP").contains(req.voucherType()) || req.productId() != null) {
+            throw new IllegalArgumentException("Chỉ phát hành mã mới theo hóa đơn hoặc hạng thành viên. Ưu đãi sản phẩm được thiết lập theo từng sản phẩm.");
         }
         validateVoucherRequest(program, req, null);
 
         Long voucherId = promotionRepository.insertVoucher(programId, req, program.startDate(), program.endDate());
         return promotionRepository.findVoucherById(voucherId);
+    }
+
+    @Transactional
+    public int createOrderVoucherExamples(Long programId) {
+        promotionRepository.lockProgram(programId);
+        ProgramResponse program = getProgramById(programId);
+        List<CreateVoucherRequest> examples = List.of(
+                orderVoucherExample(programId, 3, 5, 200_000),
+                orderVoucherExample(programId, 7, 10, 700_000),
+                orderVoucherExample(programId, 15, 15, 1_500_000));
+        int created = 0;
+        for (CreateVoucherRequest request : examples) {
+            if (promotionRepository.existsVoucherCode(request.code())) continue;
+            promotionRepository.insertVoucher(programId, request, program.startDate(), program.endDate());
+            created++;
+        }
+        return created;
+    }
+
+    private CreateVoucherRequest orderVoucherExample(Long programId, int minimumMillions, int percent, int maximum) {
+        return new CreateVoucherRequest("HD-" + programId + "-" + minimumMillions + "TR",
+                BigDecimal.valueOf(percent), BigDecimal.valueOf(minimumMillions * 1_000_000L),
+                BigDecimal.valueOf(maximum), 50, null, null, "INACTIVE", "ORDER", null);
     }
 
     private void validateVoucherRequest(ProgramResponse program, CreateVoucherRequest req, VoucherDto existing) {

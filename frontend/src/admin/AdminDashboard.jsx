@@ -2,16 +2,12 @@ import { useEffect, useState } from 'react'
 import { AlertTriangle, ArrowUpRight, Package, RefreshCw, ShoppingCart, Wallet } from 'lucide-react'
 import AdminDataTable from './AdminDataTable'
 import { getApiBaseUrl, getApiHeaders } from '../lib/apiConfig'
+import { formatProductUnit } from '../lib/productUnits'
+import { adminErrorMessage, orderStatusLabel } from './adminDisplay'
 import './AdminDashboard.css'
 
 const money = value => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value)
-const statuses = {
-  PENDING: ['Chờ duyệt', 'warning'],
-  CONFIRMED: ['Đã duyệt', 'info'],
-  SHIPPING: ['Đang giao', 'info'],
-  COMPLETED: ['Hoàn tất', 'success'],
-  CANCELLED: ['Đã hủy', 'danger'],
-}
+const statusColors = { PENDING: 'warning', COMPLETED: 'success', CANCELLED: 'danger' }
 
 export default function AdminDashboard({ onNavigateModule }) {
   const [attempt, setAttempt] = useState(0)
@@ -33,17 +29,17 @@ export default function AdminDashboard({ onNavigateModule }) {
         ]
         const [overview, orders, products] = await Promise.all(paths.map(async path => {
           const response = await fetch(`${getApiBaseUrl()}${path}`, { headers: getApiHeaders(), signal: controller.signal })
-          if (!response.ok) throw new Error('Không tải được Dashboard. Vui lòng kiểm tra kết nối và quyền truy cập rồi thử lại.')
+          if (!response.ok) throw new Error('Không tải được trang tổng quan. Vui lòng kiểm tra kết nối và quyền truy cập rồi thử lại.')
           return response.json()
         }))
         if (!overview || !['totalRevenue', 'completedOrdersCount', 'totalItemsSold', 'lowStockProductsCount']
           .every(key => Number.isFinite(overview[key]) && overview[key] >= 0)
           || !Array.isArray(orders?.content) || !Array.isArray(products?.content)) {
-          throw new Error('Dữ liệu Dashboard không hợp lệ. Vui lòng thử lại.')
+          throw new Error('Dữ liệu trang tổng quan không hợp lệ. Vui lòng thử lại.')
         }
         if (!controller.signal.aborted) setState({ loading: false, error: '', data: { overview, orders: orders.content, products: products.content, fromDate, toDate } })
       } catch (error) {
-        if (!controller.signal.aborted) setState({ loading: false, error: error.message || 'Không thể kết nối máy chủ.', data: null })
+        if (!controller.signal.aborted) setState({ loading: false, error: adminErrorMessage(error, 'Không thể kết nối máy chủ.'), data: null })
       }
     }
     load()
@@ -59,13 +55,12 @@ export default function AdminDashboard({ onNavigateModule }) {
   ] : []
 
   const columns = [
-    { key: 'id', label: 'Mã đơn', render: id => <strong>#{id}</strong> },
+    { key: 'id', label: 'Mã đơn', render: id => <span>#{id}</span> },
     { key: 'customerName', label: 'Khách hàng', render: (name, order) => <div><strong>{name}</strong><div className="dashboard-muted">{order.phone || 'Chưa có số điện thoại'}</div></div> },
     { key: 'totalItemsCount', label: 'Số món' },
     { key: 'totalAmount', label: 'Tổng thanh toán', render: money },
     { key: 'status', label: 'Trạng thái', render: status => {
-      const [label, color] = statuses[status] || [status, 'info']
-      return <span className={`admin-badge admin-badge-${color}`}>{label}</span>
+      return <span className={`admin-badge admin-badge-${statusColors[status] || 'info'}`}>{orderStatusLabel(status)}</span>
     } },
     { key: 'orderDate', label: 'Ngày đặt (GMT+7)', render: date => date?.replace('T', ' ').slice(0, 16) || '—' },
   ]
@@ -88,7 +83,7 @@ export default function AdminDashboard({ onNavigateModule }) {
         </div>
       </div>
 
-      {loading && <div className="admin-card" role="status">Đang tải Dashboard...</div>}
+      {loading && <div className="admin-card" role="status">Đang tải trang tổng quan...</div>}
       {error && <div className="admin-card" role="alert">
         <p>{error}</p>
         <button type="button" className="admin-btn admin-btn-primary" onClick={() => setAttempt(value => value + 1)}>Thử lại</button>
@@ -127,7 +122,7 @@ export default function AdminDashboard({ onNavigateModule }) {
               <ul className="dashboard-stock-list">
                 {data.products.map(product => <li key={product.id}>
                   <div><strong>{product.name}</strong><span className="dashboard-muted">{product.categoryName || 'Chưa có danh mục'}</span></div>
-                  <div className="dashboard-stock-quantity"><strong>{product.quantity === 0 ? 'Đã hết' : `Còn ${product.quantity} ${product.unit || 'món'}`}</strong><span>{money(product.sellingPrice)}</span></div>
+                  <div className="dashboard-stock-quantity"><span>{product.quantity === 0 ? 'Đã hết' : `Còn ${product.quantity} ${formatProductUnit(product.unit || 'món')}`}</span><span>{money(product.sellingPrice)}</span></div>
                 </li>)}
               </ul>
             )}

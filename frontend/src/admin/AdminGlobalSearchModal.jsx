@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { orderStatusLabel } from './adminDisplay'
 import {
   Armchair,
   ArrowRight,
@@ -56,7 +57,7 @@ export default function AdminGlobalSearchModal({ currentUser, onClose, onNavigat
           icon: ShoppingCart,
           title: `Đơn hàng #${o.id} - ${o.customerName || 'Khách vãng lai'}`,
           subtitle: `SĐT: ${o.phone || '—'} • Ngày: ${o.orderDate ? new Date(o.orderDate).toLocaleDateString('vi-VN') : ''}`,
-          badge: o.status,
+          badge: orderStatusLabel(o.status),
           badgeColor: o.status === 'COMPLETED' ? 'success' : o.status === 'PENDING' ? 'warning' : 'info'
         }) },
         { path: 'customers', size: 3, map: c => ({
@@ -75,9 +76,9 @@ export default function AdminGlobalSearchModal({ currentUser, onClose, onNavigat
           const response = await fetch(`${getApiBaseUrl()}/api/admin/${source.path}?search=${encodeURIComponent(q)}&page=0&size=${source.size}`, {
             headers: getApiHeaders(), signal: controller.signal,
           })
-          if (!response.ok) throw new Error('Search unavailable')
+          if (!response.ok) throw new Error('Không thể tìm kiếm dữ liệu.')
           const data = await response.json()
-          if (!Array.isArray(data.content)) throw new Error('Invalid search response')
+          if (!Array.isArray(data.content)) throw new Error('Kết quả tìm kiếm không hợp lệ.')
           if (controller.signal.aborted) return
           groups[index] = data.content.map(source.map)
           setSearchResults(groups.flat())
@@ -189,7 +190,7 @@ export default function AdminGlobalSearchModal({ currentUser, onClose, onNavigat
             </div>
           ) : (
             <div className="admin-search-shortcuts-hint">
-              <div className="admin-search-hint-title">Gợi ý chuyển nhanh module:</div>
+              <div className="admin-search-hint-title">Chuyển nhanh đến:</div>
               <div className="admin-search-quick-tags">
                 <button
                   type="button"

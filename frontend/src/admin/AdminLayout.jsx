@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { adminErrorMessage } from './adminDisplay'
 import AdminSidebar from './AdminSidebar'
 import AdminNavbar from './AdminNavbar'
 import AdminDashboard from './AdminDashboard'
@@ -42,7 +43,7 @@ export default function AdminLayout({ currentUser: storedUser, onLogout, onBackT
         setVerifiedUser(previous => previous?.role === user.role && previous?.staffType === user.staffType && previous?.staffId === user.staffId ? previous : user)
         setSessionError('')
       } catch (error) {
-        if (!controller.signal.aborted) setSessionError(error.message || 'Không thể kết nối máy chủ')
+        if (!controller.signal.aborted) setSessionError(adminErrorMessage(error, 'Không thể kết nối máy chủ'))
       }
     }
     refresh()
@@ -65,14 +66,14 @@ export default function AdminLayout({ currentUser: storedUser, onLogout, onBackT
 function AccessDeniedView({ onGoBack }) {
   return (
     <div className="admin-card" style={{ textAlign: 'center', padding: '60px 24px', maxWidth: '540px', margin: '40px auto' }}>
-      <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#FEF2F2', color: '#EF4444', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+      <div style={{ width: '64px', height: '64px', borderRadius: 'var(--admin-radius)', background: '#FEF2F2', color: '#EF4444', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
         <ShieldAlert size={32} />
       </div>
       <h3 style={{ fontSize: '1.25rem', color: '#1E293B', marginBottom: '8px', fontWeight: 700 }}>
         Quyền Truy Cập Bị Giới Hạn
       </h3>
       <p style={{ color: '#64748B', fontSize: '0.9rem', lineHeight: '1.5', marginBottom: '24px' }}>
-        Chức năng này dành riêng cho <strong>Quản trị viên (ADMIN)</strong>. Bạn đang đăng nhập với tư cách <strong>Nhân viên (STAFF)</strong>.
+        Chức năng này dành riêng cho <strong>Quản trị viên</strong>. Bạn đang đăng nhập với tư cách <strong>Nhân viên</strong>.
       </p>
       <button
         className="admin-btn admin-btn-primary"
@@ -251,7 +252,7 @@ function AdminWorkspace({ currentUser, onLogout, onBackToStore }) {
         {/* Admin Footer */}
         <footer className="admin-system-footer">
           <div className="admin-footer-left">
-            <span>FuniStore Workspace</span>
+            <span>Không gian quản trị FuniStore</span>
           </div>
           <div className="admin-footer-right">
             <span>&copy; 2026 FuniStore</span>

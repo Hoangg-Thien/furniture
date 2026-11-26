@@ -210,7 +210,7 @@ export async function loginAdmin(username, password) {
   } catch (err) {
     return {
       user: null,
-      error: 'Không thể kết nối đến Backend Server (port 8080). Vui lòng kiểm tra backend.',
+      error: 'Không thể kết nối máy chủ. Vui lòng kiểm tra kết nối và thử lại.',
     }
   }
 }

@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
+import { adminErrorMessage } from './adminDisplay'
 import {
   FolderTree,
   FolderPlus,
@@ -68,7 +69,7 @@ export default function AdminCategoryManagement() {
       const data = await res.json()
       setCategories(data || [])
     } catch (err) {
-      setError(err.message || 'Lỗi kết nối máy chủ')
+      setError(adminErrorMessage(err, 'Lỗi kết nối máy chủ'))
     } finally {
       setLoading(false)
     }
@@ -183,7 +184,7 @@ export default function AdminCategoryManagement() {
       setShowModal(false)
       fetchCategories()
     } catch (err) {
-      setFormError(err.message)
+      setFormError(adminErrorMessage(err))
     } finally {
       setSubmitting(false)
     }
@@ -215,7 +216,7 @@ export default function AdminCategoryManagement() {
       setShowToggleModal(false)
       fetchCategories()
     } catch (err) {
-      showToast(err.message, 'error')
+      showToast(adminErrorMessage(err), 'error')
     } finally {
       setToggling(false)
     }
@@ -247,7 +248,7 @@ export default function AdminCategoryManagement() {
       setShowDeleteModal(false)
       fetchCategories()
     } catch (err) {
-      setDeleteError(err.message)
+      setDeleteError(adminErrorMessage(err))
     } finally {
       setDeleting(false)
     }
@@ -501,12 +502,12 @@ export default function AdminCategoryManagement() {
                       {/* Active Status Pill */}
                       <td style={{ textAlign: 'center' }}>
                         {isActive ? (
-                          <span className="admin-status-pill active" title="Hiển thị công khai trên menu cửa hàng">
+                          <span className="admin-status-pill active" title="Hiển thị công khai trên danh mục cửa hàng">
                             <span className="status-dot green"></span>
                             Đang hiển thị
                           </span>
                         ) : (
-                          <span className="admin-status-pill inactive" title="Đã tạm ẩn khỏi menu cửa hàng">
+                          <span className="admin-status-pill inactive" title="Đã tạm ẩn khỏi danh mục cửa hàng">
                             <span className="status-dot red"></span>
                             Đã tạm ẩn
                           </span>
@@ -652,7 +653,7 @@ export default function AdminCategoryManagement() {
                       onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
                       style={{ width: '16px', height: '16px', accentColor: 'var(--admin-accent)' }}
                     />
-                    <span>Kích hoạt hiển thị công khai ngay trên website</span>
+                    <span>Kích hoạt hiển thị công khai ngay trên trang web</span>
                   </label>
                 </div>
 
@@ -660,7 +661,7 @@ export default function AdminCategoryManagement() {
                   <div className="modal-info-box" style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '14px' }}>
                     <Package size={18} color="var(--admin-accent)" />
                     <div>
-                      Hiện có <strong>{editingCategory.productCount || 0} sản phẩm</strong> thuộc loại nội thất này.
+                      Hiện có <span>{editingCategory.productCount || 0} sản phẩm</span> thuộc loại nội thất này.
                     </div>
                   </div>
                 )}
@@ -725,7 +726,7 @@ export default function AdminCategoryManagement() {
                 <div>
                   <p style={{ margin: '0 0 14px 0', fontSize: '0.92rem', color: 'var(--admin-text-main)', lineHeight: 1.5 }}>
                     Bạn có chắc chắn muốn <strong>tạm ẩn</strong> loại nội thất{' '}
-                    <strong>"{togglingCategory.name}"</strong> khỏi website? Khách hàng sẽ không còn thấy danh mục này trên thanh điều hướng.
+                    <strong>"{togglingCategory.name}"</strong> khỏi trang web? Khách hàng sẽ không còn thấy danh mục này trên thanh điều hướng.
                   </p>
 
                   <div
@@ -733,7 +734,7 @@ export default function AdminCategoryManagement() {
                       background: '#FFFBEB',
                       border: '1px solid #FCD34D',
                       padding: '12px 14px',
-                      borderRadius: '8px'
+                      borderRadius: 'var(--admin-radius)'
                     }}
                   >
                     <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer', margin: 0 }}>
@@ -766,7 +767,7 @@ export default function AdminCategoryManagement() {
                       background: '#EFF6FF',
                       border: '1px solid #BFDBFE',
                       padding: '12px 14px',
-                      borderRadius: '8px'
+                      borderRadius: 'var(--admin-radius)'
                     }}
                   >
                     <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer', margin: 0 }}>
@@ -861,7 +862,7 @@ export default function AdminCategoryManagement() {
                     <strong>CẢNH BÁO RÀNG BUỘC TOÀN VẸN:</strong>
                     <p style={{ margin: '6px 0 0 0' }}>
                       Loại nội thất <strong>"{deletingCategory.name}"</strong> hiện đang có{' '}
-                      <strong>{deletingCategory.productCount} sản phẩm</strong> trong kho hàng.
+                      <span>{deletingCategory.productCount} sản phẩm</span> trong kho hàng.
                     </p>
                     <p style={{ margin: '4px 0 0 0', fontSize: '0.8rem' }}>
                       Hệ thống sẽ <strong>chặn xóa</strong> để bảo vệ dữ liệu sản phẩm. Nếu bạn không muốn bán loại nội thất này nữa, hãy dùng chức năng <strong>"Ẩn loại nội thất"</strong> (nút Ẩn màu cam) thay vì xóa.

@@ -46,7 +46,7 @@ export default function AdminDataTable({
       {selectable && selectedIds.length > 0 && (
         <div className="admin-bulk-action-bar">
           <div className="admin-bulk-selected-count">
-            Đã chọn <strong>{selectedIds.length}</strong> mục
+            Đã chọn <span>{selectedIds.length}</span> mục
           </div>
           <div className="admin-bulk-actions-group">
             {bulkActions}
@@ -177,19 +177,19 @@ export default function AdminDataTable({
         <div className="admin-pagination-bar">
           <div className="admin-pagination-info">
             Hiển thị từ{' '}
-            <strong>
+            <span>
               {pagination.totalItems === 0
                 ? 0
                 : (pagination.currentPage - 1) * pagination.pageSize + 1}
-            </strong>{' '}
+            </span>{' '}
             đến{' '}
-            <strong>
+            <span>
               {Math.min(
                 pagination.currentPage * pagination.pageSize,
                 pagination.totalItems || 0
               )}
-            </strong>{' '}
-            trên tổng số <strong>{pagination.totalItems || 0}</strong> bản ghi
+            </span>{' '}
+            trên tổng số <span>{pagination.totalItems || 0}</span> bản ghi
           </div>
 
           <div className="admin-pagination-controls">
@@ -221,7 +221,7 @@ export default function AdminDataTable({
 
             {/* Page Numbers */}
             <span className="admin-page-current">
-              Trang <strong>{pagination.currentPage}</strong> / {pagination.totalPages || 1}
+              Trang <span>{pagination.currentPage}</span> / {pagination.totalPages || 1}
             </span>
 
             {/* Next Button */}

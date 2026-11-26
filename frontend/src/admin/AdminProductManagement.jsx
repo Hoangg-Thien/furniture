@@ -1,4 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useEffectEvent } from 'react'
+import { adminErrorMessage } from './adminDisplay'
+import { formatProductUnit } from '../lib/productUnits'
 import {
   Armchair,
   Plus,
@@ -132,7 +134,7 @@ export default function AdminProductManagement({ currentUser, notificationTarget
       setTotalElements(data.totalElements || 0)
       setPage(data.page || 0)
     } catch (err) {
-      if (!controller.signal.aborted) setError(err.message || 'Lỗi kết nối máy chủ')
+      if (!controller.signal.aborted) setError(adminErrorMessage(err, 'Lỗi kết nối máy chủ'))
     } finally {
       if (!controller.signal.aborted) setLoading(false)
     }
@@ -217,7 +219,7 @@ export default function AdminProductManagement({ currentUser, notificationTarget
       const product = await response.json()
       if (!signal.aborted) openEditModal(product)
     } catch (error) {
-      if (!signal.aborted) showToast(error.message, 'error')
+      if (!signal.aborted) showToast(adminErrorMessage(error), 'error')
     }
   })
   useEffect(() => {
@@ -299,7 +301,7 @@ export default function AdminProductManagement({ currentUser, notificationTarget
           if (!upload.ok) throw new Error(images.error || 'Vui lòng thử lại.')
         } catch (error) {
           fetchProducts(page)
-          throw new Error(`Đã lưu sản phẩm #${data.id}, nhưng tải ảnh thất bại: ${error.message}`)
+          throw new Error(`Đã lưu sản phẩm #${data.id}, nhưng tải ảnh thất bại: ${adminErrorMessage(error)}`)
         }
       }
 
@@ -312,7 +314,7 @@ export default function AdminProductManagement({ currentUser, notificationTarget
       setShowProductModal(false)
       fetchProducts(page)
     } catch (err) {
-      setProductFormError(err.message)
+      setProductFormError(adminErrorMessage(err))
     } finally {
       setSubmittingProduct(false)
     }
@@ -330,7 +332,7 @@ export default function AdminProductManagement({ currentUser, notificationTarget
       showToast(data.message, 'success')
       fetchProducts(page)
     } catch (err) {
-      showToast(err.message, 'error')
+      showToast(adminErrorMessage(err), 'error')
     }
   }
 
@@ -376,13 +378,13 @@ export default function AdminProductManagement({ currentUser, notificationTarget
       })
 
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Upload ảnh thất bại')
+      if (!res.ok) throw new Error(data.error || 'Tải ảnh lên thất bại')
 
       setGalleryImages(data || [])
-      showToast(`Đã tải lên ${files.length} ảnh vào album!`, 'success')
+      showToast(`Đã tải lên ${files.length} ảnh vào thư viện ảnh!`, 'success')
       fetchProducts(page)
     } catch (err) {
-      showToast(err.message, 'error')
+      showToast(adminErrorMessage(err), 'error')
     } finally {
       setUploadingFiles(false)
       if (fileInputRef.current) fileInputRef.current.value = ''
@@ -403,14 +405,14 @@ export default function AdminProductManagement({ currentUser, notificationTarget
       })
 
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Thêm link ảnh thất bại')
+      if (!res.ok) throw new Error(data.error || 'Thêm liên kết ảnh thất bại')
 
       setGalleryImages(data || [])
       setNewImageUrl('')
-      showToast('Đã thêm liên kết ảnh mới vào album!', 'success')
+      showToast('Đã thêm liên kết ảnh mới vào thư viện ảnh!', 'success')
       fetchProducts(page)
     } catch (err) {
-      showToast(err.message, 'error')
+      showToast(adminErrorMessage(err), 'error')
     } finally {
       setAddingUrl(false)
     }
@@ -436,7 +438,7 @@ export default function AdminProductManagement({ currentUser, notificationTarget
       showToast('Đã đặt làm ảnh đại diện chính!', 'success')
       fetchProducts(page)
     } catch (err) {
-      showToast(err.message, 'error')
+      showToast(adminErrorMessage(err), 'error')
     }
   }
 
@@ -451,10 +453,10 @@ export default function AdminProductManagement({ currentUser, notificationTarget
       if (!res.ok) throw new Error('Không thể xóa ảnh')
 
       setGalleryImages((prev) => prev.filter((img) => img.id !== imageId))
-      showToast('Đã xóa ảnh khỏi album', 'success')
+      showToast('Đã xóa ảnh khỏi thư viện ảnh', 'success')
       fetchProducts(page)
     } catch (err) {
-      showToast(err.message, 'error')
+      showToast(adminErrorMessage(err), 'error')
     }
   }
 
@@ -500,9 +502,9 @@ export default function AdminProductManagement({ currentUser, notificationTarget
       <div className="admin-page-header">
         <div>
           <div className="admin-breadcrumb">
-            Trang chủ &gt; Kho &amp; Chuỗi Cung Ứng &gt; <span>Quản lý Sản phẩm &amp; Album Ảnh</span>
+            Trang chủ &gt; Kho &amp; Chuỗi Cung Ứng &gt; <span>Quản lý Sản phẩm &amp; Thư viện ảnh</span>
           </div>
-          <h1 className="admin-page-title">Sản Phẩm Nội Thất &amp; Album Đa Góc</h1>
+          <h1 className="admin-page-title">Sản Phẩm Nội Thất &amp; thư viện ảnh nhiều góc chụp</h1>
           <p className="admin-page-subtitle" style={{ margin: '4px 0 0', color: 'var(--admin-text-muted)', fontSize: '0.88rem' }}>
             Quản trị kho hàng nội thất cao cấp, đơn giá, kiểm soát tồn kho và thư viện ảnh phối cảnh đa góc.
           </p>
@@ -539,7 +541,7 @@ export default function AdminProductManagement({ currentUser, notificationTarget
           <div className="inv-stat-info">
             <span className="inv-stat-label">Tổng sản phẩm</span>
             <h3 className="inv-stat-value">{productStats.total} <span className="inv-stat-unit">mẫu</span></h3>
-            <span className="inv-stat-sub" style={{ color: '#0284C7', fontWeight: 600 }}>
+            <span className="inv-stat-sub" style={{ color: '#0284C7' }}>
               <Layers size={13} /> {productStats.categoryCount} danh mục đang quản lý
             </span>
           </div>
@@ -577,7 +579,7 @@ export default function AdminProductManagement({ currentUser, notificationTarget
             <span className="inv-stat-label">Đang mở bán</span>
             <h3 className="inv-stat-value text-emerald">{productStats.active} <span className="inv-stat-unit">sản phẩm</span></h3>
             <span className="inv-stat-sub" style={{ color: '#059669', fontWeight: 600 }}>
-              Hiển thị công khai trên website
+              Hiển thị công khai trên trang web
             </span>
           </div>
         </div>
@@ -810,7 +812,7 @@ export default function AdminProductManagement({ currentUser, notificationTarget
         </div>
 
         {error && (
-          <div style={{ margin: '16px', padding: '12px 16px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: '8px', color: '#B91C1C', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ margin: '16px', padding: '12px 16px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 'var(--admin-radius)', color: '#B91C1C', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <AlertCircle size={18} />
             <span>{error}</span>
           </div>
@@ -820,7 +822,7 @@ export default function AdminProductManagement({ currentUser, notificationTarget
           <table className="admin-table">
             <thead>
               <tr>
-                <th style={{ width: '65px' }}>ID</th>
+                <th style={{ width: '65px' }}>Mã</th>
                 <th style={{ width: '70px', textAlign: 'center' }}>Ảnh</th>
                 <th style={{ minWidth: '260px' }}>Tên Sản Phẩm Nội Thất</th>
                 <th style={{ width: '150px' }}>Loại Nội Thất</th>
@@ -864,7 +866,7 @@ export default function AdminProductManagement({ currentUser, notificationTarget
                   return (
                     <tr key={p.id}>
                       {/* ID */}
-                      <td style={{ color: 'var(--admin-text-muted)', fontFamily: 'monospace', fontWeight: 700, fontSize: '0.86rem' }}>
+                      <td style={{ color: 'var(--admin-text-muted)', fontFamily: 'var(--admin-font-mono)', fontSize: '0.86rem' }}>
                         #{p.id}
                       </td>
 
@@ -911,11 +913,11 @@ export default function AdminProductManagement({ currentUser, notificationTarget
 
                       {/* Unit */}
                       <td style={{ textAlign: 'center', fontSize: '0.84rem', color: 'var(--admin-text-muted)' }}>
-                        {p.unit || 'Bộ'}
+                        {formatProductUnit(p.unit || 'Bộ')}
                       </td>
 
                       {/* Selling Price */}
-                      <td style={{ textAlign: 'right', fontWeight: 800, color: '#047857', fontSize: '0.96rem', whiteSpace: 'nowrap' }}>
+                      <td style={{ textAlign: 'right', color: '#047857', fontSize: '0.96rem', whiteSpace: 'nowrap' }}>
                         {formatVND(p.sellingPrice)}
                       </td>
 
@@ -928,7 +930,7 @@ export default function AdminProductManagement({ currentUser, notificationTarget
                           </span>
                         ) : (
                           <span className="stock-pill normal">
-                            <span>{p.quantity} {p.unit || 'chiếc'}</span>
+                            <span>{p.quantity} {formatProductUnit(p.unit || 'chiếc')}</span>
                           </span>
                         )}
                       </td>
@@ -956,7 +958,7 @@ export default function AdminProductManagement({ currentUser, notificationTarget
                             type="button"
                             className="btn-action-gallery"
                             onClick={() => openGalleryModal(p)}
-                            title="Quản lý Album thư viện ảnh đa góc chụp"
+                            title="Quản lý thư viện ảnh nhiều góc chụp"
                           >
                             <ImageIcon size={13} />
                             <span>Ảnh</span>
@@ -1194,12 +1196,12 @@ export default function AdminProductManagement({ currentUser, notificationTarget
                     id="product-image-url"
                     type={productForm.imageUrl.startsWith('/') ? 'text' : 'url'}
                     className="form-input"
-                    placeholder="https://example.com/sofa-leather.jpg (hoặc tải album ảnh sau)"
+                    placeholder="https://example.com/sofa-leather.jpg (hoặc tải thư viện ảnh sau)"
                     value={productForm.imageUrl}
                     disabled={!editContent}
                     onChange={(e) => setProductForm({ ...productForm, imageUrl: e.target.value })}
                   />
-                  <small className="form-hint">Có thể dùng URL hoặc chọn file bên dưới. Nếu có cả hai, file tải lên sẽ làm ảnh chính.</small>
+                  <small className="form-hint">Có thể dùng URL hoặc chọn tệp bên dưới. Nếu có cả hai, tệp tải lên sẽ làm ảnh chính.</small>
                 </div>
 
                 <div className="form-group">
@@ -1219,7 +1221,7 @@ export default function AdminProductManagement({ currentUser, notificationTarget
                       else setProductImageFile(file || null)
                     }}
                   />
-                  <small className="form-hint">JPG, PNG, WEBP hoặc GIF, tối đa 5 MB. File được lưu trên máy chủ và ưu tiên làm ảnh đại diện.</small>
+                  <small className="form-hint">JPG, PNG, WebP hoặc GIF, tối đa 5 MB. Tệp tải lên được ưu tiên làm ảnh đại diện.</small>
                 </div>
 
                 {/* Description */}
@@ -1245,7 +1247,7 @@ export default function AdminProductManagement({ currentUser, notificationTarget
                       onChange={(e) => setProductForm({ ...productForm, isActive: e.target.checked })}
                       style={{ width: '16px', height: '16px', accentColor: 'var(--admin-accent)' }}
                     />
-                    <span style={{ fontSize: '0.88rem', fontWeight: 600 }}>Kích hoạt mở bán công khai ngay trên website</span>
+                    <span style={{ fontSize: '0.88rem', fontWeight: 600 }}>Kích hoạt mở bán công khai ngay trên trang web</span>
                   </label>
                 </div>
               </div>
@@ -1284,14 +1286,14 @@ export default function AdminProductManagement({ currentUser, notificationTarget
           ==================================================================== */}
       {showGalleryModal && activeGalleryProduct && (
         <div className="admin-modal-backdrop" onClick={() => setShowGalleryModal(false)}>
-          <div className="admin-modal-card large" role="dialog" aria-modal="true" aria-label="Album ảnh sản phẩm" style={{ maxWidth: '780px' }} onClick={(e) => e.stopPropagation()}>
+          <div className="admin-modal-card large" role="dialog" aria-modal="true" aria-label="Thư viện ảnh sản phẩm" style={{ maxWidth: '780px' }} onClick={(e) => e.stopPropagation()}>
             <div className="admin-modal-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <div className="modal-icon-badge" style={{ background: '#EFF6FF', color: '#2563EB' }}>
                   <ImageIcon size={20} />
                 </div>
                 <div>
-                  <h3 className="modal-title">Album Hình Ảnh Đa Góc Chụp</h3>
+                  <h3 className="modal-title">Thư viện ảnh nhiều góc chụp</h3>
                   <p className="modal-subtitle">
                     Sản phẩm: <strong>{activeGalleryProduct.name}</strong> (#{activeGalleryProduct.id})
                   </p>
@@ -1382,12 +1384,12 @@ export default function AdminProductManagement({ currentUser, notificationTarget
                 {galleryLoading ? (
                   <div style={{ textAlign: 'center', padding: '30px', color: 'var(--admin-text-muted)' }}>
                     <RefreshCw size={24} className="spin" />
-                    <p style={{ marginTop: '8px', fontSize: '0.86rem' }}>Đang tải album ảnh...</p>
+                    <p style={{ marginTop: '8px', fontSize: '0.86rem' }}>Đang tải thư viện ảnh...</p>
                   </div>
                 ) : galleryImages.length === 0 ? (
                   <div className="gallery-empty-state">
                     <ImageIcon size={36} color="var(--admin-text-muted)" />
-                    <p>Chưa có hình ảnh nào trong album sản phẩm này.</p>
+                    <p>Chưa có hình ảnh nào trong thư viện ảnh sản phẩm này.</p>
                   </div>
                 ) : (
                   <div className="gallery-grid">
@@ -1421,7 +1423,7 @@ export default function AdminProductManagement({ currentUser, notificationTarget
                             type="button"
                             className="gallery-action-btn delete"
                             onClick={() => handleDeleteImage(img.id)}
-                            title="Xóa ảnh này khỏi album"
+                            title="Xóa ảnh này khỏi thư viện ảnh"
                           >
                             <Trash2 size={13} />
                           </button>

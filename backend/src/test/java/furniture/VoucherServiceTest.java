@@ -84,6 +84,8 @@ class VoucherServiceTest {
             when(repository.findCustomerTier(7L)).thenReturn("NEW");
             assertEquals(0, service.getActiveVouchers(7L).size());
             assertThrows(IllegalArgumentException.class, () -> service.validateVoucher(new ValidateVoucherRequest("SCOPE", new BigDecimal("500000")), 7L));
+            assertEquals(0, service.getActiveVouchers(null).size());
+            assertThrows(IllegalArgumentException.class, () -> service.validateVoucher(new ValidateVoucherRequest("SCOPE", new BigDecimal("500000")), null));
         }
     }
 

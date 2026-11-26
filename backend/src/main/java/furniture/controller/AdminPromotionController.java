@@ -207,6 +207,15 @@ public class AdminPromotionController {
         }
     }
 
+    @PostMapping("/{id}/vouchers/order-examples")
+    public ResponseEntity<?> createOrderVoucherExamples(@PathVariable Long id) {
+        try {
+            return ResponseEntity.ok(Map.of("created", adminPromotionService.createOrderVoucherExamples(id)));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
+        }
+    }
+
     @PutMapping("/vouchers/{voucherId}")
     public ResponseEntity<?> updateVoucher(@PathVariable Long voucherId, @Valid @RequestBody CreateVoucherRequest req) {
         try {

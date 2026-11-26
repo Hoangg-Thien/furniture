@@ -23,13 +23,37 @@ import {
   Percent,
   FileText,
   Building,
-  ShieldCheck,
-  Clock
+  ShieldCheck
 } from 'lucide-react'
 import { getApiBaseUrl, getApiHeaders } from '../lib/apiConfig'
 import { productImageUrl } from '../lib/productImages'
 import { formatProductUnit } from '../lib/productUnits.js'
 import './AdminInvoiceManagement.css'
+import { adminErrorMessage, orderStatusLabel } from './adminDisplay'
+
+const paymentStatuses = {
+  PAID: { label: 'Đã thanh toán', tone: 'success' },
+  UNPAID: { label: 'Chưa thanh toán', tone: 'warning' },
+  PENDING: { label: 'Chờ thanh toán', tone: 'warning' },
+  REFUNDED: { label: 'Đã hoàn tiền', tone: 'info' },
+  PARTIALLY_REFUNDED: { label: 'Hoàn tiền một phần', tone: 'info' }
+}
+
+function getPaymentStatus(status) {
+  return Object.hasOwn(paymentStatuses, status) ? paymentStatuses[status] : { label: 'Chưa xác định', tone: 'info' }
+}
+
+const paymentMethods = {
+  CASH: 'COD — thu tiền khi giao hàng',
+  BANK_TRANSFER: 'Chuyển khoản ngân hàng',
+  CREDIT_CARD: 'Thẻ tín dụng',
+  VNPAY: 'VNPAY',
+  MOMO: 'MoMo',
+}
+
+function paymentMethodLabel(method) {
+  return Object.hasOwn(paymentMethods, method) ? paymentMethods[method] : 'Chưa xác định'
+}
 
 export default function AdminInvoiceManagement({ currentUser }) {
   const [invoices, setInvoices] = useState([])
@@ -124,7 +148,7 @@ export default function AdminInvoiceManagement({ currentUser }) {
       if (!controller.signal.aborted) setQuickInvoice(data)
     } catch (err) {
       if (!controller.signal.aborted) {
-        setQuickError(err.message)
+        setQuickError(adminErrorMessage(err))
         quickRequest.current = null
       }
     } finally {
@@ -202,7 +226,7 @@ export default function AdminInvoiceManagement({ currentUser }) {
       setTotalPages(data.totalPages || 1)
       setTotalElements(data.totalElements || 0)
     } catch (err) {
-      setError(err.message)
+      setError(adminErrorMessage(err))
     } finally {
       setLoading(false)
     }
@@ -237,7 +261,7 @@ export default function AdminInvoiceManagement({ currentUser }) {
       const data = await res.json()
       setEligibleOrders(data || [])
     } catch (err) {
-      setEligibleError(err.message)
+      setEligibleError(adminErrorMessage(err))
     } finally {
       setEligibleLoading(false)
     }
@@ -285,7 +309,7 @@ export default function AdminInvoiceManagement({ currentUser }) {
         calculatePreview(orderId, orderData.voucherCode || '', false)
       }
     } catch (err) {
-      if (!controller.signal.aborted) setPreviewError(err.message)
+      if (!controller.signal.aborted) setPreviewError(adminErrorMessage(err))
     } finally {
       if (!controller.signal.aborted) setOrderLoading(false)
     }
@@ -316,7 +340,7 @@ export default function AdminInvoiceManagement({ currentUser }) {
       if (!res.ok) throw new Error(data.error || 'Không thể tính tiền hóa đơn. Vui lòng thử lại.')
       if (!controller.signal.aborted) setPreviewCalculation(data)
     } catch (err) {
-      if (!controller.signal.aborted) setPreviewError(err.message)
+      if (!controller.signal.aborted) setPreviewError(adminErrorMessage(err))
     } finally {
       if (!controller.signal.aborted) setCalculating(false)
     }
@@ -335,7 +359,7 @@ export default function AdminInvoiceManagement({ currentUser }) {
       const data = await res.json()
       setSelectedInvoice(data)
     } catch (err) {
-      showToast(err.message, 'error')
+      showToast(adminErrorMessage(err), 'error')
       setViewingInvoice(false)
     } finally {
       setDetailLoading(false)
@@ -349,7 +373,7 @@ export default function AdminInvoiceManagement({ currentUser }) {
       const res = await fetch(`${baseUrl}/api/admin/invoices/${invoiceId}/pdf`, {
         headers: getApiHeaders()
       })
-      if (!res.ok) throw new Error('Không thể tải file PDF hóa đơn!')
+      if (!res.ok) throw new Error('Không thể tải tệp PDF hóa đơn!')
       const blob = await res.blob()
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
@@ -361,7 +385,7 @@ export default function AdminInvoiceManagement({ currentUser }) {
       window.URL.revokeObjectURL(url)
       showToast('Đã tải hóa đơn PDF thành công!', 'success')
     } catch (err) {
-      showToast(err.message, 'error')
+      showToast(adminErrorMessage(err), 'error')
     }
   }
 
@@ -416,7 +440,7 @@ export default function AdminInvoiceManagement({ currentUser }) {
       setSelectedInvoice(data)
       setViewingInvoice(true)
     } catch (err) {
-      showToast(err.message, 'error')
+      showToast(adminErrorMessage(err), 'error')
     } finally {
       setCreateSubmitting(false)
     }
@@ -432,21 +456,20 @@ export default function AdminInvoiceManagement({ currentUser }) {
     return Number(num).toLocaleString('vi-VN') + ' đ'
   }
 
-  const formatDate = (isoStr) => {
+  const formatDate = (isoStr, includeTime = true) => {
     if (!isoStr) return '---'
     const d = new Date(isoStr)
     return d.toLocaleString('vi-VN', {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+      ...(includeTime && { hour: '2-digit', minute: '2-digit' })
     })
   }
 
   const getMethodBadge = (method) => method === 'CASH'
-    ? <span className="inv-badge inv-badge-cash"><Banknote size={13} /> COD — thu tiền khi giao hàng</span>
-    : <span className="inv-badge inv-badge-default">Chứng từ cũ: {method}</span>
+    ? <span className="inv-badge inv-badge-cash"><Banknote size={13} /> {paymentMethodLabel(method)}</span>
+    : <span className="inv-badge inv-badge-default">Chứng từ cũ: {paymentMethodLabel(method)}</span>
 
   return (
     <div className="admin-module-view">
@@ -466,7 +489,7 @@ export default function AdminInvoiceManagement({ currentUser }) {
       <div className="admin-page-header">
         <div>
           <div className="admin-breadcrumb">
-            Trang chủ &gt; Quản lý hóa đơn &gt; <span>Module 09</span>
+            Trang chủ &gt; Quản lý hóa đơn &gt; <span>Mục 09</span>
           </div>
           <h1 className="admin-page-title">Quản Lý Hóa Đơn &amp; Thanh Toán</h1>
           <p className="admin-page-subtitle" style={{ margin: '4px 0 0', color: 'var(--admin-text-muted)', fontSize: '0.88rem' }}>
@@ -513,7 +536,7 @@ export default function AdminInvoiceManagement({ currentUser }) {
           <div className="inv-stat-info">
             <span className="inv-stat-label">Tổng hóa đơn</span>
             <h3 className="inv-stat-value">{stats.total} <span className="inv-stat-unit">chứng từ</span></h3>
-            <span className="inv-stat-sub" style={{ color: '#059669', fontWeight: 600 }}>
+            <span className="inv-stat-sub" style={{ color: '#059669' }}>
               <CheckCircle2 size={13} /> {stats.paidCount} đã thanh toán
             </span>
           </div>
@@ -602,7 +625,7 @@ export default function AdminInvoiceManagement({ currentUser }) {
               }}
             >
               <option value="ALL">Tất cả trạng thái</option>
-              <option value="PAID">Đã thanh toán (PAID)</option>
+              <option value="PAID">Đã thanh toán</option>
               <option value="REFUNDED">Hoàn tiền (REFUNDED)</option>
             </select>
           </div>
@@ -729,7 +752,7 @@ export default function AdminInvoiceManagement({ currentUser }) {
         </div>
 
         {error && (
-          <div style={{ margin: '16px', padding: '12px 16px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: '8px', color: '#B91C1C', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ margin: '16px', padding: '12px 16px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 'var(--admin-radius)', color: '#B91C1C', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <AlertCircle size={18} />
             <span>{error}</span>
           </div>
@@ -739,20 +762,21 @@ export default function AdminInvoiceManagement({ currentUser }) {
           <table className="admin-table">
             <thead>
               <tr>
-                <th style={{ width: '170px' }}>Mã Hóa Đơn</th>
-                <th style={{ width: '85px' }}>Mã Đơn</th>
+                <th>Mã hóa đơn</th>
+                <th>Mã đơn</th>
+                <th>Ngày xuất</th>
+                <th style={{ textAlign: 'right' }}>Tổng tiền</th>
+                <th>Trạng thái</th>
                 <th>Khách Hàng</th>
-                <th style={{ width: '155px' }}>Ngày Xuất</th>
                 <th style={{ width: '150px' }}>Hình Thức</th>
                 <th style={{ width: '125px' }}>Chiết Khấu</th>
-                <th style={{ width: '155px', textAlign: 'right' }}>Tổng Thanh Toán</th>
                 <th style={{ width: '145px' }}>Thu Ngân</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="8" style={{ textAlign: 'center', padding: '48px 16px', color: 'var(--admin-text-muted)' }}>
+                  <td colSpan="9" style={{ textAlign: 'center', padding: '48px 16px', color: 'var(--admin-text-muted)' }}>
                     <div style={{ display: 'inline-flex', alignItems: 'center', gap: '10px' }}>
                       <RefreshCw size={20} className="spin" color="var(--admin-accent)" />
                       <span>Đang nạp dữ liệu hóa đơn...</span>
@@ -761,13 +785,14 @@ export default function AdminInvoiceManagement({ currentUser }) {
                 </tr>
               ) : invoices.length === 0 ? (
                 <tr>
-                  <td colSpan="8" style={{ textAlign: 'center', padding: '48px 16px', color: 'var(--admin-text-muted)' }}>
+                  <td colSpan="9" style={{ textAlign: 'center', padding: '48px 16px', color: 'var(--admin-text-muted)' }}>
                     <Receipt size={36} style={{ opacity: 0.35, marginBottom: '8px' }} />
                     <p style={{ margin: 0, fontWeight: 500 }}>Không tìm thấy hóa đơn nào phù hợp với bộ lọc hiện tại.</p>
                   </td>
                 </tr>
               ) : (
                 invoices.map((inv) => {
+                  const status = getPaymentStatus(inv.paymentStatus)
                   const initials = (inv.customerName || 'K')
                     .split(' ')
                     .map((n) => n[0])
@@ -814,6 +839,20 @@ export default function AdminInvoiceManagement({ currentUser }) {
                         </span>
                       </td>
                       <td>
+                        <span className="inv-list-date">{formatDate(inv.paymentDate, false)}</span>
+                      </td>
+                      <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                        <div className="inv-final-price">
+                          {formatVnd(inv.finalAmount)}
+                        </div>
+                        {inv.taxAmount && Number(inv.taxAmount) > 0 && (
+                          <div className="inv-tax-sub">Đã gồm VAT 8%</div>
+                        )}
+                      </td>
+                      <td>
+                        <span className={`admin-badge admin-badge-${status.tone} inv-list-status`}>{status.label}</span>
+                      </td>
+                      <td>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                           <div className="customer-avatar-badge">{initials}</div>
                           <div>
@@ -831,34 +870,20 @@ export default function AdminInvoiceManagement({ currentUser }) {
                           </div>
                         </div>
                       </td>
-                      <td style={{ whiteSpace: 'nowrap' }}>
-                        <div style={{ fontSize: '0.82rem', color: 'var(--admin-text-main)', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                          <Clock size={13} color="var(--admin-text-muted)" />
-                          <span>{formatDate(inv.paymentDate)}</span>
-                        </div>
-                      </td>
                       <td>{getMethodBadge(inv.paymentMethod)}</td>
                       <td>
                         {Number(inv.discountAmount || 0) + Number(inv.voucherDiscount || 0) > 0 ? (
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', padding: '2px 6px', background: '#FFEDD5', color: '#C2410C', border: '1px solid #FED7AA', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600 }}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', padding: '2px 6px', background: '#FFEDD5', color: '#C2410C', border: '1px solid #FED7AA', borderRadius: '4px', fontSize: '0.75rem' }}>
                             <Tag size={10} /> -{formatVnd(Number(inv.discountAmount || 0) + Number(inv.voucherDiscount || 0))}
                           </span>
                         ) : (
                           <span style={{ color: 'var(--admin-text-muted)', fontSize: '0.82rem' }}>0 đ</span>
                         )}
                       </td>
-                      <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-                        <div className="inv-final-price">
-                          {formatVnd(inv.finalAmount)}
-                        </div>
-                        {inv.taxAmount && Number(inv.taxAmount) > 0 && (
-                          <div className="inv-tax-sub">Đã gồm VAT 8%</div>
-                        )}
-                      </td>
                       <td>
                         <div className="inv-staff-badge">
                           <User size={12} color="var(--admin-text-muted)" />
-                          <span>{inv.staffName || 'Admin Showroom'}</span>
+                          <span>{inv.staffName || 'Quản trị viên'}</span>
                         </div>
                       </td>
                     </tr>
@@ -935,23 +960,7 @@ export default function AdminInvoiceManagement({ currentUser }) {
         {quickLoading ? <p role="status">Đang tải chi tiết hóa đơn...</p>
           : quickError ? <p role="alert">{quickError}</p>
           : quickInvoice ? <div className="inv-quick-grid">
-            <aside className="inv-quick-summary" aria-label="Tóm tắt hóa đơn">
-              <h3>Hóa đơn {quickInvoice.invoiceCode}</h3>
-              <div className="inv-quick-total"><span>Tổng thanh toán</span><strong>{formatVnd(quickInvoice.finalAmount)}</strong></div>
-              <button type="button" className="admin-btn admin-btn-primary" onClick={() => handleViewDetail(quickInvoice.id)}><Printer size={16} />Xem &amp; In</button>
-              <button type="button" className="admin-btn admin-btn-outline" onClick={() => handleDownloadPdf(quickInvoice.id, quickInvoice.invoiceCode)}><Download size={16} />Tải PDF</button>
-              <dl>
-                <div><dt>Ngày lập</dt><dd>{formatDate(quickInvoice.paymentDate)}</dd></div>
-                <div><dt>Thu ngân</dt><dd>{quickInvoice.staffName || 'Admin Showroom'}</dd></div>
-                <div><dt>Hình thức</dt><dd>{quickInvoice.paymentMethod === 'CASH' ? 'COD — thu tiền khi giao hàng' : `Chứng từ cũ: ${quickInvoice.paymentMethod}`}</dd></div>
-                <div><dt>Thanh toán</dt><dd>{({ PAID: 'Đã thanh toán', UNPAID: 'Chưa thanh toán', PENDING: 'Chờ thanh toán', REFUNDED: 'Đã hoàn tiền', PARTIALLY_REFUNDED: 'Hoàn tiền một phần' })[quickInvoice.paymentStatus] || quickInvoice.paymentStatus || 'Chưa xác định'}</dd></div>
-                <div><dt>Tiền hàng</dt><dd>{formatVnd(quickInvoice.subtotalAmount)}</dd></div>
-                <div><dt>Giảm giá đơn hàng</dt><dd>{formatVnd(quickInvoice.discountAmount)}</dd></div>
-                <div><dt>Giảm giá voucher{quickInvoice.voucherCode ? ` (${quickInvoice.voucherCode})` : ''}</dt><dd>{formatVnd(quickInvoice.voucherDiscount)}</dd></div>
-                <div><dt>Thuế VAT</dt><dd>{formatVnd(quickInvoice.taxAmount)}</dd></div>
-              </dl>
-            </aside>
-            <div className="inv-quick-main">
+            <div>
               <h3>Sản phẩm trong đơn #{quickInvoice.orderId}</h3>
               <div className="admin-table-container">
                 <table className="admin-table inv-quick-items">
@@ -963,7 +972,25 @@ export default function AdminInvoiceManagement({ currentUser }) {
                 </table>
               </div>
               {quickInvoice.notes && <p className="inv-quick-note"><strong>Ghi chú:</strong> {quickInvoice.notes}</p>}
-              <h3 style={{ marginTop: 20 }}>Thông tin khách hàng</h3>
+            </div>
+            <aside className="inv-quick-summary" aria-label="Tóm tắt hóa đơn">
+              <h3>Hóa đơn {quickInvoice.invoiceCode}</h3>
+              <div className="inv-quick-total"><span>Tổng thanh toán</span><strong>{formatVnd(quickInvoice.finalAmount)}</strong></div>
+              <button type="button" className="admin-btn admin-btn-primary" onClick={() => handleViewDetail(quickInvoice.id)}><Printer size={16} />Xem &amp; In</button>
+              <button type="button" className="admin-btn admin-btn-outline" onClick={() => handleDownloadPdf(quickInvoice.id, quickInvoice.invoiceCode)}><Download size={16} />Tải PDF</button>
+              <dl>
+                <div><dt>Ngày lập</dt><dd>{formatDate(quickInvoice.paymentDate)}</dd></div>
+                <div><dt>Thu ngân</dt><dd>{quickInvoice.staffName || 'Quản trị viên'}</dd></div>
+                <div><dt>Hình thức</dt><dd>{paymentMethodLabel(quickInvoice.paymentMethod)}</dd></div>
+                <div><dt>Thanh toán</dt><dd>{getPaymentStatus(quickInvoice.paymentStatus).label}</dd></div>
+                <div><dt>Tiền hàng</dt><dd>{formatVnd(quickInvoice.subtotalAmount)}</dd></div>
+                <div><dt>Giảm giá đơn hàng</dt><dd>{formatVnd(quickInvoice.discountAmount)}</dd></div>
+                <div><dt>Giảm giá voucher{quickInvoice.voucherCode ? ` (${quickInvoice.voucherCode})` : ''}</dt><dd>{formatVnd(quickInvoice.voucherDiscount)}</dd></div>
+                <div><dt>Thuế VAT</dt><dd>{formatVnd(quickInvoice.taxAmount)}</dd></div>
+              </dl>
+            </aside>
+            <div>
+              <h3>Thông tin khách hàng</h3>
               <dl className="inv-quick-customer">
                 <div><dt>Khách hàng</dt><dd>{quickInvoice.customerName || 'Chưa cung cấp'}</dd></div>
                 <div><dt>Số điện thoại</dt><dd>{quickInvoice.phone || 'Chưa cung cấp'}</dd></div>
@@ -1029,7 +1056,7 @@ export default function AdminInvoiceManagement({ currentUser }) {
                         <option value="">-- Bấm để chọn đơn hàng ({eligibleOrders.length} đơn sẵn sàng) --</option>
                         {eligibleOrders.map((ord) => (
                           <option key={ord.orderId} value={ord.orderId}>
-                            Đơn #{ord.orderId} - {ord.customerName} ({ord.phone || 'SĐT'}) - {formatVnd(ord.totalAmount)} [{ord.status}]
+                            Đơn #{ord.orderId} - {ord.customerName} ({ord.phone || 'SĐT'}) - {formatVnd(ord.totalAmount)} [{orderStatusLabel(ord.status)}]
                           </option>
                         ))}
                       </select>
@@ -1044,7 +1071,7 @@ export default function AdminInvoiceManagement({ currentUser }) {
                       <div className="inv-order-preview-header">
                         <div>
                           <strong>Đơn hàng #{selectedOrderInfo.id}</strong>
-                          <span className="inv-order-status-tag">{selectedOrderInfo.status}</span>
+                          <span className="inv-order-status-tag">{orderStatusLabel(selectedOrderInfo.status)}</span>
                         </div>
                         <span style={{ fontSize: '0.82rem', color: 'var(--admin-text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
                           <Calendar size={13} /> {formatDate(selectedOrderInfo.orderDate)}
@@ -1078,7 +1105,7 @@ export default function AdminInvoiceManagement({ currentUser }) {
                                 </td>
                                 <td style={{ textAlign: 'center' }}>{it.quantity} {formatProductUnit(it.unit)}</td>
                                 <td style={{ textAlign: 'right' }}>{formatVnd(it.unitPrice)}</td>
-                                <td style={{ textAlign: 'right', fontWeight: 600 }}>{formatVnd(it.amount)}</td>
+                                <td style={{ textAlign: 'right' }}>{formatVnd(it.amount)}</td>
                               </tr>
                             ))}
                           </tbody>
@@ -1220,7 +1247,7 @@ export default function AdminInvoiceManagement({ currentUser }) {
                     className={`inv-format-btn ${printFormat === 'A4' ? 'active' : ''}`}
                     onClick={() => setPrintFormat('A4')}
                   >
-                    Khổ A4 Showroom
+                    Khổ giấy A4
                   </button>
                   <button
                     type="button"
@@ -1254,7 +1281,7 @@ export default function AdminInvoiceManagement({ currentUser }) {
                 <button
                   type="button"
                   className="modal-close-btn"
-                  style={{ width: '34px', height: '34px', background: '#F1F5F9', border: '1px solid #E2E8F0', borderRadius: '8px' }}
+                  style={{ width: '34px', height: '34px', background: '#F1F5F9', border: '1px solid #E2E8F0', borderRadius: 'var(--admin-radius)' }}
                   onClick={() => setViewingInvoice(false)}
                   aria-label="Về danh sách hóa đơn"
                 >
@@ -1288,7 +1315,7 @@ export default function AdminInvoiceManagement({ currentUser }) {
                     </div>
                     <div className="inv-showroom-meta">
                       <p><strong>Địa chỉ:</strong> 123 Đường Nội Thất, Phường Bến Nghé, Quận 1, TP. HCM</p>
-                      <p><strong>Hotline:</strong> 1900 6868 - <strong>MST:</strong> 0312345678</p>
+                      <p><strong>Tổng đài:</strong> 1900 6868 - <strong>MST:</strong> 0312345678</p>
                     </div>
                   </div>
 
@@ -1312,8 +1339,8 @@ export default function AdminInvoiceManagement({ currentUser }) {
                     </div>
                     <div className="inv-info-col inv-info-right">
                       <p><strong>Ngày lập:</strong> {formatDate(selectedInvoice.paymentDate)}</p>
-                      <p><strong>Thu ngân phụ trách:</strong> {selectedInvoice.staffName || 'Admin Showroom'}</p>
-                      <p><strong>Hình thức thanh toán:</strong> {selectedInvoice.paymentMethod === 'CASH' ? 'COD — thu tiền khi giao hàng' : `Chứng từ cũ: ${selectedInvoice.paymentMethod}`}</p>
+                      <p><strong>Thu ngân phụ trách:</strong> {selectedInvoice.staffName || 'Quản trị viên'}</p>
+                      <p><strong>Hình thức thanh toán:</strong> {paymentMethodLabel(selectedInvoice.paymentMethod)}</p>
                     </div>
                   </div>
 
@@ -1398,7 +1425,7 @@ export default function AdminInvoiceManagement({ currentUser }) {
                       Vui lòng giữ hóa đơn bán hàng này để được hưởng trọn vẹn dịch vụ bảo hành và bảo dưỡng định kỳ.
                     </p>
                     <p className="inv-policy-thanks">
-                      ✨ Cảm ơn Quý khách đã tin tưởng và đồng hành cùng Showroom FuniStore! ✨
+                      ✨ Cảm ơn Quý khách đã tin tưởng và đồng hành cùng cửa hàng FuniStore! ✨
                     </p>
                   </div>
 
@@ -1413,12 +1440,12 @@ export default function AdminInvoiceManagement({ currentUser }) {
                       <div className="inv-sig-box">
                         <p><strong>Nhân viên thu ngân</strong></p>
                         <span>(Ký, ghi rõ họ tên)</span>
-                        <div style={{ marginTop: 45, fontWeight: 600 }}>{selectedInvoice.staffName || 'Admin Showroom'}</div>
+                        <div style={{ marginTop: 45, fontWeight: 600 }}>{selectedInvoice.staffName || 'Quản trị viên'}</div>
                       </div>
                       <div className="inv-sig-box">
-                        <p><strong>Đại diện Showroom</strong></p>
+                        <p><strong>Đại diện cửa hàng</strong></p>
                         <span>(Ký, đóng dấu)</span>
-                        <div style={{ marginTop: 45, fontWeight: 600, color: '#D97706' }}>FUNISTORE SHOWROOM</div>
+                        <div style={{ marginTop: 45, fontWeight: 600, color: '#D97706' }}>CỬA HÀNG FUNISTORE</div>
                       </div>
                     </div>
                   )}

@@ -1,4 +1,11 @@
 import { Download, Filter, Plus, Search } from 'lucide-react'
+import { accountRoleLabel, orderStatusLabel } from './adminDisplay'
+
+const displayLabels = {
+  active: 'Hoạt động', inactive: 'Tạm khóa', ACTIVE: 'Đã kích hoạt', INACTIVE: 'Tạm dừng', DRAFT: 'Bản nháp',
+  PENDING: orderStatusLabel('PENDING'), CONFIRMED: orderStatusLabel('CONFIRMED'), COMPLETED: orderStatusLabel('COMPLETED'),
+  ADMIN: accountRoleLabel('ADMIN'), STAFF: accountRoleLabel('STAFF'), CUSTOMER: accountRoleLabel('CUSTOMER'),
+}
 
 // Metadata và dữ liệu demo chuẩn bị sẵn cho từng module từ 01 đến 10
 const MODULE_CONFIGS = {
@@ -6,7 +13,7 @@ const MODULE_CONFIGS = {
     title: 'Quản Lý Tài Khoản & Phân Quyền',
     doc: '01_QUAN_LY_TAI_KHOAN_ROLE.md',
     addText: 'Tạo tài khoản mới',
-    columns: ['ID', 'Tên đăng nhập', 'Vai trò (Role)', 'Trạng thái', 'Ngày tạo', 'Thao tác'],
+    columns: ['Mã', 'Tên đăng nhập', 'Vai trò', 'Trạng thái', 'Ngày tạo', 'Thao tác'],
     rows: [
       ['01', 'admin01', 'ADMIN', 'Hoạt động', '2026-10-01', 'active'],
       ['02', 'staff_thuha', 'STAFF', 'Hoạt động', '2026-10-15', 'active'],
@@ -49,7 +56,7 @@ const MODULE_CONFIGS = {
     ]
   },
   products: {
-    title: 'Quản Lý Sản Phẩm & Album Ảnh',
+    title: 'Quản Lý Sản Phẩm & Thư viện ảnh',
     doc: '05_QUAN_LY_SAN_PHAM_HINH_ANH.md',
     addText: 'Thêm sản phẩm mới',
     columns: ['ID', 'Tên sản phẩm nội thất', 'Danh mục', 'ĐVT', 'Giá bán niêm yết', 'Kho tồn', 'Thao tác'],
@@ -78,12 +85,12 @@ const MODULE_CONFIGS = {
     columns: ['ID', 'Tên chương trình', 'Ngày bắt đầu', 'Ngày kết thúc', 'Cơ chế áp dụng', 'Trạng thái', 'Thao tác'],
     rows: [
       ['P01', 'Tri Ân Mùa Cưới 2026', '01/10/2026', '15/11/2026', 'Giảm SP + Mã Voucher', 'ACTIVE'],
-      ['P02', 'Khai Trương Showroom Chi Nhánh Mới', '01/11/2026', '30/11/2026', 'Chiết khấu bậc đơn', 'DRAFT'],
+      ['P02', 'Khai Trương cửa hàng Chi Nhánh Mới', '01/11/2026', '30/11/2026', 'Chiết khấu bậc đơn', 'DRAFT'],
       ['P03', 'Xả Kho Đồ Gỗ Mùa Thu', '01/09/2026', '30/09/2026', 'Giảm giá theo sản phẩm', 'INACTIVE']
     ]
   },
   orders: {
-    title: 'Quản Lý Đơn Đặt Hàng (Orders)',
+    title: 'Quản lý đơn đặt hàng',
     doc: '08_QUAN_LY_DON_DAT_HANG.md',
     addText: 'Tạo đơn tại quầy',
     columns: ['Mã đơn', 'Khách hàng', 'SĐT', 'Ngày đặt', 'Nhân viên phụ trách', 'Tổng tiền', 'Trạng thái', 'Thao tác'],
@@ -119,7 +126,7 @@ const MODULE_CONFIGS = {
 
 export default function AdminModulePlaceholder({ moduleId }) {
   const config = MODULE_CONFIGS[moduleId] || {
-    title: 'Module Quản Trị',
+    title: 'Mục quản trị',
     doc: 'README.md',
     addText: 'Thêm mới',
     columns: ['ID', 'Tên', 'Mô tả', 'Thao tác'],
@@ -150,7 +157,7 @@ export default function AdminModulePlaceholder({ moduleId }) {
 
       {/* Reference Banner to doc_kehoach */}
       <div style={{
-        background: 'linear-gradient(90deg, #FEF3C7, #FFFBEB)',
+        background: 'var(--admin-warning-bg)',
         borderLeft: '4px solid var(--admin-accent)',
         borderRadius: 'var(--admin-radius-sm)',
         padding: '12px 18px',
@@ -162,7 +169,7 @@ export default function AdminModulePlaceholder({ moduleId }) {
         alignItems: 'center'
       }}>
         <div>
-          <strong>Tài liệu kỹ thuật MVC:</strong> Đang áp dụng thiết kế theo file <code>doc_kehoach/{config.doc}</code>
+          <strong>Tài liệu kỹ thuật MVC:</strong> Thiết kế được mô tả trong tệp <code>doc_kehoach/{config.doc}</code>
         </div>
         <span style={{ fontSize: '0.78rem', background: '#F59E0B', color: '#FFFFFF', padding: '2px 8px', borderRadius: '4px', fontWeight: 600 }}>
           Sẵn sàng kết nối API
@@ -214,15 +221,15 @@ export default function AdminModulePlaceholder({ moduleId }) {
                   {row.map((cell, cIdx) => (
                     <td key={cIdx}>
                       {cell === 'active' || cell === 'Hoạt động' || cell === 'COMPLETED' || cell === 'ACTIVE' ? (
-                        <span className="admin-badge admin-badge-success">{cell}</span>
+                        <span className="admin-badge admin-badge-success">{displayLabels[cell] || cell}</span>
                       ) : cell === 'inactive' || cell === 'Đang khóa' || cell === 'INACTIVE' ? (
-                        <span className="admin-badge admin-badge-danger">{cell}</span>
+                        <span className="admin-badge admin-badge-danger">{displayLabels[cell] || cell}</span>
                       ) : cell === 'PENDING' || cell === 'DRAFT' ? (
-                        <span className="admin-badge admin-badge-warning">{cell}</span>
+                        <span className="admin-badge admin-badge-warning">{displayLabels[cell]}</span>
                       ) : cell === 'CONFIRMED' ? (
-                        <span className="admin-badge admin-badge-info">{cell}</span>
+                        <span className="admin-badge admin-badge-info">{displayLabels[cell]}</span>
                       ) : (
-                        cell
+                        displayLabels[cell] || cell
                       )}
                     </td>
                   ))}

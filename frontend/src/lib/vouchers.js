@@ -10,7 +10,7 @@ export function parseVoucherCustomerId(code) {
   return id
 }
 
-export const VOUCHER_TYPE_LABELS = { ORDER: 'Theo giá trị đơn hàng', PRODUCT: 'Theo sản phẩm', VIP: 'Dành riêng khách VIP' }
+export const VOUCHER_TYPE_LABELS = { ORDER: 'Theo hóa đơn', PRODUCT: 'Theo sản phẩm', VIP: 'Theo hạng thành viên' }
 
 /**
  * Lấy danh sách voucher đang hoạt động cho khách hàng
