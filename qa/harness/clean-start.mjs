@@ -48,6 +48,16 @@ try {
   assert.equal(Number((await db.query('SELECT COUNT(*) AS count FROM admin_activity_notifications')).rows[0].count), 0, 'Startup must not invent staff activities')
   const base = 'http://127.0.0.1:18081'
   const adminHeaders = { ...await adminApiHeaders(base), 'Content-Type': 'application/json' }
+  const voucherResponse = await fetch(`${base}/api/admin/promotions/vouchers`, { headers: adminHeaders })
+  assert.equal(voucherResponse.status, 200)
+  const memberVouchers = (await voucherResponse.json()).filter(voucher => voucher.code.startsWith('UUDAI'))
+    .sort((a, b) => a.discountPercent - b.discountPercent)
+  assert.deepEqual(memberVouchers.map(voucher => [voucher.code, voucher.customerTier, voucher.discountPercent]), [
+    ['UUDAIBAC', 'SILVER', 5], ['UUDAIVANG', 'GOLD', 7], ['UUDAIBACHKIM', 'PLATINUM', 8], ['UUDAIKIMCUONG', 'VIP_DIAMOND', 10],
+  ])
+  assert(memberVouchers.every(voucher => voucher.status === 'INACTIVE' && voucher.voucherType === 'VIP'
+    && voucher.minimumAmount === 5000000 && voucher.maximumDiscount === 1000000 && voucher.quantity === 100))
+  const memberGoldId = memberVouchers[1].id
   const username = `notification_${Date.now()}`
   const staffResponse = await fetch(`${base}/api/admin/staff`, { method: 'POST', headers: adminHeaders,
     body: JSON.stringify({ username, password: 'QaPass123!', fullName: 'Notification QA', staffType: 'WAREHOUSE' }) })
@@ -87,6 +97,7 @@ try {
   assert.equal(registration.status, 201)
   assert.equal(fs.readFileSync(seedPath, 'utf8'), seedBefore, 'Registration must not write personal data into seed SQL')
   await db.exec("UPDATE orders SET order_date='2020-01-02 03:04:05', total_amount=1, discount_amount=10, voucher_id=(SELECT id FROM vouchers ORDER BY id LIMIT 1) WHERE id=23")
+  await db.exec("DELETE FROM vouchers WHERE code='UUDAIBAC'; UPDATE vouchers SET status='ACTIVE', used_quantity=2 WHERE code='UUDAIVANG'")
   const args = java.spawnargs.slice(1)
   const stopped = once(java, 'exit')
   java.kill()
@@ -106,6 +117,12 @@ try {
   const preserved = (await db.query("SELECT to_char(order_date, 'YYYY-MM-DD HH24:MI:SS') AS date, total_amount FROM orders WHERE id=23")).rows[0]
   assert.equal(preserved.date, '2020-01-02 03:04:05')
   assert.equal(Number(preserved.total_amount), 1, 'Startup must not rewrite historical order totals')
+  const restartedVouchers = (await db.query("SELECT id::int, code, status, used_quantity FROM vouchers WHERE code LIKE 'UUDAI%' ORDER BY code")).rows
+  assert.equal(restartedVouchers.length, 4)
+  assert.equal(restartedVouchers.find(voucher => voucher.code === 'UUDAIBAC').status, 'INACTIVE')
+  assert.deepEqual(restartedVouchers.find(voucher => voucher.code === 'UUDAIVANG'),
+    { id: memberGoldId, code: 'UUDAIVANG', status: 'ACTIVE', used_quantity: 2 })
+  result.memberVouchers = { freshStartup: 4, restartBackfillsMissing: true, existingVoucherPreserved: true }
   result.dataPreservation = { registrationDoesNotEditSeed: true, restartPreservesOrderDateAndTotal: true }
 } catch (e) { result.error = e.message; process.exitCode = 1 }
 finally {

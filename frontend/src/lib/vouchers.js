@@ -152,3 +152,12 @@ export const MEMBERSHIP_MILESTONES = {
 
 export const VIP_TIER_LABELS = Object.fromEntries(Object.entries(MEMBERSHIP_MILESTONES)
   .map(([tier, { label, millions }]) => [tier, `${label} (từ ${millions} triệu)`]))
+
+export function memberVoucherCode(tier) {
+  const label = MEMBERSHIP_MILESTONES[tier]?.label
+  return label ? `UUDAI${label.normalize('NFD').replace(/[\u0300-\u036f\s]/g, '').toUpperCase()}` : ''
+}
+
+export function isDefaultVoucherCode(code) {
+  return Object.keys(MEMBERSHIP_MILESTONES).some(tier => memberVoucherCode(tier) === code?.trim().toUpperCase())
+}

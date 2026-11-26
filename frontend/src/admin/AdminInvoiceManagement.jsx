@@ -845,7 +845,7 @@ export default function AdminInvoiceManagement({ currentUser }) {
                         <div className="inv-final-price">
                           {formatVnd(inv.finalAmount)}
                         </div>
-                        {inv.taxAmount && Number(inv.taxAmount) > 0 && (
+                        {Number(inv.taxAmount) > 0 && (
                           <div className="inv-tax-sub">Đã gồm VAT 8%</div>
                         )}
                       </td>
@@ -1401,7 +1401,7 @@ export default function AdminInvoiceManagement({ currentUser }) {
                           <span>-{formatVnd(selectedInvoice.voucherDiscount)}</span>
                         </div>
                       )}
-                      {selectedInvoice.taxAmount && Number(selectedInvoice.taxAmount) > 0 && (
+                      {Number(selectedInvoice.taxAmount) > 0 && (
                         <div className="inv-sum-row">
                           <span>Thuế VAT (8%):</span>
                           <span>+{formatVnd(selectedInvoice.taxAmount)}</span>

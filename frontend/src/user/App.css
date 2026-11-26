@@ -5281,8 +5281,9 @@
   gap: 4px;
 }
 
-.voucher-program-title {
+.voucher-code-title {
   margin: 0;
+  overflow-wrap: anywhere;
   font-size: 14.5px;
   font-weight: 700;
   color: var(--ink);
@@ -5318,53 +5319,8 @@
 /* Footer & Nút */
 .voucher-footer-row {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
   padding-top: 8px;
   border-top: 1px dashed #ede8dc;
-}
-
-.voucher-code-pill {
-  display: inline-flex;
-  min-width: 0;
-  max-width: 100%;
-  align-items: center;
-  background: #f4efe4;
-  border: 1px dashed #c8bead;
-  border-radius: 6px;
-  padding: 3px 8px;
-  gap: 8px;
-}
-
-.voucher-code-pill .code-text {
-  overflow-wrap: anywhere;
-  font-family: monospace;
-  font-size: 13px;
-  font-weight: 700;
-  color: #2b251f;
-  letter-spacing: 0.05em;
-}
-
-.voucher-code-pill .copy-btn {
-  border: none;
-  background: transparent;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 11px;
-  font-weight: 600;
-  color: #7a7366;
-  cursor: pointer;
-  padding: 2px 4px;
-  border-radius: 4px;
-  transition: all 0.15s;
-}
-
-.voucher-code-pill .copy-btn:hover {
-  background: #e6dfd1;
-  color: var(--ink);
 }
 
 .voucher-use-btn {

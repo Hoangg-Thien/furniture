@@ -195,7 +195,7 @@ try {
     await tierGuide.getByRole('button', { name: 'Xem voucher của tôi' }).click()
     await membership.waitFor({ state: 'hidden' })
     const vouchers = page.locator('.vouchers-overlay')
-    await vouchers.getByRole('heading', { name: 'Voucher thử hạng Kim cương' }).waitFor()
+    await vouchers.getByRole('heading', { name: 'QA-DIAMOND', exact: true }).waitFor()
     await vouchers.getByRole('button', { name: 'Đóng cửa sổ' }).click()
     if (width === 1440) {
       await page.route('**/api/auth/logout', route => route.fulfill({ json: {} }))

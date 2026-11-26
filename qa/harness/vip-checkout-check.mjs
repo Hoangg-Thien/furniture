@@ -69,7 +69,7 @@ try {
         failCartQuote = true
         await openWallet()
         const wallet = page.getByRole('dialog', { name: 'Kho Voucher & Ưu Đãi' })
-        const orderCard = wallet.getByRole('article').filter({ hasText: orderVoucher.code })
+        const orderCard = wallet.getByRole('article').filter({ has: page.getByRole('heading', { name: orderVoucher.code, exact: true }) })
         const useOrderVoucher = orderCard.getByRole('button', { name: 'Dùng ngay' })
         const shortfall = orderCard.getByText(/Chưa đủ điều kiện.*5\.000\.000₫/)
         await wallet.getByText('Chưa kiểm tra được giá trị giỏ hàng.').waitFor()
@@ -78,6 +78,9 @@ try {
         await wallet.getByRole('button', { name: 'Thử lại' }).click()
         await shortfall.waitFor()
         assert(await useOrderVoucher.isDisabled())
+        assert.equal(await orderCard.getByText(orderVoucher.code, { exact: true }).count(), 1)
+        assert.equal(await orderCard.getByText(orderVoucher.program_name, { exact: true }).count(), 0)
+        assert.deepEqual(await orderCard.getByRole('button').allTextContents(), ['Dùng ngay'])
         assert.equal(await orderCard.locator('.voucher-discount-val strong').innerText(), '10%')
         await wallet.getByText(tier === 'GOLD' ? 'Dành cho thành viên Vàng' : 'Dành cho thành viên Kim cương', { exact: true }).waitFor()
         assert.equal(await wallet.getByText(tier === 'GOLD' ? diamondVoucher.code : goldVoucher.code, { exact: true }).count(), 0)

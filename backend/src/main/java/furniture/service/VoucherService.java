@@ -54,7 +54,7 @@ public class VoucherService {
 
     @Transactional
     public Map<String, Object> createVoucher(CreateVoucherRequest req) {
-        if (req == null || req.code() == null || req.code().trim().isEmpty() || req.code().trim().length() > 50) {
+        if (req == null || req.code() == null || req.code().isBlank()) {
             throw new IllegalArgumentException("Mã voucher không được để trống");
         }
         if (req.discountPercent() == null || req.discountPercent().compareTo(BigDecimal.ZERO) <= 0
@@ -64,7 +64,11 @@ public class VoucherService {
 
         if (!CustomerTier.isVoucherTier(req.customerTier()))
             throw new IllegalArgumentException("Hạng khách hàng không hợp lệ");
-        String cleanCode = req.code().trim().toUpperCase();
+        String cleanCode = req.code().trim().toUpperCase(java.util.Locale.ROOT);
+        if (cleanCode.length() > 50) throw new IllegalArgumentException("Mã voucher không được quá 50 ký tự");
+        if (CustomerTier.isDefaultVoucherCode(cleanCode)) {
+            throw new IllegalArgumentException("Mã voucher '" + cleanCode + "' là mã thành viên mặc định. Hãy nhập mã khác.");
+        }
         if (voucherRepository.countByCode(cleanCode) > 0) {
             throw new IllegalArgumentException("Mã voucher '" + cleanCode + "' đã tồn tại trên hệ thống");
         }

@@ -52,6 +52,7 @@ public class SalesDatabaseInitializer implements CommandLineRunner {
                 new ResourceDatabasePopulator(new ClassPathResource("order_stock.sql")).populate(conn);
                 new ResourceDatabasePopulator(new ClassPathResource("guest_checkout.sql")).populate(conn);
                 new ResourceDatabasePopulator(new ClassPathResource("voucher_types.sql")).populate(conn);
+                st.execute(new ClassPathResource("member_vouchers.sql").getContentAsString(StandardCharsets.UTF_8));
                 new ResourceDatabasePopulator(new ClassPathResource("receipt_inspection.sql")).populate(conn);
                 st.execute(new ClassPathResource("product_images.sql").getContentAsString(StandardCharsets.UTF_8));
                 log.info("Supabase database đã có dữ liệu từ sales.sql. Bỏ qua khởi tạo.");
@@ -141,6 +142,7 @@ public class SalesDatabaseInitializer implements CommandLineRunner {
             } catch (Exception ex) {
                 log.warn("Không thể đồng bộ sequence: {}", ex.getMessage());
             }
+            st.execute(new ClassPathResource("member_vouchers.sql").getContentAsString(StandardCharsets.UTF_8));
 
             // Kiểm tra kết quả
             try (ResultSet rs = st.executeQuery("SELECT COUNT(*) FROM public.products")) {

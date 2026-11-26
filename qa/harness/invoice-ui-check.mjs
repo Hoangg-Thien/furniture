@@ -29,6 +29,7 @@ try {
   const legacy = { ...order(3), id: 78, invoiceCode: 'OLD-78', orderId: 3, paymentMethod: 'BANK_TRANSFER', paymentStatus: 'PAID', subtotalAmount: 300000, paymentDate: '2026-11-05T10:00:00', staffName: 'Nguyễn Văn An', finalAmount: 300000, qrCodeUrl: 'https://example.test/legacy-qr.png' }
   legacy.items = [{ ...order(3).items[0], productName: 'Sofa góc chữ L vải bọc Milan', unitPrice: 14500000, amount: 14500000 }]
   legacy.subtotalAmount = legacy.finalAmount = 14500000
+  legacy.taxAmount = 0
   page.on('pageerror', error => errors.push(error.message))
   page.on('dialog', dialog => dialog.accept())
   await page.addInitScript(() => {

@@ -25,7 +25,7 @@ import {
   Ticket
 } from 'lucide-react'
 import { getApiBaseUrl, getApiHeaders } from '../lib/apiConfig'
-import { VIP_TIER_LABELS, VOUCHER_TYPE_LABELS, parseVoucherCustomerId } from '../lib/vouchers'
+import { VIP_TIER_LABELS, VOUCHER_TYPE_LABELS, isDefaultVoucherCode, memberVoucherCode, parseVoucherCustomerId } from '../lib/vouchers'
 import AdminConfirmModal from './AdminConfirmModal'
 import { adminErrorMessage, orderStatusLabel } from './adminDisplay'
 import { formatProductUnit } from '../lib/productUnits'
@@ -118,6 +118,9 @@ export default function AdminPromotionManagement({ currentUser }) {
   const [voucherTypeFilter, setVoucherTypeFilter] = useState('')
   const [voucherForm, setVoucherForm] = useState(initialVoucherForm)
   const [voucherTarget, setVoucherTarget] = useState(null)
+  const voucherTier = voucherForm.customerTier || 'VIP_DIAMOND'
+  const isMemberVoucher = voucherForm.voucherType === 'VIP'
+  const editingDefaultVoucher = voucherTarget?.mode === 'edit' && isDefaultVoucherCode(voucherTarget.voucher.code)
   const [voucherFilter, setVoucherFilter] = useState('ALL')
   const [voucherHistory, setVoucherHistory] = useState(null)
   const historyController = useRef(null)
@@ -657,20 +660,25 @@ export default function AdminPromotionManagement({ currentUser }) {
   // Create Voucher
   const handleCreateVoucher = async (e) => {
     e.preventDefault()
-    if (!voucherForm.code.trim()) {
+    const voucherCode = voucherForm.code.trim().toUpperCase()
+    if (!voucherCode) {
       showToast('Mã voucher không được để trống.', 'error')
+      return
+    }
+    if (isDefaultVoucherCode(voucherCode) && !editingDefaultVoucher) {
+      showToast('Đây là mã thành viên mặc định. Hãy nhập mã khác.', 'error')
       return
     }
     setSubmittingVoucher(true)
     try {
       const baseUrl = getApiBaseUrl()
       const payload = {
-        customerTier: voucherForm.customerTier || 'VIP_DIAMOND',
+        customerTier: voucherTier,
         voucherType: voucherTarget ? voucherTarget.voucher.voucherType || 'ORDER' : voucherForm.voucherType,
         productId: voucherTarget?.voucher.productId ?? null,
         startDate: voucherForm.startDate || null,
         endDate: voucherForm.endDate || null,
-        code: voucherForm.code.trim().toUpperCase(),
+        code: voucherCode,
         discountPercent: Number(voucherForm.discountPercent),
         minimumAmount: Number(voucherForm.minimumAmount) || 0,
         maximumDiscount: voucherForm.maximumDiscount ? Number(voucherForm.maximumDiscount) : null,
@@ -994,7 +1002,7 @@ export default function AdminPromotionManagement({ currentUser }) {
             const codes = quickProgramVouchers.filter(voucher => (voucher.voucherType || 'ORDER') === type)
             const productDiscounts = quickDiscountDetails?.data?.productDiscounts
             return <section key={type} className="promotion-quick-section" aria-labelledby={`promotion-quick-${type}`}>
-              <h3 id={`promotion-quick-${type}`}>Voucher {label.toLowerCase()}</h3>
+              <h3 id={`promotion-quick-${type}`}>{type === 'PRODUCT' ? 'Giảm giá theo sản phẩm' : `Voucher ${label.toLowerCase()}`}</h3>
               {type === 'PRODUCT' && (!quickDiscountDetails ? <p role="status">Đang tải ưu đãi sản phẩm...</p>
                 : quickDiscountDetails.error ? <div role="alert">
                   <p>{quickDiscountDetails.error}</p>
@@ -1086,11 +1094,13 @@ export default function AdminPromotionManagement({ currentUser }) {
                 <label htmlFor="promotion-field-10" className="admin-form-label" style={{ fontSize: '0.78rem' }}>Mã Voucher</label>
                 <input id="promotion-field-10"
                   type="text"
-                  placeholder="VD: NOITHAT10"
+                  placeholder={isMemberVoucher ? `VD: ${memberVoucherCode(voucherTier)}-THANG12` : 'VD: NOITHAT10'}
                   className="admin-form-input"
                   style={{ textTransform: 'uppercase', fontWeight: 600 }}
                   value={voucherForm.code}
                   onChange={(e) => setVoucherForm({ ...voucherForm, code: e.target.value.toUpperCase() })}
+                  readOnly={editingDefaultVoucher}
+                  maxLength={50}
                   required
                 />
               </div>
@@ -1135,7 +1145,7 @@ export default function AdminPromotionManagement({ currentUser }) {
             </div>
 
             <div className="promotion-date-grid">
-              {voucherForm.voucherType === 'VIP' && <div><label htmlFor="voucher-tier" className="admin-form-label">Hạng thành viên áp dụng</label><select id="voucher-tier" className="admin-form-input" value={voucherForm.customerTier || 'VIP_DIAMOND'} onChange={e => setVoucherForm({ ...voucherForm, customerTier: e.target.value })}>{Object.entries(VIP_TIER_LABELS).map(([tier, label]) => <option key={tier} value={tier}>{label}</option>)}</select></div>}
+              {isMemberVoucher && <div><label htmlFor="voucher-tier" className="admin-form-label">Hạng thành viên áp dụng</label><select id="voucher-tier" className="admin-form-input" value={voucherTier} disabled={editingDefaultVoucher} onChange={e => setVoucherForm({ ...voucherForm, customerTier: e.target.value })}>{Object.entries(VIP_TIER_LABELS).map(([tier, label]) => <option key={tier} value={tier}>{label}</option>)}</select></div>}
               <div><label htmlFor="voucher-start" className="admin-form-label">Bắt đầu áp dụng</label><input id="voucher-start" type="datetime-local" className="admin-form-input" value={(voucherForm.startDate || '').slice(0, 16)} onChange={e => setVoucherForm({ ...voucherForm, startDate: e.target.value })} /></div>
               <div><label htmlFor="voucher-end" className="admin-form-label">Hết hạn</label><input id="voucher-end" type="datetime-local" className="admin-form-input" value={(voucherForm.endDate || '').slice(0, 16)} onChange={e => setVoucherForm({ ...voucherForm, endDate: e.target.value })} /></div>
             </div>
@@ -1282,7 +1292,7 @@ export default function AdminPromotionManagement({ currentUser }) {
                     </button>
                     <button type="button" className="admin-btn admin-btn-outline" disabled={!canEditVouchers || quickVoucher.archived || quickVoucher.status !== 'INACTIVE' || quickVoucher.usedQuantity > 0 || quickVoucher.ordersCount > 0} title={quickVoucher.usedQuantity > 0 || quickVoucher.ordersCount > 0 ? 'Đã có lịch sử sử dụng; hãy tạo mã mới thay thế' : 'Sửa voucher chưa dùng'} onClick={() => prepareVoucher(quickVoucher, 'edit')}>Sửa</button>
                     <button type="button" className="admin-btn admin-btn-outline" disabled={!canManage || quickVoucher.archived} onClick={() => prepareVoucher(quickVoucher, 'replace')}>Tạo mã thay thế</button>
-                    <button type="button" className="admin-btn admin-btn-outline" disabled={!canManage || quickVoucher.archived} onClick={() => setDeletingVoucher(quickVoucher)}>
+                    <button type="button" className="admin-btn admin-btn-outline" disabled={!canManage || quickVoucher.archived || isDefaultVoucherCode(quickVoucher.code)} onClick={() => setDeletingVoucher(quickVoucher)}>
                       <Trash2 size={14} />{quickVoucher.usedQuantity > 0 || quickVoucher.ordersCount > 0 ? 'Lưu trữ voucher' : 'Xóa vĩnh viễn voucher'}
                     </button>
                   </div>

@@ -98,6 +98,9 @@ public class AdminPromotionService {
         if (usedCount != null && usedCount > 0) {
             throw new IllegalStateException("Không thể xóa chương trình khuyến mãi đã có " + usedCount + " voucher được khách áp dụng trong đơn hàng. Vui lòng chuyển trạng thái sang INACTIVE!");
         }
+        if (promotionRepository.findVouchersByProgramId(id).stream().anyMatch(v -> CustomerTier.isDefaultVoucherCode(v.code()))) {
+            throw new IllegalStateException("Không thể xóa chiến dịch chứa voucher thành viên mặc định. Bạn có thể tạm ngưng chiến dịch.");
+        }
 
         promotionRepository.deleteProgram(id);
     }
@@ -252,8 +255,13 @@ public class AdminPromotionService {
         }
         String cleanCode = req.code().trim().toUpperCase();
         if (cleanCode.length() > 50) throw new IllegalArgumentException("Mã voucher không được quá 50 ký tự");
-        if ((existing == null || !cleanCode.equalsIgnoreCase(existing.code())) && promotionRepository.existsVoucherCode(cleanCode)) {
-            throw new IllegalArgumentException("Mã voucher '" + cleanCode + "' đã tồn tại trong hệ thống!");
+        if (existing == null || !cleanCode.equalsIgnoreCase(existing.code())) {
+            if (CustomerTier.isDefaultVoucherCode(cleanCode)) {
+                throw new IllegalArgumentException("Mã voucher '" + cleanCode + "' là mã thành viên mặc định. Hãy nhập mã khác.");
+            }
+            if (promotionRepository.existsVoucherCode(cleanCode)) {
+                throw new IllegalArgumentException("Mã voucher '" + cleanCode + "' đã tồn tại trong hệ thống!");
+            }
         }
 
         if (req.discountPercent() == null || req.discountPercent().compareTo(BigDecimal.ZERO) <= 0 || req.discountPercent().compareTo(new BigDecimal("100")) > 0) {
@@ -299,6 +307,10 @@ public class AdminPromotionService {
         }
         ProgramResponse program = getProgramById(voucher.promotionProgramId());
         validateVoucherRequest(program, req, voucher);
+        if (CustomerTier.isDefaultVoucherCode(voucher.code())
+                && (!voucher.code().equalsIgnoreCase(req.code().trim()) || !req.customerTier().equals(voucher.customerTier()))) {
+            throw new IllegalArgumentException("Không thể đổi mã hoặc hạng của voucher thành viên mặc định.");
+        }
         promotionRepository.updateVoucher(id, req, req.startDate() == null ? voucher.startDate() : req.startDate(),
                 req.endDate() == null ? voucher.endDate() : req.endDate());
         return promotionRepository.findVoucherById(id);
@@ -336,6 +348,9 @@ public class AdminPromotionService {
         VoucherDto voucher = promotionRepository.findVoucherById(voucherId);
         if (voucher == null) {
             throw new IllegalArgumentException("Không tìm thấy voucher với ID: " + voucherId);
+        }
+        if (CustomerTier.isDefaultVoucherCode(voucher.code())) {
+            throw new IllegalStateException("Không thể xóa voucher thành viên mặc định. Bạn có thể tạm ngưng voucher.");
         }
 
         if (voucher.usedQuantity() > 0 || promotionRepository.countOrdersUsingVoucher(voucherId) > 0) {

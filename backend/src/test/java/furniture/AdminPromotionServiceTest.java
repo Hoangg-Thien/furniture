@@ -250,7 +250,7 @@ class AdminPromotionServiceTest {
         when(promotionRepository.findById(1L)).thenReturn(prog);
         when(promotionRepository.existsVoucherCode("GIAM10")).thenReturn(false);
 
-        CreateVoucherRequest req = new CreateVoucherRequest("giam10", new BigDecimal("10"), new BigDecimal("2000000"), new BigDecimal("500000"), 100, null, null, "ACTIVE");
+        CreateVoucherRequest req = new CreateVoucherRequest("giam10", new BigDecimal("10"), new BigDecimal("2000000"), new BigDecimal("500000"), 100, null, null, "ACTIVE", "ORDER", null);
         when(promotionRepository.insertVoucher(eq(1L), eq(req), eq(now), eq(now.plusMonths(1)))).thenReturn(501L);
 
         VoucherDto mockVoucher = new VoucherDto(501L, 1L, "Khuyến mãi", "GIAM10", new BigDecimal("10"), new BigDecimal("2000000"), new BigDecimal("500000"), 100, 0, 100, now, now.plusMonths(1), "ACTIVE", false);
@@ -295,6 +295,20 @@ class AdminPromotionServiceTest {
         }
     }
 
+    @Test
+    void defaultCodesAreReservedForEveryVoucherType() {
+        when(promotionRepository.findById(1L)).thenReturn(new ProgramResponse(1L, "Test", "", now, now.plusDays(1), "ACTIVE"));
+        for (String code : List.of(" uudaibac ", "UUDAIVANG", "UUDAIBACHKIM", "UUDAIKIMCUONG")) {
+            for (String type : List.of("ORDER", "VIP")) {
+                var request = new CreateVoucherRequest(code, BigDecimal.TEN, BigDecimal.ZERO, null, 10, null, null,
+                        "INACTIVE", type, null);
+                var error = assertThrows(IllegalArgumentException.class, () -> promotionService.createVoucher(1L, request));
+                assertTrue(error.getMessage().contains("mã thành viên mặc định"));
+            }
+        }
+        verify(promotionRepository, never()).insertVoucher(any(), any(), any(), any());
+    }
+
     private CreateVoucherRequest scopedVoucher(String type, Long productId) {
         return new CreateVoucherRequest("SCOPE", BigDecimal.TEN, BigDecimal.ZERO, null, 10, null, null, "ACTIVE", type, productId);
     }
@@ -312,6 +326,21 @@ class AdminPromotionServiceTest {
         assertEquals(List.of("HD-1-3TR", "HD-1-15TR"), drafts.getAllValues().stream().map(CreateVoucherRequest::code).toList());
         assertTrue(drafts.getAllValues().stream().allMatch(request ->
                 "ORDER".equals(request.voucherType()) && "INACTIVE".equals(request.status())));
+    }
+
+    @Test
+    void defaultVoucherCannotBeRenamedOrRemoved() {
+        var voucher = new VoucherDto(1L, 1L, "Test", "UUDAIKIMCUONG", BigDecimal.TEN, BigDecimal.ZERO,
+                null, 10, 0, 10, now, now.plusDays(1), "INACTIVE", false);
+        when(promotionRepository.findVoucherById(1L)).thenReturn(voucher);
+        when(promotionRepository.findById(1L)).thenReturn(new ProgramResponse(1L, "Test", "", now, now.plusDays(1), "ACTIVE"));
+        when(promotionRepository.existsById(1L)).thenReturn(true);
+        when(promotionRepository.findVouchersByProgramId(1L)).thenReturn(List.of(voucher));
+        var request = new CreateVoucherRequest("OTHER", BigDecimal.TEN, BigDecimal.ZERO, null, 10, null, null,
+                "INACTIVE", voucher.voucherType(), null);
+        assertThrows(IllegalArgumentException.class, () -> promotionService.updateVoucher(1L, request));
+        assertThrows(IllegalStateException.class, () -> promotionService.deleteVoucher(1L));
+        assertThrows(IllegalStateException.class, () -> promotionService.deleteProgram(1L));
     }
 
 }

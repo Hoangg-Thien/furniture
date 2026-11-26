@@ -2,6 +2,8 @@ package furniture.model;
 
 import java.math.BigDecimal;
 import java.util.Arrays;
+import java.util.Locale;
+import java.util.Set;
 
 public enum CustomerTier {
     NEW(0),
@@ -11,6 +13,7 @@ public enum CustomerTier {
     VIP_DIAMOND(300_000_000);
 
     private static final CustomerTier[] TIERS = values();
+    private static final Set<String> DEFAULT_VOUCHER_CODES = Set.of("UUDAIBAC", "UUDAIVANG", "UUDAIBACHKIM", "UUDAIKIMCUONG");
     private final BigDecimal minimumSpend;
 
     CustomerTier(long minimumSpend) {
@@ -36,5 +39,9 @@ public enum CustomerTier {
 
     public static boolean isVoucherTier(String code) {
         return Arrays.stream(TIERS).anyMatch(tier -> tier != NEW && tier.name().equals(code));
+    }
+
+    public static boolean isDefaultVoucherCode(String code) {
+        return code != null && DEFAULT_VOUCHER_CODES.contains(code.toUpperCase(Locale.ROOT));
     }
 }

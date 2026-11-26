@@ -4,7 +4,6 @@ import {
   Tag,
   Search,
   Check,
-  Copy,
   Clock,
   Sparkles,
   ShieldCheck,
@@ -22,6 +21,8 @@ import {
   MEMBERSHIP_MILESTONES,
   VIP_TIER_LABELS,
   VOUCHER_TYPE_LABELS,
+  isDefaultVoucherCode,
+  memberVoucherCode,
   fetchActiveVouchers,
   fetchAllVouchersForAdmin,
   approveVoucherApi,
@@ -51,7 +52,6 @@ export default function VouchersModal({
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
-  const [copiedCode, setCopiedCode] = useState(null)
   const [actionAlert, setActionAlert] = useState(null) // { type: 'success'|'error', message: '' }
   const [processingId, setProcessingId] = useState(null)
 
@@ -69,6 +69,7 @@ export default function VouchersModal({
     autoApprove: isAdmin, // Nếu là Admin thì có thể tự động duyệt ngay
   })
   const [creating, setCreating] = useState(false)
+  const createTier = createForm.customerTier || 'VIP_DIAMOND'
 
   // Tải dữ liệu voucher
   const loadData = async () => {
@@ -92,19 +93,6 @@ export default function VouchersModal({
   useEffect(() => { dialog.current.showModal() }, [])
 
   const closeWallet = () => dialog.current.close()
-
-  // Xử lý sao chép mã
-  const handleCopy = async (code) => {
-    if (!code) return
-    try {
-      if (!navigator.clipboard?.writeText) throw new Error('Clipboard unavailable')
-      await navigator.clipboard.writeText(code)
-      setCopiedCode(code)
-      setTimeout(() => setCopiedCode(null), 2500)
-    } catch {
-      setActionAlert({ type: 'error', message: `Không sao chép được tự động. Bạn có thể nhập mã ${code} khi đặt hàng.` })
-    }
-  }
 
   // Xử lý áp dụng voucher ngay
   const handleApplyNow = (voucher) => {
@@ -146,12 +134,13 @@ export default function VouchersModal({
   // Xử lý tạo voucher mới
   const handleCreateSubmit = async (e) => {
     e.preventDefault()
-    if (!createForm.code.trim()) {
-      alert('Vui lòng nhập mã voucher')
+    const code = createForm.code.trim().toUpperCase()
+    if (!code || isDefaultVoucherCode(code)) {
+      setActionAlert({ type: 'error', message: 'Hãy nhập mã riêng cho voucher bổ sung.' })
       return
     }
     setCreating(true)
-    const res = await createVoucherApi(createForm)
+    const res = await createVoucherApi({ ...createForm, code, customerTier: createTier })
     setCreating(false)
     if (res.voucher) {
       setActionAlert({ type: 'success', message: res.voucher.message })
@@ -385,9 +374,7 @@ export default function VouchersModal({
                       {/* Cột phải: Thông tin & Nút hành động */}
                       <div className="voucher-right-col">
                         <div className="voucher-body">
-                          <h4 className="voucher-program-title">
-                            {voucher.program_name || 'Ưu đãi FuniStore'}
-                          </h4>
+                          <h4 className="voucher-code-title">{voucher.code}</h4>
                           <p className="voucher-condition-text">
                             {type === 'VIP' ? `Dành cho thành viên${memberTier ? ` ${memberTier}` : ''}`
                               : type === 'PRODUCT' ? `${VOUCHER_TYPE_LABELS.PRODUCT} — sản phẩm #${voucher.product_id}`
@@ -413,27 +400,7 @@ export default function VouchersModal({
                           </span>
                         </div>
 
-                        {/* Thanh code và nút sử dụng */}
                         <div className="voucher-footer-row">
-                          <div className="voucher-code-pill">
-                            <span className="code-text">{voucher.code}</span>
-                            <button
-                              type="button"
-                              className="copy-btn"
-                              title="Sao chép mã"
-                              onClick={() => handleCopy(voucher.code)}
-                            >
-                              {copiedCode === voucher.code ? (
-                                <Check size={13} color="#2b8a3e" />
-                              ) : (
-                                <Copy size={13} />
-                              )}
-                              <span>
-                                {copiedCode === voucher.code ? 'Đã chép' : 'Chép mã'}
-                              </span>
-                            </button>
-                          </div>
-
                           <button
                             type="button"
                             className="voucher-use-btn"
@@ -633,7 +600,7 @@ export default function VouchersModal({
               <form className="vouchers-create-form" onSubmit={handleCreateSubmit}>
                 <p>Chọn hạng khách được sử dụng voucher. Phần trăm giảm do bạn nhập.</p>
                 <label htmlFor="create-voucher-tier">Hạng thành viên áp dụng</label>
-                <select id="create-voucher-tier" value={createForm.customerTier || 'VIP_DIAMOND'} onChange={e => setCreateForm({ ...createForm, customerTier: e.target.value })}>{Object.entries(VIP_TIER_LABELS).map(([tier, label]) => <option key={tier} value={tier}>{label}</option>)}</select>
+                <select id="create-voucher-tier" value={createTier} onChange={e => setCreateForm({ ...createForm, customerTier: e.target.value })}>{Object.entries(VIP_TIER_LABELS).map(([tier, label]) => <option key={tier} value={tier}>{label}</option>)}</select>
                 <div className="form-grid">
                   <div className="form-group">
                     <label>
@@ -651,18 +618,10 @@ export default function VouchersModal({
                   </div>
 
                   <div className="form-group">
-                    <label>
-                      Mã Voucher (viết hoa không dấu) <i>*</i>
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="VD: FUNI500K, THANG10..."
-                      value={createForm.code}
-                      onChange={(e) =>
-                        setCreateForm({ ...createForm, code: e.target.value.toUpperCase() })
-                      }
-                      required
-                    />
+                    <label htmlFor="create-voucher-code">Mã voucher</label>
+                    <input id="create-voucher-code" type="text" value={createForm.code} maxLength={50} required
+                      placeholder={`VD: ${memberVoucherCode(createTier)}-THANG12`}
+                      onChange={e => setCreateForm({ ...createForm, code: e.target.value.toUpperCase() })} />
                   </div>
 
                   <div className="form-group">

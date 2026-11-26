@@ -58,9 +58,19 @@ class VoucherServiceTest {
         var repository = mock(VoucherRepository.class);
         when(repository.insertProgram(any(), any(), any(), any(), eq("DRAFT"))).thenReturn(1L);
         var request = new CreateVoucherRequest("Test", "", "PENDING", BigDecimal.TEN, BigDecimal.ZERO,
-                null, 10, null, null, true);
-        assertEquals("DRAFT", new VoucherService(repository).createVoucher(request).get("status"));
+                null, 10, null, null, true, "GOLD");
+        var result = new VoucherService(repository).createVoucher(request);
+        assertEquals("DRAFT", result.get("status"));
+        assertEquals("PENDING", result.get("code"));
+        verify(repository).insertVoucher(eq(1L), eq("PENDING"), any(), any(), any(), eq(10), any(), any(), eq("GOLD"));
         verify(repository).insertProgram(any(), any(), any(), any(), eq("DRAFT"));
+    }
+    @Test
+    void legacyCreationCannotUseADefaultCode() {
+        var request = new CreateVoucherRequest("Test", "", " uudaivang ", BigDecimal.TEN, BigDecimal.ZERO,
+                null, 10, null, null, false, "GOLD");
+        assertTrue(assertThrows(IllegalArgumentException.class, () -> service.createVoucher(request)).getMessage().contains("mã thành viên mặc định"));
+        verifyNoInteractions(repository);
     }
     private Map<String, Object> scopedVoucher(String type) {
         var voucher = new HashMap<String, Object>(Map.of("id", 1L, "code", "SCOPE", "program_name", "Test",
