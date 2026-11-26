@@ -182,20 +182,19 @@ class AdminPromotionServiceTest {
     @DisplayName("TC10 - Xóa chiến dịch đã có voucher được khách dùng trong đơn hàng phải chặn")
     void deleteProgram_HasUsedVouchers_ThrowsIllegalStateException() {
         when(promotionRepository.existsById(2L)).thenReturn(true);
-        when(promotionRepository.countUsedVouchersByProgramId(2L)).thenReturn(5L);
+        when(promotionRepository.deleteProgram(2L)).thenReturn(0);
 
         IllegalStateException ex = assertThrows(IllegalStateException.class, () ->
                 promotionService.deleteProgram(2L)
         );
-        assertTrue(ex.getMessage().contains("Không thể xóa chương trình khuyến mãi đã có 5 voucher"));
-        verify(promotionRepository, never()).deleteProgram(2L);
+        assertTrue(ex.getMessage().contains("voucher đã sử dụng"));
     }
 
     @Test
     @DisplayName("TC11 - Xóa chiến dịch thành công khi chưa phát sinh đơn hàng")
     void deleteProgram_Success() {
         when(promotionRepository.existsById(3L)).thenReturn(true);
-        when(promotionRepository.countUsedVouchersByProgramId(3L)).thenReturn(0L);
+        when(promotionRepository.deleteProgram(3L)).thenReturn(1);
 
         promotionService.deleteProgram(3L);
 
@@ -329,18 +328,17 @@ class AdminPromotionServiceTest {
     }
 
     @Test
-    void defaultVoucherCannotBeRenamedOrRemoved() {
+    void unusedDefaultVoucherCanBeDeletedIndividually() {
         var voucher = new VoucherDto(1L, 1L, "Test", "UUDAIKIMCUONG", BigDecimal.TEN, BigDecimal.ZERO,
                 null, 10, 0, 10, now, now.plusDays(1), "INACTIVE", false);
         when(promotionRepository.findVoucherById(1L)).thenReturn(voucher);
         when(promotionRepository.findById(1L)).thenReturn(new ProgramResponse(1L, "Test", "", now, now.plusDays(1), "ACTIVE"));
-        when(promotionRepository.existsById(1L)).thenReturn(true);
-        when(promotionRepository.findVouchersByProgramId(1L)).thenReturn(List.of(voucher));
         var request = new CreateVoucherRequest("OTHER", BigDecimal.TEN, BigDecimal.ZERO, null, 10, null, null,
                 "INACTIVE", voucher.voucherType(), null);
         assertThrows(IllegalArgumentException.class, () -> promotionService.updateVoucher(1L, request));
-        assertThrows(IllegalStateException.class, () -> promotionService.deleteVoucher(1L));
-        assertThrows(IllegalStateException.class, () -> promotionService.deleteProgram(1L));
+        when(promotionRepository.deleteUnusedVoucher(1L)).thenReturn(1);
+        assertEquals(false, promotionService.deleteVoucher(1L));
+        verify(promotionRepository).deleteUnusedVoucher(1L);
     }
 
 }

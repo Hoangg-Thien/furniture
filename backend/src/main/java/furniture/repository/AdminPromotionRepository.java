@@ -216,19 +216,15 @@ public class AdminPromotionRepository {
         jdbcTemplate.update("UPDATE public.promotion_programs SET status = ? WHERE id = ?", validStatus, id);
     }
 
-    public Long countUsedVouchersByProgramId(Long programId) {
-        Long count = jdbcTemplate.queryForObject("""
-                SELECT COUNT(*)
-                FROM public.orders o
-                JOIN public.vouchers v ON v.id = o.voucher_id
-                WHERE v.promotion_program_id = ?
-                """, Long.class, programId);
-        return count != null ? count : 0L;
-    }
-
-    public void deleteProgram(Long id) {
-        jdbcTemplate.update("UPDATE public.vouchers SET status = 'INACTIVE', is_deleted = TRUE WHERE promotion_program_id = ?", id);
-        jdbcTemplate.update("UPDATE public.promotion_programs SET status = 'INACTIVE' WHERE id = ?", id);
+    public int deleteProgram(Long id) {
+        return jdbcTemplate.update("""
+                DELETE FROM public.promotion_programs p WHERE p.id = ?
+                AND NOT EXISTS (
+                    SELECT 1 FROM public.vouchers v
+                    WHERE v.promotion_program_id = p.id
+                    AND (v.used_quantity > 0 OR EXISTS (SELECT 1 FROM public.orders o WHERE o.voucher_id = v.id))
+                )
+                """, id);
     }
 
     // -------------------------------------------------------------

@@ -94,15 +94,13 @@ public class AdminPromotionService {
             throw new IllegalArgumentException("Không tìm thấy chiến dịch khuyến mãi với ID: " + id);
         }
 
-        Long usedCount = promotionRepository.countUsedVouchersByProgramId(id);
-        if (usedCount != null && usedCount > 0) {
-            throw new IllegalStateException("Không thể xóa chương trình khuyến mãi đã có " + usedCount + " voucher được khách áp dụng trong đơn hàng. Vui lòng chuyển trạng thái sang INACTIVE!");
+        try {
+            if (promotionRepository.deleteProgram(id) != 1) {
+                throw new IllegalStateException("Chiến dịch có voucher đã sử dụng hoặc đã thay đổi. Vui lòng tải lại danh sách.");
+            }
+        } catch (org.springframework.dao.DataIntegrityViolationException ex) {
+            throw new IllegalStateException("Chiến dịch có dữ liệu liên kết nên không thể xóa. Bạn có thể tạm ngưng chiến dịch.");
         }
-        if (promotionRepository.findVouchersByProgramId(id).stream().anyMatch(v -> CustomerTier.isDefaultVoucherCode(v.code()))) {
-            throw new IllegalStateException("Không thể xóa chiến dịch chứa voucher thành viên mặc định. Bạn có thể tạm ngưng chiến dịch.");
-        }
-
-        promotionRepository.deleteProgram(id);
     }
 
     // -------------------------------------------------------------------------
@@ -349,10 +347,6 @@ public class AdminPromotionService {
         if (voucher == null) {
             throw new IllegalArgumentException("Không tìm thấy voucher với ID: " + voucherId);
         }
-        if (CustomerTier.isDefaultVoucherCode(voucher.code())) {
-            throw new IllegalStateException("Không thể xóa voucher thành viên mặc định. Bạn có thể tạm ngưng voucher.");
-        }
-
         if (voucher.usedQuantity() > 0 || promotionRepository.countOrdersUsingVoucher(voucherId) > 0) {
             promotionRepository.deleteVoucher(voucherId);
             return true;

@@ -97,7 +97,12 @@ try {
   assert.equal(registration.status, 201)
   assert.equal(fs.readFileSync(seedPath, 'utf8'), seedBefore, 'Registration must not write personal data into seed SQL')
   await db.exec("UPDATE orders SET order_date='2020-01-02 03:04:05', total_amount=1, discount_amount=10, voucher_id=(SELECT id FROM vouchers ORDER BY id LIMIT 1) WHERE id=23")
-  await db.exec("DELETE FROM vouchers WHERE code='UUDAIBAC'; UPDATE vouchers SET status='ACTIVE', used_quantity=2 WHERE code='UUDAIVANG'")
+  const removal = await fetch(`${base}/api/admin/promotions/vouchers/${memberVouchers[0].id}`, {
+    method: 'DELETE', headers: adminHeaders,
+  })
+  assert.equal(removal.status, 200)
+  assert.equal((await removal.json()).archived, false)
+  await db.exec("UPDATE vouchers SET status='ACTIVE', used_quantity=2, discount_percent=9, minimum_amount=6000000 WHERE code='UUDAIVANG'")
   const args = java.spawnargs.slice(1)
   const stopped = once(java, 'exit')
   java.kill()
@@ -117,12 +122,23 @@ try {
   const preserved = (await db.query("SELECT to_char(order_date, 'YYYY-MM-DD HH24:MI:SS') AS date, total_amount FROM orders WHERE id=23")).rows[0]
   assert.equal(preserved.date, '2020-01-02 03:04:05')
   assert.equal(Number(preserved.total_amount), 1, 'Startup must not rewrite historical order totals')
-  const restartedVouchers = (await db.query("SELECT id::int, code, status, used_quantity FROM vouchers WHERE code LIKE 'UUDAI%' ORDER BY code")).rows
+  const restartedVouchers = (await db.query("SELECT id::int, code, status, used_quantity, discount_percent::int, minimum_amount::int FROM vouchers WHERE code LIKE 'UUDAI%' ORDER BY code")).rows
   assert.equal(restartedVouchers.length, 4)
   assert.equal(restartedVouchers.find(voucher => voucher.code === 'UUDAIBAC').status, 'INACTIVE')
   assert.deepEqual(restartedVouchers.find(voucher => voucher.code === 'UUDAIVANG'),
-    { id: memberGoldId, code: 'UUDAIVANG', status: 'ACTIVE', used_quantity: 2 })
-  result.memberVouchers = { freshStartup: 4, restartBackfillsMissing: true, existingVoucherPreserved: true }
+    { id: memberGoldId, code: 'UUDAIVANG', status: 'ACTIVE', used_quantity: 2, discount_percent: 9, minimum_amount: 6000000 })
+  const campaignUrl = id => `${base}/api/admin/promotions/${id}`
+  const deleteCampaign = id => fetch(campaignUrl(id), { method: 'DELETE', headers: adminHeaders })
+  assert.equal((await deleteCampaign(memberVouchers[1].promotionProgramId)).status, 409)
+  const draft = (await db.query(`
+    INSERT INTO promotion_programs (name, start_date, end_date, status)
+    VALUES ('QA paused campaign', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + INTERVAL '1' DAY, 'INACTIVE')
+    RETURNING id`)).rows[0]
+  await db.query("UPDATE vouchers SET promotion_program_id = $1 WHERE code IN ('UUDAIBACHKIM', 'UUDAIKIMCUONG')", [draft.id])
+  assert.equal((await deleteCampaign(draft.id)).status, 200)
+  assert.equal((await fetch(campaignUrl(draft.id), { headers: adminHeaders })).status, 404)
+  assert.equal((await db.query('SELECT id FROM vouchers WHERE promotion_program_id = $1', [draft.id])).rows.length, 0)
+  result.memberVouchers = { freshStartup: 4, missingPresetRestored: true, existingVoucherPreserved: true }
   result.dataPreservation = { registrationDoesNotEditSeed: true, restartPreservesOrderDateAndTotal: true }
 } catch (e) { result.error = e.message; process.exitCode = 1 }
 finally {

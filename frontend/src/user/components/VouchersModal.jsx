@@ -60,8 +60,8 @@ export default function VouchersModal({
     programName: '',
     description: '',
     code: '',
-    discountPercent: 10,
-    minimumAmount: 5000000,
+    discountPercent: '',
+    minimumAmount: '',
     maximumDiscount: 500000,
     quantity: 100,
     startDate: new Date().toISOString().slice(0, 10) + ' 00:00:00',
@@ -140,7 +140,8 @@ export default function VouchersModal({
       return
     }
     setCreating(true)
-    const res = await createVoucherApi({ ...createForm, code, customerTier: createTier })
+    const res = await createVoucherApi({ ...createForm, code, customerTier: createTier,
+      discountPercent: Number(createForm.discountPercent), minimumAmount: Number(createForm.minimumAmount) })
     setCreating(false)
     if (res.voucher) {
       setActionAlert({ type: 'success', message: res.voucher.message })
@@ -148,8 +149,8 @@ export default function VouchersModal({
         programName: '',
         description: '',
         code: '',
-        discountPercent: 10,
-        minimumAmount: 5000000,
+        discountPercent: '',
+        minimumAmount: '',
         maximumDiscount: 500000,
         quantity: 100,
         startDate: new Date().toISOString().slice(0, 10) + ' 00:00:00',
@@ -600,7 +601,9 @@ export default function VouchersModal({
               <form className="vouchers-create-form" onSubmit={handleCreateSubmit}>
                 <p>Chọn hạng khách được sử dụng voucher. Phần trăm giảm do bạn nhập.</p>
                 <label htmlFor="create-voucher-tier">Hạng thành viên áp dụng</label>
-                <select id="create-voucher-tier" value={createTier} onChange={e => setCreateForm({ ...createForm, customerTier: e.target.value })}>{Object.entries(VIP_TIER_LABELS).map(([tier, label]) => <option key={tier} value={tier}>{label}</option>)}</select>
+                <select id="create-voucher-tier" value={createTier} onChange={event => setCreateForm({ ...createForm, customerTier: event.target.value })}>
+                  {Object.entries(VIP_TIER_LABELS).map(([tier, label]) => <option key={tier} value={tier}>{label}</option>)}
+                </select>
                 <div className="form-grid">
                   <div className="form-group">
                     <label>
@@ -634,7 +637,7 @@ export default function VouchersModal({
                       onChange={(e) =>
                         setCreateForm({
                           ...createForm,
-                          discountPercent: Number(e.target.value),
+                          discountPercent: e.target.value,
                         })
                       }
                       required
@@ -645,13 +648,14 @@ export default function VouchersModal({
                     <label>Đơn hàng tối thiểu (₫) <i>*</i></label>
                     <input
                       type="number"
+                      min="0"
                       step="50000"
                       placeholder="5000000"
                       value={createForm.minimumAmount}
                       onChange={(e) =>
                         setCreateForm({
                           ...createForm,
-                          minimumAmount: Number(e.target.value),
+                          minimumAmount: e.target.value,
                         })
                       }
                       required
