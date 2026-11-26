@@ -1,4 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
+import { VIP_TIER_LABELS } from '../lib/vouchers'
+import { formatProductUnit } from '../lib/productUnits'
+import { adminErrorMessage, orderStatusLabel } from './adminDisplay'
 import {
   AlertCircle,
   Armchair,
@@ -120,7 +123,7 @@ export default function AdminCustomerManagement({ currentUser }) {
     } catch (err) {
       if (controller.signal.aborted) return
       console.error('Error fetching customers:', err)
-      setError(err.message)
+      setError(adminErrorMessage(err))
     } finally {
       if (!controller.signal.aborted) setLoading(false)
     }
@@ -175,8 +178,8 @@ export default function AdminCustomerManagement({ currentUser }) {
       })
     } catch (err) {
       if (controller.signal.aborted) return
-      setEditError(err.message)
-      showToast(err.message, 'error')
+      setEditError(adminErrorMessage(err))
+      showToast(adminErrorMessage(err), 'error')
     } finally {
       if (!controller.signal.aborted) setDetailLoading(false)
     }
@@ -233,7 +236,7 @@ export default function AdminCustomerManagement({ currentUser }) {
       }))
       loadCustomers(page)
     } catch (err) {
-      if (!controller.signal.aborted) setEditError(err.message)
+      if (!controller.signal.aborted) setEditError(adminErrorMessage(err))
     } finally {
       setEditSubmitting(false)
     }
@@ -270,7 +273,7 @@ export default function AdminCustomerManagement({ currentUser }) {
         `"${c.phone || ''}"`,
         `"${c.email || ''}"`,
         `"${(c.address || '').replace(/"/g, '""')}"`,
-        `"${c.customerTier || ''}"`,
+        `"${VIP_TIER_LABELS[c.customerTier]?.split(' (')[0] || ''}"`,
         c.completedOrders || 0,
         c.totalSpent || 0,
         c.isUserActive ? '"Hoạt động"' : '"Tạm khóa"',
@@ -287,9 +290,9 @@ export default function AdminCustomerManagement({ currentUser }) {
       link.click()
       document.body.removeChild(link)
 
-      showToast(`Đã xuất thành công ${data.length} khách hàng ra file Excel (CSV)!`, 'success')
+      showToast(`Đã xuất thành công ${data.length} khách hàng ra tệp CSV!`, 'success')
     } catch (err) {
-      showToast(err.message, 'error')
+      showToast(adminErrorMessage(err), 'error')
     }
   }
 
@@ -332,6 +335,13 @@ export default function AdminCustomerManagement({ currentUser }) {
             Vàng
           </span>
         )
+      case 'PLATINUM':
+        return (
+          <span className="customer-tier-badge platinum">
+            <Award size={12} />
+            Bạch kim
+          </span>
+        )
       case 'SILVER':
         return (
           <span className="customer-tier-badge silver">
@@ -343,7 +353,7 @@ export default function AdminCustomerManagement({ currentUser }) {
         return (
           <span className="customer-tier-badge new">
             <User size={12} />
-            Khách mới
+            Thành viên mới
           </span>
         )
     }
@@ -361,7 +371,7 @@ export default function AdminCustomerManagement({ currentUser }) {
       case 'CANCELLED':
         return <span className="admin-badge admin-badge-danger">Đã hủy</span>
       default:
-        return <span className="admin-badge">{status}</span>
+        return <span className="admin-badge">{orderStatusLabel(status)}</span>
     }
   }
 
@@ -382,7 +392,7 @@ export default function AdminCustomerManagement({ currentUser }) {
       <div className="admin-page-header">
         <div>
           <div className="admin-breadcrumb">
-            Trang chủ &gt; Quản lý khách hàng (CRM) &gt; <span>Module 02</span>
+            Trang chủ &gt; Quản lý khách hàng (CRM) &gt; <span>Mục 02</span>
           </div>
           <h1 className="admin-page-title">Hồ Sơ Khách Hàng & Phân Hạng Tiêu Dùng</h1>
         </div>
@@ -407,7 +417,7 @@ export default function AdminCustomerManagement({ currentUser }) {
             <Search size={16} color="var(--admin-text-muted)" />
             <input
               type="text"
-              placeholder="Tìm theo Tên, SĐT, Email, Username, Địa chỉ..."
+              placeholder="Tìm theo họ tên, số điện thoại, email, tên đăng nhập, địa chỉ..."
               value={searchKeyword}
               onChange={(e) => setSearchKeyword(e.target.value)}
             />
@@ -423,10 +433,7 @@ export default function AdminCustomerManagement({ currentUser }) {
             <label>Phân hạng:</label>
             <select value={selectedTier} onChange={(e) => setSelectedTier(e.target.value)}>
               <option value="ALL">Tất cả phân hạng</option>
-              <option value="VIP_DIAMOND">Kim cương (&ge; 50 triệu)</option>
-              <option value="GOLD">Vàng (15 - dưới 50 triệu)</option>
-              <option value="SILVER">Bạc (1+ đơn hoàn thành, dưới 15 triệu)</option>
-              <option value="NEW">Khách hàng mới (0 đơn hoàn thành)</option>
+              {Object.entries(VIP_TIER_LABELS).map(([tier, label]) => <option key={tier} value={tier}>{label}</option>)}
             </select>
           </div>
 
@@ -522,7 +529,7 @@ export default function AdminCustomerManagement({ currentUser }) {
 
                   return (
                     <tr key={c.id}>
-                      <td style={{ fontWeight: 700, color: 'var(--admin-accent)', whiteSpace: 'nowrap' }}>
+                      <td style={{ color: 'var(--admin-accent)', whiteSpace: 'nowrap' }}>
                         C{String(c.id).padStart(3, '0')}
                       </td>
                       <td>
@@ -559,12 +566,12 @@ export default function AdminCustomerManagement({ currentUser }) {
                         )}
                       </td>
                       <td>{renderTierBadge(c.customerTier)}</td>
-                      <td style={{ textAlign: 'center', fontWeight: 600 }}>
+                      <td style={{ textAlign: 'center' }}>
                         <span title={`Đã hoàn thành ${c.completedOrders} / tổng ${c.totalOrders} đơn`}>
                           {c.completedOrders} <span style={{ color: 'var(--admin-text-muted)', fontWeight: 400 }}>/ {c.totalOrders} đơn</span>
                         </span>
                       </td>
-                      <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--admin-primary)', fontSize: '0.95rem' }}>
+                      <td style={{ textAlign: 'right', color: 'var(--admin-primary)', fontSize: '0.95rem' }}>
                         {formatMoney(c.totalSpent)}
                       </td>
                       <td style={{ textAlign: 'right', whiteSpace: 'nowrap', paddingRight: '20px' }}>
@@ -686,11 +693,11 @@ export default function AdminCustomerManagement({ currentUser }) {
                     {renderTierBadge(customerDetail?.customerTier || selectedCustomer.customerTier)}
                   </div>
                   <div className="customer-drawer-sub">
-                    <span>Mã KH: <strong>C{String(selectedCustomer.id).padStart(3, '0')}</strong></span>
+                    <span>Mã KH: <span>C{String(selectedCustomer.id).padStart(3, '0')}</span></span>
                     <span>•</span>
                     <span>Tài khoản: @{customerDetail?.username || selectedCustomer.username}</span>
                     <span>•</span>
-                    <span>Tổng chi tiêu: <strong style={{ color: 'var(--admin-accent)' }}>{formatMoney(customerDetail?.totalSpent || selectedCustomer.totalSpent)}</strong></span>
+                    <span>Tổng chi tiêu: <span style={{ color: 'var(--admin-accent)' }}>{formatMoney(customerDetail?.totalSpent || selectedCustomer.totalSpent)}</span></span>
                   </div>
                 </div>
               </div>
@@ -891,7 +898,7 @@ export default function AdminCustomerManagement({ currentUser }) {
                                       <div>
                                         <div className="item-name">{it.product_name}</div>
                                         <div className="item-qty">
-                                          {formatMoney(it.unit_price)} × {it.quantity} {it.unit || 'món'}
+                                          {formatMoney(it.unit_price)} × {it.quantity} {formatProductUnit(it.unit || 'món')}
                                         </div>
                                       </div>
                                     </div>
@@ -951,9 +958,9 @@ export default function AdminCustomerManagement({ currentUser }) {
                                     </div>
                                   </td>
                                   <td>{item.productUnit || 'Bộ'}</td>
-                                  <td style={{ textAlign: 'right', fontWeight: 600 }}>{formatMoney(item.unitPrice)}</td>
-                                  <td style={{ textAlign: 'center', fontWeight: 700 }}>{item.quantity}</td>
-                                  <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--admin-accent)' }}>
+                                  <td style={{ textAlign: 'right' }}>{formatMoney(item.unitPrice)}</td>
+                                  <td style={{ textAlign: 'center' }}>{item.quantity}</td>
+                                  <td style={{ textAlign: 'right', color: 'var(--admin-accent)' }}>
                                     {formatMoney(item.amount)}
                                   </td>
                                 </tr>
@@ -964,7 +971,7 @@ export default function AdminCustomerManagement({ currentUser }) {
                                 <td colSpan={4} style={{ textAlign: 'right', fontWeight: 700, padding: '16px' }}>
                                   Tổng giá trị giỏ hàng quan tâm:
                                 </td>
-                                <td style={{ textAlign: 'right', fontWeight: 800, fontSize: '1.05rem', color: 'var(--admin-primary)', padding: '16px' }}>
+                                <td style={{ textAlign: 'right', fontSize: '1.05rem', color: 'var(--admin-primary)', padding: '16px' }}>
                                   {formatMoney(
                                     customerDetail.cartItems.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0)
                                   )}

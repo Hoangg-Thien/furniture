@@ -66,7 +66,7 @@ try {
     await route.fulfill({ json })
   })
   await page.goto(new URL(path, server.resolvedUrls.local[0]).href, { waitUntil: 'domcontentloaded' })
-  await page.getByText('Đang tải Dashboard...').waitFor()
+  await page.getByText('Đang tải trang tổng quan...').waitFor()
   assert.equal(await page.getByRole('button', { name: 'Làm mới', exact: true }).isDisabled(), true)
   await page.waitForFunction(() => document.querySelector('.admin-dashboard-view')?.getAttribute('aria-busy') === 'true')
   const deadline = Date.now() + 10000
@@ -97,7 +97,7 @@ try {
   assert.equal(await page.locator('.dashboard-metric').count(), 0)
   mode = 'invalid'
   await page.getByRole('button', { name: 'Thử lại', exact: true }).click()
-  await page.getByText('Dữ liệu Dashboard không hợp lệ. Vui lòng thử lại.').waitFor()
+  await page.getByText('Dữ liệu trang tổng quan không hợp lệ. Vui lòng thử lại.').waitFor()
   mode = 'empty'
   await page.getByRole('button', { name: 'Thử lại', exact: true }).click()
   await page.getByText('Chưa có đơn hàng nào.', { exact: true }).waitFor()

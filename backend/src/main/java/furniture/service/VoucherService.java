@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import furniture.model.CreateVoucherRequest;
 import furniture.model.ValidateVoucherRequest;
+import furniture.repository.AdminCustomerRepository;
 import furniture.repository.VoucherRepository;
 
 @Service
@@ -25,9 +26,9 @@ public class VoucherService {
     }
 
     public List<Map<String, Object>> getActiveVouchers(Long customerId) {
-        String tier = voucherRepository.findCustomerTier(customerId);
+        String tier = customerId == null ? null : voucherRepository.findCustomerTier(customerId);
         return getActiveVouchers().stream().filter(v -> !"VIP".equals(v.get("voucher_type"))
-                || v.getOrDefault("customer_tier", "VIP_DIAMOND").equals(tier)).toList();
+                || (tier != null && v.getOrDefault("customer_tier", "VIP_DIAMOND").equals(tier))).toList();
     }
 
     public List<Map<String, Object>> getActiveVouchers() {
@@ -61,7 +62,7 @@ public class VoucherService {
             throw new IllegalArgumentException("Phần trăm giảm giá phải từ 1 đến 100");
         }
 
-        if (!List.of("SILVER", "GOLD", "VIP_DIAMOND").contains(req.customerTier()))
+        if (!AdminCustomerRepository.MEMBER_TIERS.contains(req.customerTier()))
             throw new IllegalArgumentException("Hạng khách hàng không hợp lệ");
         String cleanCode = req.code().trim().toUpperCase();
         if (voucherRepository.countByCode(cleanCode) > 0) {
@@ -179,6 +180,9 @@ public class VoucherService {
         String type = (String) v.getOrDefault("voucher_type", "ORDER");
         if (!List.of("ORDER", "PRODUCT", "VIP").contains(type)) {
             throw new IllegalArgumentException("Loại voucher không hợp lệ");
+        }
+        if ("VIP".equals(type) && customerId == null) {
+            throw new IllegalArgumentException("Vui lòng đăng nhập để sử dụng voucher theo hạng thành viên");
         }
         if ("VIP".equals(type) && !v.getOrDefault("customer_tier", "VIP_DIAMOND").equals(voucherRepository.findCustomerTier(customerId))) {
             throw new IllegalArgumentException(

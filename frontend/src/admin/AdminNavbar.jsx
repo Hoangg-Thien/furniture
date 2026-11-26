@@ -24,7 +24,7 @@ export default function AdminNavbar({
   onToggleMobileSidebar,
   onNavigateModule
 }) {
-  const username = currentUser?.username || 'Admin'
+  const username = currentUser?.username || 'Quản trị viên'
   const fullName = currentUser?.fullName?.trim()
   const role = currentUser?.role || 'ADMIN'
   const canReadOrders = canAccessModule(currentUser, 'orders')
@@ -154,7 +154,7 @@ export default function AdminNavbar({
           type="button"
           className="admin-hamburger-btn"
           onClick={onToggleMobileSidebar}
-          aria-label="Mở Menu điều hướng"
+          aria-label="Mở danh mục điều hướng"
         >
           <Menu size={20} />
         </button>

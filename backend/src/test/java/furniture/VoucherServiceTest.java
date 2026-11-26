@@ -74,16 +74,18 @@ class VoucherServiceTest {
 
     @Test
     void vipVouchersAreVisibleAndUsableOnlyForTheirExactTier() {
-        for (String tier : List.of("SILVER", "GOLD", "VIP_DIAMOND")) {
+        for (String tier : List.of("NEW", "SILVER", "GOLD", "PLATINUM", "VIP_DIAMOND")) {
             var voucher = scopedVoucher("VIP");
             voucher.put("customer_tier", tier);
             when(repository.findCustomerTier(7L)).thenReturn(tier);
             when(repository.findActiveVouchers()).thenReturn(List.of(voucher));
             assertEquals(1, service.getActiveVouchers(7L).size());
             service.validateVoucher(new ValidateVoucherRequest("SCOPE", new BigDecimal("500000")), 7L);
-            when(repository.findCustomerTier(7L)).thenReturn("NEW");
+            when(repository.findCustomerTier(7L)).thenReturn(tier.equals("NEW") ? "SILVER" : "NEW");
             assertEquals(0, service.getActiveVouchers(7L).size());
             assertThrows(IllegalArgumentException.class, () -> service.validateVoucher(new ValidateVoucherRequest("SCOPE", new BigDecimal("500000")), 7L));
+            assertEquals(0, service.getActiveVouchers(null).size());
+            assertThrows(IllegalArgumentException.class, () -> service.validateVoucher(new ValidateVoucherRequest("SCOPE", new BigDecimal("500000")), null));
         }
     }
 

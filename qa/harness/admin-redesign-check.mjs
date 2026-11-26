@@ -71,6 +71,7 @@ await page.route('**/api/**', async route => {
   if (/\/vouchers\/\d+$/.test(path) && method === 'DELETE') { vouchers = []; return send({}) }
   if (path === '/api/admin/products') return send({ content: url.searchParams.has('lowStock') ? showActivity ? [{ ...product, quantity: 2 }] : [] : [product], totalElements: 1, totalPages: 1 })
   if (path === '/api/admin/orders' && showActivity && (!url.searchParams.has('status') || url.searchParams.get('status') === 'PENDING')) return send({ content: [{ id: 44, customerName: 'Khách kiểm thử', totalAmount: 10000000, status: 'PENDING', orderDate: past }], totalElements: 1, totalPages: 1 })
+  if (path === '/api/admin/notifications/activities') return send([])
   if (path.startsWith('/api/admin/')) return send({ content: [], totalElements: 0, totalPages: 1 })
   return send([])
 })
@@ -152,30 +153,31 @@ try {
     await page.waitForFunction(() => document.querySelector('.promotion-status-badge')?.textContent === 'Tạm dừng')
     assert.equal(programs[0].status, 'INACTIVE')
   })
-  await check('Detail loading, all four tabs and discount writes', async () => {
+  await check('Detail loading, discount writes and voucher creation', async () => {
     delayDetail = true
-    await page.getByRole('button', { name: 'Ưu đãi mùa mới cập nhật', exact: true }).click()
+    await page.getByRole('button', { name: 'Thiết lập ưu đãi: Ưu đãi mùa mới cập nhật', exact: true }).click()
     await page.getByText('Đang tải cấu hình chiến dịch...').waitFor()
     await page.locator('.promotion-detail-tabs').waitFor()
     delayDetail = false
     await page.getByRole('dialog').getByRole('button', { name: 'Đóng', exact: true }).first().focus()
     await page.keyboard.press('Shift+Tab')
     assert(await page.getByRole('dialog').getByRole('button', { name: 'Đóng', exact: true }).last().evaluate(el => el === document.activeElement))
-    await page.getByRole('button', { name: /2. SP Giảm Giá/ }).click()
+    await page.getByRole('button', { name: /Ưu đãi sản phẩm/ }).click()
     await page.getByRole('dialog').locator('form').getByRole('button').click()
     await page.getByRole('dialog').getByText(product.name, { exact: true }).waitFor()
     assert.equal(discounts.length, 1)
-    await page.getByRole('button', { name: /3. Bậc Đơn Hàng/ }).click()
+    await page.getByRole('button', { name: /Bậc giảm theo đơn/ }).click()
     await page.getByRole('dialog').locator('form').getByRole('button').click()
     await page.waitForFunction(() => document.querySelectorAll('[role="dialog"] tbody tr').length > 0)
     assert.equal(orderDiscounts.length, 1)
-    await page.getByRole('button', { name: /4. Kho Voucher/ }).click()
+    await page.getByRole('button', { name: /Quản lý mã voucher/ }).click()
+    await page.locator('.promotion-voucher-create summary').click()
     await page.getByLabel('Mã Voucher', { exact: true }).fill('MODERN10')
     await page.getByRole('button', { name: 'Tạo voucher tạm ngưng', exact: true }).click()
-    await page.getByRole('dialog').getByText('MODERN10', { exact: true }).waitFor()
+    await page.getByRole('region', { name: 'Danh sách voucher' }).getByText('MODERN10', { exact: true }).waitFor()
     assert.equal(vouchers.length, 1)
     await shot('desktop-vouchers')
-    await page.keyboard.press('Escape')
+    await page.getByRole('button', { name: 'Chiến dịch', exact: true }).click()
   })
   await check('Delete requires explicit confirmation', async () => {
     await page.getByRole('button', { name: 'Xóa: Ưu đãi mùa mới cập nhật', exact: true }).click()
@@ -192,7 +194,7 @@ try {
   })
   await check('Detail API failure shows recoverable dialog', async () => {
     failDetail = true
-    await page.locator('.promotion-name-button').first().click()
+    await page.getByRole('button', { name: /^Thiết lập ưu đãi:/ }).first().click()
     await page.getByRole('dialog').getByRole('button', { name: 'Thử lại' }).waitFor()
     failDetail = false
     await page.getByRole('dialog').getByRole('button', { name: 'Thử lại' }).click()
@@ -202,7 +204,7 @@ try {
   await check('Mobile navigation, forms and table scrolling', async () => {
     await page.setViewportSize({ width: 390, height: 844 })
     await noOverflow()
-    await page.getByRole('button', { name: 'Mở Menu điều hướng' }).click()
+    await page.getByRole('button', { name: 'Mở danh mục điều hướng' }).click()
     await page.locator('.admin-sidebar.mobile-open').waitFor()
     await page.getByRole('button', { name: 'Khuyến mãi & voucher', exact: true }).click()
     assert.equal(await page.locator('.admin-sidebar.mobile-open').count(), 0)
@@ -213,10 +215,10 @@ try {
     await page.keyboard.press('Escape')
     await shot('mobile-data')
     await page.locator('.promotion-name-button').first().click()
-    await page.getByRole('button', { name: /4. Kho Voucher/ }).click()
+    await page.getByRole('region', { name: 'Chi tiết chiến dịch' }).getByRole('button', { name: 'Quản lý mã theo hóa đơn', exact: true }).click()
     await noOverflow()
     await shot('mobile-vouchers')
-    await page.keyboard.press('Escape')
+    await page.getByRole('button', { name: 'Chiến dịch', exact: true }).click()
   })
   await check('Empty mobile state and 320px minimum width', async () => {
     programs = []

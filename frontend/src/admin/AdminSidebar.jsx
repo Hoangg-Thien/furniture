@@ -88,7 +88,7 @@ export default function AdminSidebar({
             type="button"
             className="admin-sidebar-close-btn"
             onClick={onCloseMobile}
-            aria-label="Đóng Menu"
+            aria-label="Đóng danh mục điều hướng"
           >
             <X size={20} />
           </button>

@@ -10,7 +10,7 @@ export function parseVoucherCustomerId(code) {
   return id
 }
 
-export const VOUCHER_TYPE_LABELS = { ORDER: 'Theo giá trị đơn hàng', PRODUCT: 'Theo sản phẩm', VIP: 'Dành riêng khách VIP' }
+export const VOUCHER_TYPE_LABELS = { ORDER: 'Theo hóa đơn', PRODUCT: 'Theo sản phẩm', VIP: 'Theo hạng thành viên' }
 
 /**
  * Lấy danh sách voucher đang hoạt động cho khách hàng
@@ -143,4 +143,10 @@ export async function validateVoucherApi(codeOrObj, maybeSubtotal) {
   }
 }
 
-export const VIP_TIER_LABELS = { SILVER: 'Bạc (ít nhất 1 đơn hoàn thành, dưới 15 triệu)', GOLD: 'Vàng (từ 15 đến dưới 50 triệu)', VIP_DIAMOND: 'Kim cương (từ 50 triệu)' }
+export const VIP_TIER_LABELS = {
+  NEW: 'Thành viên mới (chưa có đơn hoàn thành)',
+  SILVER: 'Bạc (có đơn hoàn thành, dưới 15 triệu)',
+  GOLD: 'Vàng (từ 15 đến dưới 30 triệu)',
+  PLATINUM: 'Bạch kim (từ 30 đến dưới 50 triệu)',
+  VIP_DIAMOND: 'Kim cương (từ 50 triệu)'
+}

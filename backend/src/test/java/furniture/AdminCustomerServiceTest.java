@@ -38,7 +38,7 @@ public class AdminCustomerServiceTest {
     void testComputeTier() {
         assertEquals("SILVER", AdminCustomerRepository.computeTier(BigDecimal.ZERO, 1));
         assertEquals("SILVER", AdminCustomerRepository.computeTier(new BigDecimal("14999999"), 1));
-        assertEquals("GOLD", AdminCustomerRepository.computeTier(new BigDecimal("49999999"), 1));
+        assertEquals("PLATINUM", AdminCustomerRepository.computeTier(new BigDecimal("49999999"), 1));
         assertEquals("VIP_DIAMOND", AdminCustomerRepository.computeTier(new BigDecimal("68500000"), 4));
         assertEquals("VIP_DIAMOND", AdminCustomerRepository.computeTier(new BigDecimal("50000000"), 1));
         assertEquals("GOLD", AdminCustomerRepository.computeTier(new BigDecimal("24200000"), 2));

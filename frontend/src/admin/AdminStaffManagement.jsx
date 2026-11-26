@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { adminErrorMessage } from './adminDisplay'
 import {
   AlertCircle,
   Briefcase,
@@ -120,7 +121,7 @@ export default function AdminStaffManagement({ currentUser }) {
       setTotalElements(data.totalElements || 0)
     } catch (err) {
       console.error('Error fetching staff list:', err)
-      setError(err.message)
+      setError(adminErrorMessage(err))
     } finally {
       setLoading(false)
     }
@@ -206,7 +207,7 @@ export default function AdminStaffManagement({ currentUser }) {
       })
       loadStaff(0)
     } catch (err) {
-      setCreateError(err.message)
+      setCreateError(adminErrorMessage(err))
     } finally {
       setCreateSubmitting(false)
     }
@@ -264,7 +265,7 @@ export default function AdminStaffManagement({ currentUser }) {
       setActiveStaff(null)
       loadStaff(page)
     } catch (err) {
-      setEditError(err.message)
+      setEditError(adminErrorMessage(err))
     } finally {
       setEditSubmitting(false)
     }
@@ -303,7 +304,7 @@ export default function AdminStaffManagement({ currentUser }) {
       setActiveStaff(null)
       loadStaff(page)
     } catch (err) {
-      showToast(err.message, 'error')
+      showToast(adminErrorMessage(err), 'error')
       setShowToggleModal(false)
     }
   }
@@ -341,7 +342,7 @@ export default function AdminStaffManagement({ currentUser }) {
       <div className="admin-page-header">
         <div>
           <div className="admin-breadcrumb">
-            Trang chủ &gt; Quản trị nhân sự &gt; <span>Module 03</span>
+            Trang chủ &gt; Quản trị nhân sự &gt; <span>Mục 03</span>
           </div>
           <h1 className="admin-page-title">Quản Lý Đội Ngũ Nhân Viên</h1>
         </div>
@@ -366,7 +367,7 @@ export default function AdminStaffManagement({ currentUser }) {
             <Search size={16} color="var(--admin-text-muted)" />
             <input
               type="text"
-              placeholder="Tìm nhân viên theo Họ tên, SĐT, Email, Username..."
+              placeholder="Tìm theo họ tên, số điện thoại, email, tên đăng nhập..."
               value={searchKeyword}
               onChange={(e) => setSearchKeyword(e.target.value)}
             />
@@ -457,7 +458,7 @@ export default function AdminStaffManagement({ currentUser }) {
 
                   return (
                     <tr key={s.id} className={isCurrentSelf ? 'current-user-row' : ''}>
-                      <td style={{ fontWeight: 700, color: 'var(--admin-accent)', whiteSpace: 'nowrap' }}>
+                      <td style={{ color: 'var(--admin-accent)', whiteSpace: 'nowrap' }}>
                         S{String(s.id).padStart(2, '0')}
                       </td>
                       <td>
@@ -823,7 +824,7 @@ export default function AdminStaffManagement({ currentUser }) {
                 <div>
                   <h3 className="modal-title">Cập Nhật Hồ Sơ Nhân Viên</h3>
                   <p className="modal-subtitle">
-                    Mã NV: <strong>S{String(activeStaff.id).padStart(2, '0')}</strong> (@{activeStaff.username})
+                    Mã NV: <span>S{String(activeStaff.id).padStart(2, '0')}</span> (@{activeStaff.username})
                   </p>
                 </div>
               </div>

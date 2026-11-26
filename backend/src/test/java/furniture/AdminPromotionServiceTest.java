@@ -8,6 +8,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -277,23 +278,40 @@ class AdminPromotionServiceTest {
         assertTrue(ex.getMessage().contains("đã tồn tại"));
     }
     @Test
-    void newVoucherCodesAreVipOnlyWhileAutomaticDiscountsStaySeparate() {
+    void newVoucherCodesSupportOrdersAndMembersWhileProductOffersStaySeparate() {
         when(promotionRepository.findById(1L)).thenReturn(new ProgramResponse(1L, "Test", "", now, now.plusDays(1), "ACTIVE"));
         for (var req : List.of(
-                scopedVoucher("OTHER", null), scopedVoucher("ORDER", null), scopedVoucher("PRODUCT", null),
+                scopedVoucher("OTHER", null), scopedVoucher("ORDER", 1L), scopedVoucher("PRODUCT", null),
                 scopedVoucher("PRODUCT", 99L), scopedVoucher("VIP", 1L))) {
             assertThrows(IllegalArgumentException.class, () -> promotionService.createVoucher(1L, req));
         }
         verify(promotionRepository, never()).insertVoucher(any(), any(), any(), any());
         assertEquals("VIP", new CreateVoucherRequest("NEW", BigDecimal.TEN, BigDecimal.ZERO, null, 10, null, null, "ACTIVE").voucherType());
-        var req = scopedVoucher("VIP", null);
-        when(promotionRepository.insertVoucher(eq(1L), eq(req), any(), any())).thenReturn(12L);
-        promotionService.createVoucher(1L, req);
-        verify(promotionRepository).insertVoucher(eq(1L), eq(req), any(), any());
+        for (String type : List.of("ORDER", "VIP")) {
+            var req = scopedVoucher(type, null);
+            when(promotionRepository.insertVoucher(eq(1L), eq(req), any(), any())).thenReturn(12L);
+            promotionService.createVoucher(1L, req);
+            verify(promotionRepository).insertVoucher(eq(1L), eq(req), any(), any());
+        }
     }
 
     private CreateVoucherRequest scopedVoucher(String type, Long productId) {
         return new CreateVoucherRequest("SCOPE", BigDecimal.TEN, BigDecimal.ZERO, null, 10, null, null, "ACTIVE", type, productId);
+    }
+
+    @Test
+    void orderExamplesCreateMissingDraftsWithCampaignDates() {
+        var program = new ProgramResponse(1L, "Test", "", now, now.plusDays(1), "ACTIVE");
+        when(promotionRepository.findById(1L)).thenReturn(program);
+        when(promotionRepository.existsVoucherCode(any())).thenAnswer(call -> "HD-1-7TR".equals(call.getArgument(0)));
+
+        assertEquals(2, promotionService.createOrderVoucherExamples(1L));
+
+        var drafts = org.mockito.ArgumentCaptor.forClass(CreateVoucherRequest.class);
+        verify(promotionRepository, times(2)).insertVoucher(eq(1L), drafts.capture(), eq(now), eq(now.plusDays(1)));
+        assertEquals(List.of("HD-1-3TR", "HD-1-15TR"), drafts.getAllValues().stream().map(CreateVoucherRequest::code).toList());
+        assertTrue(drafts.getAllValues().stream().allMatch(request ->
+                "ORDER".equals(request.voucherType()) && "INACTIVE".equals(request.status())));
     }
 
 }

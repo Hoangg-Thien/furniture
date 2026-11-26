@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
+import { adminErrorMessage } from './adminDisplay'
 import { AlertCircle, History, RefreshCw, X } from 'lucide-react'
 import { getApiBaseUrl } from '../lib/apiConfig'
 import './ProductAuditDialog.css'
 
-const fields = { name: 'Tên sản phẩm', description: 'Mô tả', category_id: 'Danh mục', unit: 'Đơn vị tính', selling_price: 'Giá bán', quantity: 'Tồn kho', is_active: 'Hiển thị', image_url: 'Ảnh đại diện', images: 'Album ảnh' }
+const fields = { name: 'Tên sản phẩm', description: 'Mô tả', category_id: 'Danh mục', unit: 'Đơn vị tính', selling_price: 'Giá bán', quantity: 'Tồn kho', is_active: 'Hiển thị', image_url: 'Ảnh đại diện', images: 'Thư viện ảnh' }
 function displayValue(value) {
   if (value == null) return '—'
   try {
@@ -37,7 +38,7 @@ export default function ProductAuditDialog({ product, onClose }) {
       setEntries(previous => beforeId == null ? data : [...previous, ...data])
       setHasMore(data.length === 50)
     } catch (failure) {
-      if (!controller.signal.aborted) setError(failure.message)
+      if (!controller.signal.aborted) setError(adminErrorMessage(failure))
     } finally {
       if (!controller.signal.aborted) setLoading(false)
     }
@@ -84,7 +85,7 @@ export default function ProductAuditDialog({ product, onClose }) {
             <thead><tr><th scope="col">Thời gian</th><th scope="col">Người sửa</th><th scope="col">Trường</th><th scope="col">Trước</th><th scope="col">Sau</th></tr></thead>
             <tbody>{entries.map(entry => <tr key={entry.id}>
               <td><time dateTime={entry.changedAt}>{new Date(entry.changedAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</time></td>
-              <td>{entry.actorUsername}<small>User ID: {entry.actorUserId}</small></td>
+              <td>{entry.actorUsername}<small>Mã tài khoản: {entry.actorUserId}</small></td>
               <td>{fields[entry.fieldName] || entry.fieldName}</td>
               <td><pre>{displayValue(entry.oldValue)}</pre></td><td><pre>{displayValue(entry.newValue)}</pre></td>
             </tr>)}</tbody>

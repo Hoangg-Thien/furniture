@@ -442,16 +442,16 @@ INSERT INTO suppliers (id, name, phone, email, address) VALUES
 -- PROMOTION PROGRAMS (10)
 -- ---------------------------------------------------------------------
 INSERT INTO promotion_programs (id, name, description, start_date, end_date, status) VALUES
-(1,  'Khai truong showroom',    'Giam gia mung khai truong showroom',  '2026-01-01 00:00:00', '2026-03-31 23:59:59', 'INACTIVE'),
-(2,  'Mua he soi dong',         'Uu dai noi that mua he',              '2026-05-01 00:00:00', '2026-08-31 23:59:59', 'INACTIVE'),
-(3,  'Tet Nguyen Dan 2026',     'Uu dai sam noi that don Tet',         '2026-01-15 00:00:00', '2026-02-28 23:59:59', 'INACTIVE'),
-(4,  'Black Friday',            'Sieu sale cuoi nam',                  '2026-11-20 00:00:00', '2026-11-30 23:59:59', 'DRAFT'),
-(5,  'Sinh nhat showroom',      'Mung sinh nhat showroom',             '2026-10-01 00:00:00', '2026-10-31 23:59:59', 'ACTIVE'),
-(6,  'Khach hang than thiet',   'Uu dai quanh nam cho khach quen',     '2026-01-01 00:00:00', '2026-12-31 23:59:59', 'ACTIVE'),
-(7,  'Giam gia 11.11',          'Ngay doi doi 11.11',                  '2026-11-11 00:00:00', '2026-11-12 23:59:59', 'DRAFT'),
-(8,  'Chao ban moi',            'Uu dai cho khach hang moi',           '2026-09-01 00:00:00', '2026-12-31 23:59:59', 'ACTIVE'),
-(9,  'Thanh ly cuoi nam',       'Thanh ly mau trung bay cuoi nam',     '2026-10-01 00:00:00', '2026-12-31 23:59:59', 'ACTIVE'),
-(10, 'Uu dai tan gia',          'Uu dai cho khach mua noi that tan gia','2026-08-15 00:00:00','2026-10-31 23:59:59', 'ACTIVE');
+(1,  'Khai trương cửa hàng',    'Giảm giá mừng khai trương cửa hàng', '2026-01-01 00:00:00', '2026-03-31 23:59:59', 'INACTIVE'),
+(2,  'Mùa hè sôi động',         'Ưu đãi nội thất mùa hè',             '2026-05-01 00:00:00', '2026-08-31 23:59:59', 'INACTIVE'),
+(3,  'Tết Nguyên đán 2026',     'Ưu đãi sắm nội thất đón Tết',        '2026-01-15 00:00:00', '2026-02-28 23:59:59', 'INACTIVE'),
+(4,  'Black Friday',           'Siêu ưu đãi cuối năm',               '2026-11-20 00:00:00', '2026-11-30 23:59:59', 'DRAFT'),
+(5,  'Sinh nhật cửa hàng',      'Mừng sinh nhật cửa hàng',            '2026-10-01 00:00:00', '2026-10-31 23:59:59', 'ACTIVE'),
+(6,  'Khách hàng thân thiết',   'Ưu đãi quanh năm cho khách quen',    '2026-01-01 00:00:00', '2026-12-31 23:59:59', 'ACTIVE'),
+(7,  'Giảm giá 11.11',          'Ngày đôi 11.11',                    '2026-11-11 00:00:00', '2026-11-12 23:59:59', 'DRAFT'),
+(8,  'Chào bạn mới',            'Ưu đãi cho khách hàng mới',          '2026-09-01 00:00:00', '2026-12-31 23:59:59', 'ACTIVE'),
+(9,  'Thanh lý cuối năm',       'Thanh lý mẫu trưng bày cuối năm',    '2026-10-01 00:00:00', '2026-12-31 23:59:59', 'ACTIVE'),
+(10, 'Ưu đãi tân gia',          'Ưu đãi cho khách mua nội thất tân gia', '2026-08-15 00:00:00', '2026-10-31 23:59:59', 'ACTIVE');
  
 -- PRODUCT_DISCOUNTS (15) - ngay lay theo chuong trinh
 INSERT INTO product_discounts (promotion_program_id, product_id, discount_percent, start_date, end_date)

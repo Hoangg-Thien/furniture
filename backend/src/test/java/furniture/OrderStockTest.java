@@ -170,7 +170,7 @@ class OrderStockTest {
     }
 
     @Test
-    void voucherAndInvoiceTiersUseCompletedOrderCountsAndOriginalSpendingThresholds() {
+    void voucherAndInvoiceTiersUseCompletedOrderCountsAndSpendingThresholds() {
         var repository = new VoucherRepository(jdbc);
         var invoices = new furniture.repository.AdminInvoiceRepository(jdbc);
         assertEquals("NEW", repository.findCustomerTier(1L));
@@ -182,6 +182,11 @@ class OrderStockTest {
         jdbc.execute("UPDATE orders SET total_amount = 15000000");
         assertEquals("GOLD", repository.findCustomerTier(1L));
         assertTrue(invoices.matchesVoucherTier(1L, "GOLD"));
+        jdbc.execute("UPDATE orders SET total_amount = 29999999");
+        assertEquals("GOLD", repository.findCustomerTier(1L));
+        jdbc.execute("UPDATE orders SET total_amount = 30000000");
+        assertEquals("PLATINUM", repository.findCustomerTier(1L));
+        assertTrue(invoices.matchesVoucherTier(1L, "PLATINUM"));
         jdbc.execute("UPDATE orders SET total_amount = 50000000");
         assertEquals("VIP_DIAMOND", repository.findCustomerTier(1L));
         assertTrue(invoices.matchesVoucherTier(1L, "VIP_DIAMOND"));

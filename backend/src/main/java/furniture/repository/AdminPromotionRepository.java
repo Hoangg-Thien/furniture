@@ -553,6 +553,10 @@ public class AdminPromotionRepository {
         return extractId(keyHolder);
     }
 
+    public void lockProgram(Long id) {
+        jdbcTemplate.queryForList("SELECT id FROM public.promotion_programs WHERE id = ? FOR UPDATE", Long.class, id);
+    }
+
     public void lockVoucher(Long id) {
         jdbcTemplate.queryForList("SELECT id FROM public.vouchers WHERE id = ? FOR UPDATE", Long.class, id);
     }

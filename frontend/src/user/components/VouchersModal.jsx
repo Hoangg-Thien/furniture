@@ -250,7 +250,7 @@ export default function VouchersModal({
                 onClick={() => setActiveTab('CREATE')}
               >
                 <Plus size={16} />
-                <span>Tạo Voucher VIP</span>
+                <span>Tạo voucher theo hạng thành viên</span>
               </button>
             )}
           </div>
@@ -596,7 +596,7 @@ export default function VouchersModal({
               <div className="vouchers-create-intro">
                 <Sparkles size={20} />
                 <div>
-                  <h4>Phát hành voucher VIP</h4>
+                  <h4>Phát hành voucher theo hạng thành viên</h4>
                   <p>
                     {isAdmin
                       ? 'Bạn đang đăng nhập với tư cách Quản trị viên (Admin). Bạn có thể phê duyệt trực tiếp voucher vào Kho hoặc lưu nháp.'
@@ -607,7 +607,7 @@ export default function VouchersModal({
 
               <form className="vouchers-create-form" onSubmit={handleCreateSubmit}>
                 <p>Chọn hạng khách được sử dụng voucher. Phần trăm giảm do bạn nhập.</p>
-                <label htmlFor="create-voucher-tier">Hạng khách áp dụng</label>
+                <label htmlFor="create-voucher-tier">Hạng thành viên áp dụng</label>
                 <select id="create-voucher-tier" value={createForm.customerTier || 'VIP_DIAMOND'} onChange={e => setCreateForm({ ...createForm, customerTier: e.target.value })}>{Object.entries(VIP_TIER_LABELS).map(([tier, label]) => <option key={tier} value={tier}>{label}</option>)}</select>
                 <div className="form-grid">
                   <div className="form-group">

@@ -8,6 +8,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -21,6 +22,11 @@ import furniture.model.admin.customer.CustomerTableItemDto;
 @Repository
 public class AdminCustomerRepository {
 
+    public static final Set<String> MEMBER_TIERS = Set.of("NEW", "SILVER", "GOLD", "PLATINUM", "VIP_DIAMOND");
+    private static final BigDecimal GOLD_MINIMUM = BigDecimal.valueOf(15_000_000);
+    private static final BigDecimal PLATINUM_MINIMUM = BigDecimal.valueOf(30_000_000);
+    private static final BigDecimal DIAMOND_MINIMUM = BigDecimal.valueOf(50_000_000);
+
     private final JdbcTemplate jdbcTemplate;
 
     public AdminCustomerRepository(JdbcTemplate jdbcTemplate) {
@@ -28,16 +34,16 @@ public class AdminCustomerRepository {
     }
 
     public static String computeTier(BigDecimal totalSpent, long completedOrders) {
+        if (completedOrders == 0) return "NEW";
         if (totalSpent == null) totalSpent = BigDecimal.ZERO;
-        if (totalSpent.compareTo(new BigDecimal("50000000")) >= 0) {
+        if (totalSpent.compareTo(DIAMOND_MINIMUM) >= 0) {
             return "VIP_DIAMOND";
-        } else if (totalSpent.compareTo(new BigDecimal("15000000")) >= 0) {
+        } else if (totalSpent.compareTo(PLATINUM_MINIMUM) >= 0) {
+            return "PLATINUM";
+        } else if (totalSpent.compareTo(GOLD_MINIMUM) >= 0) {
             return "GOLD";
-        } else if (completedOrders >= 1) {
-            return "SILVER";
-        } else {
-            return "NEW";
         }
+        return "SILVER";
     }
 
     public PageResponse<CustomerTableItemDto> searchCustomers(
@@ -79,11 +85,19 @@ public class AdminCustomerRepository {
         if (tier != null && !tier.trim().isEmpty() && !"ALL".equalsIgnoreCase(tier.trim())) {
             String t = tier.trim().toUpperCase();
             if ("VIP_DIAMOND".equals(t) || "VIP".equals(t)) {
-                whereClause.append(" AND total_spent >= 50000000 ");
+                whereClause.append(" AND total_spent >= ? ");
+                params.add(DIAMOND_MINIMUM);
+            } else if ("PLATINUM".equals(t)) {
+                whereClause.append(" AND total_spent >= ? AND total_spent < ? ");
+                params.add(PLATINUM_MINIMUM);
+                params.add(DIAMOND_MINIMUM);
             } else if ("GOLD".equals(t)) {
-                whereClause.append(" AND total_spent >= 15000000 AND total_spent < 50000000 ");
+                whereClause.append(" AND total_spent >= ? AND total_spent < ? ");
+                params.add(GOLD_MINIMUM);
+                params.add(PLATINUM_MINIMUM);
             } else if ("SILVER".equals(t)) {
-                whereClause.append(" AND completed_orders >= 1 AND total_spent < 15000000 ");
+                whereClause.append(" AND completed_orders >= 1 AND total_spent < ? ");
+                params.add(GOLD_MINIMUM);
             } else if ("NEW".equals(t)) {
                 whereClause.append(" AND completed_orders = 0 ");
             }

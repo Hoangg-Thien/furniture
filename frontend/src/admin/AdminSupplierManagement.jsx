@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
+import { adminErrorMessage } from './adminDisplay'
 import {
   Truck,
   Plus,
@@ -180,13 +181,13 @@ export default function AdminSupplierManagement({ currentUser }) {
       }
       const res = await fetch(url, { headers: getApiHeaders() })
       if (!res.ok) {
-        throw new Error(`Lỗi tải danh sách nhà cung cấp (HTTP ${res.status})`)
+        throw new Error(`Lỗi tải danh sách nhà cung cấp (mã lỗi ${res.status})`)
       }
       const data = await res.json()
       setSuppliers(data || [])
     } catch (err) {
       console.error(err)
-      setError(err.message || 'Không thể kết nối đến máy chủ.')
+      setError(adminErrorMessage(err, 'Không thể kết nối đến máy chủ.'))
     } finally {
       setLoading(false)
     }
@@ -289,14 +290,14 @@ export default function AdminSupplierManagement({ currentUser }) {
 
       const data = await res.json()
       if (!res.ok) {
-        throw new Error(data.error || `Thao tác thất bại (HTTP ${res.status})`)
+        throw new Error(data.error || `Thao tác thất bại (mã lỗi ${res.status})`)
       }
 
       showToast(isEdit ? 'Cập nhật nhà cung cấp thành công!' : 'Thêm nhà cung cấp mới thành công!')
       setShowSupplierModal(false)
       fetchSuppliers()
     } catch (err) {
-      setSupplierFormError(err.message || 'Có lỗi xảy ra khi lưu nhà cung cấp.')
+      setSupplierFormError(adminErrorMessage(err, 'Có lỗi xảy ra khi lưu nhà cung cấp.'))
     } finally {
       setSubmittingSupplier(false)
     }
@@ -322,7 +323,7 @@ export default function AdminSupplierManagement({ currentUser }) {
       setDeletingSupplier(null)
       fetchSuppliers()
     } catch (err) {
-      setDeleteError(err.message)
+      setDeleteError(adminErrorMessage(err))
     } finally {
       setSubmittingDelete(false)
     }
@@ -345,14 +346,14 @@ export default function AdminSupplierManagement({ currentUser }) {
         headers: getApiHeaders()
       })
       if (!res.ok) {
-        throw new Error(`Không thể lấy lịch sử nhập kho (HTTP ${res.status})`)
+        throw new Error(`Không thể lấy lịch sử nhập kho (mã lỗi ${res.status})`)
       }
       const data = await res.json()
       setReceiptsList(data || [])
       if (receiptId) await handleToggleExpandReceipt(receiptId, supplier.id, true)
     } catch (err) {
       console.error(err)
-      showToast(err.message, 'error')
+      showToast(adminErrorMessage(err), 'error')
     } finally {
       setLoadingReceipts(false)
     }
@@ -385,7 +386,7 @@ export default function AdminSupplierManagement({ currentUser }) {
         setCountedItems(prev => ({ ...prev, ...Object.fromEntries(inspection.items.filter(item => item.quantity !== null).map(item => [`${receiptId}-${item.productId}`, String(item.quantity)])) }))
         setReceiptItemsMap((prev) => ({ ...prev, [receiptId]: items }))
       } catch (err) {
-        setReceiptItemErrors(prev => ({ ...prev, [receiptId]: err instanceof TypeError ? 'Không kết nối được API kiểm đếm. Kiểm tra backend đã chạy bản mới rồi bấm Thử lại.' : err.message }))
+        setReceiptItemErrors(prev => ({ ...prev, [receiptId]: err instanceof TypeError ? 'Không kết nối được API kiểm đếm. Kiểm tra máy chủ đã chạy bản mới rồi bấm Thử lại.' : adminErrorMessage(err) }))
       } finally {
         setLoadingItemsMap((prev) => ({ ...prev, [receiptId]: false }))
       }
@@ -427,7 +428,7 @@ export default function AdminSupplierManagement({ currentUser }) {
       handleOpenReceiptsModal(activeSupplier)
       fetchSuppliers()
     } catch (err) {
-      showToast(err.message, 'error')
+      showToast(adminErrorMessage(err), 'error')
     } finally {
       setUpdatingReceiptId(null)
     }
@@ -439,7 +440,7 @@ export default function AdminSupplierManagement({ currentUser }) {
       const res = await fetch(`${getApiBaseUrl()}/api/admin/suppliers/receipt-approvals`, { headers: getApiHeaders() })
       if (!res.ok) throw new Error('Không tải được danh sách phiếu chờ duyệt.')
       setApprovalQueue(await res.json())
-    } catch (error) { showToast(error.message, 'error') }
+    } catch (error) { showToast(adminErrorMessage(error), 'error') }
     finally { setApprovalLoading(false) }
   }
   const handleReceiptWorkflow = async (id, action, approve) => {
@@ -455,7 +456,7 @@ export default function AdminSupplierManagement({ currentUser }) {
       await handleOpenReceiptsModal(activeSupplier, id)
       fetchSuppliers()
       if (approvalQueue !== null) await loadApprovalQueue()
-    } catch (error) { showToast(error.message, 'error') }
+    } catch (error) { showToast(adminErrorMessage(error), 'error') }
     finally { setUpdatingReceiptId(null) }
   }
 
@@ -575,7 +576,7 @@ export default function AdminSupplierManagement({ currentUser }) {
         await handleOpenReceiptsModal(activeSupplier, receiptForm.status === 'PENDING' ? data.receiptId : null)
       }
     } catch (err) {
-      setReceiptFormError(err.message || 'Lỗi khi lập phiếu nhập kho.')
+      setReceiptFormError(adminErrorMessage(err, 'Lỗi khi lập phiếu nhập kho.'))
     } finally {
       setSubmittingReceipt(false)
     }
@@ -629,7 +630,7 @@ export default function AdminSupplierManagement({ currentUser }) {
         </div>
       </div>
 
-      {approvalQueue !== null && <section className="admin-card" aria-label="Phiếu nhập chờ admin duyệt" style={{ padding: 20, marginTop: 20 }}>
+      {approvalQueue !== null && <section className="admin-card" aria-label="Phiếu nhập chờ quản trị viên duyệt" style={{ padding: 20, marginTop: 20 }}>
         <h2>Phiếu nhập chờ duyệt ({approvalQueue.length})</h2>
         <p>Nhân viên đã kiểm đếm đủ. Mở phiếu để đối chiếu số lượng và giá vốn trước khi duyệt.</p>
         {approvalQueue.length === 0 && <p>Không có phiếu chờ duyệt.</p>}
@@ -648,7 +649,7 @@ export default function AdminSupplierManagement({ currentUser }) {
           <div className="inv-stat-info">
             <span className="inv-stat-label">Tổng nhà cung cấp</span>
             <h3 className="inv-stat-value">{kpiStats.totalSuppliers} <span className="inv-stat-unit">đối tác</span></h3>
-            <span className="inv-stat-sub" style={{ color: '#0284C7', fontWeight: 600 }}>
+            <span className="inv-stat-sub" style={{ color: '#0284C7' }}>
               Xưởng mộc &amp; cung ứng vật tư
             </span>
           </div>
@@ -678,7 +679,7 @@ export default function AdminSupplierManagement({ currentUser }) {
             <h3 className="inv-stat-value text-emerald" style={{ fontSize: '1.35rem' }}>
               {formatCurrency(kpiStats.totalValue)}
             </h3>
-            <span className="inv-stat-sub" style={{ color: '#059669', fontWeight: 600 }}>
+            <span className="inv-stat-sub" style={{ color: '#059669' }}>
               Chi phí vốn nhập hàng nội thất
             </span>
           </div>
@@ -693,7 +694,7 @@ export default function AdminSupplierManagement({ currentUser }) {
             <h3 className="inv-stat-value" style={{ fontSize: '1.05rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {kpiStats.topSupplier ? kpiStats.topSupplier.name : 'Chưa có'}
             </h3>
-            <span className="inv-stat-sub" style={{ color: '#7C3AED', fontWeight: 600 }}>
+            <span className="inv-stat-sub" style={{ color: '#7C3AED' }}>
               {kpiStats.topSupplier ? `${kpiStats.topSupplier.totalReceiptsCount} đợt nhập hàng` : 'Chưa có dữ liệu'}
             </span>
           </div>
@@ -801,7 +802,7 @@ export default function AdminSupplierManagement({ currentUser }) {
         </div>
 
         {error && (
-          <div style={{ margin: '16px', padding: '12px 16px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: '8px', color: '#B91C1C', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ margin: '16px', padding: '12px 16px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 'var(--admin-radius)', color: '#B91C1C', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <AlertCircle size={18} />
             <span>{error}</span>
           </div>
@@ -811,7 +812,7 @@ export default function AdminSupplierManagement({ currentUser }) {
           <table className="admin-table">
             <thead>
               <tr>
-                <th style={{ width: '65px', textAlign: 'center' }}>ID</th>
+                <th style={{ width: '65px', textAlign: 'center' }}>Mã</th>
                 <th style={{ minWidth: '240px' }}>Tên Nhà Cung Cấp / Xưởng</th>
                 <th style={{ minWidth: '180px' }}>Thông Tin Liên Hệ</th>
                 <th style={{ minWidth: '220px' }}>Địa Chỉ Xưởng / Kho</th>
@@ -856,7 +857,7 @@ export default function AdminSupplierManagement({ currentUser }) {
                       onMouseLeave={() => clearTimeout(quickTimer.current)}
                       onClick={event => { if (!event.target.closest('button, a, input')) showQuickSupplier(s.id, true) }}
                       onKeyDown={event => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); showQuickSupplier(s.id, true) } }}>
-                      <td style={{ textAlign: 'center', color: 'var(--admin-text-muted)', fontFamily: 'monospace', fontWeight: 700, fontSize: '0.86rem' }}>
+                      <td style={{ textAlign: 'center', color: 'var(--admin-text-muted)', fontFamily: 'var(--admin-font-mono)', fontSize: '0.86rem' }}>
                         #{s.id < 10 ? `0${s.id}` : s.id}
                       </td>
                       <td>
@@ -865,8 +866,8 @@ export default function AdminSupplierManagement({ currentUser }) {
                             style={{
                               width: '38px',
                               height: '38px',
-                              borderRadius: '8px',
-                              background: 'linear-gradient(135deg, #FEF3C7, #FED7AA)',
+                              borderRadius: 'var(--admin-radius)',
+                              background: 'var(--admin-warning-bg)',
                               color: '#B45309',
                               display: 'flex',
                               alignItems: 'center',
@@ -919,8 +920,7 @@ export default function AdminSupplierManagement({ currentUser }) {
                         <span
                           style={{
                             padding: '4px 10px',
-                            borderRadius: '999px',
-                            fontWeight: 600,
+                            borderRadius: 'var(--admin-radius-sm)',
                             fontSize: '0.8rem',
                             display: 'inline-flex',
                             alignItems: 'center',
@@ -934,7 +934,7 @@ export default function AdminSupplierManagement({ currentUser }) {
                           {receiptCount} đợt
                         </span>
                       </td>
-                      <td style={{ textAlign: 'right', fontWeight: 700, color: receiptValue > 0 ? '#047857' : '#94A3B8', fontSize: '0.94rem', whiteSpace: 'nowrap' }}>
+                      <td style={{ textAlign: 'right', color: receiptValue > 0 ? '#047857' : '#94A3B8', fontSize: '0.94rem', whiteSpace: 'nowrap' }}>
                         {formatCurrency(receiptValue)}
                       </td>
                       <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
@@ -1022,7 +1022,7 @@ export default function AdminSupplierManagement({ currentUser }) {
         {quickLoading ? <p role="status">Đang tải phiếu nhập...</p> : quickError ? <div role="alert"><p>{quickError}</p><button type="button" className="admin-btn admin-btn-outline" onClick={() => setQuickAttempt(value => value + 1)}>Thử lại</button></div> : quickReceipts.length === 0 ? <p>Chưa có phiếu nhập kho.</p> : <div className="supplier-quick-receipts">
           {quickReceipts.map(receipt => <button type="button" key={receipt.id} className="supplier-quick-receipt" onClick={() => handleOpenReceiptsModal(quickSupplier, receipt.id)}>
             <span><strong>#PR-{receipt.id}</strong><small>{formatDate(receipt.receiptDate)} · {receipt.staffName || 'Chưa rõ người lập'}</small></span>
-            <span><strong>{formatCurrency(receipt.totalAmount)}</strong><small>{({ PENDING: 'Chờ kiểm đếm / duyệt', COMPLETED: 'Đã nhập kho', CANCELLED: 'Đã hủy' })[receipt.status] || receipt.status}</small></span>
+            <span><strong>{formatCurrency(receipt.totalAmount)}</strong><small>{({ PENDING: 'Chờ kiểm đếm / duyệt', COMPLETED: 'Đã nhập kho', CANCELLED: 'Đã hủy' })[receipt.status] || 'Chưa xác định'}</small></span>
           </button>)}
         </div>}
       </aside>}
@@ -1204,7 +1204,7 @@ export default function AdminSupplierManagement({ currentUser }) {
                     const awaitingApproval = Boolean(inspection?.submittedAt && !inspection?.reviewedAt)
 
                     let statusBadgeClass = 'admin-status-pill'
-                    let statusLabel = rc.status
+                    let statusLabel = 'Chưa xác định'
                     let statusDot = 'gray'
                     if (rc.status === 'COMPLETED') {
                       statusBadgeClass = 'admin-status-pill active'
@@ -1212,7 +1212,7 @@ export default function AdminSupplierManagement({ currentUser }) {
                       statusDot = 'green'
                     } else if (rc.status === 'PENDING') {
                       statusBadgeClass = 'admin-status-pill warning'
-                      statusLabel = awaitingApproval ? 'Chờ admin duyệt' : inspection?.reason ? 'Cần kiểm tra lại' : 'Chờ kiểm đếm / duyệt'
+                      statusLabel = awaitingApproval ? 'Chờ quản trị viên duyệt' : inspection?.reason ? 'Cần kiểm tra lại' : 'Chờ kiểm đếm / duyệt'
                       statusDot = 'amber'
                     } else if (rc.status === 'CANCELLED') {
                       statusBadgeClass = 'admin-status-pill inactive'
@@ -1225,10 +1225,9 @@ export default function AdminSupplierManagement({ currentUser }) {
                         key={rc.id}
                         style={{
                           border: '1px solid var(--admin-border)',
-                          borderRadius: '10px',
+                          borderRadius: 'var(--admin-radius)',
                           overflow: 'hidden',
-                          background: '#fff',
-                          boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
+                          background: '#fff'
                         }}
                       >
                         {/* Receipt row header */}
@@ -1250,7 +1249,7 @@ export default function AdminSupplierManagement({ currentUser }) {
                           onClick={() => handleToggleExpandReceipt(rc.id)}
                         >
                           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-                            <div style={{ fontWeight: 800, color: 'var(--admin-primary)', fontSize: '0.94rem', fontFamily: 'monospace' }}>
+                            <div style={{ color: 'var(--admin-primary)', fontSize: '0.94rem', fontFamily: 'var(--admin-font-mono)' }}>
                               #PR-{rc.id < 10 ? `00${rc.id}` : rc.id < 100 ? `0${rc.id}` : rc.id}
                             </div>
                             <span style={{ fontSize: '0.84rem', color: 'var(--admin-text-muted)' }}>
@@ -1263,7 +1262,7 @@ export default function AdminSupplierManagement({ currentUser }) {
 
                           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
                             <div style={{ textAlign: 'right' }}>
-                              <div style={{ fontWeight: 800, color: '#047857', fontSize: '0.96rem' }}>
+                              <div style={{ color: '#047857', fontSize: '0.96rem' }}>
                                 {formatCurrency(rc.totalAmount)}
                               </div>
                               <span style={{ fontSize: '0.75rem', color: 'var(--admin-text-muted)' }}>
@@ -1274,7 +1273,7 @@ export default function AdminSupplierManagement({ currentUser }) {
                             <span
                               style={{
                                 padding: '4px 10px',
-                                borderRadius: '6px',
+                                borderRadius: 'var(--admin-radius-sm)',
                                 fontSize: '0.78rem',
                                 fontWeight: 700,
                                 background: rc.status === 'COMPLETED' ? '#ECFDF5' : rc.status === 'PENDING' ? '#FFFBEB' : '#FEF2F2',
@@ -1294,14 +1293,14 @@ export default function AdminSupplierManagement({ currentUser }) {
                           <div style={{ padding: '16px 20px', background: '#F8FAFC' }}>
                             {rc.status === 'PENDING' && <p role="status" style={{ marginTop: 0, lineHeight: 1.6 }}>
                               Đối chiếu mã sản phẩm, số lượng trên phiếu giao của nhà cung cấp và hàng thực tế. Nhập số lượng đã đếm cho từng dòng bên dưới.
-                              Khi đủ hàng đạt chất lượng, gửi kết quả cho admin duyệt. Tồn kho chỉ tăng khi admin đồng ý. Nếu thiếu, thừa hoặc hỏng, liên hệ nhà cung cấp.
+                              Khi đủ hàng đạt chất lượng, gửi kết quả cho quản trị viên duyệt. Tồn kho chỉ tăng khi quản trị viên đồng ý. Nếu thiếu, thừa hoặc hỏng, liên hệ nhà cung cấp.
                             </p>}
                             {inspection?.checkedBy && <p>Kiểm đếm: <strong>{inspection.checkedBy}</strong> · Gửi lúc {formatDate(inspection.submittedAt)}</p>}
-                            {inspection?.reviewedBy && <p>Admin xử lý: <strong>{inspection.reviewedBy}</strong> · {formatDate(inspection.reviewedAt)}{inspection.reason ? ` · Yêu cầu kiểm tra lại: ${inspection.reason}` : ' · Đã duyệt'}</p>}
+                            {inspection?.reviewedBy && <p>Quản trị viên xử lý: <strong>{inspection.reviewedBy}</strong> · {formatDate(inspection.reviewedAt)}{inspection.reason ? ` · Yêu cầu kiểm tra lại: ${inspection.reason}` : ' · Đã duyệt'}</p>}
                             {inspection?.history?.length > 0 && <details style={{ marginBottom: 16 }}><summary>Lịch sử kiểm đếm và duyệt ({inspection.history.length})</summary>
                               <ul>{inspection.history.map((event, index) => <li key={index}>{formatDate(event.createdAt)} · {event.username} · {({ SUBMITTED: 'Gửi kiểm đếm', APPROVED: 'Duyệt nhập kho', RETURNED: 'Yêu cầu kiểm tra lại' })[event.action]}{event.reason ? `: ${event.reason}` : ''}</li>)}</ul>
                             </details>}
-                            {awaitingApproval && currentUser?.role !== 'ADMIN' && <p role="status">Đã lưu kết quả kiểm đếm. Đang chờ admin duyệt; bạn không cần nhập lại.</p>}
+                            {awaitingApproval && currentUser?.role !== 'ADMIN' && <p role="status">Đã lưu kết quả kiểm đếm. Đang chờ quản trị viên duyệt; bạn không cần nhập lại.</p>}
                             {awaitingApproval && currentUser?.role === 'ADMIN' && rc.status === 'PENDING' && <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
                               <label>Lý do yêu cầu kiểm tra lại <input className="form-input" maxLength={1000} value={reviewReason} onChange={event => setReviewReason(event.target.value)} /></label>
                               <button type="button" className="admin-btn admin-btn-outline" disabled={updatingReceiptId !== null || !reviewReason.trim()} onClick={() => handleReceiptWorkflow(rc.id, 'review', false)}>Yêu cầu kiểm tra lại</button>
@@ -1335,7 +1334,7 @@ export default function AdminSupplierManagement({ currentUser }) {
                                       handleReceiptWorkflow(rc.id, 'inspection')
                                     }}
                                   >
-                                    <Check size={14} /> <span>{updatingReceiptId === rc.id ? 'Đang lưu...' : awaitingApproval ? 'Đã gửi admin duyệt' : 'Gửi admin duyệt'}</span>
+                                    <Check size={14} /> <span>{updatingReceiptId === rc.id ? 'Đang lưu...' : awaitingApproval ? 'Đã gửi quản trị viên duyệt' : 'Gửi quản trị viên duyệt'}</span>
                                   </button>
                                 </div>
                               )}
@@ -1346,7 +1345,7 @@ export default function AdminSupplierManagement({ currentUser }) {
                                 Đang tải danh sách mặt hàng...
                               </div>
                             ) : receiptItemErrors[rc.id] ? (
-                              <div role="alert" style={{ padding: 16, background: '#fff', border: '1px solid #f3c5c5', borderRadius: 8 }}>
+                              <div role="alert" style={{ padding: 16, background: '#fff', border: '1px solid #f3c5c5', borderRadius: 'var(--admin-radius)' }}>
                                 <p>{receiptItemErrors[rc.id]}</p>
                                 <button type="button" className="admin-btn admin-btn-outline" onClick={() => handleToggleExpandReceipt(rc.id, activeSupplier.id, true)}>Thử lại</button>
                               </div>
@@ -1356,7 +1355,7 @@ export default function AdminSupplierManagement({ currentUser }) {
                               </div>
                             ) : (
                               <div className="admin-table-container">
-                              <table className="admin-table" style={{ background: '#fff', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--admin-border)' }}>
+                              <table className="admin-table" style={{ background: '#fff', borderRadius: 'var(--admin-radius)', overflow: 'hidden', border: '1px solid var(--admin-border)' }}>
                                 <thead>
                                   <tr>
                                     <th style={{ fontSize: '0.78rem' }}>Tên Sản Phẩm Nội Thất</th>
@@ -1382,13 +1381,13 @@ export default function AdminSupplierManagement({ currentUser }) {
                                       <td style={{ textAlign: 'center', color: 'var(--admin-text-muted)' }}>
                                         {formatProductUnit(it.unit)}
                                       </td>
-                                      <td style={{ textAlign: 'center', fontWeight: 700, color: 'var(--admin-text-main)' }}>
+                                      <td style={{ textAlign: 'center', color: 'var(--admin-text-main)' }}>
                                         {it.quantity}
                                       </td>
                                       <td style={{ textAlign: 'right', color: 'var(--admin-text-muted)' }}>
                                         {formatCurrency(it.unitPrice)}
                                       </td>
-                                      <td style={{ textAlign: 'right', fontWeight: 700, color: '#047857' }}>
+                                      <td style={{ textAlign: 'right', color: '#047857' }}>
                                         {formatCurrency(it.amount)}
                                       </td>
                                       {rc.status === 'PENDING' && <td className="receipt-count-cell">
@@ -1474,10 +1473,10 @@ export default function AdminSupplierManagement({ currentUser }) {
                       value={receiptForm.status}
                       onChange={(e) => setReceiptForm({ ...receiptForm, status: e.target.value })}
                     >
-                      <option value="PENDING">Chờ kiểm đếm → Gửi admin duyệt</option>
+                      <option value="PENDING">Chờ kiểm đếm → Gửi quản trị viên duyệt</option>
                     </select>
                     <p style={{ fontSize: '0.82rem', color: 'var(--admin-text-muted)' }}>
-                      Lưu phiếu, kiểm đếm số lượng thực nhận rồi gửi admin duyệt. Chỉ khi admin duyệt mới cộng tồn kho; phiếu đã hoàn tất sẽ bị khóa.
+                      Lưu phiếu, kiểm đếm số lượng thực nhận rồi gửi quản trị viên duyệt. Chỉ khi quản trị viên duyệt mới cộng tồn kho; phiếu đã hoàn tất sẽ bị khóa.
                     </p>
                   </div>
 
@@ -1521,7 +1520,7 @@ export default function AdminSupplierManagement({ currentUser }) {
                             alignItems: 'center',
                             background: '#F8FAFC',
                             padding: '10px 14px',
-                            borderRadius: '10px',
+                            borderRadius: 'var(--admin-radius)',
                             border: '1px solid var(--admin-border)'
                           }}
                         >
@@ -1536,7 +1535,7 @@ export default function AdminSupplierManagement({ currentUser }) {
                               <option value="">-- Chọn sản phẩm nội thất --</option>
                               {availableProducts.map((p) => (
                                 <option key={p.id} value={p.id}>
-                                  #{p.id} - {p.name} ({p.unit || 'Bộ'})
+                                  #{p.id} - {p.name} ({formatProductUnit(p.unit || 'Bộ')})
                                 </option>
                               ))}
                             </select>
@@ -1568,7 +1567,7 @@ export default function AdminSupplierManagement({ currentUser }) {
                             />
                           </div>
 
-                          <div style={{ textAlign: 'right', fontWeight: 700, color: '#047857', fontSize: '0.9rem', whiteSpace: 'nowrap' }}>
+                          <div style={{ textAlign: 'right', color: '#047857', fontSize: '0.9rem', whiteSpace: 'nowrap' }}>
                             {formatCurrency(lineTotal)}
                           </div>
 
@@ -1595,7 +1594,7 @@ export default function AdminSupplierManagement({ currentUser }) {
                   style={{
                     background: '#ECFDF5',
                     border: '1px solid #A7F3D0',
-                    borderRadius: '10px',
+                    borderRadius: 'var(--admin-radius)',
                     padding: '14px 18px',
                     display: 'flex',
                     justifyContent: 'space-between',
@@ -1603,7 +1602,7 @@ export default function AdminSupplierManagement({ currentUser }) {
                   }}
                 >
                   <span style={{ fontWeight: 700, color: '#065F46', fontSize: '0.92rem' }}>Tổng Giá Trị Phiếu Nhập Kho:</span>
-                  <span style={{ fontSize: '1.35rem', fontWeight: 800, color: '#047857' }}>
+                  <span style={{ fontSize: '1.35rem', color: '#047857' }}>
                     {formatCurrency(estimatedReceiptTotal)}
                   </span>
                 </div>

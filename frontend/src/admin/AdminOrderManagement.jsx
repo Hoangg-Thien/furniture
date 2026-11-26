@@ -1,4 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useEffectEvent } from 'react'
+import { adminErrorMessage, orderStatusLabel } from './adminDisplay'
+import { formatProductUnit } from '../lib/productUnits'
 import {
   ShoppingCart,
   Search,
@@ -177,7 +179,7 @@ export default function AdminOrderManagement({ currentUser, notificationTarget }
 
       const res = await fetch(`${baseUrl}/api/admin/orders?${params.toString()}`, { headers: getApiHeaders() })
       if (!res.ok) {
-        throw new Error(`Lỗi tải danh sách đơn hàng (HTTP ${res.status})`)
+        throw new Error(`Lỗi tải danh sách đơn hàng (mã lỗi ${res.status})`)
       }
       const data = await res.json()
       setOrders(data?.content || [])
@@ -186,7 +188,7 @@ export default function AdminOrderManagement({ currentUser, notificationTarget }
       setPage(data?.page || 0)
     } catch (err) {
       console.error(err)
-      setError(err.message || 'Không thể kết nối đến máy chủ.')
+      setError(adminErrorMessage(err, 'Không thể kết nối đến máy chủ.'))
     } finally {
       pendingRequests.current -= 1
       if (!background) setLoading(false)
@@ -225,7 +227,7 @@ export default function AdminOrderManagement({ currentUser, notificationTarget }
       if (!signal?.aborted) setActiveOrderDetail(data)
     } catch (err) {
       if (signal?.aborted) return
-      showToast(err.message, 'error')
+      showToast(adminErrorMessage(err), 'error')
       setShowDetailModal(false)
     } finally {
       if (!signal?.aborted) setLoadingDetail(false)
@@ -277,7 +279,7 @@ export default function AdminOrderManagement({ currentUser, notificationTarget }
         handleOpenDetail(orderToConfirm.id)
       }
     } catch (err) {
-      showToast(err.message, 'error')
+      showToast(adminErrorMessage(err), 'error')
     } finally {
       setSubmittingConfirm(false)
     }
@@ -315,7 +317,7 @@ export default function AdminOrderManagement({ currentUser, notificationTarget }
         handleOpenDetail(orderToCancel.id)
       }
     } catch (err) {
-      showToast(err.message, 'error')
+      showToast(adminErrorMessage(err), 'error')
     } finally {
       setSubmittingCancel(false)
     }
@@ -342,7 +344,7 @@ export default function AdminOrderManagement({ currentUser, notificationTarget }
         handleOpenDetail(orderId)
       }
     } catch (err) {
-      showToast(err.message, 'error')
+      showToast(adminErrorMessage(err), 'error')
     } finally {
       setSubmittingComplete(false)
     }
@@ -387,7 +389,7 @@ export default function AdminOrderManagement({ currentUser, notificationTarget }
           </span>
         )
       default:
-        return <span className="admin-badge">{status}</span>
+        return <span className="admin-badge">{orderStatusLabel(status)}</span>
     }
   }
 
@@ -408,7 +410,7 @@ export default function AdminOrderManagement({ currentUser, notificationTarget }
       <div className="admin-page-header">
         <div>
           <div className="admin-breadcrumb">
-            Trang chủ &gt; Quản lý đơn hàng &gt; <span>Module 08</span>
+            Trang chủ &gt; Quản lý đơn hàng &gt; <span>Mục 08</span>
           </div>
           <h1 className="admin-page-title">Quy Trình Xử Lý &amp; Điều Phối Đơn Hàng</h1>
           <p className="admin-page-subtitle" style={{ margin: '4px 0 0', color: 'var(--admin-text-muted)', fontSize: '0.88rem' }}>
@@ -601,7 +603,7 @@ export default function AdminOrderManagement({ currentUser, notificationTarget }
         </div>
 
         {error && (
-          <div style={{ margin: '16px', padding: '12px 16px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: '8px', color: '#B91C1C', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ margin: '16px', padding: '12px 16px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 'var(--admin-radius)', color: '#B91C1C', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <AlertCircle size={18} />
             <span>{error}</span>
           </div>
@@ -656,9 +658,8 @@ export default function AdminOrderManagement({ currentUser, notificationTarget }
                             background: '#EFF6FF',
                             border: '1px solid #BFDBFE',
                             color: '#0284C7',
-                            fontWeight: 700,
                             padding: '3px 8px',
-                            borderRadius: '6px',
+                            borderRadius: 'var(--admin-radius-sm)',
                             cursor: 'pointer',
                             fontSize: '0.85rem'
                           }}
@@ -711,14 +712,14 @@ export default function AdminOrderManagement({ currentUser, notificationTarget }
                         <div style={{ fontSize: '0.82rem', color: 'var(--admin-text-main)' }}>
                           <div>{o.totalItemsCount} món nội thất</div>
                           {o.voucherCode && (
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', padding: '2px 6px', background: '#FFEDD5', color: '#C2410C', border: '1px solid #FED7AA', borderRadius: '4px', fontSize: '0.72rem', fontWeight: 600, marginTop: '2px' }}>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', padding: '2px 6px', background: '#FFEDD5', color: '#C2410C', border: '1px solid #FED7AA', borderRadius: '4px', fontSize: '0.72rem', marginTop: '2px' }}>
                               <Tag size={10} /> {o.voucherCode} (-{formatCurrency(o.discountAmount)})
                             </span>
                           )}
                         </div>
                       </td>
                       <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-                        <div style={{ fontWeight: 700, color: 'var(--admin-primary)', fontSize: '0.96rem' }}>
+                        <div style={{ color: 'var(--admin-primary)', fontSize: '0.96rem' }}>
                           {formatCurrency(o.totalAmount)}
                         </div>
                       </td>
@@ -889,7 +890,7 @@ export default function AdminOrderManagement({ currentUser, notificationTarget }
 
                 <div className="admin-modal-body" style={{ maxHeight: '65vh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
                   {/* Customer and Delivery Info */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px', background: '#F8FAFC', padding: '16px', borderRadius: '10px', border: '1px solid #E2E8F0' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px', background: '#F8FAFC', padding: '16px', borderRadius: 'var(--admin-radius)', border: '1px solid #E2E8F0' }}>
                     <div>
                       <h4 style={{ margin: '0 0 8px', fontSize: '0.88rem', color: '#334155', display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <User size={15} color="var(--admin-accent)" />
@@ -963,17 +964,17 @@ export default function AdminOrderManagement({ currentUser, notificationTarget }
                                 <img
                                   src={productImageUrl(item.imageUrl) || 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=120&q=80'}
                                   alt=""
-                                  style={{ width: '40px', height: '40px', borderRadius: '6px', objectFit: 'cover', border: '1px solid #E2E8F0' }}
+                                  style={{ width: '40px', height: '40px', borderRadius: 'var(--admin-radius-sm)', objectFit: 'cover', border: '1px solid #E2E8F0' }}
                                 />
                                 <span style={{ fontWeight: 600, color: '#1E293B', fontSize: '0.88rem' }}>
                                   {item.productName}
                                 </span>
                               </div>
                             </td>
-                            <td style={{ textAlign: 'center', color: '#64748B' }}>{item.unit || 'cái'}</td>
-                            <td style={{ textAlign: 'center', fontWeight: 700, color: '#0F172A' }}>{item.quantity}</td>
+                            <td style={{ textAlign: 'center', color: '#64748B' }}>{formatProductUnit(item.unit)}</td>
+                            <td style={{ textAlign: 'center', color: '#0F172A' }}>{item.quantity}</td>
                             <td style={{ textAlign: 'right', color: '#475569' }}>{formatCurrency(item.unitPrice)}</td>
-                            <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--admin-primary)' }}>
+                            <td style={{ textAlign: 'right', color: 'var(--admin-primary)' }}>
                               {formatCurrency(item.amount)}
                             </td>
                           </tr>
@@ -983,22 +984,22 @@ export default function AdminOrderManagement({ currentUser, notificationTarget }
                   </div>
 
                   {/* Financial Summary */}
-                  <div style={{ background: '#F8FAFC', padding: '16px', borderRadius: '10px', border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', gap: '8px', marginLeft: 'auto', width: '340px' }}>
+                  <div style={{ background: '#F8FAFC', padding: '16px', borderRadius: 'var(--admin-radius)', border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', gap: '8px', marginLeft: 'auto', width: '340px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.86rem', color: '#475569' }}>
                       <span>Tổng tiền hàng:</span>
-                      <span style={{ fontWeight: 600 }}>{formatCurrency(activeOrderDetail.subtotal)}</span>
+                      <span>{formatCurrency(activeOrderDetail.subtotal)}</span>
                     </div>
 
                     {activeOrderDetail.voucherCode && (
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.86rem', color: '#C2410C' }}>
                         <span>Voucher ({activeOrderDetail.voucherCode}):</span>
-                        <span style={{ fontWeight: 600 }}>-{formatCurrency(activeOrderDetail.discountAmount)}</span>
+                        <span>-{formatCurrency(activeOrderDetail.discountAmount)}</span>
                       </div>
                     )}
 
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.05rem', fontWeight: 800, color: 'var(--admin-primary)', borderTop: '1px solid #CBD5E1', paddingTop: '10px', marginTop: '4px' }}>
                       <span>Khách cần trả:</span>
-                      <span>{formatCurrency(activeOrderDetail.finalTotal)}</span>
+                      <span style={{ fontWeight: 400 }}>{formatCurrency(activeOrderDetail.finalTotal)}</span>
                     </div>
                   </div>
                 </div>
