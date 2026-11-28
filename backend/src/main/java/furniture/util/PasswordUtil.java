@@ -3,8 +3,38 @@ package furniture.util;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+import java.util.Base64;
+import javax.crypto.SecretKeyFactory;
+import javax.crypto.spec.PBEKeySpec;
 
 public class PasswordUtil {
+    private static final int ITERATIONS = 600_000;
+    private static final String PASSWORD_PREFIX = "pbkdf2-sha256$" + ITERATIONS + "$";
+    private static final SecureRandom RANDOM = new SecureRandom();
+    private static final Base64.Encoder ENCODER = Base64.getUrlEncoder().withoutPadding();
+    private static final Base64.Decoder DECODER = Base64.getUrlDecoder();
+
+    public static String hashPassword(String password) {
+        byte[] salt = new byte[16];
+        RANDOM.nextBytes(salt);
+        return PASSWORD_PREFIX + ENCODER.encodeToString(salt) + "$" + ENCODER.encodeToString(derive(password, salt));
+    }
+
+    public static boolean needsUpgrade(String storedHash) {
+        return !storedHash.startsWith(PASSWORD_PREFIX);
+    }
+
+    private static byte[] derive(String password, byte[] salt) {
+        PBEKeySpec spec = new PBEKeySpec(password.toCharArray(), salt, ITERATIONS, 256);
+        try {
+            return SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(spec).getEncoded();
+        } catch (java.security.GeneralSecurityException e) {
+            throw new IllegalStateException("Password hashing unavailable", e);
+        } finally {
+            spec.clearPassword();
+        }
+    }
 
     public static String hash(String password) {
         if (password == null) {
@@ -27,7 +57,13 @@ public class PasswordUtil {
         if (password == null || storedHash == null) {
             return false;
         }
-        // 1. Kiểm tra mã băm SHA-256
+        if (!needsUpgrade(storedHash)) {
+            String record = storedHash.substring(PASSWORD_PREFIX.length());
+            if (!record.matches("[A-Za-z0-9_-]{22}[$][A-Za-z0-9_-]{43}")) return false;
+            byte[] salt = DECODER.decode(record.substring(0, 22));
+            return MessageDigest.isEqual(derive(password, salt), DECODER.decode(record.substring(23)));
+        }
+        // Migrate legacy hashes only after a successful login.
         if (hash(password).equalsIgnoreCase(storedHash)) {
             return true;
         }
@@ -36,7 +72,7 @@ public class PasswordUtil {
             return true;
         }
         // 3. Fallback so sánh mật khẩu trực tiếp
-        return !storedHash.matches("(?i)[0-9a-f]{64}") && !storedHash.startsWith("$2")
+        return !storedHash.matches("(?i)[0-9a-f]{64}") && !storedHash.startsWith("$2") && !storedHash.startsWith("pbkdf2-")
                 && password.equals(storedHash);
     }
 }

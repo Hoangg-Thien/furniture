@@ -120,7 +120,7 @@ try {
   await page.getByRole('alert').filter({ hasText: 'Không kết nối được API kiểm đếm' }).waitFor()
   assert.equal(await page.getByText('Không có chi tiết sản phẩm nào.', { exact: true }).count(), 0, 'failed API is not an empty receipt')
   await page.getByRole('button', { name: 'Thử lại', exact: true }).click()
-  const complete = page.getByRole('button', { name: 'Gửi admin duyệt', exact: true })
+  const complete = page.getByRole('button', { name: 'Gửi quản trị viên duyệt', exact: true })
   await page.getByLabel('Thực nhận Nệm Dreamy').waitFor()
   assert(await complete.isDisabled(), 'uninspected receipt cannot complete')
   await page.getByLabel('Thực nhận Nệm Dreamy').fill('4')
@@ -139,7 +139,7 @@ try {
   assert.equal(await page.getByLabel('Thực nhận Nệm Dreamy').inputValue(), '5', 'failed save retains counts')
   rejectUpdate = false
   await complete.click()
-  await page.getByRole('button', { name: 'Đã gửi admin duyệt', exact: true }).waitFor()
+  await page.getByRole('button', { name: 'Đã gửi quản trị viên duyệt', exact: true }).waitFor()
   assert.equal(status, 'PENDING', 'submission must not complete stock receipt')
   assert.equal(await page.getByRole('button', { name: 'Duyệt nhập kho', exact: true }).count(), 0, 'staff cannot approve')
   currentRole = 'ADMIN'

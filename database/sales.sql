@@ -1,3 +1,4 @@
+BEGIN;
 CREATE TABLE "users" (
   "id" BIGSERIAL PRIMARY KEY,
   "username" VARCHAR(50) UNIQUE NOT NULL,
@@ -264,7 +265,6 @@ ALTER TABLE "vouchers" ADD FOREIGN KEY ("promotion_program_id") REFERENCES "prom
 --   4) moi chuyen sang CONFIRMED / COMPLETED / CANCELLED.
 -- total_amount cua don hang = tong tien hang - discount_amount.
 -- =====================================================================
-BEGIN;
  
 -- ---------------------------------------------------------------------
 -- USERS: 3 admin (id 1-3), 10 staff (id 4-13), 20 customer (id 14-33)
@@ -663,29 +663,14 @@ WHERE id IN (1,2,3,4,5,6,7,8,9,11,12,13);
 UPDATE purchase_receipts SET status = 'CANCELLED' WHERE id = 10;
  
 -- ---------------------------------------------------------------------
--- Dong bo lai sequence sau khi insert id thu cong
+-- Du lieu bo sung
 -- ---------------------------------------------------------------------
--- SELECT setval(pg_get_serial_sequence('users', 'id'),              (SELECT MAX(id) FROM users));
--- SELECT setval(pg_get_serial_sequence('customers', 'id'),          (SELECT MAX(id) FROM customers));
--- SELECT setval(pg_get_serial_sequence('staff', 'id'),              (SELECT MAX(id) FROM staff));
--- SELECT setval(pg_get_serial_sequence('admins', 'id'),             (SELECT MAX(id) FROM admins));
--- SELECT setval(pg_get_serial_sequence('categories', 'id'),         (SELECT MAX(id) FROM categories));
--- SELECT setval(pg_get_serial_sequence('products', 'id'),           (SELECT MAX(id) FROM products));
--- SELECT setval(pg_get_serial_sequence('carts', 'id'),              (SELECT MAX(id) FROM carts));
--- SELECT setval(pg_get_serial_sequence('orders', 'id'),             (SELECT MAX(id) FROM orders));
--- SELECT setval(pg_get_serial_sequence('suppliers', 'id'),          (SELECT MAX(id) FROM suppliers));
--- SELECT setval(pg_get_serial_sequence('purchase_receipts', 'id'),  (SELECT MAX(id) FROM purchase_receipts));
--- SELECT setval(pg_get_serial_sequence('promotion_programs', 'id'), (SELECT MAX(id) FROM promotion_programs));
--- SELECT setval(pg_get_serial_sequence('product_discounts', 'id'),  (SELECT MAX(id) FROM product_discounts));
--- SELECT setval(pg_get_serial_sequence('order_discounts', 'id'),    (SELECT MAX(id) FROM order_discounts));
--- SELECT setval(pg_get_serial_sequence('vouchers', 'id'),           (SELECT MAX(id) FROM vouchers));
- 
 INSERT INTO users (id, username, password_hash, role) VALUES (34, 'khachhangmoi', 'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f', 'CUSTOMER');
 INSERT INTO customers (id, user_id, full_name, email, phone, address) VALUES (21, 34, 'Tran Van B', 'tranvanb@example.com', '0911223344', '456 Tran Hung Dao, Quan 5');
 INSERT INTO users (id, username, password_hash, role) VALUES (35, 'luugiahuy', '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92', 'CUSTOMER');
 INSERT INTO customers (id, user_id, full_name, email, phone, address) VALUES (22, 35, 'Luu Gia Huy', 'luugiahuy@example.com', '0909090909', '789 Nguyen Hue, Quan 1');
-INSERT INTO users (id, username, password_hash, role) VALUES (34, 'huyluu123', '4be1060d0223a3326c0984b286725e7e1c900ce1bf28539eb6442eb7df6b803d', 'CUSTOMER');
-INSERT INTO customers (id, user_id, full_name, email, phone, address) VALUES (21, 34, 'Luu Gia Huy', 'huyluu123@gmail.com', '0912345678', '12, lac long quan, quan 11');
+INSERT INTO users (id, username, password_hash, role) VALUES (1001, 'huyluu123', '4be1060d0223a3326c0984b286725e7e1c900ce1bf28539eb6442eb7df6b803d', 'CUSTOMER');
+INSERT INTO customers (id, user_id, full_name, email, phone, address) VALUES (1001, 1001, 'Luu Gia Huy', 'huyluu123@gmail.com', '0912345678', '12, lac long quan, quan 11');
 INSERT INTO orders (id, customer_id, order_date, status, total_amount, discount_amount) VALUES (21, 21, '2026-10-12 16:46:58', 'PENDING', 8900000, 0);
 INSERT INTO order_items (order_id, product_id, quantity, unit_price, amount) VALUES (21, 8, 1, 8900000, 8900000);
 INSERT INTO orders (id, customer_id, order_date, status, total_amount, discount_amount) VALUES (22, 21, '2026-10-12 16:47:52', 'PENDING', 28800000, 0);
@@ -729,8 +714,8 @@ INSERT INTO order_items (order_id, product_id, quantity, unit_price, amount) VAL
 INSERT INTO order_items (order_id, product_id, quantity, unit_price, amount) VALUES (38, 13, 1, 3600000, 3600000);
 INSERT INTO orders (id, customer_id, order_date, status, total_amount, discount_amount) VALUES (39, 21, '2026-10-14 11:40:05', 'PENDING', 12960000, 0);
 INSERT INTO order_items (order_id, product_id, quantity, unit_price, amount) VALUES (39, 9, 2, 7200000, 14400000);
-INSERT INTO users (id, username, password_hash, role) VALUES (35, 'alert("hello")', '03537fb7ca693e4435490c4793e978d31c74adab4743c4ea09038b3e50a00d4c', 'CUSTOMER');
-INSERT INTO customers (id, user_id, full_name, email, phone, address) VALUES (22, 35, 'Phùng Thanh Độ Nà Ná Na Na', 'conbodo@gmail.com', '0912091989', '120 An Liễng, Hà Lội');
+INSERT INTO users (id, username, password_hash, role) VALUES (1002, 'alert("hello")', '03537fb7ca693e4435490c4793e978d31c74adab4743c4ea09038b3e50a00d4c', 'CUSTOMER');
+INSERT INTO customers (id, user_id, full_name, email, phone, address) VALUES (1002, 1002, 'Phùng Thanh Độ Nà Ná Na Na', 'conbodo@gmail.com', '0912091989', '120 An Liễng, Hà Lội');
 INSERT INTO orders (id, customer_id, order_date, status, total_amount, discount_amount) VALUES (40, 21, '2026-10-14 15:53:31', 'PENDING', 459050000, 0);
 INSERT INTO order_items (order_id, product_id, quantity, unit_price, amount) VALUES (40, 1, 18, 14500000, 261000000);
 INSERT INTO order_items (order_id, product_id, quantity, unit_price, amount) VALUES (40, 2, 14, 9800000, 137200000);
@@ -756,11 +741,11 @@ INSERT INTO orders (id, customer_id, order_date, status, total_amount, discount_
 INSERT INTO order_items (order_id, product_id, quantity, unit_price, amount) VALUES (44, 1, 1, 14500000, 14500000);
 INSERT INTO orders (id, customer_id, order_date, status, total_amount, discount_amount) VALUES (45, 21, '2026-10-28 15:21:09', 'PENDING', 9800000, 0);
 INSERT INTO order_items (order_id, product_id, quantity, unit_price, amount) VALUES (45, 2, 1, 9800000, 9800000);
-INSERT INTO orders (id, customer_id, order_date, status, total_amount, discount_amount) VALUES (46, 21, '2026-10-29 11:12:08', 'PENDING', 111500000, 0);
-INSERT INTO order_items (order_id, product_id, quantity, unit_price, amount) VALUES (46, 1, 1, 14500000, 14500000);
-INSERT INTO order_items (order_id, product_id, quantity, unit_price, amount) VALUES (46, 2, 1, 9800000, 9800000);
-INSERT INTO order_items (order_id, product_id, quantity, unit_price, amount) VALUES (46, 3, 1, 4200000, 4200000);
-INSERT INTO order_items (order_id, product_id, quantity, unit_price, amount) VALUES (46, 4, 13, 6500000, 84500000);
+INSERT INTO orders (id, customer_id, order_date, status, total_amount, discount_amount) VALUES (48, 21, '2026-10-29 11:12:08', 'PENDING', 111500000, 0);
+INSERT INTO order_items (order_id, product_id, quantity, unit_price, amount) VALUES (48, 1, 1, 14500000, 14500000);
+INSERT INTO order_items (order_id, product_id, quantity, unit_price, amount) VALUES (48, 2, 1, 9800000, 9800000);
+INSERT INTO order_items (order_id, product_id, quantity, unit_price, amount) VALUES (48, 3, 1, 4200000, 4200000);
+INSERT INTO order_items (order_id, product_id, quantity, unit_price, amount) VALUES (48, 4, 13, 6500000, 84500000);
 INSERT INTO orders (id, customer_id, order_date, status, total_amount, discount_amount) VALUES (47, 21, '2026-10-29 11:21:42', 'PENDING', 43400000, 0);
 INSERT INTO order_items (order_id, product_id, quantity, unit_price, amount) VALUES (47, 2, 4, 9800000, 39200000);
 INSERT INTO order_items (order_id, product_id, quantity, unit_price, amount) VALUES (47, 3, 1, 4200000, 4200000);
@@ -785,7 +770,6 @@ INSERT INTO orders (id, customer_id, order_date, status, total_amount, discount_
 INSERT INTO order_items (order_id, product_id, quantity, unit_price, amount) VALUES (57, 20, 20, 5900000, 118000000);
 INSERT INTO orders (id, customer_id, order_date, status, total_amount, discount_amount) VALUES (58, 21, '2026-11-09 20:02:37', 'PENDING', 70800000, 0);
 INSERT INTO order_items (order_id, product_id, quantity, unit_price, amount) VALUES (58, 20, 12, 5900000, 70800000);
-COMMIT;
 CREATE TABLE "product_details" (
   "id" BIGSERIAL PRIMARY KEY,
   "product_id" BIGINT UNIQUE NOT NULL,
@@ -828,3 +812,20 @@ INSERT INTO "product_details" (
 (18, 'TH-LOUNGE-018',  'Hoàng Long Decor', 'Thổ Nhĩ Kỳ', 'Sợi tổng hợp Polypropylene dệt mật độ cao chống bám bụi, mặt dưới dệt đế đay chống trượt', 'Dài 300cm x Rộng 200cm x Dày 1.2cm', 9.80, 'Xám họa tiết trừu tượng', 12, 'Hút bụi 2 lần/tuần, giặt khô định kỳ mỗi 6 tháng, không giặt máy ở chế độ vắt mạnh.', 'Thảm lông ngắn phòng khách kích thước lớn 2x3m mềm êm dưới chân, sợi dệt chắc chắn không rụng lông và an toàn cho gia đình có trẻ nhỏ.'),
 (19, 'RC-SUNBLOCK-019','Hoàng Long Decor', 'Việt Nam',   'Vải polyester dệt 3 lớp phủ cao su non cản sáng 90%, thanh treo hợp kim nhôm sơn tĩnh điện', 'Rộng 280cm x Cao 240cm (Bộ 2 cánh)', 4.50, 'Xám xanh / Be nhạt', 12, 'Tháo móc treo và giặt máy chế độ nhẹ với nước lạnh, ủi hơi nước ở nhiệt độ thấp để giữ nếp.', 'Rèm cửa vải chống nắng 2 lớp giúp cách nhiệt, giảm tiếng ồn và bảo vệ nội thất bên trong khỏi tia UV.'),
 (20, 'NE-DREAMY-020',  'Nệm Đông Phương',  'Việt Nam',   'Lõi cao su non Memory Foam tỷ trọng cao kết hợp lớp thoáng khí, áo nệm vải gấm Damask kháng khuẩn', 'Dài 200cm x Rộng 160cm x Dày 15cm', 22.00, 'Trắng kem hoa văn chìm', 60, 'Đặt nệm trên bề mặt phẳng, xoay đầu nệm mỗi 3 tháng, giặt vỏ áo nệm định kỳ và không phơi lõi nệm dưới nắng gắt.', 'Nệm cao su non 1m6 nâng đỡ đa vùng theo đường cong cơ thể, hạn chế rung lắc khi trở mình và mang lại giấc ngủ sâu.');
+
+-- Keep generated IDs above the explicit seed IDs, including on manual imports.
+DO $$
+DECLARE
+  table_name TEXT;
+BEGIN
+  FOREACH table_name IN ARRAY ARRAY['users', 'customers', 'staff', 'admins',
+    'categories', 'products', 'carts', 'orders', 'suppliers', 'purchase_receipts',
+    'promotion_programs', 'product_discounts', 'order_discounts', 'vouchers', 'product_details']
+  LOOP
+    EXECUTE format('SELECT setval(pg_get_serial_sequence(%L, ''id''), COALESCE(MAX(id), 0) + 1, false) FROM %I',
+                   table_name, table_name);
+  END LOOP;
+END
+$$;
+
+COMMIT;

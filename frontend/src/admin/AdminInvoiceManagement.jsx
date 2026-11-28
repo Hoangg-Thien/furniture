@@ -983,7 +983,8 @@ export default function AdminInvoiceManagement({ currentUser }) {
                 <div><dt>Thu ngân</dt><dd>{quickInvoice.staffName || 'Quản trị viên'}</dd></div>
                 <div><dt>Hình thức</dt><dd>{paymentMethodLabel(quickInvoice.paymentMethod)}</dd></div>
                 <div><dt>Thanh toán</dt><dd>{getPaymentStatus(quickInvoice.paymentStatus).label}</dd></div>
-                <div><dt>Tiền hàng</dt><dd>{formatVnd(quickInvoice.subtotalAmount)}</dd></div>
+                <div><dt>{quickInvoice.merchandiseSubtotal == null ? 'Tạm tính trước ưu đãi' : 'Tiền hàng'}</dt><dd>{formatVnd(quickInvoice.merchandiseSubtotal ?? quickInvoice.subtotalAmount)}</dd></div>
+                {Number(quickInvoice.shippingFee) > 0 && <div><dt>Phí giao hàng</dt><dd>{formatVnd(quickInvoice.shippingFee)}</dd></div>}
                 <div><dt>Giảm giá đơn hàng</dt><dd>{formatVnd(quickInvoice.discountAmount)}</dd></div>
                 <div><dt>Giảm giá voucher{quickInvoice.voucherCode ? ` (${quickInvoice.voucherCode})` : ''}</dt><dd>{formatVnd(quickInvoice.voucherDiscount)}</dd></div>
                 <div><dt>Thuế VAT</dt><dd>{formatVnd(quickInvoice.taxAmount)}</dd></div>
@@ -1142,9 +1143,12 @@ export default function AdminInvoiceManagement({ currentUser }) {
                     {previewCalculation && (
                       <div className="inv-breakdown-card">
                         <div className="inv-breakdown-row">
-                          <span>Tổng tiền hàng niêm yết (Subtotal):</span>
-                          <span>{formatVnd(previewCalculation.originalSubtotal)}</span>
+                          <span>{previewCalculation.merchandiseSubtotal == null ? 'Tạm tính trước ưu đãi' : 'Tổng tiền hàng'}:</span>
+                          <span>{formatVnd(previewCalculation.merchandiseSubtotal ?? previewCalculation.originalSubtotal)}</span>
                         </div>
+                        {Number(previewCalculation.shippingFee) > 0 && (
+                          <div className="inv-breakdown-row"><span>Phí giao hàng:</span><span>{formatVnd(previewCalculation.shippingFee)}</span></div>
+                        )}
                         {previewCalculation.orderDiscount > 0 && (
                           <div className="inv-breakdown-row text-emerald">
                             <span>Chiết khấu đơn hàng:</span>
@@ -1386,9 +1390,12 @@ export default function AdminInvoiceManagement({ currentUser }) {
 
                     <div className="inv-summary-right">
                       <div className="inv-sum-row">
-                        <span>Tổng tiền hàng:</span>
-                        <span>{formatVnd(selectedInvoice.subtotalAmount)}</span>
+                        <span>{selectedInvoice.merchandiseSubtotal == null ? 'Tạm tính trước ưu đãi' : 'Tổng tiền hàng'}:</span>
+                        <span>{formatVnd(selectedInvoice.merchandiseSubtotal ?? selectedInvoice.subtotalAmount)}</span>
                       </div>
+                      {Number(selectedInvoice.shippingFee) > 0 && (
+                        <div className="inv-sum-row"><span>Phí giao hàng:</span><span>{formatVnd(selectedInvoice.shippingFee)}</span></div>
+                      )}
                       {Number(selectedInvoice.discountAmount) > 0 && (
                         <div className="inv-sum-row inv-sum-discount">
                           <span>Ưu đãi đã chốt{selectedInvoice.voucherCode ? ` (gồm mã ${selectedInvoice.voucherCode})` : ''}:</span>

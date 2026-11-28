@@ -13,6 +13,8 @@ public record InvoiceCalculationDto(
         boolean includeVat,
         BigDecimal vatPercent,
         BigDecimal vatAmount,
+        BigDecimal merchandiseSubtotal,
+        BigDecimal shippingFee,
         BigDecimal finalAmount
 ) {
 }

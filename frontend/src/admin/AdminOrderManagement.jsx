@@ -154,7 +154,10 @@ export default function AdminOrderManagement({ currentUser, notificationTarget }
   }
 
   // Fetch orders with pagination & filters
-  const fetchOrders = async (targetPage = page, targetSize = pageSize, background = false) => {
+  const latestOrderRequest = useRef(0)
+  const fetchOrders = async (targetPage = page, targetSize = pageSize, background = false,
+    { keyword = searchKeyword, start = fromDate, end = toDate } = {}) => {
+    const requestId = ++latestOrderRequest.current
     pendingRequests.current += 1
     if (!background) setLoading(true)
     setError(null)
@@ -167,14 +170,14 @@ export default function AdminOrderManagement({ currentUser, notificationTarget }
       if (selectedStatus && selectedStatus !== 'ALL') {
         params.append('status', selectedStatus)
       }
-      if (searchKeyword.trim()) {
-        params.append('search', searchKeyword.trim())
+      if (keyword.trim()) {
+        params.append('search', keyword.trim())
       }
-      if (fromDate) {
-        params.append('fromDate', fromDate)
+      if (start) {
+        params.append('fromDate', start)
       }
-      if (toDate) {
-        params.append('toDate', toDate)
+      if (end) {
+        params.append('toDate', end)
       }
 
       const res = await fetch(`${baseUrl}/api/admin/orders?${params.toString()}`, { headers: getApiHeaders() })
@@ -182,16 +185,17 @@ export default function AdminOrderManagement({ currentUser, notificationTarget }
         throw new Error(`Lỗi tải danh sách đơn hàng (mã lỗi ${res.status})`)
       }
       const data = await res.json()
+      if (requestId !== latestOrderRequest.current) return
       setOrders(data?.content || [])
       setTotalPages(data?.totalPages || 1)
       setTotalElements(data?.totalElements || 0)
       setPage(data?.page || 0)
     } catch (err) {
       console.error(err)
-      setError(adminErrorMessage(err, 'Không thể kết nối đến máy chủ.'))
+      if (requestId === latestOrderRequest.current) setError(adminErrorMessage(err, 'Không thể kết nối đến máy chủ.'))
     } finally {
       pendingRequests.current -= 1
-      if (!background) setLoading(false)
+      if (requestId === latestOrderRequest.current) setLoading(false)
     }
   }
 
@@ -562,7 +566,7 @@ export default function AdminOrderManagement({ currentUser, notificationTarget }
                 setSearchKeyword('')
                 setFromDate('')
                 setToDate('')
-                fetchOrders(0)
+                fetchOrders(0, pageSize, false, { keyword: '', start: '', end: '' })
               }}
             >
               <X size={14} />
@@ -986,13 +990,19 @@ export default function AdminOrderManagement({ currentUser, notificationTarget }
                   {/* Financial Summary */}
                   <div style={{ background: '#F8FAFC', padding: '16px', borderRadius: 'var(--admin-radius)', border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', gap: '8px', marginLeft: 'auto', width: '340px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.86rem', color: '#475569' }}>
-                      <span>Tổng tiền hàng:</span>
-                      <span>{formatCurrency(activeOrderDetail.subtotal)}</span>
+                      <span>{activeOrderDetail.merchandiseSubtotal == null ? 'Tạm tính trước ưu đãi' : 'Tổng tiền hàng'}:</span>
+                      <span>{formatCurrency(activeOrderDetail.merchandiseSubtotal ?? activeOrderDetail.subtotal)}</span>
                     </div>
 
-                    {activeOrderDetail.voucherCode && (
+                    {Number(activeOrderDetail.shippingFee) > 0 && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.86rem', color: '#475569' }}>
+                        <span>Phí giao hàng:</span>
+                        <span>{formatCurrency(activeOrderDetail.shippingFee)}</span>
+                      </div>
+                    )}
+                    {Number(activeOrderDetail.discountAmount) > 0 && (
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.86rem', color: '#C2410C' }}>
-                        <span>Voucher ({activeOrderDetail.voucherCode}):</span>
+                        <span>{activeOrderDetail.voucherCode ? `Voucher (${activeOrderDetail.voucherCode})` : 'Ưu đãi'}:</span>
                         <span>-{formatCurrency(activeOrderDetail.discountAmount)}</span>
                       </div>
                     )}

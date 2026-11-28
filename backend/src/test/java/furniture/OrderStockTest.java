@@ -43,7 +43,7 @@ class OrderStockTest {
     private TransactionTemplate transaction;
 
     @BeforeEach
-    void setup() {
+    void setup() throws java.io.IOException {
         database = new EmbeddedDatabaseBuilder().setType(EmbeddedDatabaseType.H2)
                 .setName("stock_" + java.util.UUID.randomUUID() + ";MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE").build();
         jdbc = new JdbcTemplate(database);
@@ -80,6 +80,9 @@ class OrderStockTest {
         var guests = new ResourceDatabasePopulator(new ClassPathResource("guest_checkout.sql"));
         guests.execute(database);
         guests.execute(database);
+        String checkoutSchema = new ClassPathResource("order_checkout.sql")
+                .getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
+        jdbc.execute(checkoutSchema.substring(0, checkoutSchema.indexOf(';')));
         jdbc.execute("INSERT INTO customers VALUES (1, 1, 'Customer', '0901234567', 'Old address')");
         jdbc.execute("INSERT INTO products (id, name, image_url, unit, quantity, is_active) VALUES (1, 'Sofa', NULL, 'cai', 10, TRUE), (2, 'Chair', NULL, 'cai', 1, TRUE)");
         jdbc.execute("INSERT INTO promotion_programs (id, name, status, start_date, end_date) VALUES (1, 'Test program', 'ACTIVE', CURRENT_TIMESTAMP - INTERVAL '1' DAY, CURRENT_TIMESTAMP + INTERVAL '1' DAY)");
@@ -439,6 +442,31 @@ class OrderStockTest {
         assertTrue(cancel(first.orderId()));
         assertFalse(cancel(first.orderId()));
         assertEquals(9, stock(1));
+    }
+
+    @Test
+    void checkoutRejectsChangedTotalAndReplaysTheCommittedGuestOrder() {
+        String checkoutKey = "a".repeat(64);
+        var stale = checkoutRequest(checkoutKey, "35000", 1);
+        var conflict = assertThrows(org.springframework.web.server.ResponseStatusException.class,
+                () -> transaction.execute(tx -> orders.createOrder(stale)));
+        assertEquals(409, conflict.getStatusCode().value());
+        assertEquals(10, stock(1));
+        var request = checkoutRequest(checkoutKey, "35010", 1);
+        var first = transaction.execute(tx -> orders.createOrder(request));
+        jdbc.update("UPDATE products SET selling_price = 20 WHERE id = 1");
+        var replay = transaction.execute(tx -> orders.createOrder(request));
+        assertEquals(first, replay);
+        assertEquals(9, stock(1));
+        assertThrows(org.springframework.web.server.ResponseStatusException.class,
+                () -> transaction.execute(tx -> orders.createOrder(checkoutRequest(checkoutKey, "35040", 2))));
+        assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM orders", Integer.class));
+        assertFalse(jdbc.queryForObject("SELECT response FROM order_checkout_attempts", String.class).contains(first.guestToken()));
+    }
+
+    private CreateOrderRequest checkoutRequest(String key, String total, int quantity) {
+        return new CreateOrderRequest(null, null, "Guest", "0901234567", "123 Street", null,
+                "District", "City", new BigDecimal(total), null, BigDecimal.ZERO, List.of(item(1, quantity)), false, key);
     }
 
     @Test

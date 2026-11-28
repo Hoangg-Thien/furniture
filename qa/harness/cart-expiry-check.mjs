@@ -144,7 +144,7 @@ try {
     const welcome = tab.getByRole('dialog', { name: 'Miễn phí giao hàng' })
     if (username === 'cart-owner') {
       await welcome.getByText('3.000.000₫', { exact: true }).waitFor()
-      await welcome.getByText('Thành viên từ hạng Bạc luôn được miễn phí giao hàng.', { exact: true }).waitFor()
+      await welcome.getByText('Dưới mức này, phí giao hàng là 35.000₫.', { exact: true }).waitFor()
       if (tab === page) {
         const before = await tab.evaluate(() => window.scrollY)
         assert.equal(await tab.evaluate(() => getComputedStyle(document.documentElement).overflowY), 'hidden')

@@ -56,6 +56,22 @@ public class OrderRepository {
         return codes.get(0);
     }
 
+    public boolean claimCheckout(String keyHash, String requestHash) {
+        return jdbcTemplate.update("""
+                INSERT INTO public.order_checkout_attempts (key_hash, request_hash) VALUES (?, ?)
+                ON CONFLICT DO NOTHING
+                """, keyHash, requestHash) == 1;
+    }
+
+    public String checkoutResponse(String keyHash, String requestHash) {
+        return jdbcTemplate.query("SELECT response FROM public.order_checkout_attempts WHERE key_hash = ? AND request_hash = ?",
+                rs -> rs.next() ? rs.getString(1) : null, keyHash, requestHash);
+    }
+
+    public void saveCheckoutResponse(String keyHash, String response) {
+        jdbcTemplate.update("UPDATE public.order_checkout_attempts SET response = ? WHERE key_hash = ?", response, keyHash);
+    }
+
     public void saveGuestToken(Long orderId, String tokenHash) {
         jdbcTemplate.update("UPDATE public.orders SET guest_token_hash = ? WHERE id = ?", tokenHash, orderId);
     }

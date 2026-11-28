@@ -17,5 +17,9 @@ public record OrderResponse(
         Long voucherId,
         String voucherCode,
         String discountLabel) {
+    public OrderResponse withGuestToken(String token) {
+        return new OrderResponse(orderId, orderCode, status, totalAmount, message, token, subtotal, discountAmount,
+                shippingFee, items, voucherId, voucherCode, discountLabel);
+    }
 }
 

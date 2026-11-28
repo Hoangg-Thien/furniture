@@ -42,8 +42,8 @@ try {
         }
         return Promise.resolve(new Response(JSON.stringify({ content: [] })))
       }
-      window.replyOrders = (body, status = 200) => {
-        window.pendingOrders.shift()(new Response(JSON.stringify(body), { status }))
+      window.replyOrders = (body, status = 200, requestIndex = 0) => {
+        window.pendingOrders.splice(requestIndex, 1)[0](new Response(JSON.stringify(body), { status }))
       }
     })
     await page.route(`**${testPath}`, async route => route.fulfill({
@@ -93,8 +93,32 @@ try {
     await page.waitForFunction(admin => admin
       ? document.body.textContent.includes('500')
       : !!document.querySelector('[role="status"]'), admin)
+    if (admin) {
+      const tabs = page.locator('.admin-status-tab')
+      await tabs.nth(1).click()
+      await page.waitForFunction(() => window.orderRequests.length === 4)
+      await tabs.nth(2).click()
+      await page.waitForFunction(() => window.orderRequests.length === 5)
+      await page.evaluate(body => window.replyOrders(body, 200, 1), body('CONFIRMED'))
+      await page.locator(selector).filter({ hasText: 'Đã duyệt' }).waitFor()
+      await page.evaluate(async body => {
+        window.replyOrders(body)
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+      }, body('PENDING'))
+      assert.match(await page.locator(selector).innerText(), /Đã duyệt/)
+      const search = page.locator('.filter-search-box input')
+      await search.fill('previous-keyword')
+      await page.getByRole('button', { name: 'Lọc Đơn' }).click()
+      await page.waitForFunction(() => window.orderRequests.length === 6)
+      await page.evaluate(body => window.replyOrders(body), body('CONFIRMED'))
+      await page.getByRole('button', { name: 'Xóa Lọc' }).click()
+      await page.waitForFunction(() => window.orderRequests.length === 7)
+      const clearUrl = await page.evaluate(() => window.orderRequests.at(-1))
+      assert.equal(new URL(clearUrl).searchParams.has('search'), false)
+      await page.evaluate(body => window.replyOrders(body), body('CONFIRMED'))
+    }
     await page.evaluate(() => { window.root.unmount(); window.pollOrders() })
-    assert.equal(await page.evaluate(() => window.orderRequests.length), 3, 'unmount must clear polling')
+    assert.equal(await page.evaluate(() => window.orderRequests.length), admin ? 7 : 3, 'unmount must clear polling')
     assert.deepEqual(errors, [])
     console.log(`PASS ${admin ? 'admin orders' : 'customer history'}: background refresh, live status, slow API, hidden tab, errors, cleanup`)
     await page.close()

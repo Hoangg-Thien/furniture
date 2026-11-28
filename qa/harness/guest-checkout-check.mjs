@@ -18,7 +18,7 @@ async function api(path, { method = 'GET', body, headers = {}, status = 200 } = 
   return data
 }
 const admin = await adminApiHeaders()
-const [product] = await sql('SELECT id, selling_price, quantity FROM products WHERE is_active = TRUE AND quantity > 5 ORDER BY id LIMIT 1')
+const [product] = await sql('SELECT id, selling_price, quantity FROM products WHERE is_active = TRUE AND quantity > 5 ORDER BY selling_price, id LIMIT 1')
 const [staff] = await sql('SELECT id FROM staff ORDER BY id LIMIT 1')
 const body = {
   fullName: 'QA Guest Receiver', phone: '0901234567', address: '123 Guest Street',
@@ -62,6 +62,19 @@ const invoiceDetail = await api(`/admin/invoices/${invoice.id}`, { headers: admi
 assert.equal(invoiceDetail.customerName, body.fullName)
 assert.equal(invoiceDetail.phone, body.phone)
 assert.equal((await api(`/orders/${second.orderId}`, { headers: tokenHeaders(second) })).order.status, 'COMPLETED')
+assert.equal(invoiceDetail.merchandiseSubtotal, price)
+assert.equal(invoiceDetail.shippingFee, 35000)
+assert.equal(invoiceDetail.shippingFee, second.shippingFee)
+const retryKey = Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString('hex')
+const stockBeforeRetry = (await sql('SELECT quantity FROM products WHERE id = $1', [product.id]))[0].quantity
+await api('/orders', { method: 'POST', body: { ...body, checkoutKey: retryKey }, status: 409 })
+assert.equal((await sql('SELECT quantity FROM products WHERE id = $1', [product.id]))[0].quantity, stockBeforeRetry)
+const retryBody = { ...body, totalAmount: quote.totalAmount, checkoutKey: retryKey }
+const [placed, replay] = await Promise.all([create(retryBody), create(retryBody)])
+assert.deepEqual(replay, placed)
+assert.ok(placed.guestToken)
+assert.equal((await sql('SELECT quantity FROM products WHERE id = $1', [product.id]))[0].quantity, stockBeforeRetry - 1)
+assert.equal((await api(`/orders/${placed.orderId}`, { headers: tokenHeaders(placed) })).order.id, placed.orderId)
 const customers = await api('/admin/customers?keyword=QA%20Guest%20Receiver', { headers: admin })
 assert(customers.content.some(row => row.userId === null && row.fullName === body.fullName))
 const account = await api('/auth/register', { method: 'POST', status: 201, body: { username: `guest_regression_${Date.now()}`, password: 'QaPass123!', fullName: 'QA Account', email: `guest-regression-${Date.now()}@example.test`, phone: '0901234567', address: '123 Nguyen Hue, Phuong Ben Nghe, Quan 1, TP. Ho Chi Minh' } })
@@ -100,11 +113,50 @@ try {
   await page.getByRole('button', { name: /Tiếp theo/ }).click()
   await page.getByRole('button', { name: 'Đặt hàng ngay', exact: true }).waitFor()
   assert.equal(await page.locator('.auth-overlay').count(), 0)
-  const pending = page.waitForResponse(response => response.url().endsWith('/api/orders') && response.request().method() === 'POST')
-  await page.getByRole('button', { name: 'Đặt hàng ngay', exact: true }).click()
+  let submitted = 0
+  let savedOrder
+  let checkoutKey
+  let priceChange
+  const orderPath = '**/api/orders'
+  await page.route(orderPath, async route => {
+    if (route.request().method() !== 'POST') return route.continue()
+    const request = route.request().postDataJSON()
+    submitted++
+    if (submitted === 1) {
+      checkoutKey = request.checkoutKey
+      const id = request.items[0].productId
+      const [row] = await sql('SELECT selling_price FROM products WHERE id = $1', [id])
+      priceChange = { id, price: row.selling_price }
+      await sql('UPDATE products SET selling_price = selling_price + 100000 WHERE id = $1', [id])
+      return route.continue()
+    }
+    if (submitted === 2) {
+      const serverResponse = await route.fetch()
+      savedOrder = await serverResponse.json()
+      return route.abort('failed')
+    }
+    return route.continue()
+  })
+  const button = page.getByRole('button', { name: 'Đặt hàng ngay', exact: true })
+  const orderResponse = response => response.url().endsWith('/api/orders') && response.request().method() === 'POST'
+  const conflict = page.waitForResponse(orderResponse)
+  await button.click()
+  assert.equal((await conflict).status(), 409)
+  await page.getByText(/Tổng thanh toán đã thay đổi/).waitFor()
+  assert.match(new URL(page.url()).pathname, /checkout/)
+  await button.click()
+  await page.getByText(/Chưa xác nhận được kết quả đặt hàng/).waitFor()
+  assert.ok(savedOrder?.orderId)
+  const pending = page.waitForResponse(orderResponse)
+  await page.getByRole('button', { name: 'Kiểm tra lại đơn' }).click()
   const createdResponse = await pending
+  await sql('UPDATE products SET selling_price = $2 WHERE id = $1', [priceChange.id, priceChange.price])
+  assert.match(checkoutKey, /^[0-9a-f]{64}$/)
+  assert.equal(createdResponse.request().postDataJSON().checkoutKey, checkoutKey)
   assert.equal(createdResponse.status(), 200)
   const created = await createdResponse.json()
+  assert.equal(created.orderId, savedOrder.orderId)
+  assert.equal(created.guestToken, savedOrder.guestToken)
   await page.getByRole('button', { name: 'Sao chép liên kết đơn hàng' }).click()
   const link = await page.evaluate(() => window.copiedOrderLink)
   assert.equal(new URLSearchParams(new URL(link).hash.slice(1)).get('token'), created.guestToken)
@@ -131,7 +183,7 @@ try {
   await other.getByText('Không thể mở đơn hàng. Vui lòng kiểm tra kết nối và dùng đầy đủ liên kết đơn hàng đã lưu.').waitFor()
   assert.equal(await other.locator('.order-success-modern-container').count(), 0)
   assert.deepEqual(errors, [])
-  console.log('PASS UI: anonymous checkout, discarded drafts, no local order copy, explicit private link, cancellation and invalid link')
+  console.log('PASS UI: changed total requires reconfirmation, lost response replays the same order, discarded drafts, private link and cancellation')
 } finally {
   await browser.close()
 }

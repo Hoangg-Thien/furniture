@@ -20,7 +20,10 @@ const orderDiscounts = [{ id: 2, minimumAmount: 5000000, discountPercent: 8, sta
 const vouchers = ['ORDER', 'VIP'].map((voucherType, index) => ({ id: index + 1, promotionProgramId: 1, code: index ? 'VIPWINTER' : 'TRI92', voucherType, discountPercent: 50, minimumAmount: 0, quantity: 100, usedQuantity: 1, ordersCount: 1, status: index ? 'INACTIVE' : 'ACTIVE', archived: false }))
 vouchers[1].customerTier = 'GOLD'
 vouchers.push({ ...vouchers[0], id: 3, promotionProgramId: 2, code: 'TANGIA' })
-await page.addInitScript(() => sessionStorage.setItem('furniture_admin_user', JSON.stringify({ id: 1, username: 'admin01', role: 'ADMIN', accessToken: 'qa-mock-token', apiBaseUrl: 'http://localhost:8080' })))
+await page.addInitScript(() => {
+  sessionStorage.setItem('furniture_custom_api_url', 'http://localhost:8080')
+  sessionStorage.setItem('furniture_admin_user', JSON.stringify({ id: 1, username: 'admin01', role: 'ADMIN', accessToken: 'qa-mock-token', apiBaseUrl: 'http://localhost:8080' }))
+})
 await page.route('**/api/**', route => {
   const path = new URL(route.request().url()).pathname
   let data = []

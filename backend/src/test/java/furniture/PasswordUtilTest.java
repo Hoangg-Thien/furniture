@@ -6,6 +6,16 @@ import furniture.util.PasswordUtil;
 
 class PasswordUtilTest {
     @Test
+    void saltsEachPasswordAndVerifiesIt() {
+        String first = PasswordUtil.hashPassword("same-password");
+        String second = PasswordUtil.hashPassword("same-password");
+        assertNotEquals(first, second);
+        assertTrue(PasswordUtil.verify("same-password", first));
+        assertFalse(PasswordUtil.verify("wrong-password", second));
+        assertFalse(PasswordUtil.verify(first, first));
+    }
+
+    @Test
     void hashesCannotBeUsedAsPasswordsAndExistingCredentialsStillWork() {
         String hash = PasswordUtil.hash("secret123");
         assertTrue(PasswordUtil.verify("secret123", hash));

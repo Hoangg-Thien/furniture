@@ -35,7 +35,8 @@ class AuthServiceTest {
                 "password_hash", PasswordUtil.hash("oldPassword"))));
         new AuthService(repository, mock(VoucherRepository.class)).updateProfile(1L,
                 new UpdateProfileRequest(null, null, null, null, "oldPassword", " newPassword "));
-        verify(repository).updatePassword(1L, PasswordUtil.hash(" newPassword "));
+        verify(repository).updatePassword(eq(1L), argThat(hash ->
+                !PasswordUtil.needsUpgrade(hash) && PasswordUtil.verify(" newPassword ", hash)));
     }
 
     @Test
@@ -68,5 +69,7 @@ class AuthServiceTest {
 
         assertEquals("VIP_DIAMOND", service.login(new LoginRequest("diamond", "test123")).customerTier());
         assertEquals("NEW", service.login(new LoginRequest("new", "test123")).customerTier());
+        verify(repository).upgradePassword(eq(2L), eq(hash), argThat(updated ->
+                !PasswordUtil.needsUpgrade(updated) && PasswordUtil.verify("test123", updated)));
     }
 }

@@ -31,6 +31,7 @@ const fixtures = () => Array.from({ length: 13 }, (_, index) => ({
 }))
 
 await page.addInitScript(() => {
+  sessionStorage.setItem('furniture_custom_api_url', 'http://localhost:8080')
   sessionStorage.setItem('furniture_admin_user', JSON.stringify({ id: 1, username: 'admin01', role: 'ADMIN', accessToken: 'qa-mock-token', apiBaseUrl: 'http://localhost:8080' }))
 })
 await page.route('**/api/**', async route => {
@@ -172,6 +173,7 @@ try {
     assert.equal(orderDiscounts.length, 1)
     await page.getByRole('button', { name: /Quản lý mã voucher/ }).click()
     await page.locator('.promotion-voucher-create summary').click()
+    await page.locator('#voucher-type').selectOption('ORDER')
     await page.getByLabel('Mã Voucher', { exact: true }).fill('MODERN10')
     await page.getByRole('button', { name: 'Tạo voucher tạm ngưng', exact: true }).click()
     await page.getByRole('region', { name: 'Danh sách voucher' }).getByText('MODERN10', { exact: true }).waitFor()

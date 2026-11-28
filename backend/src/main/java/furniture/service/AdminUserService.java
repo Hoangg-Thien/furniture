@@ -47,7 +47,7 @@ public class AdminUserService {
             throw new IllegalArgumentException("Vai trò không hợp lệ: " + role);
         }
 
-        String passwordHash = PasswordUtil.hash(request.password().trim());
+        String passwordHash = PasswordUtil.hashPassword(request.password().trim());
         Long userId = adminUserRepository.insertUser(username, passwordHash, role, true);
 
         // Khởi tạo bản ghi tương ứng trong bảng staff / admins / customers nếu cần
@@ -100,7 +100,7 @@ public class AdminUserService {
         adminUserRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("Tài khoản không tồn tại với ID: " + userId));
 
-        String hashed = PasswordUtil.hash(newPassword.trim());
+        String hashed = PasswordUtil.hashPassword(newPassword.trim());
         adminUserRepository.updatePassword(userId, hashed);
         jdbcTemplate.update("DELETE FROM public.admin_sessions WHERE user_id = ?", userId);
     }

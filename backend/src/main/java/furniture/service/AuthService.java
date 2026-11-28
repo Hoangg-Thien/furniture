@@ -52,7 +52,7 @@ public class AuthService {
             throw new IllegalArgumentException("Email này đã được sử dụng");
         }
 
-        String passwordHash = PasswordUtil.hash(req.password());
+        String passwordHash = PasswordUtil.hashPassword(req.password());
         Long userId = authRepository.insertUser(username, passwordHash, "CUSTOMER");
 
         String phone = req.phone().trim();
@@ -97,6 +97,9 @@ public class AuthService {
         }
 
         Number userIdNum = (Number) user.get("user_id");
+        if (userIdNum != null && PasswordUtil.needsUpgrade(storedHash)) {
+            authRepository.upgradePassword(userIdNum.longValue(), storedHash, PasswordUtil.hashPassword(req.password()));
+        }
         Number customerIdNum = (Number) user.get("customer_id");
         String role = (String) user.get("role");
         var tier = customerIdNum != null && "CUSTOMER".equals(role)
@@ -157,7 +160,7 @@ public class AuthService {
             if (!PasswordUtil.verify(req.currentPassword(), storedHash)) {
                 throw new SecurityException("Mật khẩu hiện tại không chính xác");
             }
-            String newHash = PasswordUtil.hash(req.newPassword());
+            String newHash = PasswordUtil.hashPassword(req.newPassword());
             authRepository.updatePassword(userId, newHash);
         }
 

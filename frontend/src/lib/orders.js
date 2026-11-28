@@ -19,6 +19,7 @@ export async function createOrder({
   district,
   city,
   totalAmount,
+  checkoutKey,
   voucherId = null,
   discountAmount = 0,
   preferProductDiscounts = false,
@@ -41,6 +42,7 @@ export async function createOrder({
         district,
         city,
         totalAmount,
+        checkoutKey,
         voucherId,
         discountAmount,
         ...(preferProductDiscounts ? { preferProductDiscounts: true } : {}),
@@ -52,8 +54,15 @@ export async function createOrder({
     if (!response.ok) {
       return {
         order: null,
+        status: response.status,
         error: data.error || 'Đặt hàng thất bại từ hệ thống backend.',
       }
+    }
+
+    if (checkoutKey && (!data?.orderId || !Array.isArray(data.items) || !items.every(requested =>
+      data.items.some(saved => String(saved.productId) === String(requested.productId)
+        && saved.quantity === requested.quantity && Number.isFinite(saved.unitPrice))))) {
+      return { order: null, error: 'Chưa xác nhận được kết quả đặt hàng.' }
     }
 
     return {

@@ -798,73 +798,105 @@ export default function OrderReviewPage({
     setStep((s) => s + 1)
   }
 
+  const checkoutAttempt = useRef(null)
+  const submittingRef = useRef(false)
+  const [unconfirmedOrder, setUnconfirmedOrder] = useState(null)
+
   async function handlePlaceOrder() {
-    if (submitting || loadingVoucherList || checkingVouchers || voucherLoading) return
-    if (!quote) {
-      setSubmitError(quoteError || 'Vui lòng chờ tính tổng thanh toán.')
-      return
+    if (submittingRef.current || submitting) return
+    let attempt = unconfirmedOrder
+    if (!attempt) {
+      if (loadingVoucherList || checkingVouchers || voucherLoading) return
+      if (!quote) {
+        setSubmitError(quoteError || 'Vui lòng chờ tính tổng thanh toán.')
+        return
+      }
+      if (Date.now() >= cartExpiresAt) {
+        setSubmitError(`Giỏ hàng đã hết hạn sau ${CART_TIMEOUT_MS / 60000} phút không cập nhật. Vui lòng chọn lại sản phẩm.`)
+        return
+      }
+      if (cartItems.length === 0) {
+        setSubmitError('Vui lòng thêm sản phẩm vào giỏ trước khi đặt hàng.')
+        return
+      }
+      const shippingErrors = validateShipping()
+      if (Object.keys(shippingErrors).length > 0) {
+        setErrors(shippingErrors)
+        setStep(1)
+        return
+      }
+
+      const scope = `${currentUser?.customerId ?? 'guest'}:${cartExpiresAt}`
+      let key = checkoutAttempt.current?.scope === scope ? checkoutAttempt.current.key : null
+      if (!key) {
+        try {
+          const saved = JSON.parse(sessionStorage.getItem('furniture_checkout_attempt'))
+          if (saved?.scope === scope) key = saved.key
+        } catch { /* Keep checkout available when storage is blocked. */ }
+      }
+      if (!key) key = Array.from(crypto.getRandomValues(new Uint8Array(32)), byte => byte.toString(16).padStart(2, '0')).join('')
+      checkoutAttempt.current = { scope, key }
+      try { sessionStorage.setItem('furniture_checkout_attempt', JSON.stringify(checkoutAttempt.current)) } catch { /* Keep the in-memory key. */ }
+
+      attempt = {
+        products: cartItems,
+        payload: {
+          customerId: currentUser?.customerId || null,
+          userId: currentUser?.userId || null,
+          fullName: form.fullName.trim(),
+          phone: form.phone.trim(),
+          address: form.address.trim(),
+          ward: form.ward.trim(),
+          district: form.district.trim(),
+          city: form.city.trim(),
+          totalAmount: Number(quote.totalAmount),
+          checkoutKey: key,
+          voucherId: appliedVoucher?.id || null,
+          preferProductDiscounts,
+          discountAmount: Number(quote.discountAmount),
+          items: cartItems.map(product => ({
+            productId: Number(product.id),
+            quantity: cart[product.id],
+            unitPrice: product.price,
+          })),
+        },
+      }
     }
-    if (Date.now() >= cartExpiresAt) {
-      setSubmitError(`Giỏ hàng đã hết hạn sau ${CART_TIMEOUT_MS / 60000} phút không cập nhật. Vui lòng chọn lại sản phẩm.`)
-      return
-    }
-    if (cartItems.length === 0) {
-      setSubmitError('Vui lòng thêm sản phẩm vào giỏ trước khi đặt hàng.')
-      return
-    }
-    const shippingErrors = validateShipping()
-    if (Object.keys(shippingErrors).length > 0) {
-      setErrors(shippingErrors)
-      setStep(1)
-      return
-    }
+
+    submittingRef.current = true
     setSubmitting(true)
     setSubmitError('')
 
-    const discountAmount = Number(quote.discountAmount)
-    const finalTotal = Number(quote.totalAmount)
+    const { payload } = attempt
+    const { order: backendOrder, error: apiError, status } = await createOrder(payload)
 
-    // Chuẩn bị danh sách sản phẩm gửi lên backend
-    const payloadItems = cartItems.map((p) => ({
-      productId: Number(p.id),
-      quantity: cart[p.id] || 1,
-      unitPrice: p.price,
-    }))
-
-    // Gửi request tới backend Spring Boot để lưu vào Supabase PostgreSQL
-    const { order: backendOrder, error: apiError } = await createOrder({
-      customerId: currentUser?.customerId || null,
-      userId: currentUser?.userId || null,
-      fullName: form.fullName.trim(),
-      phone: form.phone.trim(),
-      address: form.address.trim(),
-      ward: form.ward.trim(),
-      district: form.district.trim(),
-      city: form.city.trim(),
-      totalAmount: finalTotal,
-      voucherId: appliedVoucher?.id || null,
-      preferProductDiscounts,
-      discountAmount: discountAmount,
-      items: payloadItems,
-    })
-
+    submittingRef.current = false
     setSubmitting(false)
 
     if (apiError) {
-      setSubmitError(apiError)
+      const unconfirmed = !status || status >= 500
+      setUnconfirmedOrder(unconfirmed ? attempt : null)
+      if (status === 409) {
+        setQuoteState({})
+        setQuoteAttempt(value => value + 1)
+      }
+      setSubmitError(unconfirmed ? 'Chưa xác nhận được kết quả đặt hàng. Bấm Kiểm tra lại đơn để tiếp tục lần đặt này.' : apiError)
       return
     }
+    setUnconfirmedOrder(null)
+    checkoutAttempt.current = null
+    try { sessionStorage.removeItem('furniture_checkout_attempt') } catch { /* The cart is cleared after success. */ }
 
     const assignedOrderNumber = backendOrder?.orderCode || orderNumber
 
     const currentOrderSnapshot = {
-      customerId: currentUser?.customerId || null,
-      userId: currentUser?.userId || null,
+      customerId: payload.customerId,
+      userId: payload.userId,
       guestToken: backendOrder.guestToken,
       orderNumber: assignedOrderNumber,
       orderId: backendOrder?.orderId || null,
       id: backendOrder?.orderId || null,
-      items: cartItems.map((p) => {
+      items: attempt.products.map((p) => {
         const saved = backendOrder.items.find((item) => String(item.productId) === String(p.id))
         const price = Number(saved.unitPrice)
         return {
@@ -889,12 +921,12 @@ export default function OrderReviewPage({
       total: Number(backendOrder.totalAmount),
       status: 'PENDING',
       shippingInfo: {
-        fullName: form.fullName.trim(),
-        phone: form.phone.trim(),
-        address: form.address.trim(),
-        ward: form.ward.trim(),
-        district: form.district.trim(),
-        city: form.city.trim(),
+        fullName: payload.fullName,
+        phone: payload.phone,
+        address: payload.address,
+        ward: payload.ward,
+        district: payload.district,
+        city: payload.city,
       },
       paymentMethod: PAYMENT_METHOD,
       orderDate: new Date().toISOString(),
@@ -1624,6 +1656,7 @@ export default function OrderReviewPage({
 
             {submitError && (
               <div
+                role="alert"
                 style={{
                   padding: '12px 16px',
                   background: '#fef2f2',
@@ -1668,9 +1701,9 @@ export default function OrderReviewPage({
                   type="button"
                   className="order-place-btn"
                   onClick={handlePlaceOrder}
-                  disabled={submitting || loadingVoucherList || checkingVouchers || voucherLoading || !quote || cartItems.length === 0}
+                  disabled={submitting || (!unconfirmedOrder && (loadingVoucherList || checkingVouchers || voucherLoading || !quote || cartItems.length === 0))}
                 >
-                  <CheckCircle2 size={16} /> {submitting ? 'Đang lưu vào hệ thống...' : 'Đặt hàng ngay'}
+                  <CheckCircle2 size={16} /> {submitting ? 'Đang lưu vào hệ thống...' : unconfirmedOrder ? 'Kiểm tra lại đơn' : 'Đặt hàng ngay'}
                 </button>
               )}
             </div>

@@ -91,7 +91,7 @@ public class AdminInvoiceService {
             return new InvoiceCalculationDto(order.id(), order.subtotal(), order.discountAmount(),
                     BigDecimal.ZERO, order.voucherCode(), true,
                     "Giữ nguyên số tiền và giảm giá đã chốt khi đặt hàng.", false,
-                    BigDecimal.ZERO, BigDecimal.ZERO, order.finalTotal());
+                    BigDecimal.ZERO, BigDecimal.ZERO, order.getMerchandiseSubtotal(), order.getShippingFee(), order.finalTotal());
         }
 
         BigDecimal subtotal = order.subtotal() != null ? order.subtotal() : BigDecimal.ZERO;
@@ -151,6 +151,8 @@ public class AdminInvoiceService {
                 includeVat,
                 vatPercent,
                 vatAmount,
+                order.getMerchandiseSubtotal(),
+                order.getShippingFee(),
                 finalAmount
         );
     }
@@ -308,7 +310,16 @@ public class AdminInvoiceService {
             // Tổng thanh toán
             streamContent.append("/F1 10 Tf\n");
             streamContent.append("0 -18 Td\n");
-            streamContent.append("(").append(escapePdf(String.format("%65s: %16s VND", "Tong tien hang", formatNumber(invoice.subtotalAmount())))).append(") Tj\n");
+            BigDecimal merchandiseSubtotal = invoice.getMerchandiseSubtotal();
+            BigDecimal shippingFee = invoice.getShippingFee();
+            streamContent.append("(").append(escapePdf(String.format("%65s: %16s VND",
+                    merchandiseSubtotal == null ? "Tam tinh truoc giam gia" : "Tong tien hang",
+                    formatNumber(merchandiseSubtotal == null ? invoice.subtotalAmount() : merchandiseSubtotal)))).append(") Tj\n");
+            if (shippingFee != null && shippingFee.signum() > 0) {
+                streamContent.append("0 -15 Td\n");
+                streamContent.append("(").append(escapePdf(String.format("%65s: %16s VND",
+                        "Phi giao hang", formatNumber(shippingFee)))).append(") Tj\n");
+            }
 
             if (invoice.discountAmount() != null && invoice.discountAmount().signum() > 0) {
                 streamContent.append("0 -15 Td\n");

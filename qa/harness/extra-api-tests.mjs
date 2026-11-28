@@ -42,7 +42,7 @@ await check('Supplier empty delete', 'DELETE', `/api/admin/suppliers/${emptySup.
 await check('Promotion edit', 'PUT', `/api/admin/promotions/${prog.id}`, { name: prog.name, startDate: '2026-01-01T00:00:00', endDate: '2027-12-31T23:59:59', status: 'ACTIVE', description: 'QA edited' })
 const pd = await check('Promotion product discount create', 'POST', `/api/admin/promotions/${prog.id}/product-discounts`, { productId: p.id, discountPercent: 20 }, [201])
 const od = await check('Promotion order discount create', 'POST', `/api/admin/promotions/${prog.id}/order-discounts`, { minimumAmount: 0, discountPercent: 10 }, [201])
-const orderBody = { userId: user.userId, customerId: user.customerId, fullName: 'QA Receiver First', phone: '0901234567', address: 'QA first shipping address', district: 'QA District', city: 'QA City', items: [{ productId: p.id, quantity: 1, unitPrice: 100000 }] }
+const orderBody = { userId: user.userId, customerId: user.customerId, fullName: 'QA Receiver First', phone: '0901234567', address: 'QA first shipping address', district: 'QA District', city: 'QA City', preferProductDiscounts: true, items: [{ productId: p.id, quantity: 1, unitPrice: 100000 }] }
 const [contactBefore] = await sql('SELECT full_name, phone, address FROM customers WHERE id=$1', [user.customerId])
 const a = await check('Order for shipping and promotion verification', 'POST', '/api/orders', orderBody)
 const aFirst = (await req('GET', `/api/orders/${a.orderId}`)).data
@@ -77,7 +77,7 @@ const dupRow = (await sql('SELECT SUM(quantity) AS qty, SUM(amount) AS amount FR
 record('Duplicate product rows preserve total quantity', Number(dupRow.qty) === 3 || [400, 422].includes(dup.status), { ...dup, storedItems: dupRow, expectedQty: 3 })
 const before = Number((await sql('SELECT quantity FROM products WHERE id=$1', [p.id]))[0].quantity)
 await check('Completed receipt cannot be reverted', 'PATCH', `/api/admin/suppliers/${s.id}/receipts/${receipt.receiptId}/status`, { status: 'PENDING' }, [400, 409])
-await check('Receipt reverted then completed (probe)', 'PATCH', `/api/admin/suppliers/${s.id}/receipts/${receipt.receiptId}/status`, { status: 'COMPLETED' })
+await check('Receipt already completed cannot be approved again', 'POST', `/api/admin/suppliers/${s.id}/receipts/${receipt.receiptId}/review`, { approve: true }, [400])
 const after = Number((await sql('SELECT quantity FROM products WHERE id=$1', [p.id]))[0].quantity)
 record('Receipt status round trip cannot inflate stock', before === after, { before, after, repeatedAddition: after - before })
 const invalidReceipt = await req('POST', `/api/admin/suppliers/${s.id}/receipts`, { staffId: 1, status: 'COMPLETED', items: [{ productId: p.id, quantity: 0, unitPrice: 50000 }] })

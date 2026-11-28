@@ -4,6 +4,11 @@ import java.math.BigDecimal;
 import java.time.Year;
 import java.time.ZoneId;
 import java.security.SecureRandom;
+import java.util.HexFormat;
+import java.util.Arrays;
+import tools.jackson.databind.ObjectMapper;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
@@ -18,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import furniture.model.CreateOrderRequest;
 import furniture.model.OrderItemDto;
+import furniture.model.OrderAmounts;
 import furniture.model.OrderResponse;
 import furniture.model.OrderQuote;
 import furniture.model.ValidateVoucherRequest;
@@ -30,6 +36,7 @@ public class OrderService {
     private final OrderRepository orderRepository;
 
     private final VoucherService vouchers;
+    private final ObjectMapper checkoutJson = new ObjectMapper();
     private final SecureRandom random = new SecureRandom();
 
     public OrderService(OrderRepository orderRepository, VoucherService vouchers) {
@@ -64,6 +71,29 @@ public class OrderService {
             throw new IllegalArgumentException("Không xác định được khách hàng. Vui lòng đăng nhập lại.");
         }
         validateItems(req.items());
+        String keyHash = null;
+        String guestToken = null;
+        if (req.checkoutKey() != null) {
+            if (!req.checkoutKey().matches("[0-9a-f]{64}") || req.totalAmount() == null || req.totalAmount().signum() < 0) {
+                throw new IllegalArgumentException("Thiếu thông tin xác nhận thanh toán hợp lệ.");
+            }
+            keyHash = PasswordUtil.hash(req.checkoutKey());
+            if (guest) {
+                guestToken = Base64.getUrlEncoder().withoutPadding().encodeToString(
+                        HexFormat.of().parseHex(PasswordUtil.hash("guest-order:" + req.checkoutKey())));
+            }
+            String requestHash = PasswordUtil.hash(checkoutJson.writeValueAsString(Arrays.asList(customerId, fullName,
+                    phone, fullAddress, req.voucherId(), req.preferProductDiscounts(), req.items().stream()
+                            .sorted(Comparator.comparing(OrderItemDto::productId))
+                            .map(item -> List.of(item.productId(), item.quantity())).toList())));
+            if (!orderRepository.claimCheckout(keyHash, requestHash)) {
+                String response = orderRepository.checkoutResponse(keyHash, requestHash);
+                if (response == null) {
+                    throw new ResponseStatusException(HttpStatus.CONFLICT, "Thông tin khác với lần đặt trước. Vui lòng kiểm tra đơn đã đặt.");
+                }
+                return checkoutJson.readValue(response, OrderResponse.class).withGuestToken(guestToken);
+            }
+        }
         List<OrderItemDto> pricedItems = new ArrayList<>();
         // Khóa cùng thứ tự; đọc giá sau khi trừ kho để giá không đổi giữa lúc tính và
         // lưu.
@@ -80,6 +110,9 @@ public class OrderService {
         BigDecimal discount = quote.discountAmount();
         BigDecimal shippingFee = quote.shippingFee();
         BigDecimal finalTotal = quote.totalAmount();
+        if (keyHash != null && finalTotal.compareTo(req.totalAmount()) != 0) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Tổng thanh toán đã thay đổi. Vui lòng xem lại và xác nhận số tiền mới.");
+        }
         if (quote.voucherId() != null)
             orderRepository.incrementVoucherUsedQuantity(quote.voucherId());
         if (guest) {
@@ -89,11 +122,12 @@ public class OrderService {
                 fullName, phone, quote.discountLabel());
         if (orderId == null)
             throw new IllegalStateException("Không thể tạo mã đơn hàng trong database.");
-        String guestToken = null;
         if (guest) {
-            byte[] bytes = new byte[32];
-            random.nextBytes(bytes);
-            guestToken = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+            if (guestToken == null) {
+                byte[] bytes = new byte[32];
+                random.nextBytes(bytes);
+                guestToken = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+            }
             orderRepository.saveGuestToken(orderId, PasswordUtil.hash(guestToken));
         }
         for (OrderItemDto item : pricedItems) {
@@ -102,9 +136,13 @@ public class OrderService {
         }
         String orderCode = "FUNI-" + Year.now(ZoneId.of("Asia/Ho_Chi_Minh")).getValue() + "-"
                 + String.format("%06d", orderId);
-        return new OrderResponse(orderId, orderCode, "PENDING", finalTotal,
+        OrderResponse response = new OrderResponse(orderId, orderCode, "PENDING", finalTotal,
                 "Đặt hàng thành công và đã lưu vào cơ sở dữ liệu!", guestToken, subtotal, discount, shippingFee,
                 pricedItems, quote.voucherId(), quote.voucherCode(), quote.discountLabel());
+        if (keyHash != null) {
+            orderRepository.saveCheckoutResponse(keyHash, checkoutJson.writeValueAsString(response.withGuestToken(null)));
+        }
+        return response;
     }
 
     public OrderQuote previewOrder(CreateOrderRequest req) {
@@ -172,7 +210,7 @@ public class OrderService {
         BigDecimal shippingBase = customerId == null ? subtotal : merchandiseTotal;
         boolean freeShipping = shippingBase.compareTo(BigDecimal.valueOf(3_000_000)) >= 0
                 || (customerId != null && vouchers.hasMemberTier(customerId));
-        BigDecimal shippingFee = freeShipping ? BigDecimal.ZERO : BigDecimal.valueOf(35_000);
+        BigDecimal shippingFee = freeShipping ? BigDecimal.ZERO : OrderAmounts.STANDARD_SHIPPING_FEE;
         BigDecimal finalTotal = merchandiseTotal.add(shippingFee);
         if (finalTotal.compareTo(new BigDecimal("9999999999999.99")) > 0) {
             throw new IllegalArgumentException("Giá trị đơn hàng vượt quá giới hạn cho phép.");

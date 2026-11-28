@@ -127,6 +127,11 @@ public class AuthRepository {
                 """, userId);
     }
 
+    public void upgradePassword(Long userId, String previousHash, String newPasswordHash) {
+        jdbcTemplate.update("UPDATE public.users SET password_hash = ? WHERE id = ? AND password_hash = ?",
+                newPasswordHash, userId, previousHash);
+    }
+
     public void updatePassword(Long userId, String newPasswordHash) {
         jdbcTemplate.update("UPDATE public.users SET password_hash = ? WHERE id = ?", newPasswordHash, userId);
         jdbcTemplate.update("DELETE FROM public.admin_sessions WHERE user_id = ?", userId);

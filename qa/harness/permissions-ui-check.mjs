@@ -22,7 +22,7 @@ const product = await api('/api/admin/products', 'POST', { name: `UI chair ${suf
 const browser = await chromium.launch({ executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: true })
 let activePage
 try {
-  for (const [staffType, count, landing] of [['SALES', 4, 'orders'], ['WAREHOUSE', 3, 'suppliers'], ['CONTENT', 1, 'products'], ['ADMIN', 11, 'dashboard']]) {
+  for (const [staffType, count, landing] of [['SALES', 5, 'orders'], ['WAREHOUSE', 3, 'suppliers'], ['CONTENT', 1, 'products'], ['ADMIN', 11, 'dashboard']]) {
     const username = staffType === 'ADMIN' ? 'admin01' : `ui_${staffType.toLowerCase()}_${suffix}`
     if (staffType !== 'ADMIN') await api('/api/admin/staff', 'POST', { username, password: 'QaPass123!', fullName: `UI ${staffType}`, staffType })
     const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } })
@@ -110,7 +110,7 @@ try {
       await page.getByLabel('Vị trí công việc', { exact: true }).selectOption('CONTENT')
       await page.getByRole('button', { name: 'Xác Nhận Tạo Nhân Viên', exact: true }).click()
       await page.locator('.admin-modal-card').waitFor({ state: 'detached' })
-      await page.getByPlaceholder('Tìm nhân viên theo Họ tên, SĐT, Email, Username...').fill(`ui_assigned_${suffix}`)
+      await page.getByPlaceholder('Tìm theo họ tên, số điện thoại, email, tên đăng nhập...').fill(`ui_assigned_${suffix}`)
       const staffRow = page.locator('tbody tr').filter({ hasText: `Assigned ${suffix}` })
       await staffRow.waitFor()
       await staffRow.getByRole('button', { name: /Sửa/ }).click()

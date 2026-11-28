@@ -56,7 +56,7 @@ public class AdminStaffService {
         String address = req.address() != null && !req.address().trim().isEmpty() ? req.address().trim() : null;
 
         // 1. Tạo tài khoản User đăng nhập
-        String passwordHash = PasswordUtil.hash(req.password().trim());
+        String passwordHash = PasswordUtil.hashPassword(req.password().trim());
         Long userId = adminUserRepository.insertUser(username, passwordHash, "STAFF", true);
 
         // 2. Tạo hồ sơ nhân viên Staff

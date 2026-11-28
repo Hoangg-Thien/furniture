@@ -50,7 +50,7 @@ public class SalesDatabaseInitializer implements CommandLineRunner {
                 new ResourceDatabasePopulator(new ClassPathResource("admin_activity.sql")).populate(conn);
                 new ResourceDatabasePopulator(new ClassPathResource("order_shipping.sql")).populate(conn);
                 new ResourceDatabasePopulator(new ClassPathResource("order_stock.sql")).populate(conn);
-                new ResourceDatabasePopulator(new ClassPathResource("guest_checkout.sql")).populate(conn);
+                new ResourceDatabasePopulator(new ClassPathResource("guest_checkout.sql"), new ClassPathResource("order_checkout.sql")).populate(conn);
                 new ResourceDatabasePopulator(new ClassPathResource("voucher_types.sql")).populate(conn);
                 st.execute(new ClassPathResource("member_vouchers.sql").getContentAsString(StandardCharsets.UTF_8));
                 new ResourceDatabasePopulator(new ClassPathResource("receipt_inspection.sql")).populate(conn);
@@ -87,35 +87,7 @@ public class SalesDatabaseInitializer implements CommandLineRunner {
             }
 
             log.info("Đang nạp schema và dữ liệu từ: {}", salesSqlPath.toAbsolutePath());
-            String sqlContent = Files.readString(salesSqlPath);
-
-            // Lọc bỏ các dòng comment
-            StringBuilder sb = new StringBuilder();
-            for (String line : sqlContent.split("\r?\n")) {
-                String trimmed = line.trim();
-                if (trimmed.startsWith("--")) continue;
-                sb.append(line).append("\n");
-            }
-
-            String[] statements = sb.toString().split(";");
-            int successCount = 0;
-            int warnCount = 0;
-            for (String statement : statements) {
-                String stmt = statement.trim();
-                if (stmt.isEmpty()) continue;
-                // Duplicate seed IDs must not abort every later statement and the migrations.
-                if ("BEGIN".equalsIgnoreCase(stmt) || "COMMIT".equalsIgnoreCase(stmt)) continue;
-                try {
-                    st.execute(stmt);
-                    successCount++;
-                } catch (Exception ex) {
-                    warnCount++;
-                    log.warn("SQL skip ({}): {}",
-                            stmt.substring(0, Math.min(stmt.length(), 60)).replace("\n", " "),
-                            ex.getMessage());
-                }
-            }
-            log.info("Nạp sales.sql thành công: {} câu lệnh, bỏ qua: {}", successCount, warnCount);
+            st.execute(Files.readString(salesSqlPath));
             new ResourceDatabasePopulator(new FileSystemResource(salesSqlPath.resolveSibling("admin_schema_extension.sql"))).populate(conn);
             st.execute("ALTER TABLE public.categories ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT true");
             new ResourceDatabasePopulator(new ClassPathResource("staff_permissions.sql")).populate(conn);
@@ -123,25 +95,11 @@ public class SalesDatabaseInitializer implements CommandLineRunner {
             new ResourceDatabasePopulator(new ClassPathResource("admin_activity.sql")).populate(conn);
             new ResourceDatabasePopulator(new ClassPathResource("order_shipping.sql")).populate(conn);
             new ResourceDatabasePopulator(new ClassPathResource("order_stock.sql")).populate(conn);
-            new ResourceDatabasePopulator(new ClassPathResource("guest_checkout.sql")).populate(conn);
+            new ResourceDatabasePopulator(new ClassPathResource("guest_checkout.sql"), new ClassPathResource("order_checkout.sql")).populate(conn);
             new ResourceDatabasePopulator(new ClassPathResource("voucher_types.sql")).populate(conn);
             new ResourceDatabasePopulator(new ClassPathResource("receipt_inspection.sql")).populate(conn);
             st.execute(new ClassPathResource("product_images.sql").getContentAsString(StandardCharsets.UTF_8));
 
-            // Với PostgreSQL (Supabase): đồng bộ lại sequence sau khi INSERT thủ công có ID
-            try {
-                String[] tables = {"users", "customers", "admins", "staff", "categories", "products", "carts", "suppliers", "promotion_programs", "vouchers"};
-                for (String table : tables) {
-                    try {
-                        st.execute(String.format(
-                            "SELECT setval(pg_get_serial_sequence('public.%s', 'id'), COALESCE((SELECT MAX(id) FROM public.%s), 0) + 1, false)",
-                            table, table));
-                    } catch (Exception ignored) {}
-                }
-                log.info("Đã đồng bộ lại sequence cho tất cả bảng trong Supabase.");
-            } catch (Exception ex) {
-                log.warn("Không thể đồng bộ sequence: {}", ex.getMessage());
-            }
             st.execute(new ClassPathResource("member_vouchers.sql").getContentAsString(StandardCharsets.UTF_8));
 
             // Kiểm tra kết quả

@@ -44,7 +44,7 @@ try {
       await api('/api/admin/products', { token: tokens[position] })
       await api(`/api/admin/products/${product.id}`, { token: tokens[position], method: 'PUT', body: { ...product, sellingPrice: 1, quantity: 999 }, status: 403 })
       await api('/api/admin/products', { token: tokens[position], method: 'POST', body: {}, status: 403 })
-      for (const path of ['/api/admin/users', '/api/admin/staff', '/api/admin/promotions', '/api/admin/statistics/overview']) await api(path, { token: tokens[position], status: 403 })
+      for (const path of ['/api/admin/users', '/api/admin/staff', '/api/admin/promotions', '/api/admin/statistics/overview']) await api(path, { token: tokens[position], status: path === '/api/admin/promotions' && position === 'SALES' ? 200 : 403 })
     }
     await api('/api/admin/suppliers', { token: tokens.SALES, status: 403 })
     await api('/api/admin/orders', { token: tokens.CONTENT, status: 403 })
@@ -64,9 +64,13 @@ try {
   })
   await check('Warehouse receives stock and cannot impersonate the recorded employee', async () => {
     const supplier = await api('/api/admin/suppliers', { token: tokens.WAREHOUSE, method: 'POST', status: 201, body: { name: `QA warehouse supplier ${suffix}` } })
-    const receipt = await api(`/api/admin/suppliers/${supplier.id}/receipts`, { token: tokens.WAREHOUSE, method: 'POST', status: 201, body: { staffId: staff.SALES.id, status: 'COMPLETED', items: [{ productId: product.id, quantity: 2, unitPrice: 50000 }] } })
+    const receipt = await api(`/api/admin/suppliers/${supplier.id}/receipts`, { token: tokens.WAREHOUSE, method: 'POST', status: 201, body: { staffId: staff.SALES.id, status: 'PENDING', items: [{ productId: product.id, quantity: 2, unitPrice: 50000 }] } })
     const [record] = await sql('SELECT staff_id FROM purchase_receipts WHERE id = $1', [receipt.receiptId])
     assert.equal(record.staff_id, staff.WAREHOUSE.id)
+    const receiptPath = `/api/admin/suppliers/${supplier.id}/receipts/${receipt.receiptId}`
+    await api(`${receiptPath}/inspection`, { token: tokens.WAREHOUSE, method: 'POST', body: { counts: { [product.id]: 2 } } })
+    await api(`${receiptPath}/review`, { token: tokens.WAREHOUSE, method: 'POST', body: { approve: true }, status: 403 })
+    await api(`${receiptPath}/review`, { admin: true, method: 'POST', body: { approve: true } })
     const current = await api(`/api/admin/products/${product.id}`, { admin: true })
     assert.equal(current.quantity, 7)
     assert.equal(current.sellingPrice, 100000)
