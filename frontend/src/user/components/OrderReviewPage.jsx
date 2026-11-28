@@ -75,6 +75,7 @@ function OrderSummary({
   cart,
   subtotal,
   customerTier,
+  isCustomer,
   appliedVoucher,
   voucherInput,
   setVoucherInput,
@@ -109,6 +110,7 @@ function OrderSummary({
   const voucherDiscountAmount = Number(quote?.voucherDiscountAmount ?? (quote?.voucherId ? Math.max(0, discount - productDiscountAmount) : 0))
   const rawSubtotal = Number(quote?.subtotal ?? subtotal)
   const subtotalAfterProductDiscount = Math.max(0, rawSubtotal - productDiscountAmount)
+  const shippingBase = isCustomer ? rawSubtotal - discount : rawSubtotal
   const voucherBase = rawSubtotal
   const shippingFee = quote ? Number(quote.shippingFee) : estimateShippingFee(rawSubtotal, customerTier)
   const total = quote ? Number(quote.totalAmount) : subtotalAfterProductDiscount - voucherDiscountAmount + shippingFee
@@ -118,14 +120,13 @@ function OrderSummary({
 
   const eligibleVouchers = useMemo(() => {
     return availableVouchers.filter(v => voucherChoices[v.id]?.quote)
-      .sort((a, b) => voucherChoices[b.id].quote.voucherDiscountAmount - voucherChoices[a.id].quote.voucherDiscountAmount)
+      .sort((a, b) => voucherChoices[a.id].quote.totalAmount - voucherChoices[b.id].quote.totalAmount)
   }, [availableVouchers, voucherChoices])
 
   const ineligibleVouchers = useMemo(() => {
     return availableVouchers.filter(v => voucherChoices[v.id]?.error)
   }, [availableVouchers, voucherChoices])
-  const bestVoucher = eligibleVouchers.reduce((best, voucher) => !best ||
-    voucherChoices[voucher.id].quote.voucherDiscountAmount > voucherChoices[best.id].quote.voucherDiscountAmount ? voucher : best, null)
+  const bestVoucher = eligibleVouchers[0]
 
   return (
     <aside className="order-summary-panel">
@@ -360,9 +361,9 @@ function OrderSummary({
             )}
           </span>
         </div>
-        {shippingFee > 0 && rawSubtotal < FREE_SHIP_THRESHOLD && (
+        {shippingFee > 0 && shippingBase < FREE_SHIP_THRESHOLD && (
           <p className="order-freeship-hint">
-            Mua thêm {formatPrice(FREE_SHIP_THRESHOLD - rawSubtotal)} để được miễn phí giao hàng
+            Còn thiếu {formatPrice(FREE_SHIP_THRESHOLD - shippingBase)} tiền hàng{isCustomer && ' sau ưu đãi'} để được miễn phí giao hàng
           </p>
         )}
         <div className="order-total-row order-grand-total">
@@ -555,6 +556,7 @@ export default function OrderReviewPage({
   const [quoteState, setQuoteState] = useState({})
   const [quoteAttempt, setQuoteAttempt] = useState(0)
   const quoteKey = JSON.stringify({
+    customerId: currentUser?.customerId ?? null,
     items: cartItems.map(p => ({ productId: Number(p.id), quantity: cart[p.id], unitPrice: p.price })),
     voucherId: appliedVoucher?.id ?? null,
     preferProductDiscounts,
@@ -591,12 +593,14 @@ export default function OrderReviewPage({
     const controller = new AbortController()
     setVoucherChoices({})
     setCheckingVouchers(true)
-    Promise.all(availableVouchers.map(async voucher => {
+    const options = currentUser?.customerId && availableVouchers.length ? [null, ...availableVouchers] : availableVouchers
+    Promise.all(options.map(async voucher => {
+      const id = voucher?.id ?? 'productPrice'
       try {
-        const quote = await previewOrder(JSON.parse(voucherItemsKey), voucher.id, controller.signal, true)
-        return [voucher.id, { quote }]
+        const quote = await previewOrder(JSON.parse(voucherItemsKey), voucher?.id ?? null, controller.signal, true)
+        return [id, { quote }]
       } catch (error) {
-        return [voucher.id, { error: error.message }]
+        return [id, { error: error.message }]
       }
     })).then(entries => {
       if (!controller.signal.aborted) {
@@ -609,9 +613,12 @@ export default function OrderReviewPage({
 
   useEffect(() => {
     if (checkingVouchers || userDismissedVoucher || manualVoucherSelected || showingOrder) return
+    const productPrice = voucherChoices.productPrice?.quote?.totalAmount
     const best = availableVouchers.reduce((best, voucher) => {
-      const saving = Number(voucherChoices[voucher.id]?.quote?.voucherDiscountAmount || 0)
-      return saving > Number(voucherChoices[best?.id]?.quote?.voucherDiscountAmount || 0) ? voucher : best
+      const choice = voucherChoices[voucher.id]?.quote
+      if (!choice?.voucherDiscountAmount) return best
+      const bestTotal = voucherChoices[best?.id]?.quote?.totalAmount ?? productPrice ?? Infinity
+      return choice.totalAmount < bestTotal ? voucher : best
     }, null)
     if (best?.id === appliedVoucher?.id) return
     setAppliedVoucher(best ? { id: best.id, code: best.code, discountPercent: best.discount_percent, isAutoApplied: true } : null)
@@ -1674,6 +1681,7 @@ export default function OrderReviewPage({
             cart={cart}
             subtotal={Number(quote?.subtotal ?? subtotal)}
             customerTier={currentUser?.customerTier}
+            isCustomer={Boolean(currentUser?.customerId)}
             quote={quote}
             quoteError={quoteError}
             onRetryQuote={() => setQuoteAttempt(value => value + 1)}

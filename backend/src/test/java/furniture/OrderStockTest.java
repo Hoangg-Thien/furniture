@@ -453,6 +453,25 @@ class OrderStockTest {
     }
 
     @Test
+    void newCustomerShippingUsesDiscountedMerchandiseInQuoteAndSavedOrder() {
+        var request = new CreateOrderRequest(1L, 1L, "Customer", "0901234567", "Street", null,
+                "District", "City", BigDecimal.ZERO, 1L, BigDecimal.ZERO, List.of(item(1, 1)));
+        jdbc.update("UPDATE products SET selling_price = 3000000 WHERE id = 1");
+        var quote = orders.previewOrder(request, 1L);
+        assertEquals(0, new BigDecimal("35000").compareTo(quote.shippingFee()));
+        var placed = transaction.execute(tx -> orders.createOrder(request));
+        assertEquals(0, quote.shippingFee().compareTo(placed.shippingFee()));
+        assertEquals(0, new BigDecimal("2735000").compareTo(placed.totalAmount()));
+        assertEquals(0, placed.totalAmount().compareTo(jdbc.queryForObject(
+                "SELECT total_amount FROM orders WHERE id = ?", BigDecimal.class, placed.orderId())));
+
+        jdbc.update("UPDATE products SET selling_price = 4000000 WHERE id = 1");
+        assertEquals(0, BigDecimal.ZERO.compareTo(orders.previewOrder(request, 1L).shippingFee()));
+        jdbc.update("UPDATE vouchers SET discount_percent = 25 WHERE id = 1");
+        assertEquals(0, BigDecimal.ZERO.compareTo(orders.previewOrder(request, 1L).shippingFee()));
+    }
+
+    @Test
     void silverMemberGetsFreeShippingBelowMinimumInPreviewAndOrder() {
         var request = new CreateOrderRequest(1L, 1L, "Customer", "0901234567", "Street", null,
                 "District", "City", BigDecimal.ZERO, null, BigDecimal.ZERO, List.of(item(1, 1)));

@@ -10,7 +10,6 @@ import {
   Eye,
   ArrowLeft,
   ShoppingBag,
-  ShieldCheck,
   Tag,
   Truck,
 } from 'lucide-react'
@@ -31,29 +30,6 @@ const TABS = [
   { id: 'COMPLETED', label: 'Hoàn thành' },
   { id: 'CANCELLED', label: 'Đã hủy' },
 ]
-
-const PRODUCT_IMAGES = {
-  1: 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=600&q=80',
-  2: 'https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?auto=format&fit=crop&w=600&q=80',
-  3: 'https://images.unsplash.com/photo-1567538096630-e0c55bd6374c?auto=format&fit=crop&w=600&q=80',
-  4: 'https://images.unsplash.com/photo-1577140917170-285929fb55b7?auto=format&fit=crop&w=600&q=80',
-  5: 'https://images.unsplash.com/photo-1615066390971-03e4e1c36ddf?auto=format&fit=crop&w=600&q=80',
-  6: 'https://images.unsplash.com/photo-1592078615290-033ee584e267?auto=format&fit=crop&w=600&q=80',
-  7: 'https://images.unsplash.com/photo-1503602642458-232111445657?auto=format&fit=crop&w=600&q=80',
-  8: 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=600&q=80',
-  9: 'https://images.unsplash.com/photo-1598928506311-c55ded91a20c?auto=format&fit=crop&w=600&q=80',
-  10: 'https://images.unsplash.com/photo-1595428774223-ef52624120d2?auto=format&fit=crop&w=600&q=80',
-  11: 'https://images.unsplash.com/photo-1549488344-cbb6c34cf08b?auto=format&fit=crop&w=600&q=80',
-  12: 'https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?auto=format&fit=crop&w=600&q=80',
-  13: 'https://images.unsplash.com/photo-1589384267710-7a170981ca78?auto=format&fit=crop&w=600&q=80',
-  14: 'https://images.unsplash.com/photo-1594633312681-425c7b97ccd1?auto=format&fit=crop&w=600&q=80',
-  15: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=600&q=80',
-  16: 'https://images.unsplash.com/photo-1513506003901-1e6a229e2d15?auto=format&fit=crop&w=600&q=80',
-  17: 'https://images.unsplash.com/photo-1507473885765-e6ed057f782c?auto=format&fit=crop&w=600&q=80',
-  18: 'https://images.unsplash.com/photo-1600121848594-d8644e57abab?auto=format&fit=crop&w=600&q=80',
-  19: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=600&q=80',
-  20: 'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?auto=format&fit=crop&w=600&q=80',
-}
 
 const resolveItemImage = (it, catalogProducts = []) => {
   if (!it) return ''
@@ -88,14 +64,6 @@ const resolveItemImage = (it, catalogProducts = []) => {
     if (foundByName?.image) return foundByName.image
   }
 
-  // 4. Nhận diện fallback cho ghế Luna (/images/ghe_an_go_soi.jpg trong DB)
-  if (nameStr.includes('luna')) {
-    return '/images/ghe_an_go_soi.jpg'
-  }
-
-  // 5. Fallback từ PRODUCT_IMAGES
-  if (pId && PRODUCT_IMAGES[pId]) return PRODUCT_IMAGES[pId]
-
   return ''
 }
 
@@ -117,11 +85,11 @@ function normalizeOrders(rawList = [], currentUser = null, catalogProducts = [])
         category: it.category_name || it.category || 'Nội thất gia đình',
         image: resolveItemImage(it, catalogProducts),
         quantity: Number(it.quantity) || 1,
-        price: Number(it.unit_price || it.price || 0),
+        price: Number(it.unit_price ?? it.unitPrice ?? it.price ?? 0),
         lineTotal: Number(
-          it.amount ||
-            it.lineTotal ||
-            (Number(it.unit_price || it.price || 0) * (Number(it.quantity) || 1))
+          it.amount ??
+            it.lineTotal ??
+            (Number(it.unit_price ?? it.unitPrice ?? it.price ?? 0) * (Number(it.quantity) || 1))
         ),
       }))
 
@@ -129,8 +97,8 @@ function normalizeOrders(rawList = [], currentUser = null, catalogProducts = [])
       const subtotal = Number(ord.subtotal != null ? ord.subtotal : itemsCalculatedSubtotal)
       const discountAmount = Number(ord.discount_amount != null ? ord.discount_amount : (ord.discountAmount || 0))
       const voucherCode = ord.voucher_code || ord.voucherCode || ord.appliedVoucher?.code || ''
-      const total = Number(ord.total_amount != null ? ord.total_amount : (ord.total || 0))
-      const orderDate = ord.order_date || ord.orderDate || 'Vừa xong'
+      const total = Number(ord.total_amount ?? ord.totalAmount ?? ord.total ?? 0)
+      const orderDate = ord.order_date || ord.orderDate || 'Chưa có thông tin'
       const status = String(ord.status || 'PENDING').toUpperCase()
 
       return {
@@ -166,7 +134,7 @@ export default function MyOrdersPage({
   onReorder,
 }) {
   const [orders, setOrders] = useState([])
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('ALL')
   const [searchTerm, setSearchTerm] = useState('')
   const [pendingCancelOrder, setPendingCancelOrder] = useState(null)
@@ -236,15 +204,6 @@ export default function MyOrdersPage({
     ))
   }
 
-  // Xử lý mua lại (Re-order)
-  const handleReorderClick = (order) => {
-    if (onReorder) {
-      onReorder(order.items)
-    }
-    onClose()
-  }
-
-  // Render trạng thái đơn theo phong cách Shopee
   const renderStatusBadge = (status) => {
     switch (status) {
       case 'PENDING':
@@ -286,43 +245,40 @@ export default function MyOrdersPage({
     }
   }
 
+  const hasFilters = Boolean(searchTerm.trim()) || activeTab !== 'ALL'
+
   if (!currentUser) return null
 
   return (
     <main className="orders-page" id="top">
       <div className="shopee-orders-container">
         <header className="shopee-orders-header">
-          <div className="shopee-orders-title-group">
-            <Package size={22} className="shopee-header-icon" />
-            <div>
-              <h1 className="shopee-orders-title">Lịch sử đơn hàng</h1>
-              <p className="shopee-orders-subtitle">Quản lý và theo dõi tiến trình đơn hàng của bạn</p>
-            </div>
-          </div>
           <button
             className="shopee-orders-close"
             type="button"
             onClick={onClose}
             aria-label="Về cửa hàng"
           >
-            <ArrowLeft size={20} />
+            <ArrowLeft size={16} /> Về cửa hàng
           </button>
+          <h1 className="shopee-orders-title">Lịch sử đơn hàng</h1>
         </header>
         {loadError && <p className="catalog-note" role="status">{loadError}</p>}
 
-        {/* Thanh tìm kiếm & Tabs Shopee */}
         <div className="shopee-orders-toolbar">
           <div className="shopee-search-bar">
             <Search size={16} />
             <input
               type="text"
-              placeholder="Bạn có thể tìm kiếm theo Mã Đơn Hàng hoặc Tên Sản Phẩm..."
+              aria-label="Tìm theo mã đơn hoặc tên sản phẩm"
+              placeholder="Tìm theo mã đơn hoặc tên sản phẩm"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
             {searchTerm && (
               <button
                 className="shopee-search-clear"
+                aria-label="Xóa từ khóa"
                 type="button"
                 onClick={() => setSearchTerm('')}
               >
@@ -337,6 +293,7 @@ export default function MyOrdersPage({
                 key={tab.id}
                 type="button"
                 className={`shopee-status-tab ${activeTab === tab.id ? 'active' : ''}`}
+                aria-pressed={activeTab === tab.id}
                 onClick={() => setActiveTab(tab.id)}
               >
                 <span>{tab.label}</span>
@@ -355,34 +312,30 @@ export default function MyOrdersPage({
 
         {/* Thông báo thao tác */}
         {cancelMessage && (
-          <div className="shopee-cancel-alert">
+          <div className="shopee-cancel-alert" role="status">
             <CheckCircle2 size={16} />
             <span>{cancelMessage}</span>
           </div>
         )}
 
-        {/* Danh sách các đơn hàng phong cách Shopee */}
         <div className="shopee-orders-list">
           {loading && orders.length === 0 ? (
             <div className="shopee-orders-empty">
               <div className="shopee-spinner" />
               <p>Đang tải lịch sử đơn hàng...</p>
             </div>
+          ) : loadError && orders.length === 0 ? (
+            <button className="shopee-shop-now-btn" type="button" onClick={() => setRefreshVersion(v => v + 1)}>Thử lại</button>
           ) : filteredOrders.length === 0 ? (
             <div className="shopee-orders-empty">
               <ShoppingBag size={56} strokeWidth={1.2} />
-              <h3>Chưa có đơn hàng nào</h3>
-              <p>
-                {searchTerm
-                  ? 'Không tìm thấy đơn hàng nào phù hợp với từ khóa của bạn.'
-                  : 'Hãy dạo xem cửa hàng và chọn cho mình những món đồ nội thất ấm cúng nhé!'}
-              </p>
-              <button
-                type="button"
-                className="shopee-shop-now-btn"
-                onClick={onClose}
-              >
-                Mua sắm ngay
+              <h2>{hasFilters ? 'Không tìm thấy đơn hàng phù hợp' : 'Bạn chưa có đơn hàng'}</h2>
+              <p>{hasFilters ? 'Thử tìm bằng mã đơn khác hoặc xem lại tất cả đơn hàng.' : 'Đơn hàng của bạn sẽ xuất hiện tại đây sau khi đặt hàng.'}</p>
+              <button type="button" className="shopee-shop-now-btn" onClick={hasFilters ? () => {
+                setActiveTab('ALL')
+                setSearchTerm('')
+              } : onClose}>
+                {hasFilters ? 'Xem tất cả đơn hàng' : 'Mua sắm ngay'}
               </button>
             </div>
           ) : (
@@ -391,16 +344,9 @@ export default function MyOrdersPage({
               const isPending = order.status === 'PENDING'
 
               return (
-                <div className="shopee-order-card" key={order.orderNumber || order.id}>
-                  {/* Header thẻ đơn Shopee */}
+                <article className="shopee-order-card" key={order.orderNumber || order.id}>
                   <div className="shopee-card-header">
-                    <div className="shopee-card-shop-info">
-                      <span className="shopee-mall-badge">Mall</span>
-                      <strong className="shopee-shop-name">FuniStore Official Store</strong>
-                      <span className="shopee-order-code-badge">
-                        Mã đơn: <strong>{order.orderNumber}</strong>
-                      </span>
-                    </div>
+                    <h2 className="shopee-order-code-badge">{order.orderNumber}</h2>
                     <div className="shopee-card-status-col">
                       {renderStatusBadge(order.status)}
                     </div>
@@ -435,16 +381,12 @@ export default function MyOrdersPage({
                         <div className="shopee-item-body">
                           <h4 className="shopee-item-title">{item.name}</h4>
                           <span className="shopee-item-variant">
-                            Phân loại hàng: {item.category}
+                            {item.category}
                           </span>
-                          <span className="shopee-item-qty">x{item.quantity}</span>
-                          <div className="shopee-item-guarantee">
-                            <ShieldCheck size={13} />
-                            <span>Đổi trả miễn phí 7 ngày</span>
-                          </div>
+                          <span className="shopee-item-qty">Số lượng: {item.quantity}</span>
                         </div>
                         <div className="shopee-item-price-col">
-                          <span className="shopee-item-price">{formatPrice(item.price)}</span>
+                          <span className="shopee-item-price">{formatPrice(item.lineTotal)}</span>
                         </div>
                       </div>
                     ))}
@@ -474,7 +416,7 @@ export default function MyOrdersPage({
                       )}
                       <div className="shopee-footer-total">
                         <span className="shopee-total-label">
-                          Thành tiền ({totalItemsCount} sản phẩm):
+                          Tổng cộng ({totalItemsCount} sản phẩm)
                         </span>
                         <span className="shopee-total-amount">
                           {formatPrice(order.total)}
@@ -483,7 +425,6 @@ export default function MyOrdersPage({
                     </div>
                   </div>
 
-                  {/* Thanh nút hành động Shopee */}
                   <div className="shopee-card-actions">
                     {isPending && (
                       <button
@@ -513,13 +454,14 @@ export default function MyOrdersPage({
                     <button
                       type="button"
                       className="shopee-btn shopee-btn-reorder"
-                      onClick={() => handleReorderClick(order)}
+                      disabled={!order.items.length}
+                      onClick={() => { if (onReorder?.(order.items)) onClose() }}
                     >
                       <RotateCcw size={14} />
                       Mua Lại
                     </button>
                   </div>
-                </div>
+                </article>
               )
             })
           )}

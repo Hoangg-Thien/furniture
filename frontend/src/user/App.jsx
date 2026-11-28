@@ -25,7 +25,7 @@ import {
 import { loadProducts } from '../lib/products'
 import { productImageUrl } from '../lib/productImages'
 import { readCart, saveCart, cartStorageKey, CART_TIMEOUT_MS, getProductStock, limitCartToStock } from './lib/cart'
-import { FREE_SHIP_THRESHOLD, isCheckoutPath } from './lib/checkout'
+import { FREE_SHIP_THRESHOLD, STANDARD_SHIPPING_FEE, isCheckoutPath } from './lib/checkout'
 import { fetchOrderById, previewOrder } from '../lib/orders'
 import {
   getCurrentUser,
@@ -723,6 +723,7 @@ function App() {
       : 'Đã cập nhật giỏ hàng theo tồn kho hiện tại; số lượng mua lại không vượt quá số còn hàng.')
     window.setTimeout(() => setNotice(''), 3000)
     setCartOpen(true)
+    return true
   }
 
   function handleViewOrderDetail(order) {
@@ -1414,10 +1415,11 @@ function App() {
                   {cartQuote ? <>
                     {cartQuote.discountAmount > 0 && <div className="cart-promotion"><span>Ưu đãi sản phẩm</span><strong>−{formatPrice(cartQuote.discountAmount)}</strong></div>}
                     <div className="subtotal"><span>Tạm tính sau ưu đãi</span><strong>{formatPrice(cartQuote.subtotal - cartQuote.discountAmount)}</strong></div>
+                    <div className="cart-shipping-fee"><span>Phí giao hàng</span><strong>{cartQuote.shippingFee === 0 ? 'Miễn phí' : formatPrice(cartQuote.shippingFee)}</strong></div>
+                    <div className="cart-payable"><span>Tổng dự kiến</span><strong>{formatPrice(cartQuote.totalAmount)}</strong></div>
                   </>
                     : cartQuoteError ? <div className="cart-price-feedback" role="alert">{cartQuoteError} <button type="button" onClick={() => setCartQuoteAttempt(attempt => attempt + 1)}>Thử lại</button></div>
                     : <p role="status">Đang kiểm tra giá...</p>}
-                  <p>Phí giao hàng sẽ được xác nhận khi đặt hàng.</p>
                   <button className="checkout-button" type="button" disabled={!cartQuote || !!catalogError || cartItems.some(product => cart[product.id] > getProductStock(product))} onClick={placeOrder}>Tiếp tục đặt hàng <ArrowRight size={17} /></button>
                 </div>
               </>
@@ -1557,10 +1559,10 @@ function App() {
                 <h2 id="shipping-welcome-title">Miễn phí giao hàng</h2>
               </header>
               <p id="shipping-welcome-description" className="shipping-welcome-threshold">
-                <span>Đơn hàng từ</span>
+                <span>Tiền hàng sau ưu đãi từ</span>
                 <strong>{formatPrice(FREE_SHIP_THRESHOLD)}</strong>
               </p>
-              <p id="shipping-welcome-members">Thành viên từ hạng Bạc luôn được miễn phí giao hàng.</p>
+              <p id="shipping-welcome-members">Dưới mức này, phí giao hàng là {formatPrice(STANDARD_SHIPPING_FEE)}.</p>
               <button type="submit" className="auth-submit-btn">Tiếp tục mua sắm <ArrowRight size={17} aria-hidden="true" /></button>
             </form>
           </div>

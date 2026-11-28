@@ -10,6 +10,41 @@ try {
   const orderVoucher = { id: 79, code: 'DON10TR', voucher_type: 'ORDER', program_name: 'Ưu đãi đơn từ 10 triệu', discount_percent: 10, minimum_amount: 10000000, maximum_discount: 1500000, remaining_quantity: 12 }
   const diamondVoucher = { id: 78, code: 'DIAMOND20', voucher_type: 'VIP', customer_tier: 'VIP_DIAMOND', program_name: 'Ưu đãi Kim cương', discount_percent: 10, minimum_amount: 20000000, maximum_discount: 2000000, remaining_quantity: 5 }
   const goldVoucher = { id: 80, code: 'GOLD5', voucher_type: 'VIP', customer_tier: 'GOLD', program_name: 'Ưu đãi Vàng', discount_percent: 5, minimum_amount: 0, maximum_discount: 500000, remaining_quantity: 5 }
+  const newCustomer = await browser.newPage({ viewport: { width: 320, height: 740 } })
+  await newCustomer.addInitScript(() => {
+    sessionStorage.setItem('furniture_customer_user', JSON.stringify({
+      userId: 31, customerId: 21, username: 'new-customer', fullName: 'Nguyễn Văn Minh', role: 'CUSTOMER', customerTier: 'NEW',
+    }))
+    localStorage.setItem('furniture_cart:21', JSON.stringify({ items: { 7: 1 }, expiresAt: Date.now() + 300000 }))
+  })
+  await newCustomer.route('https://**', route => route.abort())
+  await newCustomer.route('**/api/**', route => {
+    const path = new URL(route.request().url()).pathname
+    if (path === '/api/auth/me') return route.fulfill({ json: { customerTier: 'NEW' } })
+    if (path === '/api/products') return route.fulfill({ json: [{ id: 7, name: 'Ghế QA', category: 'Ghế', price: 1500000, quantity: 2, imageUrl: '/images/ghe_an_go_soi.jpg' }] })
+    if (path === '/api/orders/preview') {
+      const items = route.request().postDataJSON().items.map(item => ({ ...item, unitPrice: 1500000 }))
+      const subtotal = items[0].quantity * items[0].unitPrice
+      const shippingFee = subtotal < 3000000 ? 35000 : 0
+      return route.fulfill({ json: { items, subtotal, shippingFee, totalAmount: subtotal + shippingFee, discountAmount: 0 } })
+    }
+    return route.fulfill({ json: [] })
+  })
+  await newCustomer.goto(server.resolvedUrls.local[0])
+  await newCustomer.locator('button.user-logged-box').click()
+  const menu = newCustomer.locator('.user-dropdown-menu')
+  await menu.locator('.account-tier[data-tier="NEW"]').filter({ hasText: 'Hạng Khách mới' }).waitFor()
+  assert.equal(await menu.getByText(/Miễn phí giao hàng/).count(), 0)
+  assert((await menu.boundingBox()).x >= 0)
+  await newCustomer.locator('button.user-logged-box').click()
+  await newCustomer.getByRole('button', { name: /Mở giỏ hàng/ }).click()
+  await newCustomer.locator('.cart-shipping-fee').filter({ hasText: '35.000₫' }).waitFor()
+  await newCustomer.locator('.cart-payable').filter({ hasText: '1.535.000₫' }).waitFor()
+  await newCustomer.getByRole('button', { name: 'Tăng số lượng Ghế QA' }).click()
+  await newCustomer.locator('.cart-shipping-fee').filter({ hasText: 'Miễn phí' }).waitFor()
+  await newCustomer.locator('.cart-payable').filter({ hasText: '3.000.000₫' }).waitFor()
+  await newCustomer.close()
+  console.log('PASS new customer: compact account tier and paid/free cart shipping')
   for (const width of [1440, 390, 320]) {
     for (const tier of ['guest', 'GOLD', 'VIP_DIAMOND']) {
       const page = await browser.newPage({ viewport: { width, height: 1000 } })

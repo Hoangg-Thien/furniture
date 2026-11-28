@@ -91,7 +91,7 @@ try {
     await page.waitForFunction(() => window.orderRequests.length === 3)
     await page.evaluate(() => window.replyOrders({}, 500))
     await page.waitForFunction(admin => admin
-      ? document.body.textContent.includes('HTTP 500')
+      ? document.body.textContent.includes('500')
       : !!document.querySelector('[role="status"]'), admin)
     await page.evaluate(() => { window.root.unmount(); window.pollOrders() })
     assert.equal(await page.evaluate(() => window.orderRequests.length), 3, 'unmount must clear polling')
@@ -118,24 +118,31 @@ try {
     window.pollOrders = () => timers.forEach(callback => callback())
   })
   let status = 'PENDING'
+  let stock = 0
+  let historyUnavailable = true
+  let cancellationConflict = true
   const errors = []
-  const imageUrl = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80"><rect width="80" height="80" fill="%23ebe7df"/></svg>'
+  const imageUrl = '/images/ghe_an_go_soi.jpg'
   await context.route('https://**', route => route.fulfill(route.request().resourceType() === 'image'
     ? { contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80"/>' }
     : { contentType: 'text/css', body: '' }))
-  const item = { product_id: 9, product_name: 'Test chair', image_url: imageUrl, quantity: 1, unit_price: 100000, amount: 100000 }
-  const order = () => ({ id: 42, customer_id: 4, customerName: 'Test customer', orderCode: 'FUNI-2026-000042', status, approved_at: status === 'PENDING' ? null : '2026-11-04T10:00:00+07:00', address: '123 Lê Lợi, Đà Nẵng', total_amount: 135000, totalAmount: 135000, items: [item] })
+  const item = { product_id: 9, product_name: 'Ghế ăn gỗ sồi Luna', category_name: 'Ghế ăn', image_url: imageUrl, quantity: 2, unit_price: 50000, amount: 100000 }
+  const order = () => ({ id: 42, customer_id: 4, customerName: 'Test customer', orderCode: 'FUNI-2026-000042', order_date: '2026-11-04 09:30:00', status, approved_at: status === 'PENDING' ? null : '2026-11-04T10:00:00+07:00', address: '123 Lê Lợi, Đà Nẵng', total_amount: 135000, totalAmount: 135000, items: [item] })
   await context.route('**/api/**', async route => {
     const path = new URL(route.request().url()).pathname
     let body = []
     if (path.endsWith('/confirm')) { status = 'CONFIRMED'; body = { message: 'Confirmed' } }
     else if (path.endsWith('/complete')) { status = 'COMPLETED'; body = { message: 'Completed' } }
     else if (path.endsWith('/ship')) { status = 'SHIPPING'; body = { message: 'Shipping' } }
+    else if (path.endsWith('/cancel') && cancellationConflict) {
+      return route.fulfill({ status: 409, json: { error: 'Vui lòng kiểm tra lại trạng thái đơn hàng.' } })
+    }
     else if (path.endsWith('/cancel')) { status = 'CANCELLED'; body = { message: 'Cancelled' } }
-    else if (path === '/api/products') body = [{ id: 9, name: 'Test chair', price: 100000, category: 'Chair', imageUrl, quantity: 10 }]
+    else if (path === '/api/products') body = [{ id: 9, name: 'Ghế ăn gỗ sồi Luna', price: 100000, category: 'Chair', imageUrl, quantity: stock }]
     else if (path === '/api/admin/staff') body = { content: [{ id: 1, fullName: 'Test staff' }] }
     else if (path.endsWith('/counts')) body = { total: 1, pending: status === 'PENDING' ? 1 : 0, confirmed: status === 'CONFIRMED' ? 1 : 0, shipping: status === 'SHIPPING' ? 1 : 0, completed: status === 'COMPLETED' ? 1 : 0, cancelled: status === 'CANCELLED' ? 1 : 0 }
     else if (path === '/api/admin/orders') body = { content: !new URL(route.request().url()).searchParams.has('status') || new URL(route.request().url()).searchParams.get('status') === status ? [order()] : [], page: 0, totalPages: 1, totalElements: 1 }
+    else if (path === '/api/orders' && historyUnavailable) return route.fulfill({ status: 503, json: {} })
     else if (path === '/api/orders') body = [order()]
     else if (path === '/api/orders/42') body = { order: order(), items: [item] }
     await route.fulfill({ json: body })
@@ -150,9 +157,21 @@ try {
   const url = path => new URL(path, server.resolvedUrls.local[0]).href
   const clientStatus = expected => client.waitForFunction(expected => document.querySelector('.shopee-order-status-badge')?.textContent.includes(expected), expected)
   await client.goto(url('/orders'))
+  await client.getByRole('button', { name: 'Thử lại' }).waitFor()
+  assert.equal(await client.getByRole('button', { name: 'Mua sắm ngay' }).count(), 0)
+  historyUnavailable = false
+  await client.getByRole('button', { name: 'Thử lại' }).click()
   await clientStatus('CHỜ XÁC NHẬN')
   assert.equal(await client.locator('.product-card, .hero, .shopee-orders-overlay').count(), 0)
   assert.equal(await client.locator('main[role="dialog"]').count(), 0)
+  assert.match(await client.locator('.shopee-item-price').innerText(), /100\.000/)
+  await client.getByRole('textbox', { name: 'Tìm theo mã đơn hoặc tên sản phẩm' }).fill('không khớp')
+  await client.getByRole('heading', { name: 'Không tìm thấy đơn hàng phù hợp' }).waitFor()
+  await client.getByRole('button', { name: 'Xem tất cả đơn hàng' }).click()
+  await client.getByRole('button', { name: 'Mua Lại', exact: true }).click()
+  await client.getByRole('status').filter({ hasText: 'đã hết hàng' }).waitFor()
+  assert.equal(new URL(client.url()).pathname, '/orders')
+  stock = 10
   await client.reload()
   await clientStatus('CHỜ XÁC NHẬN')
   await admin.goto(url('/admin/orders'))
@@ -180,9 +199,12 @@ try {
   await clientStatus('ĐANG VẬN CHUYỂN')
   await client.getByRole('button', { name: /^Vận chuyển/ }).click()
   await client.locator('.order-shipping-info').filter({ hasText: '6/11/2026 – 7/11/2026' }).waitFor()
-  await client.screenshot({ path: fileURLToPath(new URL('../artifacts/orders-page-desktop.png', import.meta.url)), fullPage: true })
+  await client.screenshot({ path: fileURLToPath(new URL('../artifacts/orders-page-desktop.png', import.meta.url)), fullPage: true, animations: 'disabled' })
   await client.setViewportSize({ width: 390, height: 844 })
-  await client.screenshot({ path: fileURLToPath(new URL('../artifacts/orders-page-mobile.png', import.meta.url)), fullPage: true })
+  await client.screenshot({ path: fileURLToPath(new URL('../artifacts/orders-page-mobile.png', import.meta.url)), fullPage: true, animations: 'disabled' })
+  await client.setViewportSize({ width: 320, height: 700 })
+  const tabs = await client.locator('.shopee-status-tab').evaluateAll(nodes => nodes.map(node => node.getBoundingClientRect().right))
+  assert(tabs.every(right => right <= 320), 'all status filters must fit at 320px')
   assert.equal(await client.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, 'mobile must not overflow horizontally')
   assert.equal(await client.locator('.order-shipping-note').evaluate(element => getComputedStyle(element).color), 'rgb(180, 35, 24)')
   await client.reload()
@@ -204,6 +226,13 @@ try {
   await client.goto(url('/orders'))
   await clientStatus('CHỜ XÁC NHẬN')
   await client.getByRole('button', { name: 'Hủy Đơn Hàng', exact: true }).click()
+  await client.getByRole('button', { name: 'Giữ đơn hàng' }).click()
+  await clientStatus('CHỜ XÁC NHẬN')
+  await client.getByRole('button', { name: 'Hủy Đơn Hàng', exact: true }).click()
+  await client.locator('.cancel-order-confirm').click()
+  await client.getByRole('alertdialog').getByRole('alert').waitFor()
+  assert.equal(status, 'PENDING')
+  cancellationConflict = false
   await client.locator('.cancel-order-confirm').click()
   await clientStatus('ĐÃ HỦY')
   await admin.evaluate(() => window.pollOrders())

@@ -168,10 +168,12 @@ public class OrderService {
                     : "Voucher " + voucherCode;
         }
         BigDecimal discount = automaticDiscount.add(voucherDiscount);
-        boolean freeShipping = subtotal.compareTo(BigDecimal.valueOf(3_000_000)) >= 0
+        BigDecimal merchandiseTotal = subtotal.subtract(discount);
+        BigDecimal shippingBase = customerId == null ? subtotal : merchandiseTotal;
+        boolean freeShipping = shippingBase.compareTo(BigDecimal.valueOf(3_000_000)) >= 0
                 || (customerId != null && vouchers.hasMemberTier(customerId));
         BigDecimal shippingFee = freeShipping ? BigDecimal.ZERO : BigDecimal.valueOf(35_000);
-        BigDecimal finalTotal = subtotal.subtract(discount).add(shippingFee);
+        BigDecimal finalTotal = merchandiseTotal.add(shippingFee);
         if (finalTotal.compareTo(new BigDecimal("9999999999999.99")) > 0) {
             throw new IllegalArgumentException("Giá trị đơn hàng vượt quá giới hạn cho phép.");
         }
